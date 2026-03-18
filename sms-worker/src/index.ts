@@ -1,21 +1,27 @@
 export interface Env {
-  TWILIO_ACCOUNT_SID: string;
-  TWILIO_AUTH_TOKEN: string;
-  TWILIO_MESSAGING_SERVICE_SID: string;
-  TWILIO_PHONE_NUMBER: string;
+  TELNYX_API_KEY: string;
+  TELNYX_PUBLIC_KEY: string;
+  TELNYX_PHONE_NUMBER: string;
   SUPABASE_URL: string;
   SUPABASE_SERVICE_KEY: string;
   OPENCLAW_GATEWAY_URL: string;
-  OPENCLAW_GATEWAY_TOKEN: string;
   OPENCLAW_HOOKS_TOKEN: string;
   ENVIRONMENT: string;
 }
 
-interface InboundSMS {
-  From: string;
-  To: string;
-  Body: string;
-  MessageSid: string;
+interface TelnyxWebhookPayload {
+  data: {
+    event_type: string;
+    id: string;
+    occurred_at: string;
+    payload: {
+      from: { phone_number: string };
+      to: { phone_number: string }[];
+      text: string;
+      id: string;
+      direction: string;
+    };
+  };
 }
 
 interface Profile {
@@ -42,40 +48,69 @@ interface Session {
   status: string;
 }
 
+// ─── Telnyx SMS sender ───────────────────────────────────────────
+
+async function sendSMS(to: string, body: string, env: Env): Promise<void> {
+  const res = await fetch("https://api.telnyx.com/v2/messages", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.TELNYX_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: env.TELNYX_PHONE_NUMBER,
+      to,
+      text: body,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error(`Telnyx send error: ${res.status} ${err}`);
+  }
+}
+
+// ─── Worker entry ────────────────────────────────────────────────
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      return Response.json({ status: "ok", service: "sms-worker" });
+      return Response.json({ status: "ok", service: "sms-worker", provider: "telnyx" });
     }
 
+    // Telnyx sends JSON webhooks to this endpoint
     if (request.method !== "POST" || url.pathname !== "/sms") {
       return new Response("Not found", { status: 404 });
     }
 
-    // TODO: re-enable after setting correct Account Auth Token
-    // if (!(await validateTwilioSignature(request, env))) {
-    //   return new Response("Unauthorized", { status: 403 });
-    // }
+    const webhook = (await request.json()) as TelnyxWebhookPayload;
+    const eventType = webhook.data?.event_type;
 
-    const formData = await request.formData();
-    const sms: InboundSMS = {
-      From: formData.get("From") as string,
-      To: formData.get("To") as string,
-      Body: (formData.get("Body") as string || "").trim(),
-      MessageSid: formData.get("MessageSid") as string,
-    };
+    // Only process inbound messages
+    if (eventType !== "message.received") {
+      return new Response("ok", { status: 200 });
+    }
 
-    const reply = await handleCommand(sms, env);
+    const payload = webhook.data.payload;
+    const from = payload.from.phone_number;
+    const body = (payload.text || "").trim();
 
-    return new Response(twiml(reply), {
-      headers: { "Content-Type": "text/xml" },
-    });
+    console.log(`SMS from: ${from} | Body: "${body}"`);
+
+    // Process command
+    const reply = await handleCommand(from, body, env);
+
+    // Send reply via Telnyx API
+    await sendSMS(from, reply, env);
+
+    // Return 200 quickly (Telnyx requires response within 2 seconds)
+    return new Response("ok", { status: 200 });
   },
 };
 
-// ─── Supabase helpers ─────────────────────────────────────────────
+// ─── Supabase helpers ────────────────────────────────────────────
 
 async function supabase(env: Env, path: string, options: RequestInit = {}) {
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
@@ -97,11 +132,9 @@ async function supabase(env: Env, path: string, options: RequestInit = {}) {
 }
 
 async function getOrCreateProfile(phone: string, env: Env): Promise<Profile> {
-  // Try to find existing profile
   const existing = (await supabase(env, `profiles?phone=eq.${encodeURIComponent(phone)}&limit=1`)) as Profile[] | null;
   if (existing && existing.length > 0) return existing[0];
 
-  // Create new profile
   const created = (await supabase(env, "profiles", {
     method: "POST",
     body: JSON.stringify({ phone }),
@@ -129,15 +162,15 @@ async function getVenueById(venueId: string, env: Env): Promise<Venue | null> {
   return venues && venues.length > 0 ? venues[0] : null;
 }
 
-// ─── Command Router ───────────────────────────────────────────────
+// ─── Command Router ──────────────────────────────────────────────
 
-async function handleCommand(sms: InboundSMS, env: Env): Promise<string> {
-  const raw = sms.Body.toLowerCase().trim();
+async function handleCommand(from: string, body: string, env: Env): Promise<string> {
+  const raw = body.toLowerCase().trim();
   const command = raw.split(/\s+/)[0];
   const args = raw.slice(command.length).trim();
 
   try {
-    const profile = await getOrCreateProfile(sms.From, env);
+    const profile = await getOrCreateProfile(from, env);
 
     switch (command) {
       case "join":
@@ -147,7 +180,7 @@ async function handleCommand(sms: InboundSMS, env: Env): Promise<string> {
       case "request":
         return handleRequest(profile, args, env);
       case "menu":
-        return handleMenu(profile, env);
+        return handleMenu(env);
       case "hold":
         return handleHold(profile, args, env);
       case "status":
@@ -167,10 +200,9 @@ async function handleCommand(sms: InboundSMS, env: Env): Promise<string> {
   }
 }
 
-// ─── Command Handlers ─────────────────────────────────────────────
+// ─── Command Handlers ────────────────────────────────────────────
 
 async function handleJoin(profile: Profile, env: Env): Promise<string> {
-  // Check for existing active session
   const existing = await getActiveSession(profile.id, env);
   if (existing) {
     const venue = await getVenueById(existing.venue_id, env);
@@ -180,17 +212,11 @@ async function handleJoin(profile: Profile, env: Env): Promise<string> {
   const venue = await getDefaultVenue(env);
   if (!venue) return "No venues are active right now. Try again later.";
 
-  // Create session
   await supabase(env, "sessions", {
     method: "POST",
-    body: JSON.stringify({
-      user_id: profile.id,
-      venue_id: venue.id,
-      status: "active",
-    }),
+    body: JSON.stringify({ user_id: profile.id, venue_id: venue.id, status: "active" }),
   });
 
-  // Update occupancy
   await supabase(env, `venues?id=eq.${venue.id}`, {
     method: "PATCH",
     body: JSON.stringify({ occupancy: venue.occupancy + 1 }),
@@ -231,20 +257,12 @@ async function askClaw(message: string, userPhone: string, env: Env): Promise<st
         Authorization: `Bearer ${env.OPENCLAW_HOOKS_TOKEN}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        message,
-        from: userPhone,
-        agentId: "main",
-      }),
+      body: JSON.stringify({ message, from: userPhone, agentId: "main" }),
     });
 
     if (res.ok) {
       const data = (await res.json()) as { payloads?: { text?: string }[] };
-      if (data.payloads?.[0]?.text) {
-        // Trim to SMS-friendly length
-        const reply = data.payloads[0].text;
-        return reply.length > 320 ? reply.slice(0, 317) + "..." : reply;
-      }
+      if (data.payloads?.[0]?.text) return data.payloads[0].text;
     }
 
     const errText = await res.text();
@@ -264,7 +282,6 @@ async function handleRequest(profile: Profile, what: string, env: Env): Promise<
 
   const venue = await getVenueById(session.venue_id, env);
 
-  // Determine request type
   const lower = what.toLowerCase();
   const type = lower.includes("booth") || lower.includes("table") || lower.includes("seat")
     ? "booth"
@@ -287,7 +304,7 @@ async function handleRequest(profile: Profile, what: string, env: Env): Promise<
   return `Request sent to ${venue?.name || "the venue"}: "${what}"\nWe'll text you when it's handled.`;
 }
 
-async function handleMenu(_profile: Profile, env: Env): Promise<string> {
+async function handleMenu(env: Env): Promise<string> {
   const venue = await getDefaultVenue(env);
   if (!venue) return "No venue info available.";
 
@@ -326,7 +343,6 @@ async function handleStatus(profile: Profile, env: Env): Promise<string> {
 
   const venue = await getVenueById(session.venue_id, env);
 
-  // Check pending requests
   const reqs = (await supabase(
     env,
     `requests?user_id=eq.${profile.id}&session_id=eq.${session.id}&status=eq.pending`
@@ -335,7 +351,6 @@ async function handleStatus(profile: Profile, env: Env): Promise<string> {
   const started = new Date(session.started_at);
   const mins = Math.round((Date.now() - started.getTime()) / 60000);
 
-  // Check membership
   const memberships = (await supabase(
     env,
     `memberships?user_id=eq.${profile.id}&venue_id=eq.${session.venue_id}&limit=1`
@@ -359,13 +374,11 @@ async function handleLeave(profile: Profile, env: Env): Promise<string> {
 
   const venue = await getVenueById(session.venue_id, env);
 
-  // End session
   await supabase(env, `sessions?id=eq.${session.id}`, {
     method: "PATCH",
     body: JSON.stringify({ status: "ended", ended_at: new Date().toISOString() }),
   });
 
-  // Decrement occupancy
   if (venue && venue.occupancy > 0) {
     await supabase(env, `venues?id=eq.${venue.id}`, {
       method: "PATCH",
@@ -383,7 +396,6 @@ async function handleMembership(profile: Profile, env: Env): Promise<string> {
 
   if (!venue) return "No venue available for membership right now.";
 
-  // Check existing membership
   const existing = (await supabase(
     env,
     `memberships?user_id=eq.${profile.id}&venue_id=eq.${venue.id}&limit=1`
@@ -412,7 +424,6 @@ async function handleMembershipConfirm(profile: Profile, env: Env): Promise<stri
 
   if (!venue) return "No venue available.";
 
-  // Check if already a member
   const existing = (await supabase(
     env,
     `memberships?user_id=eq.${profile.id}&venue_id=eq.${venue.id}&limit=1`
@@ -437,7 +448,6 @@ async function handleMembershipConfirm(profile: Profile, env: Env): Promise<stri
 async function handleFreeform(profile: Profile, raw: string, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
 
-  // If user has an active session, route freeform text to claw as a venue question
   if (session) {
     const venue = await getVenueById(session.venue_id, env);
     return askClaw(
@@ -447,7 +457,6 @@ async function handleFreeform(profile: Profile, raw: string, env: Env): Promise<
     );
   }
 
-  // No session — show help
   return [
     `Hey! Text JOIN to enter a venue first.`,
     "",
@@ -461,47 +470,8 @@ async function handleFreeform(profile: Profile, raw: string, env: Env): Promise<
   ].join("\n");
 }
 
-// ─── Utilities ────────────────────────────────────────────────────
+// ─── Utilities ───────────────────────────────────────────────────
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function twiml(body: string): string {
-  const escaped = body
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  return `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escaped}</Message></Response>`;
-}
-
-async function validateTwilioSignature(request: Request, env: Env): Promise<boolean> {
-  if (env.ENVIRONMENT === "development") return true;
-
-  const signature = request.headers.get("X-Twilio-Signature");
-  if (!signature) return false;
-
-  const url = request.url;
-  const body = await request.clone().formData();
-
-  const params: [string, string][] = [];
-  body.forEach((value, key) => {
-    params.push([key, value as string]);
-  });
-  params.sort(([a], [b]) => a.localeCompare(b));
-
-  const data = url + params.map(([k, v]) => k + v).join("");
-
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(env.TWILIO_AUTH_TOKEN),
-    { name: "HMAC", hash: "SHA-1" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
-  const expected = btoa(String.fromCharCode(...new Uint8Array(sig)));
-
-  return expected === signature;
 }
