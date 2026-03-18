@@ -43,21 +43,112 @@ export default {
       return Response.json({ status: "ok", service: "sms-worker", provider: "twilio", number: env.TWILIO_PHONE_NUMBER });
     }
 
+    // ─── Shortcuts / JSON API ─────────────────────────────────────
+    if (request.method === "POST" && url.pathname === "/api") {
+      const json = await request.json() as {
+        command: string;
+        venue_id?: string;
+        device_id?: string;
+      };
+
+      const deviceId = json.device_id || `shortcut-${Date.now()}`;
+      const venueId = json.venue_id;
+      const command = (json.command || "").toLowerCase().trim();
+
+      console.log(`Shortcut API: command="${command}" venue="${venueId}" device="${deviceId}"`);
+
+      const profile = await getOrCreateProfile(`device:${deviceId}`, env);
+
+      // For JOIN, use specific venue if provided
+      let reply: string;
+      let venueData: Venue | null = null;
+      let sessionData: Session | null = null;
+
+      if (command === "join" && venueId) {
+        venueData = await getVenueById(venueId, env);
+        if (!venueData) {
+          return Response.json({ error: "Venue not found" }, { status: 404 });
+        }
+
+        const existing = await getActiveSession(profile.id, env);
+        if (existing) {
+          const existingVenue = await getVenueById(existing.venue_id, env);
+          return Response.json({
+            status: "already_joined",
+            message: `You're already in ${existingVenue?.name || "a venue"}.`,
+            venue: existingVenue ? {
+              name: existingVenue.name,
+              vibe: existingVenue.vibe,
+              occupancy: existingVenue.occupancy,
+              capacity: existingVenue.max_occupancy,
+            } : null,
+            session_id: existing.id,
+            user_id: profile.id,
+            pass_url: `https://thekickback.net/wallet/pass/${existing.venue_id}/${profile.id}`,
+          });
+        }
+
+        // Create session
+        const sessions = await supabase(env, "sessions", {
+          method: "POST",
+          body: JSON.stringify({ user_id: profile.id, venue_id: venueData.id, status: "active" }),
+        }) as Session[] | null;
+
+        // Update occupancy
+        await supabase(env, `venues?id=eq.${venueData.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ occupancy: venueData.occupancy + 1 }),
+        });
+
+        return Response.json({
+          status: "joined",
+          message: `Welcome to ${venueData.name}!`,
+          venue: {
+            name: venueData.name,
+            vibe: venueData.vibe,
+            occupancy: venueData.occupancy + 1,
+            capacity: venueData.max_occupancy,
+            rules: venueData.rules,
+          },
+          session_id: sessions?.[0]?.id || null,
+          user_id: profile.id,
+          pass_url: `https://thekickback.net/wallet/pass/${venueData.id}/${profile.id}`,
+          commands: ["menu", "request", "ask", "status", "hold", "leave", "membership"],
+        });
+      }
+
+      // Generic command handling
+      reply = await handleCommand(`device:${deviceId}`, `${command} ${json.venue_id || ""}`.trim(), env);
+      return Response.json({ status: "ok", message: reply });
+    }
+
+    // ─── List venues (for Shortcuts) ─────────────────────────────
+    if (request.method === "GET" && url.pathname === "/api/venues") {
+      const venues = await supabase(env, "venues?state=eq.active&order=name") as Venue[] | null;
+      return Response.json({
+        venues: (venues || []).map(v => ({
+          id: v.id,
+          name: v.name,
+          vibe: v.vibe,
+          occupancy: v.occupancy,
+          capacity: v.max_occupancy,
+        })),
+      });
+    }
+
+    // ─── Twilio SMS webhook ──────────────────────────────────────
     if (request.method !== "POST" || url.pathname !== "/sms") {
       return new Response("Not found", { status: 404 });
     }
 
-    // Parse Twilio's form-encoded webhook
     const formData = await request.formData();
     const from = formData.get("From") as string;
     const body = (formData.get("Body") as string || "").trim();
 
     console.log(`SMS from: ${from} | Body: "${body}"`);
 
-    // Process command
     const reply = await handleCommand(from, body, env);
 
-    // Return TwiML response — Twilio sends this as the reply SMS
     return new Response(twiml(reply), {
       headers: { "Content-Type": "text/xml" },
     });
