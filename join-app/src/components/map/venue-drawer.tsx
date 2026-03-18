@@ -16,7 +16,7 @@ interface VenueDrawerProps {
   onClose: () => void;
 }
 
-type Tab = "chat" | "vibe" | "menu" | "events" | "reserve";
+type Tab = "chat" | "vibe" | "menu" | "events" | "reserve" | "settings";
 
 const TABS: { id: Tab; icon: string }[] = [
   { id: "chat", icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" },
@@ -24,6 +24,7 @@ const TABS: { id: Tab; icon: string }[] = [
   { id: "menu", icon: "M3 6h18M3 12h18M3 18h18" },
   { id: "events", icon: "M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" },
   { id: "reserve", icon: "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" },
+  { id: "settings", icon: "M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" },
 ];
 
 const TAB_COMMANDS: Record<Tab, string> = {
@@ -32,6 +33,7 @@ const TAB_COMMANDS: Record<Tab, string> = {
   menu: "show me the menu",
   events: "any events tonight?",
   reserve: "I'd like to reserve a spot",
+  settings: "show me my settings and preferences",
 };
 
 function TabIcon({ path, size = 18 }: { path: string; size?: number }) {
