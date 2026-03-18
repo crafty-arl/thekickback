@@ -45,6 +45,9 @@ function TabIcon({ path, size = 18 }: { path: string; size?: number }) {
   );
 }
 
+// Height of the floating bar (venue row + tab/input row + padding)
+const BAR_HEIGHT = 96;
+
 export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
   const vibeColor = getVibeHexColor(venue.vibe);
   const [expanded, setExpanded] = useState(false);
@@ -81,10 +84,8 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
     const msg = (text || input).trim();
     if (!msg || loading) return;
 
-    // Auto-expand on send if not already
     if (!expanded) setExpanded(true);
 
-    // Handle sign out command
     if (msg.toLowerCase() === "sign out" || msg.toLowerCase() === "signout") {
       const supabase = createClient();
       await supabase.auth.signOut();
@@ -153,25 +154,20 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
     if (!expanded) setExpanded(true);
 
     if (tab === "settings") {
-      // Check auth and offer sign out
       const supabase = createClient();
       supabase.auth.getUser().then(({ data: { user } }) => {
         if (user) {
-          const signOutMsg: Message = {
-            id: `settings-${Date.now()}`,
-            sender: "ai",
+          setMessages((prev) => [...prev, {
+            id: `settings-${Date.now()}`, sender: "ai",
             body: `Signed in as ${user.email}. To sign out, type "sign out".`,
             timestamp: Date.now(),
-          };
-          setMessages((prev) => [...prev, signOutMsg]);
+          }]);
         } else {
-          const loginMsg: Message = {
-            id: `settings-${Date.now()}`,
-            sender: "ai",
+          setMessages((prev) => [...prev, {
+            id: `settings-${Date.now()}`, sender: "ai",
             body: "You're not signed in. Visit /login to create an account.",
             timestamp: Date.now(),
-          };
-          setMessages((prev) => [...prev, loginMsg]);
+          }]);
         }
       });
       hasSentTabCommand.current.add(tab);
@@ -185,7 +181,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
     }
   }
 
-  function handleDragEnd(_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) {
+  function handleDrawerDrag(_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) {
     if (info.offset.y > 100 || info.velocity.y > 400) {
       setExpanded(false);
     }
@@ -199,152 +195,48 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
   const pct = getOccupancyPercent(venue);
 
   return (
-    <motion.div
-      initial={{ y: 120 }}
-      animate={dismissed ? { y: 120 } : { y: 0 }}
-      exit={{ y: 120 }}
-      transition={{ type: "spring", damping: 28, stiffness: 280 }}
-      className="fixed inset-x-0 bottom-0 z-50 flex flex-col-reverse"
-      style={{ paddingBottom: "max(0px, env(safe-area-inset-bottom, 0px))" }}
-    >
-      {/* ===== FLOATING BAR — always visible: tabs + input + send ===== */}
-      <div
-        className="relative mx-3 mb-2 rounded-2xl border border-white/[0.12]"
-        style={{
-          background: "rgba(15, 15, 18, 0.75)",
-          backdropFilter: "blur(40px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-          boxShadow: "0 4px 30px rgba(0,0,0,0.25)",
-        }}
-      >
-        {/* Shimmer edge */}
-        <div
-          className="absolute inset-x-0 top-0 h-px rounded-t-2xl"
-          style={{
-            background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 30%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.15) 70%, transparent 100%)",
-          }}
-        />
-
-        {/* Venue name row */}
-        <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
-          <div className="flex items-center gap-2">
-            <motion.div
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: vibeColor }}
-              animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-            <span className="font-sans text-[13px] font-semibold text-white/90">{venue.name}</span>
-            <span className="font-sans text-[10px] text-white/30">
-              {getVibeLabel(venue.vibe)} · {pct}%
-            </span>
-          </div>
-          <motion.button
-            onClick={handleClose}
-            whileTap={{ scale: 0.85 }}
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.08]"
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="opacity-40">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </motion.button>
-        </div>
-
-        {/* Inline row: tab icons | input | send */}
-        <div className="flex items-center gap-1.5 px-2 pb-2.5">
-          {/* Tab icons */}
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.id && expanded;
-            return (
-              <motion.button
-                key={tab.id}
-                onClick={() => handleTabTap(tab.id)}
-                whileTap={{ scale: 0.85 }}
-                className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                style={{ color: isActive ? vibeColor : "rgba(255,255,255,0.3)" }}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="bar-tab"
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      backgroundColor: "rgba(255,255,255,0.1)",
-                      boxShadow: `0 0 8px ${vibeColor}20`,
-                    }}
-                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                  />
-                )}
-                <span className="relative"><TabIcon path={tab.icon} size={15} /></span>
-              </motion.button>
-            );
-          })}
-
-          {/* Divider */}
-          <div className="h-5 w-px shrink-0 bg-white/[0.08]" />
-
-          {/* Chat input */}
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            onFocus={() => { if (!expanded) setExpanded(true); }}
-            placeholder="Ask anything..."
-            enterKeyHint="send"
-            autoComplete="off"
-            autoCorrect="off"
-            className="min-w-0 flex-1 rounded-full px-3 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
-            style={{
-              height: 36,
-              backgroundColor: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          />
-
-          {/* Send */}
-          <motion.button
-            onClick={() => send()}
-            disabled={!input.trim() || loading}
-            whileTap={{ scale: 0.9 }}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
-            style={{
-              backgroundColor: vibeColor,
-              boxShadow: `0 2px 10px ${vibeColor}40`,
-            }}
-          >
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="19" x2="12" y2="5" />
-              <polyline points="5 12 12 5 19 12" />
-            </svg>
-          </motion.button>
-        </div>
-      </div>
-
-      {/* ===== CHAT PANEL — expands above the bar ===== */}
+    <>
+      {/* ===== DRAWER — snaps up from bottom edge behind the bar ===== */}
       <AnimatePresence>
         {expanded && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "45dvh", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
+            dragConstraints={{ top: 0 }}
             dragElastic={0.15}
-            onDragEnd={handleDragEnd}
-            className="mx-3 mb-2 flex flex-col overflow-hidden rounded-2xl border border-white/[0.1]"
+            onDragEnd={handleDrawerDrag}
+            className="fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-[24px] border-t border-white/[0.12]"
             style={{
-              background: "rgba(15, 15, 18, 0.7)",
+              height: `calc(55dvh + ${BAR_HEIGHT}px)`,
+              paddingBottom: BAR_HEIGHT + 16,
+              background: "rgba(15, 15, 18, 0.75)",
               backdropFilter: "blur(40px) saturate(1.8)",
               WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-              boxShadow: "0 4px 30px rgba(0,0,0,0.2)",
-              touchAction: "none",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
             }}
           >
+            {/* Shimmer */}
+            <div
+              className="absolute inset-x-0 top-0 h-px rounded-t-[24px]"
+              style={{
+                background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 30%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.15) 70%, transparent 100%)",
+              }}
+            />
+
+            {/* Depth overlay */}
+            <div
+              className="pointer-events-none absolute inset-0 rounded-t-[24px]"
+              style={{
+                background: "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 30%)",
+              }}
+            />
+
             {/* Drag handle */}
-            <div className="flex justify-center pt-2 pb-1">
-              <div className="h-1 w-8 rounded-full bg-white/20" />
+            <div className="flex justify-center pt-2.5 pb-1" style={{ touchAction: "none" }}>
+              <div className="h-1 w-10 rounded-full bg-white/20" />
             </div>
 
             {/* Messages */}
@@ -409,6 +301,125 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+
+      {/* ===== FLOATING BAR — always on top, tabs + input + send ===== */}
+      <motion.div
+        initial={{ y: 120 }}
+        animate={dismissed ? { y: 120 } : { y: 0 }}
+        exit={{ y: 120 }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="fixed inset-x-0 bottom-0 z-50"
+        style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}
+      >
+        <div
+          className="relative mx-3 rounded-2xl border border-white/[0.12]"
+          style={{
+            background: "rgba(15, 15, 18, 0.8)",
+            backdropFilter: "blur(40px) saturate(1.8)",
+            WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+            boxShadow: "0 4px 30px rgba(0,0,0,0.3)",
+          }}
+        >
+          {/* Shimmer */}
+          <div
+            className="absolute inset-x-0 top-0 h-px rounded-t-2xl"
+            style={{
+              background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 30%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.15) 70%, transparent 100%)",
+            }}
+          />
+
+          {/* Venue name row */}
+          <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
+            <div className="flex items-center gap-2">
+              <motion.div
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: vibeColor }}
+                animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+              <span className="font-sans text-[13px] font-semibold text-white/90">{venue.name}</span>
+              <span className="font-sans text-[10px] text-white/30">
+                {getVibeLabel(venue.vibe)} · {pct}%
+              </span>
+            </div>
+            <motion.button
+              onClick={handleClose}
+              whileTap={{ scale: 0.85 }}
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.08]"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="opacity-40">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </motion.button>
+          </div>
+
+          {/* Inline row: tab icons | input | send */}
+          <div className="flex items-center gap-1.5 px-2 pb-2.5">
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.id && expanded;
+              return (
+                <motion.button
+                  key={tab.id}
+                  onClick={() => handleTabTap(tab.id)}
+                  whileTap={{ scale: 0.85 }}
+                  className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                  style={{ color: isActive ? vibeColor : "rgba(255,255,255,0.3)" }}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="bar-tab"
+                      className="absolute inset-0 rounded-lg"
+                      style={{
+                        backgroundColor: "rgba(255,255,255,0.1)",
+                        boxShadow: `0 0 8px ${vibeColor}20`,
+                      }}
+                      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                    />
+                  )}
+                  <span className="relative"><TabIcon path={tab.icon} size={15} /></span>
+                </motion.button>
+              );
+            })}
+
+            <div className="h-5 w-px shrink-0 bg-white/[0.08]" />
+
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              onFocus={() => { if (!expanded) setExpanded(true); }}
+              placeholder="Ask anything..."
+              enterKeyHint="send"
+              autoComplete="off"
+              autoCorrect="off"
+              className="min-w-0 flex-1 rounded-full px-3 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+              style={{
+                height: 36,
+                backgroundColor: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            />
+
+            <motion.button
+              onClick={() => send()}
+              disabled={!input.trim() || loading}
+              whileTap={{ scale: 0.9 }}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+              style={{
+                backgroundColor: vibeColor,
+                boxShadow: `0 2px 10px ${vibeColor}40`,
+              }}
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+    </>
   );
 }
