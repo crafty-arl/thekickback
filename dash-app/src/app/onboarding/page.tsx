@@ -1,354 +1,196 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { createVenue } from "./actions";
+import { useRouter } from "next/navigation";
 
-const CATEGORIES = [
-  "Bar",
-  "Restaurant",
-  "Lounge",
-  "Club",
-  "Cafe",
-  "Coworking",
-  "Other",
-];
-
-const VIBES = ["Chill", "Energetic", "Upscale", "Casual", "Creative"];
-
-const STEPS = ["Basics", "Location", "Details", "Description"];
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
 
 export default function OnboardingPage() {
-  const [step, setStep] = useState(0);
+  const router = useRouter();
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      content: "Hey! I'm here to help you set up your venue on theKickBack. Let's get started — what's the name of your venue?",
+    },
+  ]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState({
-    name: "",
-    category: "",
-    address: "",
-    neighborhood: "",
-    maxOccupancy: "",
-    openTime: "",
-    closeTime: "",
-    tagline: "",
-    description: "",
-    vibe: "",
-  });
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
 
-  function update(field: string, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
-  function next() {
-    if (step === 0 && !form.name) {
-      setError("Venue name is required");
-      return;
-    }
-    setError("");
-    setStep((s) => Math.min(s + 1, STEPS.length - 1));
-  }
+  useEffect(() => {
+    const handleResize = () => {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    };
+    window.visualViewport?.addEventListener("resize", handleResize);
+    return () => window.visualViewport?.removeEventListener("resize", handleResize);
+  }, []);
 
-  function back() {
-    setError("");
-    setStep((s) => Math.max(s - 1, 0));
-  }
+  const send = useCallback(async () => {
+    const text = input.trim();
+    if (!text || loading) return;
 
-  async function handleSubmit() {
-    setError("");
+    const userMsg: Message = { id: `u-${Date.now()}`, role: "user", content: text };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setInput("");
     setLoading(true);
 
-    const result = await createVenue({
-      ...form,
-      maxOccupancy: parseInt(form.maxOccupancy) || 100,
-    });
+    try {
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
 
-    if (result?.error) {
-      setError(result.error);
+      const data = await res.json() as { reply: string; venueCreated?: boolean };
+
+      setMessages((prev) => [
+        ...prev,
+        { id: `a-${Date.now()}`, role: "assistant", content: data.reply },
+      ]);
+
+      if (data.venueCreated) {
+        setDone(true);
+        setTimeout(() => router.push("/"), 3000);
+      }
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { id: `err-${Date.now()}`, role: "assistant", content: "Something went wrong. Try again." },
+      ]);
+    } finally {
       setLoading(false);
+      inputRef.current?.focus();
     }
-  }
+  }, [input, loading, messages, router]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-surface px-4">
-      <div className="w-full max-w-lg">
-        <div className="mb-8 flex justify-center">
-          <Image
-            src="/logo.png"
-            alt="theKickBack"
-            width={160}
-            height={53}
-            className="h-10 w-auto"
-            priority
-          />
+    <main className="flex min-h-svh flex-col" style={{ backgroundColor: "#0A0A0A" }}>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <div className="flex items-center gap-3">
+          <Image src="/logo.png" alt="theKickBack" width={120} height={40} className="h-7 w-auto" />
+          <div className="h-4 w-px" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
+          <span className="font-sans text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>
+            Venue Setup
+          </span>
         </div>
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 animate-pulse rounded-full" style={{ backgroundColor: "#F97316" }} />
+          <span className="font-sans text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+            AI Onboarding
+          </span>
+        </div>
+      </div>
 
-        <div className="rounded-2xl border border-black/5 bg-white p-8">
-          {/* Step indicator */}
-          <div className="mb-6 flex items-center justify-between">
-            <span className="text-xs font-medium text-black/40">
-              Step {step + 1} of {STEPS.length}
-            </span>
-            <div className="flex gap-1.5">
-              {STEPS.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-1.5 w-6 rounded-full transition-colors ${
-                    i <= step ? "bg-orange" : "bg-black/10"
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Step 1: Basics */}
-          {step === 0 && (
-            <div className="flex flex-col gap-4">
-              <div>
-                <h2 className="font-display text-2xl font-bold tracking-tight text-dark">
-                  Let&apos;s set up your venue
-                </h2>
-                <p className="mt-1 text-sm text-black/45">
-                  Start with the basics.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-black/60">
-                  Venue Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="The Rooftop"
-                  value={form.name}
-                  onChange={(e) => update("name", e.target.value)}
-                  className="rounded-xl border border-black/10 px-4 py-3 font-sans text-sm outline-none transition focus:border-orange focus:ring-2 focus:ring-orange/20"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-black/60">
-                  Category
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => update("category", cat.toLowerCase())}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-                        form.category === cat.toLowerCase()
-                          ? "border-orange bg-orange/10 text-orange"
-                          : "border-black/10 text-black/50 hover:border-black/20"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Location */}
-          {step === 1 && (
-            <div className="flex flex-col gap-4">
-              <div>
-                <h2 className="font-display text-2xl font-bold tracking-tight text-dark">
-                  Where are you located?
-                </h2>
-                <p className="mt-1 text-sm text-black/45">
-                  Help guests find you.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-black/60">
-                  Address
-                </label>
-                <input
-                  type="text"
-                  placeholder="123 Main St"
-                  value={form.address}
-                  onChange={(e) => update("address", e.target.value)}
-                  className="rounded-xl border border-black/10 px-4 py-3 font-sans text-sm outline-none transition focus:border-orange focus:ring-2 focus:ring-orange/20"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-black/60">
-                  Neighborhood
-                </label>
-                <input
-                  type="text"
-                  placeholder="Downtown"
-                  value={form.neighborhood}
-                  onChange={(e) => update("neighborhood", e.target.value)}
-                  className="rounded-xl border border-black/10 px-4 py-3 font-sans text-sm outline-none transition focus:border-orange focus:ring-2 focus:ring-orange/20"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Capacity & Hours */}
-          {step === 2 && (
-            <div className="flex flex-col gap-4">
-              <div>
-                <h2 className="font-display text-2xl font-bold tracking-tight text-dark">
-                  Capacity & hours
-                </h2>
-                <p className="mt-1 text-sm text-black/45">
-                  Set your limits and schedule.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-black/60">
-                  Max Occupancy
-                </label>
-                <input
-                  type="number"
-                  placeholder="100"
-                  min={1}
-                  value={form.maxOccupancy}
-                  onChange={(e) => update("maxOccupancy", e.target.value)}
-                  className="rounded-xl border border-black/10 px-4 py-3 font-sans text-sm outline-none transition focus:border-orange focus:ring-2 focus:ring-orange/20"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-black/60">
-                    Opens at
-                  </label>
-                  <input
-                    type="time"
-                    value={form.openTime}
-                    onChange={(e) => update("openTime", e.target.value)}
-                    className="rounded-xl border border-black/10 px-4 py-3 font-sans text-sm outline-none transition focus:border-orange focus:ring-2 focus:ring-orange/20"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-black/60">
-                    Closes at
-                  </label>
-                  <input
-                    type="time"
-                    value={form.closeTime}
-                    onChange={(e) => update("closeTime", e.target.value)}
-                    className="rounded-xl border border-black/10 px-4 py-3 font-sans text-sm outline-none transition focus:border-orange focus:ring-2 focus:ring-orange/20"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Description */}
-          {step === 3 && (
-            <div className="flex flex-col gap-4">
-              <div>
-                <h2 className="font-display text-2xl font-bold tracking-tight text-dark">
-                  Describe your vibe
-                </h2>
-                <p className="mt-1 text-sm text-black/45">
-                  This shows up on your public page.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-black/60">
-                  Tagline
-                </label>
-                <input
-                  type="text"
-                  placeholder="A rooftop for people who pay attention"
-                  maxLength={80}
-                  value={form.tagline}
-                  onChange={(e) => update("tagline", e.target.value)}
-                  className="rounded-xl border border-black/10 px-4 py-3 font-sans text-sm outline-none transition focus:border-orange focus:ring-2 focus:ring-orange/20"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-black/60">
-                  Description
-                </label>
-                <textarea
-                  placeholder="Tell guests what to expect..."
-                  maxLength={200}
-                  rows={3}
-                  value={form.description}
-                  onChange={(e) => update("description", e.target.value)}
-                  className="resize-none rounded-xl border border-black/10 px-4 py-3 font-sans text-sm outline-none transition focus:border-orange focus:ring-2 focus:ring-orange/20"
-                />
-                <span className="text-right text-xs text-black/30">
-                  {form.description.length}/200
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-black/60">
-                  Vibe
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {VIBES.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => update("vibe", v.toLowerCase())}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-                        form.vibe === v.toLowerCase()
-                          ? "border-orange bg-orange/10 text-orange"
-                          : "border-black/10 text-black/50 hover:border-black/20"
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <p className="mt-4 text-center text-sm text-red-500">{error}</p>
-          )}
-
-          {/* Navigation */}
-          <div className="mt-6 flex items-center justify-between">
-            {step > 0 ? (
-              <button
-                type="button"
-                onClick={back}
-                className="rounded-xl border border-black/10 px-5 py-2.5 text-sm font-medium text-black/60 transition hover:border-black/20"
+      {/* Chat area */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-4 sm:px-6"
+        style={{ WebkitOverflowScrolling: "touch" as const }}
+      >
+        <div className="mx-auto flex max-w-lg flex-col gap-3">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                  msg.role === "user"
+                    ? "rounded-br-sm"
+                    : "rounded-bl-sm"
+                }`}
+                style={
+                  msg.role === "user"
+                    ? { backgroundColor: "#F97316", color: "#000" }
+                    : { backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.8)" }
+                }
               >
-                Back
-              </button>
-            ) : (
-              <div />
-            )}
+                <p className="whitespace-pre-wrap font-sans text-[14px] leading-[1.6]">{msg.content}</p>
+              </div>
+            </div>
+          ))}
 
-            {step < STEPS.length - 1 ? (
-              <button
-                type="button"
-                onClick={next}
-                className="rounded-xl bg-orange px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange/90"
-              >
-                Next
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={loading || !form.name}
-                className="rounded-xl bg-orange px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange/90 disabled:opacity-50"
-              >
-                {loading ? "Creating..." : "Create Venue"}
-              </button>
-            )}
-          </div>
+          {loading && (
+            <div className="flex justify-start">
+              <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                <div className="flex gap-1.5">
+                  <div className="h-2 w-2 animate-bounce rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.3)", animationDelay: "0ms" }} />
+                  <div className="h-2 w-2 animate-bounce rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.3)", animationDelay: "150ms" }} />
+                  <div className="h-2 w-2 animate-bounce rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.3)", animationDelay: "300ms" }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {done && (
+            <div className="flex justify-center py-4">
+              <div className="rounded-xl px-5 py-3 text-center" style={{ backgroundColor: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)" }}>
+                <p className="font-sans text-[14px] font-medium" style={{ color: "#4ADE80" }}>
+                  Venue submitted for review! Redirecting to dashboard...
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Input */}
+      <div
+        className="flex items-center gap-3 border-t px-4 py-3 sm:px-6"
+        style={{
+          borderColor: "rgba(255,255,255,0.06)",
+          paddingBottom: "max(12px, env(safe-area-inset-bottom, 12px))",
+        }}
+      >
+        <div className="mx-auto flex w-full max-w-lg items-center gap-3">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && send()}
+            placeholder={done ? "All done!" : "Type your answer..."}
+            disabled={done}
+            enterKeyHint="send"
+            autoComplete="off"
+            className="flex-1 rounded-full border px-4 font-sans text-[14px] text-white placeholder:text-white/25 focus:outline-none disabled:opacity-30"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.04)",
+              borderColor: "rgba(255,255,255,0.08)",
+              height: 46,
+            }}
+          />
+          <button
+            onClick={send}
+            disabled={!input.trim() || loading || done}
+            className="flex shrink-0 items-center justify-center rounded-full active:scale-90 disabled:opacity-30"
+            style={{ backgroundColor: "#F97316", width: 44, height: 44 }}
+          >
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5" />
+              <polyline points="5 12 12 5 19 12" />
+            </svg>
+          </button>
         </div>
       </div>
     </main>
