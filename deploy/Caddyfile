@@ -1,0 +1,3 @@
+thekickback.net {
+	reverse_proxy landing-blue:3000
+}
