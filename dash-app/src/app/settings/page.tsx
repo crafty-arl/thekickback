@@ -30,7 +30,7 @@ export default async function SettingsPage() {
     .single();
 
   const slug = page?.slug || venue.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  const venueEmail = `${slug}@thekickback.net`;
+  const venueEmail = `${slug}@chat.thekickback.net`;
 
   return (
     <main className="min-h-svh" style={{ backgroundColor: "#0A0A0A" }}>
