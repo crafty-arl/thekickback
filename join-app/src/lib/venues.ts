@@ -14,6 +14,8 @@ export interface Venue {
   hours: string;
   memberOnly: boolean;
   textNumber: string;
+  latitude: number;
+  longitude: number;
 }
 
 export const VENUE_CATEGORIES: { value: VenueCategory | "all"; label: string }[] = [
@@ -25,6 +27,10 @@ export const VENUE_CATEGORIES: { value: VenueCategory | "all"; label: string }[]
   { value: "cowork", label: "Cowork" },
   { value: "restaurant", label: "Restaurants" },
 ];
+
+// Austin, TX center
+export const MAP_CENTER = { latitude: 30.267, longitude: -97.743 } as const;
+export const MAP_DEFAULT_ZOOM = 13;
 
 export const MOCK_VENUES: Venue[] = [
   {
@@ -40,6 +46,8 @@ export const MOCK_VENUES: Venue[] = [
     hours: "4 PM – 12 AM",
     memberOnly: false,
     textNumber: "+18777804236",
+    latitude: 30.2672,
+    longitude: -97.7431,
   },
   {
     id: "daily-grind",
@@ -54,6 +62,8 @@ export const MOCK_VENUES: Venue[] = [
     hours: "7 AM – 6 PM",
     memberOnly: false,
     textNumber: "+18777804236",
+    latitude: 30.2740,
+    longitude: -97.7407,
   },
   {
     id: "study-loft",
@@ -68,6 +78,8 @@ export const MOCK_VENUES: Venue[] = [
     hours: "8 AM – 10 PM",
     memberOnly: false,
     textNumber: "+18777804236",
+    latitude: 30.2849,
+    longitude: -97.7341,
   },
   {
     id: "north-house",
@@ -82,6 +94,8 @@ export const MOCK_VENUES: Venue[] = [
     hours: "6 PM – 2 AM",
     memberOnly: true,
     textNumber: "+18777804236",
+    latitude: 30.2950,
+    longitude: -97.7420,
   },
   {
     id: "late-shift",
@@ -96,6 +110,8 @@ export const MOCK_VENUES: Venue[] = [
     hours: "8 PM – 3 AM",
     memberOnly: false,
     textNumber: "+18777804236",
+    latitude: 30.2615,
+    longitude: -97.7260,
   },
   {
     id: "golden-hour",
@@ -110,6 +126,8 @@ export const MOCK_VENUES: Venue[] = [
     hours: "5 PM – 11 PM",
     memberOnly: false,
     textNumber: "+18777804236",
+    latitude: 30.2555,
+    longitude: -97.7480,
   },
   {
     id: "the-den",
@@ -124,6 +142,8 @@ export const MOCK_VENUES: Venue[] = [
     hours: "7 PM – 1 AM",
     memberOnly: false,
     textNumber: "+18777804236",
+    latitude: 30.2695,
+    longitude: -97.7505,
   },
   {
     id: "commons",
@@ -138,6 +158,8 @@ export const MOCK_VENUES: Venue[] = [
     hours: "6 AM – 9 PM",
     memberOnly: false,
     textNumber: "+18777804236",
+    latitude: 30.2780,
+    longitude: -97.7380,
   },
 ];
 
@@ -147,6 +169,15 @@ export function getVibeColor(vibe: VibeLevel): string {
     case "moderate": return "bg-yellow-400/80";
     case "busy": return "bg-orange";
     case "lit": return "bg-red-400/80";
+  }
+}
+
+export function getVibeHexColor(vibe: VibeLevel): string {
+  switch (vibe) {
+    case "quiet": return "#4ade80";
+    case "moderate": return "#facc15";
+    case "busy": return "#f97316";
+    case "lit": return "#f87171";
   }
 }
 
