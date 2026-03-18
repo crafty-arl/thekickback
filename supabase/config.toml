@@ -227,7 +227,7 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 # Custom branded email templates
-[auth.email.template.otp]
+[auth.email.template.magic_link]
 subject = "Your theKickBack login code"
 content_path = "./supabase/templates/otp.html"
 
