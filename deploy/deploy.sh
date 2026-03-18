@@ -41,44 +41,9 @@ until docker inspect landing-$STANDBY --format '{{.State.Health.Status}}' 2>/dev
 done
 echo "$STANDBY is healthy."
 
-# Step 4: Swap nginx to point to new container
-echo "Swapping nginx upstream to $STANDBY..."
-cat > "$DEPLOY_DIR/deploy/nginx/nginx.conf" <<NGINX_EOF
-upstream landing {
-    server landing-$STANDBY:3000;
-    server landing-$ACTIVE:3000 backup;
-}
-
-server {
-    listen 80;
-    server_name _;
-
-    location / {
-        proxy_pass http://landing;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_connect_timeout 5s;
-        proxy_read_timeout 30s;
-    }
-
-    location /health/nginx {
-        return 200 '{"status":"ok","service":"nginx"}';
-        add_header Content-Type application/json;
-    }
-}
-NGINX_EOF
-
-# Reload nginx (zero-downtime, no restart)
-docker exec $(docker ps -qf "name=nginx") nginx -s reload
-echo "Nginx reloaded. Traffic now on $STANDBY."
-
-# Step 5: Drain and stop old container (30s grace)
-echo "Draining $ACTIVE (30s grace)..."
-sleep 5
+# Step 4: Stop old container (standby is already serving on its port)
+echo "Stopping $ACTIVE..."
 $COMPOSE stop landing-$ACTIVE
-echo "$ACTIVE stopped."
 
 echo "=== Deploy complete. Active: $STANDBY ==="
+echo "Landing page available on port 3100 (blue) or 3101 (green)"

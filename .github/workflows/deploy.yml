@@ -32,26 +32,38 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
           script: |
-            # Pull latest code
             cd /opt/thekickback
-            git pull origin main
+            GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git pull origin main
 
-            # Run zero-downtime deploy
-            bash deploy/deploy.sh
+            # First deploy — just rebuild blue
+            cd deploy
+            docker compose up -d --build landing-blue
 
-      - name: Verify deployment
+            # Wait for healthy
+            echo "Waiting for health check..."
+            RETRIES=30
+            until docker inspect landing-blue --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; do
+              RETRIES=$((RETRIES - 1))
+              if [ $RETRIES -le 0 ]; then
+                echo "FAIL: health check never passed"
+                exit 1
+              fi
+              sleep 2
+            done
+            echo "Deploy verified: landing-blue is healthy"
+
+      - name: Verify health
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            # Health check
-            sleep 5
-            HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" http://localhost/health)
+            HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" http://localhost:3100/health)
             if [ "$HTTP_CODE" != "200" ]; then
               echo "DEPLOY VERIFICATION FAILED: HTTP $HTTP_CODE"
               exit 1
             fi
-            echo "Deploy verified: HTTP 200"
+            echo "Landing page live on :3100 — HTTP 200"
