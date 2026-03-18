@@ -33,7 +33,7 @@ export function HowItWorks() {
         <span className="font-sans text-[11px] font-medium tracking-[2.4px] text-black/45">
           HOW IT WORKS
         </span>
-        <h2 className="font-display text-[42px] font-semibold leading-[1.05] tracking-[-1.5px] text-black">
+        <h2 className="font-display text-3xl font-semibold leading-[1.05] tracking-[-1px] text-black sm:text-4xl md:text-[42px] md:tracking-[-1.5px]">
           One text thread. Full venue access.
         </h2>
         <p className="max-w-2xl font-sans text-base leading-[1.6] text-black/65">
@@ -43,7 +43,7 @@ export function HowItWorks() {
       </div>
 
       {/* Steps */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
         {STEPS.map((step) => (
           <div
             key={step.number}

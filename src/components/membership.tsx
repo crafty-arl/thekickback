@@ -15,14 +15,14 @@ export function Membership() {
   return (
     <section
       id="membership"
-      className="flex gap-8 rounded-[32px] bg-black px-10 py-12"
+      className="flex flex-col gap-8 rounded-[24px] bg-black px-6 py-8 sm:rounded-[32px] sm:px-10 sm:py-12 md:flex-row"
     >
       {/* Left — Text */}
       <div className="flex flex-1 flex-col gap-6">
         <span className="font-sans text-[11px] font-medium tracking-[2.4px] text-white/45">
           MEMBERSHIP VIA TEXT
         </span>
-        <h2 className="font-display text-5xl font-semibold leading-[1.05] tracking-[-1.5px] text-white">
+        <h2 className="font-display text-3xl font-semibold leading-[1.05] tracking-[-1px] text-white sm:text-4xl md:text-5xl md:tracking-[-1.5px]">
           Text YES to join.
         </h2>
         <p className="max-w-lg font-sans text-base leading-[1.6] text-white/65">
@@ -50,7 +50,7 @@ export function Membership() {
       </div>
 
       {/* Right — SMS flow */}
-      <div className="flex w-[400px] shrink-0 flex-col gap-3 rounded-3xl bg-white/[0.03] p-6">
+      <div className="flex w-full flex-col gap-3 rounded-2xl bg-white/[0.03] p-4 sm:rounded-3xl sm:p-6 md:w-[400px] md:shrink-0">
         <div className="flex items-center gap-2 pb-2">
           <div className="h-2 w-2 rounded-full bg-orange" />
           <span className="font-sans text-[10px] font-medium tracking-[2px] text-white/40">
@@ -64,7 +64,7 @@ export function Membership() {
             className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[90%] rounded-2xl px-4 py-2.5 ${
+              className={`max-w-[90%] rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 ${
                 msg.from === "user"
                   ? "rounded-br-sm bg-orange text-black"
                   : "rounded-bl-sm bg-white/[0.08] text-white/80"

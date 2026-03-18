@@ -14,7 +14,7 @@ export function Venues() {
         <span className="font-sans text-[11px] font-medium tracking-[2.4px] text-black/45">
           YOUR VENUE THREADS
         </span>
-        <h2 className="font-display text-[42px] font-semibold leading-[1.05] tracking-[-1.5px] text-black">
+        <h2 className="font-display text-3xl font-semibold leading-[1.05] tracking-[-1px] text-black sm:text-4xl md:text-[42px] md:tracking-[-1.5px]">
           Every venue is a conversation.
         </h2>
         <p className="max-w-2xl font-sans text-base leading-[1.6] text-black/65">
@@ -25,7 +25,7 @@ export function Venues() {
       </div>
 
       {/* Venue Thread List */}
-      <div className="overflow-hidden rounded-[32px] bg-black p-6">
+      <div className="overflow-hidden rounded-[24px] bg-black p-4 sm:rounded-[32px] sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <span className="font-sans text-[10px] font-medium tracking-[2px] text-white/40">
             ACTIVE THREADS
@@ -67,7 +67,7 @@ export function Venues() {
               </div>
 
               {/* Text action */}
-              <span className="rounded-lg bg-white/[0.06] px-3 py-1.5 font-mono text-xs font-medium text-white/50">
+              <span className="hidden rounded-lg bg-white/[0.06] px-3 py-1.5 font-mono text-xs font-medium text-white/50 sm:block">
                 text status
               </span>
             </div>

@@ -10,9 +10,9 @@ const SMS_THREAD = [
 
 export function Hero() {
   return (
-    <section className="flex gap-12 py-14">
+    <section className="flex flex-col gap-8 py-10 md:flex-row md:gap-12 md:py-14">
       {/* Left Column */}
-      <div className="flex w-[600px] shrink-0 flex-col gap-6">
+      <div className="flex w-full flex-col gap-6 md:w-[600px] md:shrink-0">
         {/* Badge */}
         <div className="flex w-fit items-center gap-2 rounded-full border border-black/5 px-3.5 py-1.5">
           <div className="h-2 w-2 rounded bg-orange" />
@@ -22,15 +22,15 @@ export function Hero() {
         </div>
 
         {/* Headlines */}
-        <h1 className="font-display text-[60px] font-semibold leading-[0.95] tracking-[-2px] text-black">
+        <h1 className="font-display text-4xl font-semibold leading-[0.95] tracking-[-1.5px] text-black sm:text-5xl md:text-[60px] md:tracking-[-2px]">
           Text a venue.
         </h1>
-        <h1 className="font-display text-[60px] font-semibold leading-[0.95] tracking-[-2px] text-black/35">
+        <h1 className="font-display text-4xl font-semibold leading-[0.95] tracking-[-1.5px] text-black/35 sm:text-5xl md:text-[60px] md:tracking-[-2px]">
           Enter the network.
         </h1>
 
         {/* Description */}
-        <p className="max-w-full font-sans text-lg leading-[1.6] text-black/65">
+        <p className="max-w-full font-sans text-base leading-[1.6] text-black/65 md:text-lg">
           No app. No download. No account. Just text a number and you&apos;re in.
           theKickBack turns every venue into a live system you interact with
           through SMS. Check vibes, request a booth, ask the bartender — all
@@ -39,8 +39,8 @@ export function Hero() {
 
         {/* CTA — The Number */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-4 rounded-2xl border border-black/8 bg-[#FAFAFA] px-6 py-5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange">
+          <div className="flex items-center gap-4 rounded-2xl border border-black/8 bg-[#FAFAFA] px-4 py-4 sm:px-6 sm:py-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange sm:h-12 sm:w-12">
               <svg
                 width="24"
                 height="24"
@@ -58,7 +58,7 @@ export function Hero() {
               <span className="font-sans text-[10px] font-medium tracking-[2px] text-black/40">
                 TEXT &ldquo;JOIN&rdquo; TO
               </span>
-              <span className="font-sans text-3xl font-bold tracking-tight text-black">
+              <span className="font-sans text-xl font-bold tracking-tight text-black sm:text-3xl">
                 (555) KICK-BACK
               </span>
             </div>
@@ -96,7 +96,7 @@ export function Hero() {
       </div>
 
       {/* Right Column — SMS Thread Card */}
-      <div className="flex flex-1 flex-col gap-4 rounded-[32px] bg-black p-6">
+      <div className="flex flex-1 flex-col gap-4 rounded-[24px] bg-black p-4 sm:rounded-[32px] sm:p-6">
         <div className="flex w-full items-center justify-between">
           <span className="font-sans text-[10px] font-medium tracking-[2px] text-white/55">
             LIVE SMS THREAD
@@ -110,14 +110,14 @@ export function Hero() {
         </div>
 
         {/* Messages */}
-        <div className="flex flex-1 flex-col gap-3 overflow-hidden rounded-3xl bg-white/[0.03] p-5">
+        <div className="flex flex-1 flex-col gap-3 overflow-hidden rounded-2xl bg-white/[0.03] p-3 sm:rounded-3xl sm:p-5">
           {SMS_THREAD.map((msg, i) => (
             <div
               key={i}
               className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                className={`max-w-[90%] rounded-2xl px-3 py-2 sm:max-w-[85%] sm:px-4 sm:py-2.5 ${
                   msg.from === "user"
                     ? "rounded-br-sm bg-orange text-black"
                     : "rounded-bl-sm bg-white/[0.08] text-white/80"

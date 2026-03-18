@@ -8,7 +8,7 @@ import { Membership } from "@/components/membership";
 export default function Home() {
   return (
     <main className="min-h-screen bg-white">
-      <div className="mx-auto max-w-[1440px] px-12">
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-12">
         <Header />
         <Hero />
         <HowItWorks />

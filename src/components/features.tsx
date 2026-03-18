@@ -15,7 +15,7 @@ const FEATURES = [
 
 export function Features() {
   return (
-    <section id="protocol" className="flex gap-6 py-10">
+    <section id="protocol" className="flex flex-col gap-4 py-10 sm:flex-row sm:gap-6">
       {FEATURES.map((feat) => (
         <div
           key={feat.title}
