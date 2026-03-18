@@ -3,7 +3,7 @@ const STEPS = [
     number: "01",
     command: "join",
     title: "Text to enter",
-    body: "Text JOIN to any venue number or scan their QR. No app download. No signup form. You're in the venue's system in seconds.",
+    body: "Send JOIN to join@thekickback.net or scan a venue's QR code. No app download. No signup form. You're in the venue's system in seconds.",
   },
   {
     number: "02",
@@ -15,13 +15,13 @@ const STEPS = [
     number: "03",
     command: "request",
     title: "Request anything",
-    body: "Need a booth? Want to order ahead? Request a late checkout on your table? Text REQUEST and the venue handles it. No flagging anyone down.",
+    body: "Need a booth? Want to order ahead? Request a late checkout on your table? Send REQUEST and the venue handles it. No flagging anyone down.",
   },
   {
     number: "04",
     command: "status",
     title: "Stay in the loop",
-    body: "Get live updates on your session, your requests, and the venue state. The thread is your dashboard. Text STATUS anytime.",
+    body: "Get live updates on your session, your requests, and the venue state. Your thread is your dashboard. Send STATUS anytime.",
   },
 ];
 
@@ -34,10 +34,10 @@ export function HowItWorks() {
           HOW IT WORKS
         </span>
         <h2 className="font-display text-3xl font-semibold leading-[1.05] tracking-[-1px] text-black sm:text-4xl md:text-[42px] md:tracking-[-1.5px]">
-          One text thread. Full venue access.
+          One thread. Full venue access.
         </h2>
         <p className="max-w-2xl font-sans text-base leading-[1.6] text-black/65">
-          Every interaction with a venue happens through a single SMS conversation.
+          Every interaction with a venue happens through a single conversation.
           No app to learn. No UI to navigate. Just text what you need.
         </p>
       </div>

@@ -7,7 +7,7 @@ const MEMBERSHIP_FLOW = [
   { from: "user", text: "yes" },
   {
     from: "venue",
-    text: "You're in. Welcome to The Rooftop, member. Your number is now recognized across all KickBack venues. Text STATUS anytime.",
+    text: "You're in. Welcome to The Rooftop, member. You're now recognized across all KickBack venues. Send STATUS anytime.",
   },
 ];
 
@@ -23,21 +23,21 @@ export function Membership() {
           MEMBERSHIP VIA TEXT
         </span>
         <h2 className="font-display text-3xl font-semibold leading-[1.05] tracking-[-1px] text-white sm:text-4xl md:text-5xl md:tracking-[-1.5px]">
-          Text YES to join.
+          Reply YES to join.
         </h2>
         <p className="max-w-lg font-sans text-base leading-[1.6] text-white/65">
           No signup form. No credit card page. No app onboarding.
-          Membership is a text message. Your phone number is your identity.
-          One number, recognized across the entire network.
+          Membership is a message. Your identity is built in.
+          One address, recognized across the entire network.
         </p>
 
         {/* Membership benefits */}
         <div className="flex flex-col gap-3 pt-2">
           {[
-            "Your number = your membership card",
+            "Your identity = your membership card",
             "Recognized at every KickBack venue",
             "Venue-specific tiers stack on top",
-            "Cancel anytime — text CANCEL",
+            "Cancel anytime — send CANCEL",
           ].map((benefit) => (
             <div key={benefit} className="flex items-center gap-3">
               <div className="h-1.5 w-1.5 rounded-full bg-orange" />
@@ -49,7 +49,7 @@ export function Membership() {
         </div>
       </div>
 
-      {/* Right — SMS flow */}
+      {/* Right — Thread flow */}
       <div className="flex w-full flex-col gap-3 rounded-2xl bg-white/[0.03] p-4 sm:rounded-3xl sm:p-6 md:w-[400px] md:shrink-0">
         <div className="flex items-center gap-2 pb-2">
           <div className="h-2 w-2 rounded-full bg-orange" />

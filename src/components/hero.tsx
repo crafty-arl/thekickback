@@ -1,7 +1,7 @@
-const SMS_THREAD = [
+const EMAIL_THREAD = [
   { from: "user", text: "join" },
   { from: "venue", text: "Welcome to The Rooftop. Quiet right now — 12 people, 3 groups. Good for focus." },
-  { from: "venue", text: "You're in as a Guest. Text MENU, REQUEST, or ASK anytime." },
+  { from: "venue", text: "You're in as a Guest. Reply MENU, REQUEST, or ASK anytime." },
   { from: "user", text: "ask is there a booth open?" },
   { from: "venue", text: "Yes — booth 4 near the window is open. Want me to hold it? Reply HOLD or PASS." },
   { from: "user", text: "hold" },
@@ -31,15 +31,18 @@ export function Hero() {
 
         {/* Description */}
         <p className="max-w-full font-sans text-base leading-[1.6] text-black/65 md:text-lg">
-          No app. No download. No account. Just text a number and you&apos;re in.
+          No app. No download. No account. Just send an email and you&apos;re in.
           theKickBack turns every venue into a live system you interact with
-          through SMS. Check vibes, request a booth, ask the bartender — all
-          from one text thread.
+          through text. Check vibes, request a booth, ask the bartender — all
+          from one thread.
         </p>
 
-        {/* CTA — The Number */}
+        {/* CTA — The Email */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-4 rounded-2xl border border-black/8 bg-[#FAFAFA] px-4 py-4 sm:px-6 sm:py-5">
+          <a
+            href="mailto:join@thekickback.net?subject=join"
+            className="flex items-center gap-4 rounded-2xl border border-black/8 bg-[#FAFAFA] px-4 py-4 transition-colors hover:bg-[#F5F5F5] sm:px-6 sm:py-5"
+          >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange sm:h-12 sm:w-12">
               <svg
                 width="24"
@@ -51,20 +54,21 @@ export function Hero() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
               </svg>
             </div>
             <div className="flex flex-col">
               <span className="font-sans text-[10px] font-medium tracking-[2px] text-black/40">
-                TEXT &ldquo;JOIN&rdquo; TO
+                TEXT US TO GET STARTED
               </span>
               <span className="font-sans text-xl font-bold tracking-tight text-black sm:text-3xl">
-                (555) KICK-BACK
+                join@thekickback.net
               </span>
             </div>
-          </div>
+          </a>
           <span className="font-sans text-xs text-black/40">
-            Or scan any venue&apos;s QR code. Same number, venue context built in.
+            Or scan any venue&apos;s QR code. Same address, venue context built in.
           </span>
         </div>
 
@@ -95,11 +99,11 @@ export function Hero() {
         </div>
       </div>
 
-      {/* Right Column — SMS Thread Card */}
+      {/* Right Column — Thread Card */}
       <div className="flex flex-1 flex-col gap-4 rounded-[24px] bg-black p-4 sm:rounded-[32px] sm:p-6">
         <div className="flex w-full items-center justify-between">
           <span className="font-sans text-[10px] font-medium tracking-[2px] text-white/55">
-            LIVE SMS THREAD
+            LIVE THREAD
           </span>
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-orange animate-pulse" />
@@ -111,7 +115,7 @@ export function Hero() {
 
         {/* Messages */}
         <div className="flex flex-1 flex-col gap-3 overflow-hidden rounded-2xl bg-white/[0.03] p-3 sm:rounded-3xl sm:p-5">
-          {SMS_THREAD.map((msg, i) => (
+          {EMAIL_THREAD.map((msg, i) => (
             <div
               key={i}
               className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}
@@ -132,7 +136,7 @@ export function Hero() {
         {/* Input hint */}
         <div className="flex items-center gap-3 rounded-2xl bg-white/[0.06] px-4 py-3">
           <span className="flex-1 font-sans text-sm text-white/30">
-            Text a command...
+            Send a message...
           </span>
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange">
             <svg

@@ -1,15 +1,15 @@
 const FEATURES = [
   {
     title: "No app required",
-    body: "SMS works on every phone. No download, no updates, no storage. Your text thread IS the interface. The venue lives in your messages.",
+    body: "Works from any email client on any device. No download, no updates, no storage. Your thread IS the interface. The venue lives in your inbox.",
   },
   {
     title: "Text is the protocol",
-    body: "JOIN, ASK, REQUEST, STATUS — simple commands that resolve instantly. The protocol is the conversation. Every text is an action.",
+    body: "JOIN, ASK, REQUEST, STATUS — simple commands that resolve instantly. The protocol is the conversation. Every message is an action.",
   },
   {
     title: "Context built in",
-    body: "The venue knows who you are from your number. Returning guest? Member? First timer? The system remembers. No login required.",
+    body: "The venue knows who you are from your address. Returning guest? Member? First timer? The system remembers. No login required.",
   },
 ];
 
