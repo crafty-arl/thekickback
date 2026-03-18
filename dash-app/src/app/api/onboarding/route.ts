@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 const CF_ACCOUNT_ID = "6c235bb622d4bca66876392df398234b";
 const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || "";
@@ -37,6 +38,11 @@ interface Message {
 }
 
 export async function POST(request: NextRequest) {
+  // Get authenticated user
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id;
+
   const body = await request.json() as { messages: { role: "user" | "assistant"; content: string }[] };
 
   const messages: Message[] = [
@@ -79,7 +85,7 @@ export async function POST(request: NextRequest) {
   if (dataMatch) {
     try {
       const venueData = JSON.parse(dataMatch[1]);
-      await createVenueFromAI(venueData);
+      await createVenueFromAI(venueData, userId);
       venueCreated = true;
     } catch (err) {
       console.error("Failed to parse/create venue:", err);
@@ -103,7 +109,7 @@ async function createVenueFromAI(data: {
   tagline: string;
   description: string;
   themeColor: string;
-}) {
+}, userId?: string) {
   const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
   // Geocode address
@@ -188,5 +194,22 @@ async function createVenueFromAI(data: {
     }),
   });
 
-  console.log(`Venue created: ${data.name} (${venueId}) — pending review`);
+  // Link the authenticated user as venue owner
+  if (userId) {
+    await fetch(`${SUPABASE_URL}/rest/v1/venue_owners`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        venue_id: venueId,
+        role: "owner",
+      }),
+    });
+  }
+
+  console.log(`Venue created: ${data.name} (${venueId}) — owner: ${userId || "anonymous"} — pending review`);
 }

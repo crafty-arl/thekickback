@@ -69,7 +69,8 @@ export default function OnboardingPage() {
 
       if (data.venueCreated) {
         setDone(true);
-        setTimeout(() => router.push("/"), 3000);
+        // Delay to let user see success, then hard reload to pick up new venue ownership
+        setTimeout(() => window.location.href = "/", 3000);
       }
     } catch {
       setMessages((prev) => [
