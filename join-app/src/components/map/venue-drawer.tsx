@@ -130,7 +130,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
       dragConstraints={{ top: 0 }}
       dragElastic={0.2}
       onDragEnd={handleDragEnd}
-      className="fixed inset-x-0 bottom-0 z-50 flex h-[85dvh] max-h-[700px] flex-col overflow-hidden rounded-t-[20px] bg-[#0D0D0F]"
+      className="fixed inset-x-0 bottom-0 z-50 flex h-[50dvh] flex-col overflow-hidden rounded-t-[20px] bg-[#0D0D0F]"
     >
       {/* Drag handle */}
       <div className="flex justify-center pb-2 pt-3" style={{ touchAction: "none" }}>

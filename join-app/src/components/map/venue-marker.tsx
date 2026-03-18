@@ -26,7 +26,7 @@ export function VenueMarker({ venue, selected, onClick }: VenueMarkerProps) {
       style={{ width: 32, height: 32 }}
     >
       <div
-        className="rounded-full border-[2.5px] border-white shadow-lg"
+        className="rounded-full border-[2.5px] border-black/20 shadow-lg"
         style={{
           width: selected ? 40 : 32,
           height: selected ? 40 : 32,
