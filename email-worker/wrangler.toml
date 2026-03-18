@@ -1,0 +1,14 @@
+name = "kickback-email"
+main = "src/index.ts"
+compatibility_date = "2025-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+SUPABASE_URL = "https://wofvgfhejrvudvfxdytc.supabase.co"
+OPENCLAW_GATEWAY_URL = "https://claw.thekickback.net"
+EMAIL_FROM = "join@thekickback.net"
+
+# Secrets — set via `wrangler secret put`:
+# SUPABASE_SERVICE_KEY
+# OPENCLAW_HOOKS_TOKEN
