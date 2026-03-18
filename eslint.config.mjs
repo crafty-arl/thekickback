@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Standalone services (not Next.js)
+    "wallet-service/**",
+    "sms-worker/**",
+    "email-worker/**",
+    "shortcuts/**",
+    "join-app/**",
+    "dash-app/**",
+    "supabase/**",
   ]),
 ]);
 

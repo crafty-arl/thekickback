@@ -60,9 +60,7 @@ export default {
       const profile = await getOrCreateProfile(`device:${deviceId}`, env);
 
       // For JOIN, use specific venue if provided
-      let reply: string;
       let venueData: Venue | null = null;
-      let sessionData: Session | null = null;
 
       if (command === "join" && venueId) {
         venueData = await getVenueById(venueId, env);
@@ -118,7 +116,7 @@ export default {
       }
 
       // Generic command handling
-      reply = await handleCommand(`device:${deviceId}`, `${command} ${json.venue_id || ""}`.trim(), env);
+      const reply = await handleCommand(`device:${deviceId}`, `${command} ${json.venue_id || ""}`.trim(), env);
       return Response.json({ status: "ok", message: reply });
     }
 
