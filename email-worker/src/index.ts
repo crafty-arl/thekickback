@@ -1,7 +1,3 @@
-import PostalMime from "postal-mime";
-import { createMimeMessage } from "mimetext";
-import { EmailMessage } from "cloudflare:email";
-
 // ─── Types ───────────────────────────────────────────────────────
 
 export interface Env {
@@ -12,17 +8,6 @@ export interface Env {
   RESEND_API_KEY: string;
   EMAIL_FROM: string;
   ENVIRONMENT: string;
-}
-
-interface ForwardableEmailMessage {
-  readonly from: string;
-  readonly to: string;
-  readonly headers: Headers;
-  readonly raw: ReadableStream;
-  readonly rawSize: number;
-  setReject(reason: string): void;
-  forward(rcptTo: string, headers?: Headers): Promise<void>;
-  reply(message: EmailMessage): Promise<void>;
 }
 
 interface Profile {
@@ -49,111 +34,227 @@ interface Session {
   status: string;
 }
 
-// ─── SMS Gateway Detection ───────────────────────────────────────
-
-const SMS_GATEWAYS: Record<string, string> = {
-  "txt.att.net": "AT&T",
-  "mms.att.net": "AT&T MMS",
-  "tmomail.net": "T-Mobile",
-  "vtext.com": "Verizon",
-  "vzwpix.com": "Verizon MMS",
-  "messaging.sprintpcs.com": "Sprint",
-  "pm.sprint.com": "Sprint",
-  "vmobl.com": "Visible",
-  "mmst5.tracfone.com": "TracFone",
-  "mymetropcs.com": "Metro",
-  "msg.fi.google.com": "Google Fi",
-  "text.republicwireless.com": "Republic",
-  "mailmymobile.net": "Consumer Cellular",
-  "cingularme.com": "AT&T Legacy",
-  "email.uscc.net": "US Cellular",
-  "sms.cricketwireless.net": "Cricket",
-  "mms.cricketwireless.net": "Cricket MMS",
-  "text.att.net": "AT&T",
-};
-
-function isSmsGateway(email: string): boolean {
-  const domain = email.split("@")[1]?.toLowerCase() || "";
-  return domain in SMS_GATEWAYS;
-}
-
-function getCarrier(email: string): string {
-  const domain = email.split("@")[1]?.toLowerCase() || "";
-  return SMS_GATEWAYS[domain] || "Unknown";
-}
-
-/**
- * Clean up reply text for SMS delivery via carrier gateways.
- * No length limit — carriers handle multi-segment concatenation.
- */
-function smsFormat(text: string): string {
-  return text
-    .replace(/\n{2,}/g, "\n")   // collapse double newlines
-    .replace(/→/g, "-")          // replace arrows with dashes
-    .trim();
-}
-
-// ─── Email Handler ───────────────────────────────────────────────
+// ─── Worker Entry (HTTP only — no CF Email handler) ──────────────
 
 export default {
-  async email(message: ForwardableEmailMessage, env: Env) {
-    const raw = await new Response(message.raw).arrayBuffer();
-    const email = await PostalMime.parse(raw);
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
 
-    // Extract command — SMS gateways often put the text in subject OR body
-    const fromAddress = message.from;
-    const isSms = isSmsGateway(fromAddress);
-
-    // SMS gateways: body is sometimes in subject, sometimes in body
-    // Also strip carrier signatures and forwarding junk
-    let body = "";
-    if (isSms) {
-      // Prefer body, fall back to subject
-      body = (email.text || email.subject || "").trim();
-      // Strip common carrier footer noise
-      body = body.split("\n")[0].trim(); // first line only for SMS
-    } else {
-      body = (email.text || email.subject || "").trim();
+    if (url.pathname === "/health") {
+      return Response.json({ status: "ok", service: "email-worker", provider: "resend" });
     }
 
-    const carrier = isSms ? getCarrier(fromAddress) : "email";
-    console.log(`From: ${fromAddress} | Carrier: ${carrier} | SMS: ${isSms} | Body: "${body}"`);
-
-    // Process command
-    const reply = await handleCommand(fromAddress, body, env);
-
-    if (isSms) {
-      // SMS: plain text reply via CF Email
-      const response = createMimeMessage();
-      response.setSender(env.EMAIL_FROM);
-      response.setRecipient(fromAddress);
-      response.setSubject("");
-      response.addMessage({ contentType: "text/plain; charset=utf-8", data: smsFormat(reply) });
-      const replyMessage = new EmailMessage(env.EMAIL_FROM, fromAddress, response.asRaw());
-      await message.reply(replyMessage);
-      console.log(`SMS reply sent to ${fromAddress} (${carrier})`);
-    } else {
-      // Email: send rich HTML via Resend
-      const command = body.toLowerCase().trim().split(/\s+/)[0];
-      const subject = buildSubject(command, email.subject);
-      const html = buildRichHtml(reply, command, env.EMAIL_FROM);
-
-      await sendViaResend(env, fromAddress, subject, html, reply);
-      console.log(`Rich email sent to ${fromAddress} via Resend`);
-
-      // Also reply via CF Email for threading
-      const response = createMimeMessage();
-      response.setSender(env.EMAIL_FROM);
-      response.setRecipient(fromAddress);
-      const msgId = message.headers.get("Message-ID") || "";
-      if (msgId) response.setHeader("In-Reply-To", msgId);
-      response.setSubject(subject);
-      response.addMessage({ contentType: "text/plain; charset=utf-8", data: reply });
-      const replyMessage = new EmailMessage(env.EMAIL_FROM, fromAddress, response.asRaw());
-      await message.reply(replyMessage);
+    // Resend inbound webhook
+    if (request.method === "POST" && url.pathname === "/inbound") {
+      return handleInbound(request, env);
     }
+
+    // Send a welcome email (called from join-app or API)
+    if (request.method === "POST" && url.pathname === "/send/welcome") {
+      return handleSendWelcome(request, env);
+    }
+
+    // Send any email (internal API)
+    if (request.method === "POST" && url.pathname === "/send") {
+      return handleSend(request, env);
+    }
+
+    return new Response("theKickBack Email Service", { status: 200 });
   },
 };
+
+// ─── Resend Inbound Webhook ──────────────────────────────────────
+
+async function handleInbound(request: Request, env: Env): Promise<Response> {
+  const webhook = await request.json() as {
+    type: string;
+    data: {
+      email_id: string;
+      from: string;
+      to: string[];
+      subject: string;
+      created_at: string;
+    };
+  };
+
+  if (webhook.type !== "email.received") {
+    return Response.json({ ok: true, skipped: true });
+  }
+
+  const fromEmail = webhook.data.from;
+  const emailId = webhook.data.email_id;
+  const subject = webhook.data.subject || "";
+
+  console.log(`Inbound from: ${fromEmail} | Subject: "${subject}" | ID: ${emailId}`);
+
+  // Fetch full email content from Resend API
+  const emailRes = await fetch(`https://api.resend.com/emails/${emailId}`, {
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` },
+  });
+
+  let body = subject; // fallback to subject
+  if (emailRes.ok) {
+    const emailData = await emailRes.json() as { text?: string; subject?: string };
+    body = (emailData.text || emailData.subject || subject).trim();
+  }
+
+  // Strip reply quotes (lines starting with >)
+  body = body.split("\n").filter((l: string) => !l.startsWith(">") && !l.startsWith("On ") && l.trim() !== "").join("\n").trim();
+  // Take first meaningful line as the command
+  const firstLine = body.split("\n")[0]?.trim() || body;
+
+  console.log(`Parsed body: "${firstLine}"`);
+
+  // Process command
+  const reply = await handleCommand(fromEmail, firstLine, env);
+
+  // Send rich HTML reply via Resend
+  const command = firstLine.toLowerCase().trim().split(/\s+/)[0];
+  const replySubject = buildSubject(command, subject);
+  const html = buildRichHtml(reply, command, env.EMAIL_FROM);
+
+  await sendViaResend(env, fromEmail, replySubject, html, reply);
+
+  console.log(`Reply sent to ${fromEmail} via Resend`);
+  return Response.json({ ok: true, from: fromEmail, command });
+}
+
+// ─── Send Welcome Email (called from join-app) ──────────────────
+
+async function handleSendWelcome(request: Request, env: Env): Promise<Response> {
+  const data = await request.json() as {
+    to: string;
+    venueName: string;
+    venueSlug: string;
+    vibe: string;
+    occupancy: number;
+    maxOccupancy: number;
+    themeColor: string;
+    tagline: string;
+    rules: string[];
+    walletPassUrl: string;
+  };
+
+  const vibeLabel = capitalize(data.vibe);
+  const vibeColor = data.vibe === "quiet" ? "#4ADE80" : data.vibe === "moderate" ? "#FACC15" : data.vibe === "busy" ? "#F97316" : "#EF4444";
+  const spotsOpen = Math.max(0, data.maxOccupancy - data.occupancy);
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"></head>
+<body style="margin:0;padding:0;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<div style="max-width:480px;margin:0 auto;background:#000;">
+
+<!-- Hero gradient -->
+<div style="height:180px;background:linear-gradient(to bottom,transparent,${data.themeColor});border-radius:0 0 16px 16px;"></div>
+
+<!-- LIVE Badge + Name -->
+<div style="padding:0 24px;">
+<div style="display:inline-block;background:${data.themeColor};border-radius:999px;padding:3px 10px;margin-bottom:8px;">
+<span style="color:#000;font-size:10px;font-weight:700;letter-spacing:1.5px;">● LIVE</span>
+</div>
+<h1 style="color:#fff;font-size:28px;font-weight:700;margin:0 0 4px;line-height:1.1;">${esc(data.venueName)}</h1>
+<p style="color:rgba(255,255,255,0.5);font-size:14px;margin:0;">${esc(data.tagline)}</p>
+</div>
+
+<!-- Stats -->
+<div style="padding:16px 24px;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="background:#1A1A1A;border-radius:12px;padding:12px;width:33%;">
+<span style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:600;letter-spacing:1.5px;">VIBE</span><br/>
+<span style="color:${vibeColor};font-size:18px;font-weight:700;">${vibeLabel}</span>
+</td>
+<td width="12"></td>
+<td style="background:#1A1A1A;border-radius:12px;padding:12px;width:33%;">
+<span style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:600;letter-spacing:1.5px;">PEOPLE</span><br/>
+<span style="color:#fff;font-size:18px;font-weight:700;">${data.occupancy} / ${data.maxOccupancy}</span>
+</td>
+<td width="12"></td>
+<td style="background:#1A1A1A;border-radius:12px;padding:12px;width:33%;">
+<span style="color:rgba(255,255,255,0.35);font-size:10px;font-weight:600;letter-spacing:1.5px;">OPEN</span><br/>
+<span style="color:#fff;font-size:18px;font-weight:700;">${spotsOpen} spots</span>
+</td>
+</tr></table>
+</div>
+
+<!-- Welcome -->
+<div style="padding:0 24px;">
+<h2 style="color:#fff;font-size:18px;font-weight:600;margin:0 0 8px;">You're in.</h2>
+<p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 20px;">Reply to this email anytime to interact with ${esc(data.venueName)}. Just type a command and we'll handle the rest.</p>
+</div>
+
+<!-- Action buttons -->
+<div style="padding:0 24px;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td width="49%"><a href="mailto:${env.EMAIL_FROM}?subject=MENU&body=MENU" style="display:block;background:${data.themeColor};border-radius:12px;padding:14px 0;color:#000;font-size:14px;font-weight:700;text-decoration:none;text-align:center;">Menu</a></td>
+<td width="2%"></td>
+<td width="49%"><a href="mailto:${env.EMAIL_FROM}?subject=REQUEST&body=REQUEST a booth" style="display:block;background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 0;color:rgba(255,255,255,0.5);font-size:14px;font-weight:500;text-decoration:none;text-align:center;">Reserve</a></td>
+</tr></table>
+</div>
+
+<!-- Wallet Pass -->
+<div style="padding:20px 24px;">
+<a href="${data.walletPassUrl}" style="display:block;background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;text-align:center;color:#fff;font-size:14px;font-weight:600;text-decoration:none;">📲 Add to Apple / Google Wallet</a>
+<p style="color:rgba(255,255,255,0.2);font-size:11px;text-align:center;margin:8px 0 0;">Live updates on your lock screen</p>
+</div>
+
+<!-- Commands -->
+<div style="padding:0 24px 16px;">
+<p style="color:rgba(255,255,255,0.25);font-size:10px;font-weight:600;letter-spacing:1.5px;margin:0 0 8px;">REPLY WITH ANY COMMAND</p>
+${"MENU,ASK,REQUEST,STATUS,LEAVE,MEMBERSHIP".split(",").map(c => `<a href="mailto:${env.EMAIL_FROM}?subject=${c}&body=${c}" style="display:inline-block;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:5px 12px;color:rgba(255,255,255,0.5);font-size:12px;font-family:monospace;text-decoration:none;margin:0 4px 4px 0;">${c}</a>`).join("")}
+</div>
+
+${data.rules.length > 0 ? `
+<!-- Rules -->
+<div style="padding:0 24px 16px;">
+<p style="color:rgba(255,255,255,0.25);font-size:10px;font-weight:600;letter-spacing:1.5px;margin:0 0 8px;">HOUSE RULES</p>
+${data.rules.map(r => `<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:0 0 4px;">• ${esc(r)}</p>`).join("")}
+</div>` : ""}
+
+<!-- Footer -->
+<div style="border-top:1px solid rgba(255,255,255,0.06);padding:16px 24px 32px;text-align:center;">
+<p style="color:rgba(255,255,255,0.15);font-size:11px;margin:0 0 4px;">powered by theKickBack</p>
+<p style="color:rgba(255,255,255,0.15);font-size:11px;margin:0;"><a href="https://join.thekickback.net/${data.venueSlug}" style="color:rgba(255,255,255,0.25);text-decoration:underline;">View venue</a> · <a href="#" style="color:rgba(255,255,255,0.25);text-decoration:underline;">Unsubscribe</a></p>
+</div>
+
+</div></body></html>`;
+
+  const text = `Welcome to ${data.venueName}! ${capitalize(data.vibe)} right now — ${data.occupancy} people. Reply MENU, ASK, REQUEST, or STATUS anytime.`;
+
+  await sendViaResend(env, data.to, `Welcome to ${data.venueName} ✦`, html, text);
+
+  return Response.json({ ok: true, sent: data.to });
+}
+
+// ─── Generic Send ────────────────────────────────────────────────
+
+async function handleSend(request: Request, env: Env): Promise<Response> {
+  const data = await request.json() as { to: string; subject: string; html: string; text: string };
+  await sendViaResend(env, data.to, data.subject, data.html, data.text);
+  return Response.json({ ok: true });
+}
+
+// ─── Resend API ──────────────────────────────────────────────────
+
+async function sendViaResend(env: Env, to: string, subject: string, html: string, text: string): Promise<void> {
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: `theKickBack <${env.EMAIL_FROM}>`,
+      to: [to],
+      subject,
+      html,
+      text,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error(`Resend error: ${res.status} ${err}`);
+  }
+}
 
 // ─── Supabase helpers ────────────────────────────────────────────
 
@@ -177,15 +278,9 @@ async function supabase(env: Env, path: string, options: RequestInit = {}) {
 }
 
 async function getOrCreateProfile(identifier: string, env: Env): Promise<Profile> {
-  // Use email address as the phone field (works as unique identifier)
   const existing = (await supabase(env, `profiles?phone=eq.${encodeURIComponent(identifier)}&limit=1`)) as Profile[] | null;
   if (existing && existing.length > 0) return existing[0];
-
-  const created = (await supabase(env, "profiles", {
-    method: "POST",
-    body: JSON.stringify({ phone: identifier }),
-  })) as Profile[] | null;
-
+  const created = (await supabase(env, "profiles", { method: "POST", body: JSON.stringify({ phone: identifier }) })) as Profile[] | null;
   if (created && created.length > 0) return created[0];
   throw new Error("Failed to create profile");
 }
@@ -196,10 +291,7 @@ async function getDefaultVenue(env: Env): Promise<Venue | null> {
 }
 
 async function getActiveSession(userId: string, env: Env): Promise<Session | null> {
-  const sessions = (await supabase(
-    env,
-    `sessions?user_id=eq.${userId}&status=eq.active&order=started_at.desc&limit=1`
-  )) as Session[] | null;
+  const sessions = (await supabase(env, `sessions?user_id=eq.${userId}&status=eq.active&order=started_at.desc&limit=1`)) as Session[] | null;
   return sessions && sessions.length > 0 ? sessions[0] : null;
 }
 
@@ -217,32 +309,21 @@ async function handleCommand(from: string, body: string, env: Env): Promise<stri
 
   try {
     const profile = await getOrCreateProfile(from, env);
-
     switch (command) {
-      case "join":
-        return handleJoin(profile, env);
-      case "ask":
-        return handleAsk(profile, args, env);
-      case "request":
-        return handleRequest(profile, args, env);
-      case "menu":
-        return handleMenu(profile, env);
-      case "hold":
-        return handleHold(profile, args, env);
-      case "status":
-        return handleStatus(profile, env);
-      case "leave":
-        return handleLeave(profile, env);
-      case "membership":
-        return handleMembership(profile, env);
-      case "yes":
-        return handleMembershipConfirm(profile, env);
-      default:
-        return handleFreeform(profile, raw, env);
+      case "join": return handleJoin(profile, env);
+      case "ask": return handleAsk(profile, args, env);
+      case "request": return handleRequest(profile, args, env);
+      case "menu": return handleMenu(env);
+      case "hold": return handleHold(profile, args, env);
+      case "status": return handleStatus(profile, env);
+      case "leave": return handleLeave(profile, env);
+      case "membership": return handleMembership(profile, env);
+      case "yes": return handleMembershipConfirm(profile, env);
+      default: return handleFreeform(profile, raw, env);
     }
   } catch (err) {
     console.error("Command error:", err);
-    return "Something went wrong. Try again or send STATUS to check your session.";
+    return "Something went wrong. Try again or send STATUS.";
   }
 }
 
@@ -252,302 +333,112 @@ async function handleJoin(profile: Profile, env: Env): Promise<string> {
   const existing = await getActiveSession(profile.id, env);
   if (existing) {
     const venue = await getVenueById(existing.venue_id, env);
-    return `You're already in ${venue?.name || "a venue"}. Send STATUS to see your session or LEAVE to exit.`;
+    return `You're already in ${venue?.name || "a venue"}. Send STATUS or LEAVE.`;
   }
-
   const venue = await getDefaultVenue(env);
   if (!venue) return "No venues are active right now. Try again later.";
-
-  await supabase(env, "sessions", {
-    method: "POST",
-    body: JSON.stringify({
-      user_id: profile.id,
-      venue_id: venue.id,
-      status: "active",
-    }),
-  });
-
-  await supabase(env, `venues?id=eq.${venue.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ occupancy: venue.occupancy + 1 }),
-  });
-
-  const rulesText = Array.isArray(venue.rules)
-    ? venue.rules.map((r: string) => `  - ${r}`).join("\n")
-    : "";
-
-  return [
-    `Welcome to ${venue.name}. ${capitalize(venue.vibe)} right now — ${venue.occupancy + 1} people.`,
-    "",
-    `You're in as a Guest. Send MENU, REQUEST, or ASK anytime.`,
-    rulesText ? `\nHouse rules:\n${rulesText}` : "",
-  ].join("\n").trim();
+  await supabase(env, "sessions", { method: "POST", body: JSON.stringify({ user_id: profile.id, venue_id: venue.id, status: "active" }) });
+  await supabase(env, `venues?id=eq.${venue.id}`, { method: "PATCH", body: JSON.stringify({ occupancy: venue.occupancy + 1 }) });
+  const rulesText = Array.isArray(venue.rules) ? venue.rules.map((r: string) => `  - ${r}`).join("\n") : "";
+  return [`Welcome to ${venue.name}. ${capitalize(venue.vibe)} right now — ${venue.occupancy + 1} people.`, "", "You're in as a Guest. Send MENU, REQUEST, or ASK anytime.", rulesText ? `\nHouse rules:\n${rulesText}` : ""].join("\n").trim();
 }
 
 async function handleAsk(profile: Profile, question: string, env: Env): Promise<string> {
   if (!question) return "What do you want to ask? Send ASK followed by your question.";
-
   const session = await getActiveSession(profile.id, env);
   if (!session) return "You're not in a venue. Send JOIN first.";
-
   const venue = await getVenueById(session.venue_id, env);
-
-  return askClaw(
-    `A guest at ${venue?.name || "the venue"} asks: "${question}". The venue is currently ${venue?.vibe}, with ${venue?.occupancy} people. Respond as the venue in 1-2 sentences max. Be helpful and direct. No emojis.`,
-    profile.phone,
-    env
-  );
+  return askClaw(`A guest at ${venue?.name} asks: "${question}". Venue is ${venue?.vibe}, ${venue?.occupancy} people. Respond in 1-2 sentences. No emojis.`, profile.phone, env);
 }
 
 async function askClaw(message: string, userIdentifier: string, env: Env): Promise<string> {
   try {
-    const res = await fetch(`${env.OPENCLAW_GATEWAY_URL}/hooks/agent`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.OPENCLAW_HOOKS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message,
-        from: userIdentifier,
-        agentId: "main",
-      }),
-    });
-
-    if (res.ok) {
-      const data = (await res.json()) as { payloads?: { text?: string }[] };
-      if (data.payloads?.[0]?.text) {
-        return data.payloads[0].text;
-      }
-    }
-
-    const errText = await res.text();
-    console.error("Claw response:", res.status, errText);
-  } catch (err) {
-    console.error("Claw error:", err);
-  }
-
+    const res = await fetch(`${env.OPENCLAW_GATEWAY_URL}/hooks/agent`, { method: "POST", headers: { Authorization: `Bearer ${env.OPENCLAW_HOOKS_TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify({ message, from: userIdentifier, agentId: "main" }) });
+    if (res.ok) { const data = (await res.json()) as { payloads?: { text?: string }[] }; if (data.payloads?.[0]?.text) return data.payloads[0].text; }
+  } catch (err) { console.error("Claw error:", err); }
   return "Couldn't reach the venue right now. Try again in a moment.";
 }
 
 async function handleRequest(profile: Profile, what: string, env: Env): Promise<string> {
-  if (!what) return "What would you like to request? e.g. REQUEST a booth near the window";
-
+  if (!what) return "What would you like? e.g. REQUEST a booth near the window";
   const session = await getActiveSession(profile.id, env);
   if (!session) return "You're not in a venue. Send JOIN first.";
-
   const venue = await getVenueById(session.venue_id, env);
-
   const lower = what.toLowerCase();
-  const type = lower.includes("booth") || lower.includes("table") || lower.includes("seat")
-    ? "booth"
-    : lower.includes("order") || lower.includes("drink") || lower.includes("food")
-      ? "order"
-      : "service";
-
-  await supabase(env, "requests", {
-    method: "POST",
-    body: JSON.stringify({
-      user_id: profile.id,
-      venue_id: session.venue_id,
-      session_id: session.id,
-      type,
-      body: what,
-      status: "pending",
-    }),
-  });
-
-  return `Request sent to ${venue?.name || "the venue"}: "${what}"\nWe'll reply when it's handled.`;
+  const type = lower.includes("booth") || lower.includes("table") ? "booth" : lower.includes("drink") || lower.includes("food") ? "order" : "service";
+  await supabase(env, "requests", { method: "POST", body: JSON.stringify({ user_id: profile.id, venue_id: session.venue_id, session_id: session.id, type, body: what, status: "pending" }) });
+  return `Request sent to ${venue?.name || "the venue"}: "${what}"`;
 }
 
-async function handleMenu(_profile: Profile, env: Env): Promise<string> {
+async function handleMenu(env: Env): Promise<string> {
   const venue = await getDefaultVenue(env);
   if (!venue) return "No venue info available.";
-
-  return [
-    `${venue.name} — Menu`,
-    "",
-    "Drinks: espresso, matcha, cold brew, sparkling water",
-    "Food: avocado toast, grain bowl, pastry basket",
-    "",
-    "Send REQUEST + item to order.",
-  ].join("\n");
+  return `${venue.name} — Menu\n\nDrinks: espresso, matcha, cold brew, sparkling water\nFood: avocado toast, grain bowl, pastry basket\n\nSend REQUEST + item to order.`;
 }
 
 async function handleHold(profile: Profile, what: string, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
   if (!session) return "You're not in a venue. Send JOIN first.";
-
-  await supabase(env, "requests", {
-    method: "POST",
-    body: JSON.stringify({
-      user_id: profile.id,
-      venue_id: session.venue_id,
-      session_id: session.id,
-      type: "booth",
-      body: what || "Hold a booth",
-      status: "pending",
-    }),
-  });
-
+  await supabase(env, "requests", { method: "POST", body: JSON.stringify({ user_id: profile.id, venue_id: session.venue_id, session_id: session.id, type: "booth", body: what || "Hold a booth", status: "pending" }) });
   return "Hold request sent. We'll reply when confirmed.";
 }
 
 async function handleStatus(profile: Profile, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
-  if (!session) return "You're not in a venue right now. Send JOIN to enter one.";
-
+  if (!session) return "You're not in a venue. Send JOIN to enter one.";
   const venue = await getVenueById(session.venue_id, env);
-
-  const reqs = (await supabase(
-    env,
-    `requests?user_id=eq.${profile.id}&session_id=eq.${session.id}&status=eq.pending`
-  )) as { id: string }[] | null;
-
-  const started = new Date(session.started_at);
-  const mins = Math.round((Date.now() - started.getTime()) / 60000);
-
-  const memberships = (await supabase(
-    env,
-    `memberships?user_id=eq.${profile.id}&venue_id=eq.${session.venue_id}&limit=1`
-  )) as { tier: string }[] | null;
-
+  const reqs = (await supabase(env, `requests?user_id=eq.${profile.id}&session_id=eq.${session.id}&status=eq.pending`)) as { id: string }[] | null;
+  const mins = Math.round((Date.now() - new Date(session.started_at).getTime()) / 60000);
+  const memberships = (await supabase(env, `memberships?user_id=eq.${profile.id}&venue_id=eq.${session.venue_id}&limit=1`)) as { tier: string }[] | null;
   const tier = memberships && memberships.length > 0 ? memberships[0].tier : "Guest";
-
-  return [
-    `${venue?.name || "Venue"} — Your session`,
-    "",
-    `Status: ${capitalize(tier)}`,
-    `Vibe: ${capitalize(venue?.vibe || "unknown")} (${venue?.occupancy || "?"} people)`,
-    `Time: ${mins} min`,
-    `Pending requests: ${reqs?.length || 0}`,
-  ].join("\n");
+  return `${venue?.name || "Venue"} — Your session\n\nStatus: ${capitalize(tier)}\nVibe: ${capitalize(venue?.vibe || "?")} (${venue?.occupancy} people)\nTime: ${mins} min\nPending: ${reqs?.length || 0}`;
 }
 
 async function handleLeave(profile: Profile, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
   if (!session) return "You're not in a venue right now.";
-
   const venue = await getVenueById(session.venue_id, env);
-
-  await supabase(env, `sessions?id=eq.${session.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "ended", ended_at: new Date().toISOString() }),
-  });
-
-  if (venue && venue.occupancy > 0) {
-    await supabase(env, `venues?id=eq.${venue.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ occupancy: venue.occupancy - 1 }),
-    });
-  }
-
-  return `You've left ${venue?.name || "the venue"}. Thanks for stopping by. Send JOIN anytime to come back.`;
+  await supabase(env, `sessions?id=eq.${session.id}`, { method: "PATCH", body: JSON.stringify({ status: "ended", ended_at: new Date().toISOString() }) });
+  if (venue && venue.occupancy > 0) await supabase(env, `venues?id=eq.${venue.id}`, { method: "PATCH", body: JSON.stringify({ occupancy: venue.occupancy - 1 }) });
+  return `You've left ${venue?.name || "the venue"}. Send JOIN anytime to come back.`;
 }
 
 async function handleMembership(profile: Profile, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
-  const venueId = session?.venue_id;
-  const venue = venueId ? await getVenueById(venueId, env) : await getDefaultVenue(env);
-
-  if (!venue) return "No venue available for membership right now.";
-
-  const existing = (await supabase(
-    env,
-    `memberships?user_id=eq.${profile.id}&venue_id=eq.${venue.id}&limit=1`
-  )) as { tier: string }[] | null;
-
-  if (existing && existing.length > 0) {
-    return `You're already a ${existing[0].tier} member at ${venue.name}.`;
-  }
-
-  return [
-    `${venue.name} Membership`,
-    "",
-    "-> Priority booths",
-    "-> Skip the wait",
-    "-> Members-only events",
-    "-> $25/month",
-    "",
-    "Reply YES to join, or ASK to learn more.",
-  ].join("\n");
+  const venue = session ? await getVenueById(session.venue_id, env) : await getDefaultVenue(env);
+  if (!venue) return "No venue available.";
+  const existing = (await supabase(env, `memberships?user_id=eq.${profile.id}&venue_id=eq.${venue.id}&limit=1`)) as { tier: string }[] | null;
+  if (existing && existing.length > 0) return `Already a ${existing[0].tier} member at ${venue.name}.`;
+  return `${venue.name} Membership\n\n-> Priority booths\n-> Skip the wait\n-> Members-only events\n-> $25/month\n\nReply YES to join.`;
 }
 
 async function handleMembershipConfirm(profile: Profile, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
-  const venueId = session?.venue_id;
-  const venue = venueId ? await getVenueById(venueId, env) : await getDefaultVenue(env);
-
+  const venue = session ? await getVenueById(session.venue_id, env) : await getDefaultVenue(env);
   if (!venue) return "No venue available.";
-
-  const existing = (await supabase(
-    env,
-    `memberships?user_id=eq.${profile.id}&venue_id=eq.${venue.id}&limit=1`
-  )) as { tier: string }[] | null;
-
-  if (existing && existing.length > 0) {
-    return `You're already a ${existing[0].tier} member at ${venue.name}.`;
-  }
-
-  await supabase(env, "memberships", {
-    method: "POST",
-    body: JSON.stringify({
-      user_id: profile.id,
-      venue_id: venue.id,
-      tier: "member",
-    }),
-  });
-
-  return `You're in. Welcome to ${venue.name}, member. Your email is now recognized across all KickBack venues. Send STATUS anytime.`;
+  const existing = (await supabase(env, `memberships?user_id=eq.${profile.id}&venue_id=eq.${venue.id}&limit=1`)) as { tier: string }[] | null;
+  if (existing && existing.length > 0) return `Already a ${existing[0].tier} member at ${venue.name}.`;
+  await supabase(env, "memberships", { method: "POST", body: JSON.stringify({ user_id: profile.id, venue_id: venue.id, tier: "member" }) });
+  return `You're in. Welcome to ${venue.name}, member. Send STATUS anytime.`;
 }
 
 async function handleFreeform(profile: Profile, raw: string, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
-
   if (session) {
     const venue = await getVenueById(session.venue_id, env);
-    return askClaw(
-      `A guest at ${venue?.name || "the venue"} sent: "${raw}". Venue is ${venue?.vibe}, ${venue?.occupancy} people. Respond as the venue. Keep it concise. No emojis.`,
-      profile.phone,
-      env
-    );
+    return askClaw(`Guest at ${venue?.name} sent: "${raw}". Venue is ${venue?.vibe}, ${venue?.occupancy} people. Respond as venue. Concise. No emojis.`, profile.phone, env);
   }
-
-  return [
-    `Hey! Send JOIN to enter a venue first.`,
-    "",
-    "Commands:",
-    "JOIN — enter a venue",
-    "ASK — ask the venue anything",
-    "REQUEST — request something",
-    "STATUS — check your session",
-    "LEAVE — exit",
-    "MEMBERSHIP — join as a member",
-  ].join("\n");
+  return "Hey! Send JOIN to enter a venue.\n\nCommands: JOIN, ASK, REQUEST, STATUS, LEAVE, MEMBERSHIP";
 }
 
-// ─── Resend Rich HTML Email ───────────────────────────────────────
+// ─── Utilities ───────────────────────────────────────────────────
 
-async function sendViaResend(env: Env, to: string, subject: string, html: string, text: string): Promise<void> {
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: "theKickBack <join@thekickback.net>",
-      to: [to],
-      subject,
-      html,
-      text,
-    }),
-  });
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
-  if (!res.ok) {
-    const err = await res.text();
-    console.error(`Resend error: ${res.status} ${err}`);
-  }
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function buildSubject(command: string, originalSubject: string | undefined): string {
@@ -565,65 +456,35 @@ function buildSubject(command: string, originalSubject: string | undefined): str
 }
 
 function buildRichHtml(body: string, command: string, fromEmail: string): string {
-  const accent = "#F97316";
   const lines = body.split("\n").filter(Boolean);
-
   const bodyHtml = lines.map((line) => {
     if (line.startsWith("  - ") || line.startsWith("-> ")) {
-      return `<tr><td style="color:${accent};font-size:14px;padding:2px 8px 2px 0;vertical-align:top;">•</td><td style="color:rgba(255,255,255,0.6);font-size:13px;line-height:1.5;">${esc(line.replace(/^(\s*-\s*|-> )/, ""))}</td></tr>`;
+      return `<p style="color:rgba(255,255,255,0.6);font-size:13px;margin:0 0 4px;padding-left:12px;">• ${esc(line.replace(/^(\s*-\s*|-> )/, ""))}</p>`;
     }
     if (line.includes(" — ") && lines.indexOf(line) === 0) {
       return `<h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 8px;">${esc(line)}</h2>`;
     }
     return `<p style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.6;margin:0 0 6px;">${esc(line)}</p>`;
-  });
+  }).join("");
 
-  const hasList = bodyHtml.some((h) => h.startsWith("<tr>"));
-  const content = hasList
-    ? bodyHtml.map((h) => h.startsWith("<tr>") ? h : `<tr><td colspan="2">${h}</td></tr>`).join("")
-    : bodyHtml.join("");
-
-  const commandPills = ["MENU", "ASK", "REQUEST", "STATUS", "LEAVE"].map((cmd) =>
-    `<a href="mailto:${fromEmail}?subject=${cmd}&body=${cmd}" style="display:inline-block;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:5px 12px;color:rgba(255,255,255,0.5);font-size:12px;font-family:monospace;text-decoration:none;margin:0 4px 4px 0;">${cmd}</a>`
+  const pills = "MENU,ASK,REQUEST,STATUS,LEAVE".split(",").map(c =>
+    `<a href="mailto:${fromEmail}?subject=${c}&body=${c}" style="display:inline-block;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:5px 12px;color:rgba(255,255,255,0.5);font-size:12px;font-family:monospace;text-decoration:none;margin:0 4px 4px 0;">${c}</a>`
   ).join("");
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"></head>
-<body style="margin:0;padding:0;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;">
-<div style="max-width:480px;margin:0 auto;background:#000;padding:0;">
-
-<!-- Content -->
-<div style="padding:24px;">
-${hasList ? `<table style="border-collapse:collapse;">${content}</table>` : content}
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"></head>
+<body style="margin:0;padding:0;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<div style="max-width:480px;margin:0 auto;background:#000;padding:24px;">
+${bodyHtml}
 </div>
-
-<!-- Quick Commands -->
-<div style="padding:0 24px 16px;">
+<div style="max-width:480px;margin:0 auto;padding:0 24px 16px;">
 <p style="color:rgba(255,255,255,0.25);font-size:10px;font-weight:600;letter-spacing:1.5px;margin:0 0 8px;">REPLY WITH A COMMAND</p>
-${commandPills}
+${pills}
 </div>
-
-<!-- Wallet Pass -->
-<div style="padding:0 24px 24px;">
-<a href="https://thekickback.net/wallet/pass" style="display:block;background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;text-align:center;color:#fff;font-size:14px;font-weight:600;text-decoration:none;">📲 Add to Apple / Google Wallet</a>
-<p style="color:rgba(255,255,255,0.2);font-size:11px;text-align:center;margin:8px 0 0;">Live updates on your lock screen</p>
+<div style="max-width:480px;margin:0 auto;padding:0 24px 24px;">
+<a href="https://thekickback.net/wallet/pass" style="display:block;background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;text-align:center;color:#fff;font-size:14px;font-weight:600;text-decoration:none;">📲 Add to Wallet</a>
 </div>
-
-<!-- Footer -->
-<div style="border-top:1px solid rgba(255,255,255,0.06);padding:16px 24px 32px;text-align:center;">
-<p style="color:rgba(255,255,255,0.15);font-size:11px;margin:0 0 4px;">powered by theKickBack</p>
-<p style="color:rgba(255,255,255,0.15);font-size:11px;margin:0;"><a href="https://thekickback.net" style="color:rgba(255,255,255,0.25);text-decoration:underline;">thekickback.net</a> · <a href="#" style="color:rgba(255,255,255,0.25);text-decoration:underline;">Unsubscribe</a></p>
-</div>
-
+<div style="max-width:480px;margin:0 auto;border-top:1px solid rgba(255,255,255,0.06);padding:16px 24px 32px;text-align:center;">
+<p style="color:rgba(255,255,255,0.15);font-size:11px;margin:0;">powered by theKickBack</p>
 </div>
 </body></html>`;
-}
-
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-// ─── Utilities ───────────────────────────────────────────────────
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }

@@ -10,5 +10,6 @@ OPENCLAW_GATEWAY_URL = "https://claw.thekickback.net"
 EMAIL_FROM = "join@thekickback.net"
 
 # Secrets — set via `wrangler secret put`:
+# RESEND_API_KEY
 # SUPABASE_SERVICE_KEY
 # OPENCLAW_HOOKS_TOKEN
