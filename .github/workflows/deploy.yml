@@ -44,7 +44,7 @@ jobs:
 
             # Wait for all services to be healthy
             echo "Waiting for health checks..."
-            for SERVICE in landing-blue join-app dash-app caddy; do
+            for SERVICE in landing-blue join-app dash-app kickback-caddy; do
               RETRIES=30
               until docker inspect $SERVICE --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; do
                 RETRIES=$((RETRIES - 1))
