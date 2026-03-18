@@ -4,19 +4,13 @@ compatibility_date = "2025-12-01"
 
 [vars]
 ENVIRONMENT = "production"
+TWILIO_PHONE_NUMBER = "+14142693754"
+SUPABASE_URL = "https://wofvgfhejrvudvfxdytc.supabase.co"
+OPENCLAW_GATEWAY_URL = "https://claw.thekickback.net"
 
-# Twilio credentials — set via `wrangler secret put`
+# Secrets — set via `wrangler secret put`:
 # TWILIO_ACCOUNT_SID
 # TWILIO_AUTH_TOKEN
 # TWILIO_MESSAGING_SERVICE_SID
-
-# D1 database for venue/session state
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "kickback-sms"
-# database_id = "<your-d1-id>"
-
-# KV namespace for quick lookups (venue config, rate limits)
-# [[kv_namespaces]]
-# binding = "KV"
-# id = "<your-kv-id>"
+# SUPABASE_SERVICE_KEY
+# OPENCLAW_GATEWAY_TOKEN

@@ -86,6 +86,9 @@ services:
       - OPENCLAW_GATEWAY_BIND=0.0.0.0
       - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
     volumes:
       - claw_config:/home/node/.openclaw
       - claw_workspace:/home/node/.openclaw/workspace
