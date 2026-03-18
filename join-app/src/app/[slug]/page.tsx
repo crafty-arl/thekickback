@@ -1,8 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { VenuePageClient } from "@/components/venue/venue-page-client";
 
-const supabase = createClient(
+const serviceClient = createServiceClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 );
@@ -14,7 +15,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
-  const { data: page } = await supabase
+  const { data: page } = await serviceClient
     .from("venue_pages")
     .select("*, venues(*)")
     .eq("slug", slug)
@@ -33,7 +34,7 @@ export default async function VenuePage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { table, ref } = await searchParams;
 
-  const { data: page } = await supabase
+  const { data: page } = await serviceClient
     .from("venue_pages")
     .select("*, venues(*)")
     .eq("slug", slug)
@@ -42,12 +43,19 @@ export default async function VenuePage({ params, searchParams }: Props) {
 
   if (!page) notFound();
 
+  // Check if the current user is authenticated
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <VenuePageClient
       page={page}
       venue={page.venues}
       table={table}
       ref={ref}
+      user={user ? { id: user.id, email: user.email ?? "" } : null}
     />
   );
 }

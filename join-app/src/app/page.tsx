@@ -8,6 +8,7 @@ import { CategoryFilter } from "@/components/discover/category-filter";
 import { VibeFilter } from "@/components/discover/vibe-filter";
 import { VenueCard } from "@/components/discover/venue-card";
 import { LiveStats } from "@/components/discover/live-stats";
+import { AuthButton } from "@/components/auth-button";
 
 export default function JoinPage() {
   const [search, setSearch] = useState("");
@@ -50,12 +51,7 @@ export default function JoinPage() {
             <span className="hidden font-sans text-sm text-black/40 sm:block">
               Find your spot. Text to enter.
             </span>
-            <a
-              href="https://thekickback.net"
-              className="rounded-full bg-black px-4 py-2 font-sans text-sm font-medium text-white transition-colors hover:bg-black/85"
-            >
-              Learn more
-            </a>
+            <AuthButton />
           </div>
         </header>
 

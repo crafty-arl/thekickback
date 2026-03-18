@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { VenueHero } from "./venue-hero";
 import { VenueChat } from "./venue-chat";
@@ -32,6 +33,7 @@ interface Props {
   venue: Venue;
   table?: string;
   ref?: string;
+  user?: { id: string; email: string } | null;
 }
 
 function vibeColor(vibe: string): string {
@@ -54,9 +56,19 @@ function vibeLabel(vibe: string): string {
   }
 }
 
-export function VenuePageClient({ page, venue, table }: Props) {
+export function VenuePageClient({ page, venue, table, user }: Props) {
+  const router = useRouter();
   const [joined, setJoined] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+
+  function handleJoin() {
+    if (!user) {
+      // Redirect to login, then come back to this venue page
+      router.push(`/login?returnTo=/${page.slug}`);
+      return;
+    }
+    setJoined(true);
+  }
 
   return (
     <main
@@ -91,7 +103,7 @@ export function VenuePageClient({ page, venue, table }: Props) {
 
               {/* Join CTA — min 48px touch target */}
               <button
-                onClick={() => setJoined(true)}
+                onClick={handleJoin}
                 className="mt-6 flex w-full items-center justify-center rounded-2xl font-sans text-[16px] font-bold text-black active:scale-[0.97] active:opacity-90"
                 style={{
                   backgroundColor: page.theme_color,
@@ -105,7 +117,7 @@ export function VenuePageClient({ page, venue, table }: Props) {
               {/* Alt methods — min 44px touch targets */}
               <div className="mt-3 grid w-full grid-cols-2 gap-3">
                 <button
-                  onClick={() => setJoined(true)}
+                  onClick={() => router.push(`/login?returnTo=/${page.slug}`)}
                   className="flex items-center justify-center rounded-xl font-sans text-[13px] font-medium active:opacity-70"
                   style={{
                     backgroundColor: "#111",
@@ -118,7 +130,7 @@ export function VenuePageClient({ page, venue, table }: Props) {
                   Email
                 </button>
                 <button
-                  onClick={() => setJoined(true)}
+                  onClick={handleJoin}
                   className="flex items-center justify-center rounded-xl font-sans text-[13px] font-medium active:opacity-70"
                   style={{
                     backgroundColor: "#111",
