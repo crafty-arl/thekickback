@@ -66,6 +66,7 @@ services:
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
       - OPENCLAW_GATEWAY_BIND=0.0.0.0
       - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
     volumes:
       - claw_config:/home/node/.openclaw
       - claw_workspace:/home/node/.openclaw/workspace
