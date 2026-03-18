@@ -76,7 +76,6 @@ async function generatePass(data: PassData): Promise<Buffer> {
       wwdr,
       signerCert,
       signerKey,
-      signerKeyPassphrase: process.env.SIGNER_KEY_PASSPHRASE || "",
     },
     {
       serialNumber,
