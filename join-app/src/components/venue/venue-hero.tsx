@@ -18,7 +18,7 @@ interface Props {
 
 export function VenueHero({ page, venue }: Props) {
   return (
-    <div className="relative w-full overflow-hidden" style={{ height: "33vh", minHeight: 280 }}>
+    <div className="relative w-full overflow-hidden" style={{ height: "40svh", minHeight: 240 }}>
       {/* Background — hero image or gradient */}
       {page.hero_image ? (
         <Image
@@ -37,20 +37,22 @@ export function VenueHero({ page, venue }: Props) {
         />
       )}
 
-      {/* Bottom gradient fade to black */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0F] via-[#0D0D0F]/70 to-transparent" />
+      {/* Bottom gradient fade to pure black */}
+      <div
+        className="absolute inset-0"
+        style={{ background: "linear-gradient(to top, #000000 0%, #00000099 50%, transparent 100%)" }}
+      />
 
-      {/* Content */}
-      <div className="absolute bottom-0 left-0 right-0 px-5 pb-6">
+      {/* Content — bottom-pinned, safe area aware */}
+      <div className="absolute bottom-0 left-0 right-0 px-5 pb-5" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mx-auto max-w-lg"
+          transition={{ duration: 0.5 }}
         >
           {/* LIVE badge */}
           <div
-            className="mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1"
+            className="mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1"
             style={{ backgroundColor: page.theme_color }}
           >
             <div className="h-1.5 w-1.5 rounded-full bg-black" />
@@ -59,15 +61,17 @@ export function VenueHero({ page, venue }: Props) {
             </span>
           </div>
 
-          {/* Venue name */}
-          <h1 className="font-sans text-[32px] font-bold tracking-tight text-white">
+          {/* Venue name — responsive sizing */}
+          <h1 className="font-sans text-[28px] font-bold leading-tight tracking-tight text-white sm:text-[32px]">
             {venue.name}
           </h1>
 
-          {/* Location line */}
-          <p className="mt-1 font-sans text-sm text-white/50">
-            Downtown · Open until 12 AM
-          </p>
+          {/* Tagline or location */}
+          {page.tagline ? (
+            <p className="mt-1 font-sans text-[13px] text-white/50 sm:text-sm">{page.tagline}</p>
+          ) : (
+            <p className="mt-1 font-sans text-[13px] text-white/50 sm:text-sm">Downtown · Open until 12 AM</p>
+          )}
         </motion.div>
       </div>
     </div>

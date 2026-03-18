@@ -59,12 +59,15 @@ export function VenuePageClient({ page, venue, table }: Props) {
   const [chatOpen, setChatOpen] = useState(false);
 
   return (
-    <main className="flex min-h-screen flex-col text-white" style={{ backgroundColor: "#000" }}>
+    <main
+      className="flex min-h-svh flex-col text-white"
+      style={{ backgroundColor: "#000", WebkitTapHighlightColor: "transparent" }}
+    >
       {/* Hero */}
       <VenueHero page={page} venue={venue} />
 
-      {/* Single card — all content lives here */}
-      <div className="mx-auto w-full max-w-lg flex-1 px-5">
+      {/* Content — full width on mobile, capped on larger */}
+      <div className="mx-auto w-full flex-1 px-4 sm:max-w-md sm:px-5 md:max-w-lg">
         <AnimatePresence mode="wait">
           {!joined ? (
             <motion.div
@@ -72,42 +75,58 @@ export function VenuePageClient({ page, venue, table }: Props) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex flex-col items-center pt-8"
+              className="flex flex-col items-center pt-6"
             >
               {/* Vibe — single line */}
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full" style={{ backgroundColor: vibeColor(venue.vibe) }} />
-                <span className="font-sans text-sm" style={{ color: vibeColor(venue.vibe) }}>
+                <span className="font-sans text-[13px] font-medium" style={{ color: vibeColor(venue.vibe) }}>
                   {vibeLabel(venue.vibe)}
                 </span>
-                <span className="font-sans text-sm" style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
-                <span className="font-sans text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
+                <span className="font-sans text-[13px]" style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+                <span className="font-sans text-[13px]" style={{ color: "rgba(255,255,255,0.4)" }}>
                   {venue.occupancy} people
                 </span>
               </div>
 
-              {/* Join CTA */}
+              {/* Join CTA — min 48px touch target */}
               <button
                 onClick={() => setJoined(true)}
-                className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-sans text-base font-bold text-black active:scale-[0.98]"
-                style={{ backgroundColor: page.theme_color }}
+                className="mt-6 flex w-full items-center justify-center rounded-2xl font-sans text-[16px] font-bold text-black active:scale-[0.97] active:opacity-90"
+                style={{
+                  backgroundColor: page.theme_color,
+                  height: 52,
+                  minHeight: 48,
+                }}
               >
                 Tap to Join
               </button>
 
-              {/* Alt methods */}
+              {/* Alt methods — min 44px touch targets */}
               <div className="mt-3 grid w-full grid-cols-2 gap-3">
                 <button
                   onClick={() => setJoined(true)}
-                  className="rounded-xl py-3 font-sans text-[13px] font-medium"
-                  style={{ backgroundColor: "#111", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  className="flex items-center justify-center rounded-xl font-sans text-[13px] font-medium active:opacity-70"
+                  style={{
+                    backgroundColor: "#111",
+                    color: "rgba(255,255,255,0.4)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    height: 46,
+                    minHeight: 44,
+                  }}
                 >
                   Email
                 </button>
                 <button
                   onClick={() => setJoined(true)}
-                  className="rounded-xl py-3 font-sans text-[13px] font-medium"
-                  style={{ backgroundColor: "#111", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  className="flex items-center justify-center rounded-xl font-sans text-[13px] font-medium active:opacity-70"
+                  style={{
+                    backgroundColor: "#111",
+                    color: "rgba(255,255,255,0.4)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    height: 46,
+                    minHeight: 44,
+                  }}
                 >
                   Phone
                 </button>
@@ -118,46 +137,49 @@ export function VenuePageClient({ page, venue, table }: Props) {
               key="joined"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col gap-4 pt-4"
+              className="flex flex-col gap-3 pt-4"
             >
-              {/* Quick actions */}
+              {/* Quick actions — touch optimized */}
               <div className="flex gap-3">
                 <button
                   onClick={() => setChatOpen(true)}
-                  className="flex-1 rounded-xl py-3 font-sans text-sm font-semibold text-black"
-                  style={{ backgroundColor: page.theme_color }}
+                  className="flex flex-1 items-center justify-center rounded-xl font-sans text-[14px] font-semibold text-black active:scale-[0.97]"
+                  style={{ backgroundColor: page.theme_color, height: 48 }}
                 >
                   Talk to {venue.name}
                 </button>
                 <a
                   href="#info"
-                  className="flex-1 rounded-xl py-3 text-center font-sans text-sm font-medium"
-                  style={{ backgroundColor: "#111", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  className="flex flex-1 items-center justify-center rounded-xl font-sans text-[14px] font-medium active:opacity-70"
+                  style={{ backgroundColor: "#111", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)", height: 48 }}
                 >
                   Menu
                 </a>
               </div>
 
-              {/* Wallet pass */}
+              {/* Wallet pass — touch target */}
               <a
                 href={`https://thekickback.net/wallet/pass/${venue.id}/guest`}
-                className="flex items-center gap-3 rounded-xl p-3"
-                style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.06)" }}
+                className="flex items-center gap-3 rounded-xl p-3 active:opacity-80"
+                style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.06)", minHeight: 48 }}
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: page.theme_color }}>
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: page.theme_color }}
+                >
                   <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect width="20" height="14" x="2" y="5" rx="2" />
                     <line x1="2" y1="10" x2="22" y2="10" />
                   </svg>
                 </div>
-                <div className="flex-1">
-                  <p className="font-sans text-sm font-medium text-white">Add to Wallet</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-sans text-[14px] font-medium text-white">Add to Wallet</p>
                   <p className="font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>Live updates on lock screen</p>
                 </div>
               </a>
 
               {/* Venue info */}
-              <div id="info">
+              <div id="info" className="pt-2">
                 <VenueInfo page={page} venue={venue} />
               </div>
             </motion.div>
@@ -171,24 +193,29 @@ export function VenuePageClient({ page, venue, table }: Props) {
         )}
       </div>
 
-      {/* Footer */}
-      <div className="py-6 text-center">
+      {/* Footer — safe area bottom */}
+      <div className="py-5 text-center" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}>
         <span className="font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.15)" }}>powered by theKickBack</span>
       </div>
 
-      {/* Chat */}
+      {/* Chat overlay */}
       <AnimatePresence>
         {chatOpen && <VenueChat venue={venue} page={page} table={table} onClose={() => setChatOpen(false)} />}
       </AnimatePresence>
 
+      {/* Floating chat — safe area aware */}
       {joined && !chatOpen && (
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
           onClick={() => setChatOpen(true)}
-          className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full shadow-lg"
-          style={{ backgroundColor: page.theme_color }}
+          className="fixed flex h-14 w-14 items-center justify-center rounded-full shadow-lg active:scale-90"
+          style={{
+            backgroundColor: page.theme_color,
+            bottom: "max(24px, env(safe-area-inset-bottom, 24px))",
+            right: 20,
+          }}
         >
           <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
