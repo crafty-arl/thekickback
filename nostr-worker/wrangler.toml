@@ -1,0 +1,21 @@
+name = "kickback-nostr"
+main = "src/index.ts"
+compatibility_date = "2025-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+SUPABASE_URL = "https://wofvgfhejrvudvfxdytc.supabase.co"
+OPENCLAW_GATEWAY_URL = "https://claw.thekickback.net"
+
+# Public relays to connect to
+NOSTR_RELAYS = "wss://relay.damus.io,wss://nos.lol,wss://relay.nostr.band"
+
+# Secrets — set via `wrangler secret put`:
+# NOSTR_SECRET_KEY  (hex-encoded private key)
+# SUPABASE_SERVICE_KEY
+# OPENCLAW_HOOKS_TOKEN
+
+# Cron trigger — poll relays every 30 seconds for new DMs
+[triggers]
+crons = ["*/1 * * * *"]
