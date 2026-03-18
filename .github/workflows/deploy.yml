@@ -1,0 +1,57 @@
+name: Deploy Landing Page
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  deploy:
+    needs: lint-and-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            # Pull latest code
+            cd /opt/thekickback
+            git pull origin main
+
+            # Run zero-downtime deploy
+            bash deploy/deploy.sh
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            # Health check
+            sleep 5
+            HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" http://localhost/health)
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "DEPLOY VERIFICATION FAILED: HTTP $HTTP_CODE"
+              exit 1
+            fi
+            echo "Deploy verified: HTTP 200"
