@@ -13,6 +13,17 @@ export interface Env {
   ENVIRONMENT: string;
 }
 
+interface ForwardableEmailMessage {
+  readonly from: string;
+  readonly to: string;
+  readonly headers: Headers;
+  readonly raw: ReadableStream;
+  readonly rawSize: number;
+  setReject(reason: string): void;
+  forward(rcptTo: string, headers?: Headers): Promise<void>;
+  reply(message: EmailMessage): Promise<void>;
+}
+
 interface Profile {
   id: string;
   phone: string;
@@ -37,42 +48,121 @@ interface Session {
   status: string;
 }
 
+// ─── SMS Gateway Detection ───────────────────────────────────────
+
+const SMS_GATEWAYS: Record<string, string> = {
+  "txt.att.net": "AT&T",
+  "mms.att.net": "AT&T MMS",
+  "tmomail.net": "T-Mobile",
+  "vtext.com": "Verizon",
+  "vzwpix.com": "Verizon MMS",
+  "messaging.sprintpcs.com": "Sprint",
+  "pm.sprint.com": "Sprint",
+  "vmobl.com": "Visible",
+  "mmst5.tracfone.com": "TracFone",
+  "mymetropcs.com": "Metro",
+  "msg.fi.google.com": "Google Fi",
+  "text.republicwireless.com": "Republic",
+  "mailmymobile.net": "Consumer Cellular",
+  "cingularme.com": "AT&T Legacy",
+  "email.uscc.net": "US Cellular",
+  "sms.cricketwireless.net": "Cricket",
+  "mms.cricketwireless.net": "Cricket MMS",
+  "text.att.net": "AT&T",
+};
+
+function isSmsGateway(email: string): boolean {
+  const domain = email.split("@")[1]?.toLowerCase() || "";
+  return domain in SMS_GATEWAYS;
+}
+
+function getCarrier(email: string): string {
+  const domain = email.split("@")[1]?.toLowerCase() || "";
+  return SMS_GATEWAYS[domain] || "Unknown";
+}
+
+/**
+ * Truncate reply for SMS delivery.
+ * SMS limit is 160 chars per segment. We aim for 1-2 segments max.
+ */
+function smsFormat(text: string): string {
+  // Strip any markdown-like formatting
+  let clean = text
+    .replace(/\n{2,}/g, "\n")   // collapse double newlines
+    .replace(/→/g, "-")          // replace arrows with dashes
+    .trim();
+
+  // If under 300 chars, send as-is (will be 2 SMS segments max)
+  if (clean.length <= 300) return clean;
+
+  // Truncate to 297 + "..."
+  return clean.slice(0, 297) + "...";
+}
+
 // ─── Email Handler ───────────────────────────────────────────────
 
 export default {
   async email(message: ForwardableEmailMessage, env: Env) {
-    // Parse the incoming email
     const raw = await new Response(message.raw).arrayBuffer();
     const email = await PostalMime.parse(raw);
 
-    // Extract the command from email body (plain text)
-    const body = (email.text || email.subject || "").trim();
+    // Extract command — SMS gateways often put the text in subject OR body
     const fromAddress = message.from;
+    const isSms = isSmsGateway(fromAddress);
 
-    console.log(`Email from: ${fromAddress} | Body: ${body}`);
+    // SMS gateways: body is sometimes in subject, sometimes in body
+    // Also strip carrier signatures and forwarding junk
+    let body = "";
+    if (isSms) {
+      // Prefer body, fall back to subject
+      body = (email.text || email.subject || "").trim();
+      // Strip common carrier footer noise
+      body = body.split("\n")[0].trim(); // first line only for SMS
+    } else {
+      body = (email.text || email.subject || "").trim();
+    }
 
-    // Process the command using the same logic as SMS
-    // Use email address as the "phone" identifier
+    const carrier = isSms ? getCarrier(fromAddress) : "email";
+    console.log(`From: ${fromAddress} | Carrier: ${carrier} | SMS: ${isSms} | Body: "${body}"`);
+
+    // Process command
     const reply = await handleCommand(fromAddress, body, env);
 
-    // Build reply email
+    // Format reply based on transport
+    const finalReply = isSms ? smsFormat(reply) : reply;
+
+    // Build reply email — minimal for SMS, richer for email
     const response = createMimeMessage();
-    response.setHeader("In-Reply-To", message.headers.get("Message-ID") || "");
     response.setSender(env.EMAIL_FROM);
     response.setRecipient(fromAddress);
-    response.setSubject(`Re: ${email.subject || "theKickBack"}`);
-    response.addMessage({
-      contentType: "text/plain",
-      data: reply,
-    });
 
-    // Send the reply
+    if (isSms) {
+      // SMS gateways: empty or minimal subject, plain text only, no HTML
+      // Some gateways show the subject as a prefix, so keep it empty
+      response.setSubject("");
+      response.addMessage({
+        contentType: "text/plain; charset=utf-8",
+        data: finalReply,
+      });
+    } else {
+      // Regular email: proper subject and threading
+      const msgId = message.headers.get("Message-ID") || "";
+      if (msgId) response.setHeader("In-Reply-To", msgId);
+      response.setSubject(`Re: ${email.subject || "theKickBack"}`);
+      response.addMessage({
+        contentType: "text/plain; charset=utf-8",
+        data: reply,
+      });
+    }
+
     const replyMessage = new EmailMessage(
       env.EMAIL_FROM,
       fromAddress,
       response.asRaw(),
     );
     await message.reply(replyMessage);
+
+    console.log(`Reply sent to ${fromAddress} (${isSms ? "SMS via " + carrier : "email"}) | Length: ${finalReply.length}`);
   },
 };
 
