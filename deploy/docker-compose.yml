@@ -56,6 +56,7 @@ services:
       args:
         NEXT_PUBLIC_SUPABASE_URL: https://wofvgfhejrvudvfxdytc.supabase.co
         NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_rF_CWGfwxUwSXyFG_Zl56w_V_OfW_mQ
+        NEXT_PUBLIC_MAPBOX_TOKEN: pk.eyJ1IjoiY3JhZmZ0eWFybCIsImEiOiJjbW00bndseTIwZWNuMnFwdzF4Nm9oa2R5In0.IZmVHl0HZsz2fucPLUmfMQ
     container_name: join-app
     expose:
       - "3000"
