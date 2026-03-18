@@ -76,6 +76,9 @@ export default async function DashboardPage() {
                 {venue.name}
               </span>
             </div>
+            <a href="/edit" className="rounded-lg bg-black/[0.06] px-3 py-1.5 font-sans text-xs font-medium text-black/50 transition hover:bg-black/[0.1]">
+              Edit Venue
+            </a>
             <SignOutButton />
           </div>
         </header>
