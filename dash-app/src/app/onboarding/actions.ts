@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
 interface VenueFormData {
@@ -17,6 +18,12 @@ export async function createVenue(formData: VenueFormData) {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  // Use service client to bypass RLS for venue creation
+  const service = createServiceClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
 
   // Geocode address
   let lat = null;
@@ -49,8 +56,13 @@ export async function createVenue(formData: VenueFormData) {
   };
   const themeColor = themeColors[formData.type] || "#F97316";
 
-  // Create venue
-  const { data: venue, error: venueError } = await supabase
+  const slug = formData.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  // 1. Create venue
+  const { data: venue, error: venueError } = await service
     .from("venues")
     .insert({
       name: formData.name,
@@ -68,22 +80,19 @@ export async function createVenue(formData: VenueFormData) {
     .select("id")
     .single();
 
-  if (venueError) return { error: venueError.message };
+  if (venueError) return { error: `Venue: ${venueError.message}` };
 
-  // Link user as owner
-  await supabase.from("venue_owners").insert({
+  // 2. Link user as owner
+  const { error: ownerError } = await service.from("venue_owners").insert({
     user_id: user.id,
     venue_id: venue.id,
     role: "owner",
   });
 
-  // Create venue page
-  const slug = formData.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+  if (ownerError) return { error: `Owner: ${ownerError.message}` };
 
-  await supabase.from("venue_pages").insert({
+  // 3. Create venue page
+  const { error: pageError } = await service.from("venue_pages").insert({
     venue_id: venue.id,
     slug,
     tagline: formData.tagline || null,
@@ -94,6 +103,8 @@ export async function createVenue(formData: VenueFormData) {
     hours: formData.hours ? [{ day: "Daily", open: formData.hours, close: "" }] : [],
     menu_sections: [],
   });
+
+  if (pageError) return { error: `Page: ${pageError.message}` };
 
   redirect("/");
 }
