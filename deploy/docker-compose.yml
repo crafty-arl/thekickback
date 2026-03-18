@@ -64,6 +64,7 @@ services:
       - TERM=xterm-256color
       - TZ=UTC
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - OPENCLAW_GATEWAY_BIND=0.0.0.0
       - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1
     volumes:
       - claw_config:/home/node/.openclaw
