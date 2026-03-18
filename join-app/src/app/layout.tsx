@@ -1,6 +1,10 @@
-import type { Metadata } from "next";
-import { DM_Sans, Fraunces } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { DM_Sans, Fraunces, Geist } from "next/font/google";
 import "./globals.css";
+import { cn } from "@/lib/utils";
+import Script from "next/script";
+
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -16,8 +20,22 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: "theKickBack — Discover what's happening right now",
-  description:
-    "Browse live venues, check the vibe before you go, and text to enter. No app needed.",
+  description: "Tap into any venue. No app needed.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "theKickBack",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({
@@ -26,9 +44,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={cn("font-sans", geist.variable)}>
+      <head>
+        <link rel="apple-touch-icon" href="/logo.png" />
+      </head>
       <body className={`${dmSans.variable} ${fraunces.variable} antialiased`}>
         {children}
+        <Script id="sw-register" strategy="afterInteractive">
+          {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}`}
+        </Script>
       </body>
     </html>
   );

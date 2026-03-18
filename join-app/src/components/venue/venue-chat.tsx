@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { motion, PanInfo } from "framer-motion";
 
 interface Message {
   id: string;
@@ -17,6 +17,14 @@ interface Props {
   onClose: () => void;
 }
 
+const QUICK_ACTIONS = [
+  { label: "Menu", command: "menu" },
+  { label: "Reserve", command: "request a booth" },
+  { label: "Vibe", command: "what's the vibe?" },
+  { label: "Events", command: "any events tonight?" },
+  { label: "Status", command: "status" },
+];
+
 export function VenueChat({ venue, page, table, onClose }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -31,22 +39,38 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Drag-to-dismiss state
+  const [dismissed, setDismissed] = useState(false);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
+  // Focus input after mount (slight delay for drawer animation)
   useEffect(() => {
-    inputRef.current?.focus();
+    const t = setTimeout(() => inputRef.current?.focus(), 400);
+    return () => clearTimeout(t);
   }, []);
 
-  async function send() {
-    const text = input.trim();
-    if (!text || loading) return;
+  // Handle keyboard visibility on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+      }
+    };
+    window.visualViewport?.addEventListener("resize", handleResize);
+    return () => window.visualViewport?.removeEventListener("resize", handleResize);
+  }, []);
+
+  const send = useCallback(async (text?: string) => {
+    const msg = (text || input).trim();
+    if (!msg || loading) return;
 
     const userMsg: Message = {
       id: `user-${Date.now()}`,
       sender: "guest",
-      body: text,
+      body: msg,
       timestamp: Date.now(),
     };
 
@@ -59,7 +83,7 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: text,
+          message: msg,
           venueId: venue.id,
           venueName: venue.name,
           vibe: venue.vibe,
@@ -93,86 +117,142 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
       setLoading(false);
       inputRef.current?.focus();
     }
+  }, [input, loading, venue, table]);
+
+  function handleDragEnd(_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) {
+    if (info.offset.y > 150 || info.velocity.y > 500) {
+      setDismissed(true);
+      setTimeout(onClose, 300);
+    }
   }
 
   return (
-    <motion.div
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      exit={{ y: "100%" }}
-      transition={{ type: "spring", damping: 30, stiffness: 300 }}
-      className="fixed inset-0 z-50 flex flex-col bg-[#0D0D0F]"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="h-2.5 w-2.5 rounded-full animate-pulse"
-            style={{ backgroundColor: page.theme_color }}
-          />
-          <span className="font-sans text-sm font-semibold text-white">
-            {venue.name}
-          </span>
+    <>
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-40"
+        style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+      />
+
+      {/* Drawer */}
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={dismissed ? { y: "100%" } : { y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        drag="y"
+        dragConstraints={{ top: 0 }}
+        dragElastic={0.2}
+        onDragEnd={handleDragEnd}
+        className="fixed inset-x-0 bottom-0 z-50 flex h-[90dvh] max-h-[700px] flex-col overflow-hidden rounded-t-[20px] bg-[#0D0D0F]"
+      >
+        {/* Drag handle */}
+        <div className="flex justify-center pb-2 pt-3" style={{ touchAction: "none" }}>
+          <div className="h-1 w-10 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
         </div>
-        <button
-          onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-white/50 transition-colors hover:bg-white/[0.1]"
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="h-2.5 w-2.5 rounded-full animate-pulse"
+              style={{ backgroundColor: page.theme_color }}
+            />
+            <span className="font-sans text-[15px] font-semibold text-white">
+              {venue.name}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full active:opacity-60"
+            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="mx-4" style={{ height: 1, backgroundColor: "rgba(255,255,255,0.06)" }} />
+
+        {/* Messages — scrollable */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto overscroll-contain px-4 py-3"
+          style={{ WebkitOverflowScrolling: "touch" }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
-        <div className="mx-auto flex max-w-lg flex-col gap-3">
-          {messages.map((msg) => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                  msg.sender === "guest"
-                    ? "rounded-br-sm text-black"
-                    : "rounded-bl-sm bg-white/[0.06] text-white/80"
-                }`}
-                style={
-                  msg.sender === "guest"
-                    ? { backgroundColor: page.theme_color }
-                    : undefined
-                }
+          <div className="flex flex-col gap-2.5">
+            {messages.map((msg) => (
+              <motion.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
               >
-                <p className="font-sans text-sm leading-relaxed">{msg.body}</p>
-              </div>
-            </motion.div>
-          ))}
-
-          {loading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex justify-start"
-            >
-              <div className="rounded-2xl rounded-bl-sm bg-white/[0.06] px-4 py-3">
-                <div className="flex gap-1.5">
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-white/30" style={{ animationDelay: "0ms" }} />
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-white/30" style={{ animationDelay: "150ms" }} />
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-white/30" style={{ animationDelay: "300ms" }} />
+                <div
+                  className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${
+                    msg.sender === "guest"
+                      ? "rounded-br-sm text-black"
+                      : "rounded-bl-sm text-white/80"
+                  }`}
+                  style={
+                    msg.sender === "guest"
+                      ? { backgroundColor: page.theme_color }
+                      : { backgroundColor: "rgba(255,255,255,0.06)" }
+                  }
+                >
+                  <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </div>
-      </div>
+              </motion.div>
+            ))}
 
-      {/* Input */}
-      <div className="border-t border-white/[0.06] px-5 py-4">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
+            {loading && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                  <div className="flex gap-1.5">
+                    <div className="h-2 w-2 animate-bounce rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.3)", animationDelay: "0ms" }} />
+                    <div className="h-2 w-2 animate-bounce rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.3)", animationDelay: "150ms" }} />
+                    <div className="h-2 w-2 animate-bounce rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.3)", animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick actions — horizontal scroll */}
+        <div className="overflow-x-auto px-4 py-2" style={{ WebkitOverflowScrolling: "touch" }}>
+          <div className="flex gap-2" style={{ minWidth: "max-content" }}>
+            {QUICK_ACTIONS.map((action) => (
+              <button
+                key={action.command}
+                onClick={() => send(action.command)}
+                disabled={loading}
+                className="flex shrink-0 items-center rounded-full px-3.5 font-sans text-[12px] font-medium active:opacity-70 disabled:opacity-40"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.06)",
+                  color: "rgba(255,255,255,0.6)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  height: 34,
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Input — safe area bottom */}
+        <div
+          className="flex items-center gap-2.5 px-4 pb-2 pt-2"
+          style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom, 12px))" }}
+        >
           <input
             ref={inputRef}
             type="text"
@@ -180,13 +260,26 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
             placeholder="Ask anything..."
-            className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 font-sans text-sm text-white placeholder:text-white/25 focus:border-white/[0.15] focus:outline-none"
+            enterKeyHint="send"
+            autoComplete="off"
+            autoCorrect="off"
+            className="flex-1 rounded-full border px-4 font-sans text-[14px] text-white placeholder:text-white/25 focus:outline-none"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.04)",
+              borderColor: "rgba(255,255,255,0.08)",
+              height: 46,
+              minHeight: 44,
+            }}
           />
           <button
-            onClick={send}
+            onClick={() => send()}
             disabled={!input.trim() || loading}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-opacity disabled:opacity-30"
-            style={{ backgroundColor: page.theme_color }}
+            className="flex shrink-0 items-center justify-center rounded-full active:scale-90 disabled:opacity-30"
+            style={{
+              backgroundColor: page.theme_color,
+              width: 44,
+              height: 44,
+            }}
           >
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="19" x2="12" y2="5" />
@@ -194,7 +287,7 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
             </svg>
           </button>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </>
   );
 }
