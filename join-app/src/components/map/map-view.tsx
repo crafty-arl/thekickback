@@ -96,6 +96,17 @@ export function MapView({ venues, selectedVenue, onVenueSelect }: MapViewProps) 
     fittedRef.current = true;
   }, []);
 
+  // Fly to venue when selectedVenue changes (e.g. from arrow nav)
+  useEffect(() => {
+    if (!selectedVenue || !mapRef.current) return;
+    mapRef.current.flyTo({
+      center: [selectedVenue.longitude, selectedVenue.latitude],
+      zoom: 15.5,
+      pitch: 50,
+      duration: 800,
+    });
+  }, [selectedVenue]);
+
   const handleMarkerClick = useCallback(
     (venue: Venue) => {
       onVenueSelect(venue);
