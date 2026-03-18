@@ -127,6 +127,11 @@ body {
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib {
+  display: none !important;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { Venue, getVibeHexColor, getVibeLabel, getOccupancyPercent } from "@/lib/venues";
+import { createClient } from "@/lib/supabase/client";
 
 interface Message {
   id: string;
@@ -83,6 +84,19 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
     // Auto-expand on send if not already
     if (!expanded) setExpanded(true);
 
+    // Handle sign out command
+    if (msg.toLowerCase() === "sign out" || msg.toLowerCase() === "signout") {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      setMessages((prev) => [
+        ...prev,
+        { id: `user-${Date.now()}`, sender: "guest", body: msg, timestamp: Date.now() },
+        { id: `signout-${Date.now()}`, sender: "ai", body: "You've been signed out.", timestamp: Date.now() },
+      ]);
+      setInput("");
+      return;
+    }
+
     const userMsg: Message = {
       id: `user-${Date.now()}`,
       sender: "guest",
@@ -137,6 +151,33 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
   function handleTabTap(tab: Tab) {
     setActiveTab(tab);
     if (!expanded) setExpanded(true);
+
+    if (tab === "settings") {
+      // Check auth and offer sign out
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          const signOutMsg: Message = {
+            id: `settings-${Date.now()}`,
+            sender: "ai",
+            body: `Signed in as ${user.email}. To sign out, type "sign out".`,
+            timestamp: Date.now(),
+          };
+          setMessages((prev) => [...prev, signOutMsg]);
+        } else {
+          const loginMsg: Message = {
+            id: `settings-${Date.now()}`,
+            sender: "ai",
+            body: "You're not signed in. Visit /login to create an account.",
+            timestamp: Date.now(),
+          };
+          setMessages((prev) => [...prev, loginMsg]);
+        }
+      });
+      hasSentTabCommand.current.add(tab);
+      return;
+    }
+
     const cmd = TAB_COMMANDS[tab];
     if (cmd && !hasSentTabCommand.current.has(tab)) {
       hasSentTabCommand.current.add(tab);

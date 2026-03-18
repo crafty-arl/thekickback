@@ -175,6 +175,8 @@ export function MapView({ venues, selectedVenue, onVenueSelect }: MapViewProps) 
       mapStyle="mapbox://styles/mapbox/light-v11"
       onClick={() => onVenueSelect(null)}
       onLoad={handleLoad}
+      attributionControl={false}
+      logoPosition="bottom-right"
     >
       {venues.map((venue) => (
         <Marker
