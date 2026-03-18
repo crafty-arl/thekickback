@@ -16,7 +16,7 @@ export default function OnboardingPage() {
     {
       id: "welcome",
       role: "assistant",
-      content: "Hey! I'm here to help you set up your venue on theKickBack. Let's get started — what's the name of your venue?",
+      content: "Hey! Let's get your venue on theKickBack. Tell me about your spot — name, what kind of place, and where it is.",
     },
   ]);
   const [input, setInput] = useState("");
