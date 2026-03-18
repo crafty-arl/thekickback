@@ -1,40 +1,52 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <title>Your login code</title>
 </head>
-<body style="margin:0;padding:0;background-color:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#000000;min-height:100vh;">
+<body style="margin:0;padding:0;width:100%;background-color:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#000000;">
     <tr>
-      <td align="center" style="padding:40px 20px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;">
+      <td align="center" style="padding:40px 20px;background-color:#000000;">
+        <table role="presentation" width="420" cellpadding="0" cellspacing="0" border="0" style="max-width:420px;width:100%;">
 
           <!-- Logo -->
           <tr>
-            <td align="center" style="padding-bottom:32px;">
-              <img src="https://thekickback.net/logo.png" alt="theKickBack" width="180" style="display:block;height:auto;" />
+            <td align="center" style="padding-bottom:32px;background-color:#000000;">
+              <img src="https://thekickback.net/logo.png" alt="theKickBack" width="180" height="60" style="display:block;border:0;outline:none;" />
             </td>
           </tr>
 
           <!-- Card -->
           <tr>
-            <td style="background-color:#111111;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:40px 32px;">
+            <td style="background-color:#111111;border-radius:16px;padding:40px 32px;">
 
               <!-- Heading -->
-              <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#FFFFFF;letter-spacing:-0.5px;">
-                Your login code
-              </h1>
-              <p style="margin:0 0 28px;font-size:14px;color:rgba(255,255,255,0.4);line-height:1.5;">
-                Enter this code to sign in to theKickBack. It expires in 60 minutes.
-              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background-color:#111111;padding-bottom:8px;">
+                    <h1 style="margin:0;font-size:24px;font-weight:700;color:#FFFFFF;letter-spacing:-0.5px;line-height:1.2;">
+                      Your login code
+                    </h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color:#111111;padding-bottom:28px;">
+                    <p style="margin:0;font-size:14px;color:#666666;line-height:1.5;">
+                      Enter this code to sign in to theKickBack. It expires in 60 minutes.
+                    </p>
+                  </td>
+                </tr>
+              </table>
 
               <!-- OTP Code -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td align="center" style="background-color:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px;">
-                    <span style="font-family:'SF Mono','Fira Code','Fira Mono','Roboto Mono',monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:#F97316;">
+                  <td align="center" style="background-color:#1A1A1A;border-radius:12px;padding:24px 20px;">
+                    <span style="font-family:'SF Mono','Fira Code','Fira Mono','Roboto Mono','Courier New',monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:#F97316;line-height:1;">
                       {{ .Token }}
                     </span>
                   </td>
@@ -42,24 +54,30 @@
               </table>
 
               <!-- Divider -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0;">
                 <tr>
-                  <td style="border-top:1px solid rgba(255,255,255,0.06);"></td>
+                  <td style="background-color:#111111;border-top:1px solid #222222;font-size:0;line-height:0;">&nbsp;</td>
                 </tr>
               </table>
 
               <!-- Footer note -->
-              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.25);line-height:1.6;">
-                If you didn't request this code, you can safely ignore this email. Someone may have entered your email by mistake.
-              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background-color:#111111;">
+                    <p style="margin:0;font-size:12px;color:#444444;line-height:1.6;">
+                      If you didn't request this code, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+              </table>
 
             </td>
           </tr>
 
           <!-- Bottom branding -->
           <tr>
-            <td align="center" style="padding-top:24px;">
-              <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.15);">
+            <td align="center" style="padding-top:24px;background-color:#000000;">
+              <p style="margin:0;font-size:11px;color:#333333;">
                 theKickBack Protocol &mdash; tap in, text in, you're in
               </p>
             </td>
