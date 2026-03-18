@@ -13,6 +13,8 @@ services:
     depends_on:
       landing-blue:
         condition: service_healthy
+      claw:
+        condition: service_healthy
     restart: always
     networks:
       - kickback
@@ -53,9 +55,54 @@ services:
     profiles:
       - deploy
 
+  claw:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: claw
+    init: true
+    environment:
+      - HOME=/home/node
+      - TERM=xterm-256color
+      - TZ=UTC
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1
+    volumes:
+      - claw_config:/home/node/.openclaw
+      - claw_workspace:/home/node/.openclaw/workspace
+    expose:
+      - "18789"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:18789/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - kickback
+
+  claw-cli:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: claw-cli
+    network_mode: "service:claw"
+    environment:
+      - HOME=/home/node
+      - TERM=xterm-256color
+      - BROWSER=echo
+    volumes:
+      - claw_config:/home/node/.openclaw
+      - claw_workspace:/home/node/.openclaw/workspace
+    depends_on:
+      - claw
+    stdin_open: true
+    tty: true
+    profiles:
+      - cli
+
 volumes:
   caddy_data:
   caddy_config:
+  claw_config:
+  claw_workspace:
 
 networks:
   kickback:

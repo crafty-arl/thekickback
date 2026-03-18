@@ -1,3 +1,7 @@
 thekickback.net {
 	reverse_proxy landing-blue:3000
 }
+
+claw.thekickback.net {
+	reverse_proxy claw:18789
+}
