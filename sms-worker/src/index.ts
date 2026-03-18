@@ -1,27 +1,12 @@
 export interface Env {
-  TELNYX_API_KEY: string;
-  TELNYX_PUBLIC_KEY: string;
-  TELNYX_PHONE_NUMBER: string;
+  TWILIO_ACCOUNT_SID: string;
+  TWILIO_AUTH_TOKEN: string;
+  TWILIO_PHONE_NUMBER: string;
   SUPABASE_URL: string;
   SUPABASE_SERVICE_KEY: string;
   OPENCLAW_GATEWAY_URL: string;
   OPENCLAW_HOOKS_TOKEN: string;
   ENVIRONMENT: string;
-}
-
-interface TelnyxWebhookPayload {
-  data: {
-    event_type: string;
-    id: string;
-    occurred_at: string;
-    payload: {
-      from: { phone_number: string };
-      to: { phone_number: string }[];
-      text: string;
-      id: string;
-      direction: string;
-    };
-  };
 }
 
 interface Profile {
@@ -48,28 +33,6 @@ interface Session {
   status: string;
 }
 
-// ─── Telnyx SMS sender ───────────────────────────────────────────
-
-async function sendSMS(to: string, body: string, env: Env): Promise<void> {
-  const res = await fetch("https://api.telnyx.com/v2/messages", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.TELNYX_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: env.TELNYX_PHONE_NUMBER,
-      to,
-      text: body,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    console.error(`Telnyx send error: ${res.status} ${err}`);
-  }
-}
-
 // ─── Worker entry ────────────────────────────────────────────────
 
 export default {
@@ -77,38 +40,39 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      return Response.json({ status: "ok", service: "sms-worker", provider: "telnyx" });
+      return Response.json({ status: "ok", service: "sms-worker", provider: "twilio", number: env.TWILIO_PHONE_NUMBER });
     }
 
-    // Telnyx sends JSON webhooks to this endpoint
     if (request.method !== "POST" || url.pathname !== "/sms") {
       return new Response("Not found", { status: 404 });
     }
 
-    const webhook = (await request.json()) as TelnyxWebhookPayload;
-    const eventType = webhook.data?.event_type;
-
-    // Only process inbound messages
-    if (eventType !== "message.received") {
-      return new Response("ok", { status: 200 });
-    }
-
-    const payload = webhook.data.payload;
-    const from = payload.from.phone_number;
-    const body = (payload.text || "").trim();
+    // Parse Twilio's form-encoded webhook
+    const formData = await request.formData();
+    const from = formData.get("From") as string;
+    const body = (formData.get("Body") as string || "").trim();
 
     console.log(`SMS from: ${from} | Body: "${body}"`);
 
     // Process command
     const reply = await handleCommand(from, body, env);
 
-    // Send reply via Telnyx API
-    await sendSMS(from, reply, env);
-
-    // Return 200 quickly (Telnyx requires response within 2 seconds)
-    return new Response("ok", { status: 200 });
+    // Return TwiML response — Twilio sends this as the reply SMS
+    return new Response(twiml(reply), {
+      headers: { "Content-Type": "text/xml" },
+    });
   },
 };
+
+// ─── TwiML helper ────────────────────────────────────────────────
+
+function twiml(body: string): string {
+  const escaped = body
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escaped}</Message></Response>`;
+}
 
 // ─── Supabase helpers ────────────────────────────────────────────
 
@@ -236,10 +200,8 @@ async function handleJoin(profile: Profile, env: Env): Promise<string> {
 
 async function handleAsk(profile: Profile, question: string, env: Env): Promise<string> {
   if (!question) return "What do you want to ask? Text ASK followed by your question.";
-
   const session = await getActiveSession(profile.id, env);
   if (!session) return "You're not in a venue. Text JOIN first.";
-
   const venue = await getVenueById(session.venue_id, env);
 
   return askClaw(
@@ -259,218 +221,101 @@ async function askClaw(message: string, userPhone: string, env: Env): Promise<st
       },
       body: JSON.stringify({ message, from: userPhone, agentId: "main" }),
     });
-
     if (res.ok) {
       const data = (await res.json()) as { payloads?: { text?: string }[] };
       if (data.payloads?.[0]?.text) return data.payloads[0].text;
     }
-
     const errText = await res.text();
     console.error("Claw response:", res.status, errText);
   } catch (err) {
     console.error("Claw error:", err);
   }
-
   return "Couldn't reach the venue right now. Try again in a moment.";
 }
 
 async function handleRequest(profile: Profile, what: string, env: Env): Promise<string> {
   if (!what) return "What would you like to request? e.g. REQUEST a booth near the window";
-
   const session = await getActiveSession(profile.id, env);
   if (!session) return "You're not in a venue. Text JOIN first.";
-
   const venue = await getVenueById(session.venue_id, env);
-
   const lower = what.toLowerCase();
   const type = lower.includes("booth") || lower.includes("table") || lower.includes("seat")
-    ? "booth"
-    : lower.includes("order") || lower.includes("drink") || lower.includes("food")
-      ? "order"
-      : "service";
+    ? "booth" : lower.includes("order") || lower.includes("drink") || lower.includes("food")
+      ? "order" : "service";
 
   await supabase(env, "requests", {
     method: "POST",
-    body: JSON.stringify({
-      user_id: profile.id,
-      venue_id: session.venue_id,
-      session_id: session.id,
-      type,
-      body: what,
-      status: "pending",
-    }),
+    body: JSON.stringify({ user_id: profile.id, venue_id: session.venue_id, session_id: session.id, type, body: what, status: "pending" }),
   });
-
   return `Request sent to ${venue?.name || "the venue"}: "${what}"\nWe'll text you when it's handled.`;
 }
 
 async function handleMenu(env: Env): Promise<string> {
   const venue = await getDefaultVenue(env);
   if (!venue) return "No venue info available.";
-
-  return [
-    `${venue.name} — Menu`,
-    "",
-    "Drinks: espresso, matcha, cold brew, sparkling water",
-    "Food: avocado toast, grain bowl, pastry basket",
-    "",
-    "Text REQUEST + item to order.",
-  ].join("\n");
+  return `${venue.name} — Menu\n\nDrinks: espresso, matcha, cold brew, sparkling water\nFood: avocado toast, grain bowl, pastry basket\n\nText REQUEST + item to order.`;
 }
 
 async function handleHold(profile: Profile, what: string, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
   if (!session) return "You're not in a venue. Text JOIN first.";
-
   await supabase(env, "requests", {
     method: "POST",
-    body: JSON.stringify({
-      user_id: profile.id,
-      venue_id: session.venue_id,
-      session_id: session.id,
-      type: "booth",
-      body: what || "Hold a booth",
-      status: "pending",
-    }),
+    body: JSON.stringify({ user_id: profile.id, venue_id: session.venue_id, session_id: session.id, type: "booth", body: what || "Hold a booth", status: "pending" }),
   });
-
   return "Hold request sent. We'll text you when confirmed.";
 }
 
 async function handleStatus(profile: Profile, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
   if (!session) return "You're not in a venue right now. Text JOIN to enter one.";
-
   const venue = await getVenueById(session.venue_id, env);
-
-  const reqs = (await supabase(
-    env,
-    `requests?user_id=eq.${profile.id}&session_id=eq.${session.id}&status=eq.pending`
-  )) as { id: string }[] | null;
-
-  const started = new Date(session.started_at);
-  const mins = Math.round((Date.now() - started.getTime()) / 60000);
-
-  const memberships = (await supabase(
-    env,
-    `memberships?user_id=eq.${profile.id}&venue_id=eq.${session.venue_id}&limit=1`
-  )) as { tier: string }[] | null;
-
+  const reqs = (await supabase(env, `requests?user_id=eq.${profile.id}&session_id=eq.${session.id}&status=eq.pending`)) as { id: string }[] | null;
+  const mins = Math.round((Date.now() - new Date(session.started_at).getTime()) / 60000);
+  const memberships = (await supabase(env, `memberships?user_id=eq.${profile.id}&venue_id=eq.${session.venue_id}&limit=1`)) as { tier: string }[] | null;
   const tier = memberships && memberships.length > 0 ? memberships[0].tier : "Guest";
 
-  return [
-    `${venue?.name || "Venue"} — Your session`,
-    "",
-    `Status: ${capitalize(tier)}`,
-    `Vibe: ${capitalize(venue?.vibe || "unknown")} (${venue?.occupancy || "?"} people)`,
-    `Time: ${mins} min`,
-    `Pending requests: ${reqs?.length || 0}`,
-  ].join("\n");
+  return `${venue?.name || "Venue"} — Your session\n\nStatus: ${capitalize(tier)}\nVibe: ${capitalize(venue?.vibe || "unknown")} (${venue?.occupancy || "?"} people)\nTime: ${mins} min\nPending requests: ${reqs?.length || 0}`;
 }
 
 async function handleLeave(profile: Profile, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
   if (!session) return "You're not in a venue right now.";
-
   const venue = await getVenueById(session.venue_id, env);
-
-  await supabase(env, `sessions?id=eq.${session.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "ended", ended_at: new Date().toISOString() }),
-  });
-
+  await supabase(env, `sessions?id=eq.${session.id}`, { method: "PATCH", body: JSON.stringify({ status: "ended", ended_at: new Date().toISOString() }) });
   if (venue && venue.occupancy > 0) {
-    await supabase(env, `venues?id=eq.${venue.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ occupancy: venue.occupancy - 1 }),
-    });
+    await supabase(env, `venues?id=eq.${venue.id}`, { method: "PATCH", body: JSON.stringify({ occupancy: venue.occupancy - 1 }) });
   }
-
   return `You've left ${venue?.name || "the venue"}. Thanks for stopping by. Text JOIN anytime to come back.`;
 }
 
 async function handleMembership(profile: Profile, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
-  const venueId = session?.venue_id;
-  const venue = venueId ? await getVenueById(venueId, env) : await getDefaultVenue(env);
-
+  const venue = session ? await getVenueById(session.venue_id, env) : await getDefaultVenue(env);
   if (!venue) return "No venue available for membership right now.";
-
-  const existing = (await supabase(
-    env,
-    `memberships?user_id=eq.${profile.id}&venue_id=eq.${venue.id}&limit=1`
-  )) as { tier: string }[] | null;
-
-  if (existing && existing.length > 0) {
-    return `You're already a ${existing[0].tier} member at ${venue.name}.`;
-  }
-
-  return [
-    `${venue.name} Membership`,
-    "",
-    "-> Priority booths",
-    "-> Skip the wait",
-    "-> Members-only events",
-    "-> $25/month",
-    "",
-    "Reply YES to join, or ASK to learn more.",
-  ].join("\n");
+  const existing = (await supabase(env, `memberships?user_id=eq.${profile.id}&venue_id=eq.${venue.id}&limit=1`)) as { tier: string }[] | null;
+  if (existing && existing.length > 0) return `You're already a ${existing[0].tier} member at ${venue.name}.`;
+  return `${venue.name} Membership\n\n-> Priority booths\n-> Skip the wait\n-> Members-only events\n-> $25/month\n\nReply YES to join, or ASK to learn more.`;
 }
 
 async function handleMembershipConfirm(profile: Profile, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
-  const venueId = session?.venue_id;
-  const venue = venueId ? await getVenueById(venueId, env) : await getDefaultVenue(env);
-
+  const venue = session ? await getVenueById(session.venue_id, env) : await getDefaultVenue(env);
   if (!venue) return "No venue available.";
-
-  const existing = (await supabase(
-    env,
-    `memberships?user_id=eq.${profile.id}&venue_id=eq.${venue.id}&limit=1`
-  )) as { tier: string }[] | null;
-
-  if (existing && existing.length > 0) {
-    return `You're already a ${existing[0].tier} member at ${venue.name}.`;
-  }
-
-  await supabase(env, "memberships", {
-    method: "POST",
-    body: JSON.stringify({
-      user_id: profile.id,
-      venue_id: venue.id,
-      tier: "member",
-    }),
-  });
-
+  const existing = (await supabase(env, `memberships?user_id=eq.${profile.id}&venue_id=eq.${venue.id}&limit=1`)) as { tier: string }[] | null;
+  if (existing && existing.length > 0) return `Already a ${existing[0].tier} member at ${venue.name}.`;
+  await supabase(env, "memberships", { method: "POST", body: JSON.stringify({ user_id: profile.id, venue_id: venue.id, tier: "member" }) });
   return `You're in. Welcome to ${venue.name}, member. Your number is now recognized across all KickBack venues. Text STATUS anytime.`;
 }
 
 async function handleFreeform(profile: Profile, raw: string, env: Env): Promise<string> {
   const session = await getActiveSession(profile.id, env);
-
   if (session) {
     const venue = await getVenueById(session.venue_id, env);
-    return askClaw(
-      `A guest at ${venue?.name || "the venue"} texted: "${raw}". Venue is ${venue?.vibe}, ${venue?.occupancy} people. Respond as the venue. Keep it under 160 chars. No emojis.`,
-      profile.phone,
-      env
-    );
+    return askClaw(`A guest at ${venue?.name || "the venue"} texted: "${raw}". Venue is ${venue?.vibe}, ${venue?.occupancy} people. Respond as the venue. Keep it under 160 chars. No emojis.`, profile.phone, env);
   }
-
-  return [
-    `Hey! Text JOIN to enter a venue first.`,
-    "",
-    "Commands:",
-    "JOIN — enter a venue",
-    "ASK — ask the venue anything",
-    "REQUEST — request something",
-    "STATUS — check your session",
-    "LEAVE — exit",
-    "MEMBERSHIP — join as a member",
-  ].join("\n");
+  return `Hey! Text JOIN to enter a venue first.\n\nCommands:\nJOIN — enter a venue\nASK — ask the venue anything\nREQUEST — request something\nSTATUS — check your session\nLEAVE — exit\nMEMBERSHIP — join as a member`;
 }
-
-// ─── Utilities ───────────────────────────────────────────────────
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);

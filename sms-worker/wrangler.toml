@@ -4,12 +4,12 @@ compatibility_date = "2025-12-01"
 
 [vars]
 ENVIRONMENT = "production"
+TWILIO_PHONE_NUMBER = "+18777804236"
 SUPABASE_URL = "https://wofvgfhejrvudvfxdytc.supabase.co"
 OPENCLAW_GATEWAY_URL = "https://claw.thekickback.net"
 
 # Secrets — set via `wrangler secret put`:
-# TELNYX_API_KEY        (your Telnyx API v2 key)
-# TELNYX_PUBLIC_KEY     (for webhook signature verification)
-# TELNYX_PHONE_NUMBER   (your Telnyx number, e.g. +18005551234)
+# TWILIO_ACCOUNT_SID
+# TWILIO_AUTH_TOKEN
 # SUPABASE_SERVICE_KEY
 # OPENCLAW_HOOKS_TOKEN
