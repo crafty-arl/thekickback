@@ -37,13 +37,14 @@ jobs:
             cd /opt/thekickback
             GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git pull origin main
 
-            # Rebuild all app services
+            # Rebuild all app services + restart Caddy to pick up new containers
             cd deploy
             docker compose up -d --build landing-blue join-app dash-app
+            docker compose restart caddy
 
             # Wait for all services to be healthy
             echo "Waiting for health checks..."
-            for SERVICE in landing-blue join-app dash-app; do
+            for SERVICE in landing-blue join-app dash-app caddy; do
               RETRIES=30
               until docker inspect $SERVICE --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; do
                 RETRIES=$((RETRIES - 1))

@@ -4,3 +4,13 @@ node_modules
 .github
 *.md
 .env*
+join-app
+dash-app
+sms-worker
+email-worker
+email-templates
+wallet-service
+supabase
+deploy
+shortcuts
+docs
