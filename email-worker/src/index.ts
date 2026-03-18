@@ -9,6 +9,7 @@ export interface Env {
   SUPABASE_SERVICE_KEY: string;
   OPENCLAW_GATEWAY_URL: string;
   OPENCLAW_HOOKS_TOKEN: string;
+  RESEND_API_KEY: string;
   EMAIL_FROM: string;
   ENVIRONMENT: string;
 }
@@ -121,41 +122,36 @@ export default {
     // Process command
     const reply = await handleCommand(fromAddress, body, env);
 
-    // Format reply based on transport
-    const finalReply = isSms ? smsFormat(reply) : reply;
-
-    // Build reply email — minimal for SMS, richer for email
-    const response = createMimeMessage();
-    response.setSender(env.EMAIL_FROM);
-    response.setRecipient(fromAddress);
-
     if (isSms) {
-      // SMS gateways: empty or minimal subject, plain text only, no HTML
-      // Some gateways show the subject as a prefix, so keep it empty
+      // SMS: plain text reply via CF Email
+      const response = createMimeMessage();
+      response.setSender(env.EMAIL_FROM);
+      response.setRecipient(fromAddress);
       response.setSubject("");
-      response.addMessage({
-        contentType: "text/plain; charset=utf-8",
-        data: finalReply,
-      });
+      response.addMessage({ contentType: "text/plain; charset=utf-8", data: smsFormat(reply) });
+      const replyMessage = new EmailMessage(env.EMAIL_FROM, fromAddress, response.asRaw());
+      await message.reply(replyMessage);
+      console.log(`SMS reply sent to ${fromAddress} (${carrier})`);
     } else {
-      // Regular email: proper subject and threading
+      // Email: send rich HTML via Resend
+      const command = body.toLowerCase().trim().split(/\s+/)[0];
+      const subject = buildSubject(command, email.subject);
+      const html = buildRichHtml(reply, command, env.EMAIL_FROM);
+
+      await sendViaResend(env, fromAddress, subject, html, reply);
+      console.log(`Rich email sent to ${fromAddress} via Resend`);
+
+      // Also reply via CF Email for threading
+      const response = createMimeMessage();
+      response.setSender(env.EMAIL_FROM);
+      response.setRecipient(fromAddress);
       const msgId = message.headers.get("Message-ID") || "";
       if (msgId) response.setHeader("In-Reply-To", msgId);
-      response.setSubject(`Re: ${email.subject || "theKickBack"}`);
-      response.addMessage({
-        contentType: "text/plain; charset=utf-8",
-        data: reply,
-      });
+      response.setSubject(subject);
+      response.addMessage({ contentType: "text/plain; charset=utf-8", data: reply });
+      const replyMessage = new EmailMessage(env.EMAIL_FROM, fromAddress, response.asRaw());
+      await message.reply(replyMessage);
     }
-
-    const replyMessage = new EmailMessage(
-      env.EMAIL_FROM,
-      fromAddress,
-      response.asRaw(),
-    );
-    await message.reply(replyMessage);
-
-    console.log(`Reply sent to ${fromAddress} (${isSms ? "SMS via " + carrier : "email"}) | Length: ${finalReply.length}`);
   },
 };
 
@@ -528,6 +524,102 @@ async function handleFreeform(profile: Profile, raw: string, env: Env): Promise<
     "LEAVE — exit",
     "MEMBERSHIP — join as a member",
   ].join("\n");
+}
+
+// ─── Resend Rich HTML Email ───────────────────────────────────────
+
+async function sendViaResend(env: Env, to: string, subject: string, html: string, text: string): Promise<void> {
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "theKickBack <join@thekickback.net>",
+      to: [to],
+      subject,
+      html,
+      text,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error(`Resend error: ${res.status} ${err}`);
+  }
+}
+
+function buildSubject(command: string, originalSubject: string | undefined): string {
+  switch (command) {
+    case "join": return "Welcome — you're in ✦";
+    case "menu": return "Menu ✦";
+    case "status": return "Your session ✦";
+    case "request": return "Request sent ✦";
+    case "hold": return "Hold confirmed ✦";
+    case "leave": return "See you next time ✦";
+    case "membership": return "Membership ✦";
+    case "yes": return "Welcome, member ✦";
+    default: return `Re: ${originalSubject || "theKickBack"}`;
+  }
+}
+
+function buildRichHtml(body: string, command: string, fromEmail: string): string {
+  const accent = "#F97316";
+  const lines = body.split("\n").filter(Boolean);
+
+  const bodyHtml = lines.map((line) => {
+    if (line.startsWith("  - ") || line.startsWith("-> ")) {
+      return `<tr><td style="color:${accent};font-size:14px;padding:2px 8px 2px 0;vertical-align:top;">•</td><td style="color:rgba(255,255,255,0.6);font-size:13px;line-height:1.5;">${esc(line.replace(/^(\s*-\s*|-> )/, ""))}</td></tr>`;
+    }
+    if (line.includes(" — ") && lines.indexOf(line) === 0) {
+      return `<h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 8px;">${esc(line)}</h2>`;
+    }
+    return `<p style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.6;margin:0 0 6px;">${esc(line)}</p>`;
+  });
+
+  const hasList = bodyHtml.some((h) => h.startsWith("<tr>"));
+  const content = hasList
+    ? bodyHtml.map((h) => h.startsWith("<tr>") ? h : `<tr><td colspan="2">${h}</td></tr>`).join("")
+    : bodyHtml.join("");
+
+  const commandPills = ["MENU", "ASK", "REQUEST", "STATUS", "LEAVE"].map((cmd) =>
+    `<a href="mailto:${fromEmail}?subject=${cmd}&body=${cmd}" style="display:inline-block;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:5px 12px;color:rgba(255,255,255,0.5);font-size:12px;font-family:monospace;text-decoration:none;margin:0 4px 4px 0;">${cmd}</a>`
+  ).join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"></head>
+<body style="margin:0;padding:0;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;">
+<div style="max-width:480px;margin:0 auto;background:#000;padding:0;">
+
+<!-- Content -->
+<div style="padding:24px;">
+${hasList ? `<table style="border-collapse:collapse;">${content}</table>` : content}
+</div>
+
+<!-- Quick Commands -->
+<div style="padding:0 24px 16px;">
+<p style="color:rgba(255,255,255,0.25);font-size:10px;font-weight:600;letter-spacing:1.5px;margin:0 0 8px;">REPLY WITH A COMMAND</p>
+${commandPills}
+</div>
+
+<!-- Wallet Pass -->
+<div style="padding:0 24px 24px;">
+<a href="https://thekickback.net/wallet/pass" style="display:block;background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;text-align:center;color:#fff;font-size:14px;font-weight:600;text-decoration:none;">📲 Add to Apple / Google Wallet</a>
+<p style="color:rgba(255,255,255,0.2);font-size:11px;text-align:center;margin:8px 0 0;">Live updates on your lock screen</p>
+</div>
+
+<!-- Footer -->
+<div style="border-top:1px solid rgba(255,255,255,0.06);padding:16px 24px 32px;text-align:center;">
+<p style="color:rgba(255,255,255,0.15);font-size:11px;margin:0 0 4px;">powered by theKickBack</p>
+<p style="color:rgba(255,255,255,0.15);font-size:11px;margin:0;"><a href="https://thekickback.net" style="color:rgba(255,255,255,0.25);text-decoration:underline;">thekickback.net</a> · <a href="#" style="color:rgba(255,255,255,0.25);text-decoration:underline;">Unsubscribe</a></p>
+</div>
+
+</div>
+</body></html>`;
+}
+
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // ─── Utilities ───────────────────────────────────────────────────
