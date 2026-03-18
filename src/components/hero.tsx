@@ -37,45 +37,85 @@ export function Hero() {
           from one thread.
         </p>
 
-        {/* CTA — The Email */}
+        {/* Get Started — Three Channels */}
         <div className="flex flex-col gap-3">
+          <span className="font-sans text-[10px] font-medium tracking-[2px] text-black/40">
+            GET STARTED
+          </span>
+
+          {/* Shortcut — Primary CTA */}
           <a
-            href="mailto:join@thekickback.net?subject=join"
-            className="flex items-center gap-4 rounded-2xl border border-black/8 bg-[#FAFAFA] px-4 py-4 transition-colors hover:bg-[#F5F5F5] sm:px-6 sm:py-5"
+            href="shortcuts://run-shortcut?name=Join%20theKickBack"
+            className="flex items-center gap-4 rounded-2xl bg-black px-4 py-4 transition-colors hover:bg-black/90 sm:px-6 sm:py-5"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange sm:h-12 sm:w-12">
-              <svg
-                width="24"
-                height="24"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="black"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-sans text-[10px] font-medium tracking-[2px] text-orange">
+                TAP TO JOIN A VENUE
+              </span>
+              <span className="font-sans text-xl font-bold tracking-tight text-white sm:text-2xl">
+                Open theKickBack
+              </span>
+            </div>
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-auto opacity-40">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </a>
+
+          {/* Email — Secondary */}
+          <a
+            href="mailto:join@thekickback.net?subject=join&amp;body=JOIN"
+            className="flex items-center gap-4 rounded-2xl border border-black/8 bg-[#FAFAFA] px-4 py-3 transition-colors hover:bg-[#F0F0F0] sm:px-6 sm:py-4"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/[0.06]">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="20" height="16" x="2" y="4" rx="2" />
                 <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
               </svg>
             </div>
             <div className="flex flex-col">
-              <span className="font-sans text-[10px] font-medium tracking-[2px] text-black/40">
-                TEXT US TO GET STARTED
+              <span className="font-sans text-xs font-medium text-black/50">
+                Or email us
               </span>
-              <span className="font-sans text-xl font-bold tracking-tight text-black sm:text-3xl">
+              <span className="font-sans text-sm font-bold tracking-tight text-black">
                 join@thekickback.net
               </span>
             </div>
           </a>
-          <span className="font-sans text-xs text-black/40">
-            Or scan any venue&apos;s QR code. Same address, venue context built in.
+
+          {/* SMS — Coming soon */}
+          <div className="flex items-center gap-4 rounded-2xl border border-black/5 bg-white px-4 py-3 sm:px-6 sm:py-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/[0.06]">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-sans text-xs font-medium text-black/50">
+                Or text JOIN to
+              </span>
+              <span className="font-sans text-sm font-bold tracking-tight text-black">
+                (877) 780-4236
+              </span>
+            </div>
+            <span className="ml-auto rounded-full bg-orange/10 px-2.5 py-0.5 font-sans text-[10px] font-medium tracking-wide text-orange">
+              COMING SOON
+            </span>
+          </div>
+
+          <span className="font-sans text-xs text-black/35">
+            No app. No account. Works on every iPhone with Shortcuts.
           </span>
         </div>
 
-        {/* What you can text */}
+        {/* What you can do */}
         <div className="flex flex-col gap-2">
           <span className="font-sans text-[10px] font-medium tracking-[2px] text-black/40">
-            THINGS YOU CAN TEXT
+            WHAT YOU CAN DO
           </span>
           <div className="flex flex-wrap gap-2">
             {[
