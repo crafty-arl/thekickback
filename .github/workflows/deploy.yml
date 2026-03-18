@@ -37,22 +37,26 @@ jobs:
             cd /opt/thekickback
             GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git pull origin main
 
-            # First deploy — just rebuild blue
+            # Rebuild all app services
             cd deploy
-            docker compose up -d --build landing-blue
+            docker compose up -d --build landing-blue join-app dash-app
 
-            # Wait for healthy
-            echo "Waiting for health check..."
-            RETRIES=30
-            until docker inspect landing-blue --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; do
-              RETRIES=$((RETRIES - 1))
-              if [ $RETRIES -le 0 ]; then
-                echo "FAIL: health check never passed"
-                exit 1
-              fi
-              sleep 2
+            # Wait for all services to be healthy
+            echo "Waiting for health checks..."
+            for SERVICE in landing-blue join-app dash-app; do
+              RETRIES=30
+              until docker inspect $SERVICE --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; do
+                RETRIES=$((RETRIES - 1))
+                if [ $RETRIES -le 0 ]; then
+                  echo "FAIL: $SERVICE health check never passed"
+                  docker logs $SERVICE --tail 20
+                  exit 1
+                fi
+                sleep 2
+              done
+              echo "$SERVICE is healthy"
             done
-            echo "Deploy verified: landing-blue is healthy"
+            echo "Deploy verified: all services healthy"
 
       - name: Verify health
         uses: appleboy/ssh-action@v1
@@ -61,9 +65,12 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" https://thekickback.net/health)
-            if [ "$HTTP_CODE" != "200" ]; then
-              echo "DEPLOY VERIFICATION FAILED: HTTP $HTTP_CODE"
-              exit 1
-            fi
-            echo "Landing page live — HTTP 200"
+            for URL in https://thekickback.net/health https://join.thekickback.net/health https://dash.thekickback.net/health; do
+              HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" "$URL")
+              if [ "$HTTP_CODE" != "200" ]; then
+                echo "DEPLOY VERIFICATION FAILED: $URL returned HTTP $HTTP_CODE"
+                exit 1
+              fi
+              echo "$URL — HTTP 200"
+            done
+            echo "All services live"

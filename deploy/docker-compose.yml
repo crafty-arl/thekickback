@@ -78,9 +78,15 @@ services:
     build:
       context: ../dash-app
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: https://wofvgfhejrvudvfxdytc.supabase.co
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_rF_CWGfwxUwSXyFG_Zl56w_V_OfW_mQ
     container_name: dash-app
     expose:
       - "3000"
+    environment:
+      - SUPABASE_URL=https://wofvgfhejrvudvfxdytc.supabase.co
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
     restart: always
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
