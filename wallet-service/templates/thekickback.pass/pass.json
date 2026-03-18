@@ -1,0 +1,82 @@
+{
+  "formatVersion": 1,
+  "passTypeIdentifier": "pass.net.thekickback.venue",
+  "teamIdentifier": "TEAM_ID_HERE",
+  "organizationName": "theKickBack",
+  "description": "theKickBack Venue Pass",
+  "foregroundColor": "rgb(255, 255, 255)",
+  "backgroundColor": "rgb(0, 0, 0)",
+  "labelColor": "rgb(249, 115, 22)",
+  "logoText": "theKickBack",
+  "generic": {
+    "headerFields": [
+      {
+        "key": "vibe",
+        "label": "VIBE",
+        "value": "—"
+      }
+    ],
+    "primaryFields": [
+      {
+        "key": "venueName",
+        "label": "VENUE",
+        "value": "—"
+      }
+    ],
+    "secondaryFields": [
+      {
+        "key": "occupancy",
+        "label": "PEOPLE",
+        "value": "— / —"
+      },
+      {
+        "key": "status",
+        "label": "YOUR STATUS",
+        "value": "Guest"
+      }
+    ],
+    "auxiliaryFields": [
+      {
+        "key": "booth",
+        "label": "BOOTH",
+        "value": "—"
+      },
+      {
+        "key": "timeIn",
+        "label": "TIME IN",
+        "value": "—"
+      },
+      {
+        "key": "pending",
+        "label": "REQUESTS",
+        "value": "0 pending"
+      }
+    ],
+    "backFields": [
+      {
+        "key": "commands",
+        "label": "COMMANDS",
+        "value": "JOIN — enter a venue\nASK — ask the venue anything\nREQUEST — request a booth, drink, etc.\nMENU — see what's available\nHOLD — hold a spot\nSTATUS — check your session\nLEAVE — exit the venue\nMEMBERSHIP — join as a member"
+      },
+      {
+        "key": "contact",
+        "label": "TEXT US",
+        "value": "(877) 780-4236 or join@thekickback.net"
+      },
+      {
+        "key": "website",
+        "label": "DISCOVER VENUES",
+        "value": "join.thekickback.net"
+      }
+    ]
+  },
+  "barcodes": [
+    {
+      "format": "PKBarcodeFormatQR",
+      "message": "https://join.thekickback.net",
+      "messageEncoding": "iso-8859-1"
+    }
+  ],
+  "webServiceURL": "https://thekickback.net/wallet",
+  "authenticationToken": "GENERATED_PER_PASS"
+}

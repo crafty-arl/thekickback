@@ -1,5 +1,13 @@
 thekickback.net {
-	reverse_proxy landing-blue:3000
+	# Wallet service endpoints
+	handle /wallet/* {
+		reverse_proxy wallet-service:3003
+	}
+
+	# Everything else → landing page
+	handle {
+		reverse_proxy landing-blue:3000
+	}
 }
 
 join.thekickback.net {

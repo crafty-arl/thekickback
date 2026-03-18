@@ -19,7 +19,33 @@ services:
         condition: service_healthy
       claw:
         condition: service_healthy
+      wallet-service:
+        condition: service_healthy
     restart: always
+    networks:
+      - kickback
+
+  wallet-service:
+    build:
+      context: ../wallet-service
+      dockerfile: Dockerfile
+    container_name: wallet-service
+    environment:
+      - PORT=3003
+      - SUPABASE_URL=https://wofvgfhejrvudvfxdytc.supabase.co
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - PASS_TYPE_ID=pass.net.thekickback.venue
+      - TEAM_ID=${APPLE_TEAM_ID}
+      - SIGNER_KEY_PASSPHRASE=${SIGNER_KEY_PASSPHRASE}
+    expose:
+      - "3003"
+    restart: always
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3003/wallet/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - kickback
 
