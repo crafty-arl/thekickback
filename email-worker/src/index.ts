@@ -82,21 +82,14 @@ function getCarrier(email: string): string {
 }
 
 /**
- * Truncate reply for SMS delivery.
- * SMS limit is 160 chars per segment. We aim for 1-2 segments max.
+ * Clean up reply text for SMS delivery via carrier gateways.
+ * No length limit — carriers handle multi-segment concatenation.
  */
 function smsFormat(text: string): string {
-  // Strip any markdown-like formatting
-  let clean = text
+  return text
     .replace(/\n{2,}/g, "\n")   // collapse double newlines
     .replace(/→/g, "-")          // replace arrows with dashes
     .trim();
-
-  // If under 300 chars, send as-is (will be 2 SMS segments max)
-  if (clean.length <= 300) return clean;
-
-  // Truncate to 297 + "..."
-  return clean.slice(0, 297) + "...";
 }
 
 // ─── Email Handler ───────────────────────────────────────────────
