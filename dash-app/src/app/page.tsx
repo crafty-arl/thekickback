@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import { MOCK_STATS, MOCK_SESSIONS, MOCK_REQUESTS } from "@/lib/dashboard";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { GuestTable } from "@/components/dashboard/guest-table";
@@ -14,7 +13,7 @@ export default function DashboardPage() {
         {/* Dashboard Header */}
         <header className="flex items-center justify-between border-b border-black/5 bg-[#FAFAFA] py-4">
           <div className="flex items-center gap-4">
-            <Link href="/">
+            <a href="https://thekickback.net">
               <Image
                 src="/logo.png"
                 alt="theKickBack"
@@ -23,7 +22,7 @@ export default function DashboardPage() {
                 className="h-8 w-auto md:h-[46px]"
                 priority
               />
-            </Link>
+            </a>
             <div className="hidden h-6 w-px bg-black/10 sm:block" />
             <span className="hidden font-sans text-sm font-medium text-black/40 sm:block">
               Venue Dashboard

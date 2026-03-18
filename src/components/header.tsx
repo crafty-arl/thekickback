@@ -23,9 +23,9 @@ export function Header() {
 
       {/* Desktop Nav */}
       <nav className="hidden items-center gap-8 md:flex">
-        <Link href="/dashboard" className="font-sans text-sm text-black/65 transition-colors hover:text-black">
+        <a href="https://dash.thekickback.net" className="font-sans text-sm text-black/65 transition-colors hover:text-black">
           Dashboard
-        </Link>
+        </a>
         <a href="#how" className="font-sans text-sm text-black/65 transition-colors hover:text-black">
           How it works
         </a>
@@ -58,7 +58,7 @@ export function Header() {
       {/* Mobile Nav */}
       {menuOpen && (
         <nav className="absolute left-0 right-0 top-[72px] z-50 flex flex-col gap-4 border-b border-black/5 bg-white px-6 py-6 md:hidden">
-          <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="font-sans text-sm text-black/65">Dashboard</Link>
+          <a href="https://dash.thekickback.net" onClick={() => setMenuOpen(false)} className="font-sans text-sm text-black/65">Dashboard</a>
           <a href="#how" onClick={() => setMenuOpen(false)} className="font-sans text-sm text-black/65">How it works</a>
           <a href="#protocol" onClick={() => setMenuOpen(false)} className="font-sans text-sm text-black/65">Protocol</a>
           <a href="#venues" onClick={() => setMenuOpen(false)} className="font-sans text-sm text-black/65">Venues</a>

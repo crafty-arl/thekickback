@@ -6,6 +6,10 @@ join.thekickback.net {
 	reverse_proxy join-app:3000
 }
 
+dash.thekickback.net {
+	reverse_proxy dash-app:3000
+}
+
 claw.thekickback.net {
 	reverse_proxy claw:18789
 }
