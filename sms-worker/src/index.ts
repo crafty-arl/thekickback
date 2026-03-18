@@ -1,7 +1,7 @@
 export interface Env {
   TWILIO_ACCOUNT_SID: string;
   TWILIO_AUTH_TOKEN: string;
-  TWILIO_PHONE_NUMBER: string;
+  TWILIO_MESSAGING_SERVICE_SID: string;
   ENVIRONMENT: string;
   // DB: D1Database;   // uncomment when D1 is bound
   // KV: KVNamespace;  // uncomment when KV is bound

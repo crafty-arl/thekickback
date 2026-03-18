@@ -8,7 +8,7 @@ ENVIRONMENT = "production"
 # Twilio credentials — set via `wrangler secret put`
 # TWILIO_ACCOUNT_SID
 # TWILIO_AUTH_TOKEN
-# TWILIO_PHONE_NUMBER
+# TWILIO_MESSAGING_SERVICE_SID
 
 # D1 database for venue/session state
 # [[d1_databases]]
