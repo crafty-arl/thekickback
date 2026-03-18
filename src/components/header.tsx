@@ -1,10 +1,11 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export function Header() {
   return (
     <header className="flex items-center justify-between py-5">
       {/* Logo */}
-      <a href="/" className="flex items-center">
+      <Link href="/" className="flex items-center">
         <Image
           src="/logo.png"
           alt="theKickBack"
@@ -12,7 +13,7 @@ export function Header() {
           height={60}
           priority
         />
-      </a>
+      </Link>
 
       {/* Nav */}
       <nav className="flex items-center gap-8">
