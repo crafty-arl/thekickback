@@ -8,7 +8,7 @@ ENVIRONMENT = "production"
 SUPABASE_URL = "https://wofvgfhejrvudvfxdytc.supabase.co"
 OPENCLAW_GATEWAY_URL = "https://claw.thekickback.net"
 EMAIL_FROM = "join@chat.thekickback.net"
-VENUE_EMAIL_DOMAIN = "thekickback.net"
+VENUE_EMAIL_DOMAIN = "chat.thekickback.net"
 
 # Secrets — set via `wrangler secret put`:
 # RESEND_API_KEY
