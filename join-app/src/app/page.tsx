@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { MOCK_VENUES, VenueCategory, VibeLevel } from "@/lib/venues";
 import { SearchBar } from "@/components/discover/search-bar";
 import { CategoryFilter } from "@/components/discover/category-filter";
@@ -10,7 +9,7 @@ import { VibeFilter } from "@/components/discover/vibe-filter";
 import { VenueCard } from "@/components/discover/venue-card";
 import { LiveStats } from "@/components/discover/live-stats";
 
-export default function DiscoverPage() {
+export default function JoinPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<VenueCategory | "all">("all");
   const [vibe, setVibe] = useState<VibeLevel | "all">("all");
@@ -37,7 +36,7 @@ export default function DiscoverPage() {
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-12">
         {/* Header */}
         <header className="flex items-center justify-between py-5">
-          <Link href="/" className="flex items-center">
+          <div className="flex items-center">
             <Image
               src="/logo.png"
               alt="theKickBack"
@@ -46,15 +45,18 @@ export default function DiscoverPage() {
               className="h-10 w-auto md:h-[60px]"
               priority
             />
-          </Link>
-          <nav className="hidden items-center gap-8 md:flex">
-            <Link href="/" className="font-sans text-sm text-black/65 transition-colors hover:text-black">
-              Home
-            </Link>
-            <Link href="/discover" className="font-sans text-sm font-medium text-black">
-              Discover
-            </Link>
-          </nav>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden font-sans text-sm text-black/40 sm:block">
+              Find your spot. Text to enter.
+            </span>
+            <a
+              href="https://thekickback.net"
+              className="rounded-full bg-black px-4 py-2 font-sans text-sm font-medium text-white transition-colors hover:bg-black/85"
+            >
+              Learn more
+            </a>
+          </div>
         </header>
 
         {/* Hero */}
