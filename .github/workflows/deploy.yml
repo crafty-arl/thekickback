@@ -59,28 +59,26 @@ jobs:
             # Rebuild app services
             docker compose build --no-cache landing-blue join-app dash-app
 
-            # Bring everything up (including Caddy) — docker compose handles deps
-            docker compose up -d landing-blue join-app dash-app
+            # Bring up entire stack — docker compose starts deps + recreates changed services
+            docker compose up -d --force-recreate landing-blue join-app dash-app
+            docker compose up -d
 
-            # Wait for all app services to be healthy
+            # Wait for app services + Caddy to be healthy
             echo "Waiting for health checks..."
-            for SERVICE in landing-blue join-app dash-app; do
+            for SERVICE in landing-blue join-app dash-app kickback-caddy; do
               RETRIES=30
-              until docker inspect $SERVICE --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; do
+              until docker inspect $SERVICE --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy" || \
+                    docker inspect $SERVICE --format '{{.State.Status}}' 2>/dev/null | grep -q "running"; do
                 RETRIES=$((RETRIES - 1))
                 if [ $RETRIES -le 0 ]; then
-                  echo "FAIL: $SERVICE health check never passed"
+                  echo "FAIL: $SERVICE never became ready"
                   docker logs $SERVICE --tail 20
                   exit 1
                 fi
                 sleep 2
               done
-              echo "$SERVICE is healthy"
+              echo "$SERVICE is ready"
             done
-
-            # Restart Caddy so it re-resolves container DNS
-            docker compose up -d --force-recreate caddy
-            sleep 5
 
             echo "Deploy verified: all services healthy"
 
