@@ -2,13 +2,15 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import type { GuestSession, VenueRequest, ChatMessage, VenueStats } from "@/lib/dashboard";
+import type { GuestSession, VenueRequest, ChatMessage, VenueStats, VenuePerk, PerkRedemption, VenueMultiplier, PointLeaderboardEntry } from "@/lib/dashboard";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { GuestTable } from "@/components/dashboard/guest-table";
 import { RequestFeed } from "@/components/dashboard/request-feed";
 import { TextLog } from "@/components/dashboard/text-log";
 import { OccupancyBar } from "@/components/dashboard/occupancy-bar";
+import { PointsPanel } from "@/components/dashboard/points-panel";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
+import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -53,52 +55,103 @@ export default async function DashboardPage() {
   const todayISO = todayStart.toISOString();
 
   // ─── Parallel queries for dashboard data ─────────────────────────
-  const [sessionsRes, requestsRes, messagesRes, membersRes, todaySessionsRes, todayMessagesRes] =
-    await Promise.all([
-      // Active sessions with profile info
-      service
-        .from("sessions")
-        .select("id, user_id, venue_id, started_at, ended_at, status, profiles(phone, email, display_name)")
-        .eq("venue_id", venue.id)
-        .eq("status", "active")
-        .order("started_at", { ascending: false }),
+  const [
+    sessionsRes, requestsRes, messagesRes, membersRes,
+    todaySessionsRes, todayMessagesRes,
+    perksRes, redemptionsRes, multipliersRes,
+    leaderboardRes, pointsTodayRes, perksTodayRes,
+  ] = await Promise.all([
+    // Active sessions with profile info
+    service
+      .from("sessions")
+      .select("id, user_id, venue_id, started_at, ended_at, status, profiles(phone, email, display_name)")
+      .eq("venue_id", venue.id)
+      .eq("status", "active")
+      .order("started_at", { ascending: false }),
 
-      // Recent requests with profile info
-      service
-        .from("requests")
-        .select("id, user_id, venue_id, session_id, type, body, status, created_at, profiles(phone, email)")
-        .eq("venue_id", venue.id)
-        .order("created_at", { ascending: false })
-        .limit(20),
+    // Recent requests with profile info
+    service
+      .from("requests")
+      .select("id, user_id, venue_id, session_id, type, body, status, created_at, profiles(phone, email)")
+      .eq("venue_id", venue.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
 
-      // Recent chat messages
-      service
-        .from("chat_messages")
-        .select("id, venue_id, sender_phone, sender_type, body, created_at")
-        .eq("venue_id", venue.id)
-        .order("created_at", { ascending: false })
-        .limit(50),
+    // Recent chat messages
+    service
+      .from("chat_messages")
+      .select("id, venue_id, sender_phone, sender_type, body, created_at")
+      .eq("venue_id", venue.id)
+      .order("created_at", { ascending: false })
+      .limit(50),
 
-      // Total members
-      service
-        .from("memberships")
-        .select("id", { count: "exact", head: true })
-        .eq("venue_id", venue.id),
+    // Total members
+    service
+      .from("memberships")
+      .select("id", { count: "exact", head: true })
+      .eq("venue_id", venue.id),
 
-      // Total sessions today
-      service
-        .from("sessions")
-        .select("id", { count: "exact", head: true })
-        .eq("venue_id", venue.id)
-        .gte("started_at", todayISO),
+    // Total sessions today
+    service
+      .from("sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("venue_id", venue.id)
+      .gte("started_at", todayISO),
 
-      // Total messages today
-      service
-        .from("chat_messages")
-        .select("id", { count: "exact", head: true })
-        .eq("venue_id", venue.id)
-        .gte("created_at", todayISO),
-    ]);
+    // Total messages today
+    service
+      .from("chat_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("venue_id", venue.id)
+      .gte("created_at", todayISO),
+
+    // ─── Points Protocol queries ───────────────────────────────────
+    // Venue perks
+    service
+      .from("venue_perks")
+      .select("*")
+      .eq("venue_id", venue.id)
+      .order("sort_order", { ascending: true }),
+
+    // Recent redemptions at this venue
+    service
+      .from("perk_redemptions")
+      .select("*, profiles(phone, email, display_name), venue_perks(name, category)")
+      .eq("venue_id", venue.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
+
+    // Active multipliers
+    service
+      .from("venue_multipliers")
+      .select("*")
+      .eq("venue_id", venue.id)
+      .eq("active", true),
+
+    // Top earners at this venue (users who earned the most points here)
+    service
+      .from("point_ledger")
+      .select("user_id, profiles(phone, email, display_name)")
+      .eq("venue_id", venue.id)
+      .gt("amount", 0)
+      .order("created_at", { ascending: false })
+      .limit(100),
+
+    // Points issued today at this venue
+    service
+      .from("point_ledger")
+      .select("amount")
+      .eq("venue_id", venue.id)
+      .gt("amount", 0)
+      .gte("created_at", todayISO),
+
+    // Perks redeemed today
+    service
+      .from("perk_redemptions")
+      .select("id", { count: "exact", head: true })
+      .eq("venue_id", venue.id)
+      .gte("created_at", todayISO),
+  ]);
 
   // Supabase joins return related records as arrays — extract first element
   const sessions: GuestSession[] = (sessionsRes.data || []).map((s: Record<string, unknown>) => ({
@@ -112,6 +165,45 @@ export default async function DashboardPage() {
   })) as VenueRequest[];
 
   const messages = (messagesRes.data || []) as ChatMessage[];
+  const perks = (perksRes.data || []) as VenuePerk[];
+
+  const redemptions: PerkRedemption[] = (redemptionsRes.data || []).map((r: Record<string, unknown>) => ({
+    ...r,
+    profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
+    venue_perks: Array.isArray(r.venue_perks) ? r.venue_perks[0] : r.venue_perks,
+  })) as PerkRedemption[];
+
+  const multipliers = (multipliersRes.data || []) as VenueMultiplier[];
+
+  // Aggregate leaderboard from ledger entries
+  const ledgerEntries = leaderboardRes.data || [];
+  const userTotals = new Map<string, { total: number; profile: Record<string, unknown> }>();
+  for (const entry of ledgerEntries) {
+    const e = entry as Record<string, unknown>;
+    const uid = e.user_id as string;
+    const existing = userTotals.get(uid);
+    if (existing) {
+      existing.total += 1; // count interactions
+    } else {
+      userTotals.set(uid, { total: 1, profile: (Array.isArray(e.profiles) ? e.profiles[0] : e.profiles) as Record<string, unknown> });
+    }
+  }
+  const leaderboard: PointLeaderboardEntry[] = Array.from(userTotals.entries())
+    .sort((a, b) => b[1].total - a[1].total)
+    .slice(0, 10)
+    .map(([uid, data]) => ({
+      user_id: uid,
+      total_earned: data.total,
+      balance: 0,
+      tier: "explorer",
+      current_streak: 0,
+      profiles: data.profile as PointLeaderboardEntry["profiles"],
+    }));
+
+  const pointsIssuedToday = (pointsTodayRes.data || []).reduce(
+    (sum: number, r: Record<string, unknown>) => sum + ((r.amount as number) || 0),
+    0
+  );
 
   const stats: VenueStats = {
     currentOccupancy: venue.occupancy,
@@ -119,6 +211,8 @@ export default async function DashboardPage() {
     totalToday: todaySessionsRes.count || 0,
     totalMessages: todayMessagesRes.count || 0,
     members: membersRes.count || 0,
+    pointsIssuedToday,
+    perksRedeemedToday: perksTodayRes.count || 0,
   };
 
   return (
@@ -174,49 +268,48 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Stats grid */}
-        <section className="grid grid-cols-2 gap-3 pb-6 sm:grid-cols-4 sm:gap-4">
-          <StatCard
-            label="IN VENUE NOW"
-            value={stats.currentOccupancy}
-            sub={`of ${stats.capacity} capacity`}
-            accent
-          />
-          <StatCard
-            label="TOTAL TODAY"
-            value={stats.totalToday}
-            sub="visitors today"
-          />
-          <StatCard
-            label="MESSAGES TODAY"
-            value={stats.totalMessages}
-            sub="email + chat"
-          />
-          <StatCard
-            label="MEMBERS"
-            value={stats.members}
-            sub="active memberships"
-          />
-        </section>
+        {/* Tabbed Dashboard */}
+        <DashboardTabs
+          overviewContent={
+            <>
+              {/* Stats grid */}
+              <section className="grid grid-cols-2 gap-3 pb-6 sm:grid-cols-4 sm:gap-4">
+                <StatCard label="IN VENUE NOW" value={stats.currentOccupancy} sub={`of ${stats.capacity} capacity`} accent />
+                <StatCard label="TOTAL TODAY" value={stats.totalToday} sub="visitors today" />
+                <StatCard label="MESSAGES TODAY" value={stats.totalMessages} sub="email + chat" />
+                <StatCard label="MEMBERS" value={stats.members} sub="active memberships" />
+              </section>
 
-        {/* Occupancy */}
-        <section className="pb-6">
-          <OccupancyBar stats={stats} />
-        </section>
+              {/* Occupancy */}
+              <section className="pb-6">
+                <OccupancyBar stats={stats} />
+              </section>
 
-        {/* Main content: two columns */}
-        <section className="flex flex-col gap-6 pb-8 lg:flex-row">
-          {/* Left: Sessions + Requests */}
-          <div className="flex flex-1 flex-col gap-6">
-            <GuestTable sessions={sessions} />
-            <RequestFeed requests={requests} />
-          </div>
-
-          {/* Right: Live text feed */}
-          <div className="w-full lg:w-[400px]">
-            <TextLog messages={messages} />
-          </div>
-        </section>
+              {/* Main content: two columns */}
+              <section className="flex flex-col gap-6 pb-8 lg:flex-row">
+                <div className="flex flex-1 flex-col gap-6">
+                  <GuestTable sessions={sessions} />
+                  <RequestFeed requests={requests} />
+                </div>
+                <div className="w-full lg:w-[400px]">
+                  <TextLog messages={messages} />
+                </div>
+              </section>
+            </>
+          }
+          pointsContent={
+            <section className="pb-8">
+              <PointsPanel
+                perks={perks}
+                redemptions={redemptions}
+                multipliers={multipliers}
+                leaderboard={leaderboard}
+                pointsIssuedToday={stats.pointsIssuedToday}
+                perksRedeemedToday={stats.perksRedeemedToday}
+              />
+            </section>
+          }
+        />
       </div>
     </main>
   );

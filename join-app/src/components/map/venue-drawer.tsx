@@ -5,6 +5,7 @@ import { motion, PanInfo, useAnimationControls } from "framer-motion";
 import { Venue, getVibeHexColor, getVibeLabel, getOccupancyPercent } from "@/lib/venues";
 import { createClient } from "@/lib/supabase/client";
 import { VibeCard, MenuCard, EventsCard, ReserveCard } from "./tab-cards";
+import { PointsBadge } from "./points-badge";
 
 interface Message {
   id: string;
@@ -225,6 +226,8 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
               </span>
             </button>
 
+            <PointsBadge userId={null} venueId={venue.id} vibeColor={vibeColor} expanded={false} />
+
             <input
               type="text"
               value={input}
@@ -309,6 +312,9 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
                 );
               })}
             </motion.div>
+
+            {/* Points */}
+            <PointsBadge userId={null} venueId={venue.id} vibeColor={vibeColor} expanded={true} />
 
             {/* Divider */}
             <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />

@@ -44,4 +44,65 @@ export interface VenueStats {
   totalToday: number;
   totalMessages: number;
   members: number;
+  pointsIssuedToday: number;
+  perksRedeemedToday: number;
+}
+
+// ─── Points Protocol interfaces ────────────────────────────────
+
+export interface VenuePerk {
+  id: string;
+  venue_id: string;
+  name: string;
+  description: string | null;
+  point_cost: number;
+  category: string;
+  inventory: number | null;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface PerkRedemption {
+  id: string;
+  user_id: string;
+  perk_id: string;
+  venue_id: string;
+  points_spent: number;
+  status: string;
+  created_at: string;
+  fulfilled_at: string | null;
+  expires_at: string | null;
+  profiles: {
+    phone: string;
+    email: string | null;
+    display_name: string | null;
+  };
+  venue_perks: {
+    name: string;
+    category: string;
+  };
+}
+
+export interface VenueMultiplier {
+  id: string;
+  venue_id: string;
+  multiplier: number;
+  reason: string;
+  starts_at: string;
+  ends_at: string;
+  active: boolean;
+}
+
+export interface PointLeaderboardEntry {
+  user_id: string;
+  total_earned: number;
+  balance: number;
+  tier: string;
+  current_streak: number;
+  profiles: {
+    phone: string;
+    email: string | null;
+    display_name: string | null;
+  };
 }
