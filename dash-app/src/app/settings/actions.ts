@@ -444,3 +444,55 @@ export async function deleteXpMilestone(id: string) {
     revalidatePath("/settings");
     return { ok: true };
 }
+
+// ─── AI Usage Limits ────────────────────────────────────────────
+
+export async function updateAiLimits(data: {
+    free_messages_per_day: number;
+    require_membership: boolean;
+    gate_message: string;
+}) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_ai_limits")
+        .upsert({
+            venue_id: auth.venueId,
+            free_messages_per_day: data.free_messages_per_day,
+            require_membership: data.require_membership,
+            gate_message: data.gate_message,
+            updated_at: new Date().toISOString(),
+        }, { onConflict: "venue_id" });
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function getAiUsageStats() {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    // Today's usage
+    const today = new Date().toISOString().split("T")[0];
+    const { data: todayUsage } = await service
+        .from("ai_usage")
+        .select("user_id, device_id, message_count")
+        .eq("venue_id", auth.venueId)
+        .eq("date", today);
+
+    // Last 7 days total
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
+    const { data: weekUsage } = await service
+        .from("ai_usage")
+        .select("message_count")
+        .eq("venue_id", auth.venueId)
+        .gte("date", weekAgo);
+
+    const todayMessages = todayUsage?.reduce((sum, r) => sum + r.message_count, 0) || 0;
+    const todayGuests = todayUsage?.length || 0;
+    const weekMessages = weekUsage?.reduce((sum, r) => sum + r.message_count, 0) || 0;
+
+    return { todayMessages, todayGuests, weekMessages };
+}

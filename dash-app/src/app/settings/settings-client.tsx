@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate } from "./actions";
+import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate, updateAiLimits, getAiUsageStats } from "./actions";
 import { uploadGalleryImage, deleteGalleryImage, updateHeroImage, removeHeroImage } from "../../app/edit/gallery-actions";
 import { addStaffMember, updateStaffMember, deleteStaffMember, uploadStaffAvatar, toggleStaffVisibility } from "./staff-actions";
 import { linkStaffToOffering, unlinkStaffFromOffering } from "./staff-offering-actions";
@@ -145,21 +145,43 @@ const VENUE_TEMPLATES: VenueTemplate[] = [
     },
 ];
 
-const SECTIONS = [
-    { id: "general", label: "General", icon: "◉" },
-    { id: "location", label: "Location", icon: "◎" },
-    { id: "branding", label: "Branding", icon: "◈" },
-    { id: "photos", label: "Photos", icon: "📷" },
-    { id: "hours", label: "Hours & Menu", icon: "◇" },
-    { id: "rules", label: "Rules & Vibe", icon: "◆" },
-    { id: "staff", label: "Staff", icon: "👤" },
-    { id: "offerings", label: "Offerings", icon: "💰" },
-    { id: "xp", label: "XP Roadmap", icon: "⚡" },
-    { id: "qr", label: "QR Codes", icon: "▣" },
-    { id: "agent", label: "AI Agent", icon: "🤖" },
-    { id: "members", label: "Members", icon: "👥" },
-    { id: "account", label: "Account", icon: "⚙" },
+const SECTION_GROUPS = [
+    {
+        group: "SET UP YOUR SPOT",
+        sections: [
+            { id: "general", label: "Basics", icon: "◉" },
+            { id: "location", label: "Where You Are", icon: "◎" },
+            { id: "branding", label: "Look & Feel", icon: "◈" },
+            { id: "photos", label: "Photos", icon: "📷" },
+        ],
+    },
+    {
+        group: "WHAT YOU OFFER",
+        sections: [
+            { id: "hours", label: "Hours & Menu", icon: "◇" },
+            { id: "offerings", label: "What You Sell", icon: "💰" },
+            { id: "staff", label: "Your Team", icon: "👤" },
+        ],
+    },
+    {
+        group: "ENGAGE GUESTS",
+        sections: [
+            { id: "rules", label: "Vibe & Rules", icon: "◆" },
+            { id: "xp", label: "Loyalty Rewards", icon: "⚡" },
+            { id: "agent", label: "AI Chat", icon: "🤖" },
+            { id: "qr", label: "QR Codes", icon: "▣" },
+        ],
+    },
+    {
+        group: "MANAGE",
+        sections: [
+            { id: "members", label: "Members", icon: "👥" },
+            { id: "account", label: "Account", icon: "⚙" },
+        ],
+    },
 ];
+
+const SECTIONS = SECTION_GROUPS.flatMap((g) => g.sections);
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -383,11 +405,12 @@ interface Props {
     gallery: { id: string; image_url: string; caption: string | null; sort_order: number }[];
     staff: { id: string; display_name: string; role_title: string | null; avatar_url: string | null; bio: string | null; specialties: string[]; visible: boolean; sort_order: number; schedule: unknown[]; created_at: string }[];
     staffOfferingLinks: { staff_id: string; offering_id: string }[];
+    aiLimits: { free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
 }
 
 // ─── Main Component ──────────────────────────────────────────────
 
-export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [], staffOfferingLinks: initialLinks = [] }: Props) {
+export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [], staffOfferingLinks: initialLinks = [], aiLimits: initialAiLimits }: Props) {
     const [activeSection, setActiveSection] = useState("general");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
@@ -440,6 +463,15 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [savingKnowledge, setSavingKnowledge] = useState(false);
     const [deletingKnowledge, setDeletingKnowledge] = useState<string | null>(null);
     const [knowledgeMsg, setKnowledgeMsg] = useState("");
+
+    // AI usage limits
+    const [aiLimitEnabled, setAiLimitEnabled] = useState(initialAiLimits !== null);
+    const [aiFreeMessages, setAiFreeMessages] = useState(String(initialAiLimits?.free_messages_per_day ?? 10));
+    const [aiRequireMembership, setAiRequireMembership] = useState(initialAiLimits?.require_membership ?? false);
+    const [aiGateMessage, setAiGateMessage] = useState(initialAiLimits?.gate_message ?? "You've used your free messages for today. Sign up to keep chatting!");
+    const [aiLimitsMsg, setAiLimitsMsg] = useState("");
+    const [savingAiLimits, setSavingAiLimits] = useState(false);
+    const [aiUsageStats, setAiUsageStats] = useState<{ todayMessages: number; todayGuests: number; weekMessages: number } | null>(null);
 
     // Offering fields
     const [showAddOffering, setShowAddOffering] = useState(false);
@@ -636,20 +668,25 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
             <div className="mx-auto flex max-w-5xl gap-0 lg:gap-8">
                 {/* Sidebar — desktop */}
-                <nav className="sticky top-[57px] hidden h-fit w-48 shrink-0 flex-col gap-1 py-8 lg:flex">
-                    {SECTIONS.map((s) => (
-                        <button
-                            key={s.id}
-                            onClick={() => goToSection(s.id)}
-                            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left font-sans text-[13px] font-medium transition"
-                            style={{
-                                backgroundColor: activeSection === s.id ? "rgba(255,255,255,0.06)" : "transparent",
-                                color: activeSection === s.id ? "#fff" : "rgba(255,255,255,0.35)",
-                            }}
-                        >
-                            <span style={{ color: activeSection === s.id ? "#F97316" : "rgba(255,255,255,0.2)" }}>{s.icon}</span>
-                            {s.label}
-                        </button>
+                <nav className="sticky top-[57px] hidden h-fit w-52 shrink-0 flex-col gap-0.5 py-8 lg:flex">
+                    {SECTION_GROUPS.map((g) => (
+                        <div key={g.group} className="mb-3">
+                            <p className="mb-1.5 px-3 font-sans text-[9px] font-bold tracking-[2px]" style={{ color: "rgba(255,255,255,0.15)" }}>{g.group}</p>
+                            {g.sections.map((s) => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => goToSection(s.id)}
+                                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left font-sans text-[13px] font-medium transition"
+                                    style={{
+                                        backgroundColor: activeSection === s.id ? "rgba(255,255,255,0.06)" : "transparent",
+                                        color: activeSection === s.id ? "#fff" : "rgba(255,255,255,0.35)",
+                                    }}
+                                >
+                                    <span style={{ color: activeSection === s.id ? "#F97316" : "rgba(255,255,255,0.2)" }}>{s.icon}</span>
+                                    {s.label}
+                                </button>
+                            ))}
+                        </div>
                     ))}
                 </nav>
 
@@ -674,11 +711,11 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                     <div className="flex flex-col gap-8">
 
                         {/* ─── General ─────────────────────────────────────────── */}
-                        <Card id="general" title="General" desc="Basic info and how guests reach you.">
-                            <Field label="Venue Name">
-                                <input value={name} onChange={(e) => setName(e.target.value)} className="input" />
+                        <Card id="general" title="Basics" desc="What's your spot called and what kind of place is it?">
+                            <Field label="What's your venue called?">
+                                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. The Rooftop, Blue Bottle Coffee" className="input" />
                             </Field>
-                            <Field label="Type">
+                            <Field label="What kind of place is it?">
                                 <div className="flex flex-wrap gap-2">
                                     {TYPES.map((t) => (
                                         <Chip key={t} label={t} active={type === t} onClick={() => setType(t)} />
@@ -692,7 +729,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate font-mono text-[14px] font-semibold text-white">{venueEmail}</p>
-                                        <p className="font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>Guests email here to interact</p>
+                                        <p className="font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>Guests can email this address to chat with your AI</p>
                                     </div>
                                 </div>
                             </div>
@@ -704,25 +741,25 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         </Card>
 
                         {/* ─── Location ────────────────────────────────────────── */}
-                        <Card id="location" title="Location" desc="Where guests can find you.">
-                            <Field label="Street Address">
-                                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, City, State" className="input" />
+                        <Card id="location" title="Where You Are" desc="Where should guests go to find you?">
+                            <Field label="Address" hint="Where guests show up">
+                                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Austin, TX" className="input" />
                             </Field>
-                            <Field label="Max Capacity">
+                            <Field label="How many people can you fit?" hint="Approximate is fine">
                                 <input type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="100" className="input" />
                             </Field>
                         </Card>
 
                         {/* ─── Branding ────────────────────────────────────────── */}
-                        <Card id="branding" title="Branding" desc="How your venue appears to guests.">
-                            <Field label="Tagline">
-                                <input value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="A rooftop for people who pay attention" maxLength={80} className="input" />
+                        <Card id="branding" title="Look & Feel" desc="Give your page some personality — tagline, colors, and a short description.">
+                            <Field label="Tagline" hint="One short line that captures your vibe">
+                                <input value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="e.g. A rooftop for people who pay attention" maxLength={80} className="input" />
                                 <span className="mt-1 text-right font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.2)" }}>{tagline.length}/80</span>
                             </Field>
-                            <Field label="Description">
-                                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Tell guests what to expect..." className="input resize-none" />
+                            <Field label="Tell guests what to expect" hint="2-3 sentences is plenty">
+                                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="We're a rooftop bar in downtown Austin with craft cocktails, city views, and live DJs on weekends." className="input resize-none" />
                             </Field>
-                            <Field label="Theme Color">
+                            <Field label="Your color" hint="Pick a color that matches your brand">
                                 <div className="flex items-center gap-3">
                                     <input type="color" value={themeColor} onChange={(e) => setThemeColor(e.target.value)} className="h-10 w-10 cursor-pointer rounded-lg border-0 bg-transparent" />
                                     <input value={themeColor} onChange={(e) => setThemeColor(e.target.value)} className="input flex-1 font-mono" />
@@ -732,9 +769,9 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         </Card>
 
                         {/* ─── Photos ──────────────────────────────────────────── */}
-                        <Card id="photos" title="Photos" desc="Hero image and gallery photos that guests see on your venue page.">
+                        <Card id="photos" title="Photos" desc="Show off your space. Add a cover photo and up to 10 gallery shots.">
                             {/* Hero Image */}
-                            <Field label="Hero Image" hint="This is the main background image on your venue page">
+                            <Field label="Cover Photo" hint="The big image at the top of your page">
                                 {heroImage ? (
                                     <div className="group relative overflow-hidden rounded-xl" style={{ height: 180 }}>
                                         <img src={heroImage} alt="Hero" className="h-full w-full object-cover" />
@@ -811,7 +848,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                             </Field>
 
                             {/* Gallery */}
-                            <Field label="Gallery" hint={`${galleryImages.length}/10 photos`}>
+                            <Field label="More Photos" hint={`${galleryImages.length}/10 — show guests what it's like inside`}>
                                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                                     {galleryImages.map((img) => (
                                         <div key={img.id} className="group relative aspect-square overflow-hidden rounded-xl" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -887,31 +924,31 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         </Card>
 
                         {/* ─── Hours & Menu ─────────────────────────────────────── */}
-                        <Card id="hours" title="Hours & Menu" desc="What you serve and when you're open.">
-                            <Field label="Hours" hint="One per line — Day: Open–Close">
+                        <Card id="hours" title="Hours & Menu" desc="When are you open? What do you serve? Keep it simple.">
+                            <Field label="When are you open?" hint="One line per day or range">
                                 <textarea value={hours} onChange={(e) => setHours(e.target.value)} rows={4} placeholder={"Mon-Fri: 4pm–12am\nSat-Sun: 2pm–2am"} className="input resize-none" />
                             </Field>
-                            <Field label="Menu Sections" hint="One section per line — Section: item, item">
+                            <Field label="What do you serve?" hint="Group things by category, one line each">
                                 <textarea value={menuText} onChange={(e) => setMenuText(e.target.value)} rows={5} placeholder={"Drinks: espresso, matcha, cold brew\nFood: avocado toast, grain bowl"} className="input resize-none" />
                             </Field>
                         </Card>
 
                         {/* ─── Rules & Vibe ─────────────────────────────────────── */}
-                        <Card id="rules" title="Rules & Vibe" desc="Set expectations for your guests.">
-                            <Field label="Current Vibe">
+                        <Card id="rules" title="Vibe & Rules" desc="What's the energy like right now? Any rules guests should know?">
+                            <Field label="How's the vibe right now?" hint="You can change this anytime">
                                 <div className="flex gap-2">
                                     {VIBES.map((v) => (
                                         <Chip key={v} label={v} active={vibe === v} onClick={() => setVibe(v)} />
                                     ))}
                                 </div>
                             </Field>
-                            <Field label="House Rules" hint="One rule per line">
+                            <Field label="Any rules guests should know?" hint="One per line">
                                 <textarea value={rulesText} onChange={(e) => setRulesText(e.target.value)} rows={4} placeholder={"Quiet after 10 PM\nMembers get priority\n21+ only"} className="input resize-none" />
                             </Field>
                         </Card>
 
                         {/* ─── Staff ───────────────────────────────────────────── */}
-                        <Card id="staff" title="Staff" desc="Team members visible on your venue page. Guests can see who's working.">
+                        <Card id="staff" title="Your Team" desc="Add your people. Guests can see who's working when they visit your page.">
                             {/* Existing staff */}
                             {staffList.length === 0 && !showAddStaff && (
                                 <p className="font-sans text-[13px] text-white/20">No staff added yet.</p>
@@ -1081,7 +1118,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         </Card>
 
                         {/* ─── Offerings ───────────────────────────────────────── */}
-                        <Card id="offerings" title="Offerings" desc="Memberships, booth holds, space rentals, and more. These appear on your venue page.">
+                        <Card id="offerings" title="What You Sell" desc="Memberships, reservations, products, events — anything guests can buy or book. Pick a template to get started fast.">
                             {/* Existing offerings */}
                             {offerings.length === 0 && !showAddOffering && !showTemplatePicker && (
                                 <div className="rounded-xl py-8 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
@@ -1254,13 +1291,13 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                         <Field label={OFFERING_TYPES.find((t) => t.id === offeringType)?.recurring ? "Price ($/month)" : "Price ($)"}>
                                             <input type="number" step="0.01" value={offeringPrice} onChange={(e) => setOfferingPrice(e.target.value)} placeholder="25.00" className="input" />
                                         </Field>
-                                        <Field label="Duration (minutes)" hint="For services and reservations">
+                                        <Field label="How long does it take?" hint="In minutes — skip if not applicable">
                                             <input type="number" value={offeringDuration} onChange={(e) => setOfferingDuration(e.target.value)} placeholder="60" className="input" />
                                         </Field>
-                                        <Field label="Perks / Includes" hint="One per line">
+                                        <Field label="What's included?" hint="One perk per line">
                                             <textarea value={offeringPerks} onChange={(e) => setOfferingPerks(e.target.value)} rows={3} placeholder={"Priority seating\n10% off drinks\nExclusive events"} className="input resize-none" />
                                         </Field>
-                                        <Field label="Add-ons" hint="Format: Name - Price (one per line)">
+                                        <Field label="Optional add-ons" hint="Name - Price, one per line">
                                             <textarea value={offeringAddOns} onChange={(e) => setOfferingAddOns(e.target.value)} rows={2} placeholder={"Bottle Service - 120.00\nSkip the Line - 25.00"} className="input resize-none" />
                                         </Field>
                                     </div>
@@ -1306,7 +1343,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         </Card>
 
                         {/* ─── XP Roadmap ───────────────────────────────────────── */}
-                        <Card id="xp" title="XP Roadmap" desc="Define how guests earn XP at your venue and what milestones they unlock.">
+                        <Card id="xp" title="Loyalty Rewards" desc="Guests earn points when they visit, order, or do stuff at your spot. Set up what earns points and what they unlock.">
                             {/* ── Templates ── */}
                             {(() => {
                                 const { primary, others } = getTemplatesForType(venue.type);
@@ -1435,9 +1472,9 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                             {/* Actions section */}
                             <div className="mb-6">
                                 <div className="flex items-center justify-between mb-3">
-                                    <h3 className="font-sans text-[13px] font-semibold text-white/60">Actions that earn XP</h3>
+                                    <h3 className="font-sans text-[13px] font-semibold text-white/60">How guests earn points</h3>
                                     <span className="rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold" style={{ backgroundColor: "rgba(74,222,128,0.12)", color: "#4ADE80" }}>
-                                        {xpActions.length} actions
+                                        {xpActions.length} active
                                     </span>
                                 </div>
 
@@ -1476,7 +1513,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                 ))}
 
                                 {/* Add action — preset grid */}
-                                <p className="mt-3 mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/20">ADD AN ACTION</p>
+                                <p className="mt-3 mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/20">TAP TO ADD</p>
                                 <div className="grid grid-cols-3 gap-2">
                                     {XP_ACTION_PRESETS.map((preset) => {
                                         const exists = xpActions.some((a) => a.action === preset.action);
@@ -1507,9 +1544,9 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                             {/* Milestones section */}
                             <div>
                                 <div className="flex items-center justify-between mb-3">
-                                    <h3 className="font-sans text-[13px] font-semibold text-white/60">Milestones</h3>
+                                    <h3 className="font-sans text-[13px] font-semibold text-white/60">Levels guests unlock</h3>
                                     <span className="rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold" style={{ backgroundColor: "rgba(167,139,250,0.12)", color: "#a78bfa" }}>
-                                        {xpMilestones.length} tiers
+                                        {xpMilestones.length} levels
                                     </span>
                                 </div>
 
@@ -1561,14 +1598,14 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
                                 {/* Add milestone form */}
                                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                                    <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/20">ADD A MILESTONE</p>
+                                    <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/20">ADD A LEVEL</p>
                                     <div className="flex flex-col gap-2">
                                         <div className="flex gap-2">
-                                            <input id="ms-name" placeholder="Tier name (e.g. Regular)" className="flex-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
-                                            <input id="ms-threshold" type="number" placeholder="XP needed" className="w-24 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
+                                            <input id="ms-name" placeholder="Level name (e.g. Regular, VIP)" className="flex-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
+                                            <input id="ms-threshold" type="number" placeholder="Points needed" className="w-28 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
                                         </div>
-                                        <input id="ms-reward" placeholder="Reward (e.g. Free coffee on every visit)" className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
-                                        <input id="ms-perks" placeholder="Perks (comma-separated, e.g. Priority seating, 10% off)" className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
+                                        <input id="ms-reward" placeholder="What do they get? (e.g. Free coffee every visit)" className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
+                                        <input id="ms-perks" placeholder="Extra perks, separated by commas (e.g. Priority seating, 10% off)" className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
                                         {/* Color picker */}
                                         <div className="flex items-center gap-2">
                                             <span className="font-sans text-[11px] text-white/25">Color:</span>
@@ -1611,7 +1648,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                             className="mt-1 rounded-xl px-5 py-2.5 font-sans text-[13px] font-bold text-black active:scale-[0.98] disabled:opacity-40"
                                             style={{ backgroundColor: "#F97316" }}
                                         >
-                                            {saving ? "Saving..." : "Add Milestone"}
+                                            {saving ? "Saving..." : "Add Level"}
                                         </button>
                                     </div>
                                 </div>
@@ -1619,10 +1656,10 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         </Card>
 
                         {/* ─── QR Codes ──────────────────────────────────────────── */}
-                        <Card id="qr" title="QR Codes" desc="Generate printable QR codes for your venue. Guests scan to check in and earn XP.">
+                        <Card id="qr" title="QR Codes" desc="Print these and put them around your venue. Guests scan to check in and start earning points.">
                             {/* Venue-wide QR */}
                             <div className="mb-6">
-                                <h3 className="mb-3 font-sans text-[13px] font-semibold text-white/60">Venue Check-In QR</h3>
+                                <h3 className="mb-3 font-sans text-[13px] font-semibold text-white/60">Main Check-In QR</h3>
                                 <div className="flex flex-col items-center gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
                                     <div id="qr-venue" className="rounded-xl bg-white p-3" />
                                     <p className="font-sans text-[12px] text-white/30 text-center">
@@ -1669,7 +1706,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
                             {/* Table-specific QR codes */}
                             <div>
-                                <h3 className="mb-3 font-sans text-[13px] font-semibold text-white/60">Table QR Codes</h3>
+                                <h3 className="mb-3 font-sans text-[13px] font-semibold text-white/60">One QR per table</h3>
                                 <div className="flex gap-2 mb-4">
                                     <input
                                         id="qr-table-count"
@@ -1747,7 +1784,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         </Card>
 
                         {/* ─── AI Agent ─────────────────────────────────────────── */}
-                        <Card id="agent" title="AI Agent" desc={`Add knowledge that ${venue.name}'s AI will use when answering guests.`}>
+                        <Card id="agent" title="AI Chat" desc={`Teach your AI about ${venue.name}. Just write like you're explaining to a friend — the AI uses this to answer guest questions.`}>
                             {/* Category pills */}
                             <div className="flex flex-wrap gap-2">
                                 {KNOWLEDGE_CATEGORIES.map((cat) => {
@@ -1783,7 +1820,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                 />
                                 <div className="flex items-center justify-between">
                                     <p className="font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.2)" }}>
-                                        Write naturally. The AI uses this when guests ask related questions.
+                                        Just write like you're texting a friend. The AI will use this to answer guest questions.
                                     </p>
                                     <button
                                         onClick={handleAddKnowledge}
@@ -1831,10 +1868,126 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                     {knowledge.length} total entries across all categories
                                 </span>
                             </div>
+
+                            {/* ── Chat Limits ── */}
+                            <div className="mt-2 border-t pt-5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h3 className="font-sans text-[14px] font-semibold text-white">Chat Limits</h3>
+                                        <p className="font-sans text-[12px] text-white/35">Control how many free AI messages guests get before they need to sign up.</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setAiLimitEnabled(!aiLimitEnabled)}
+                                        className="relative h-6 w-11 rounded-full transition"
+                                        style={{ backgroundColor: aiLimitEnabled ? "#F97316" : "rgba(255,255,255,0.1)" }}
+                                    >
+                                        <div
+                                            className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all"
+                                            style={{ left: aiLimitEnabled ? 22 : 2 }}
+                                        />
+                                    </button>
+                                </div>
+
+                                {aiLimitEnabled && (
+                                    <div className="flex flex-col gap-4 rounded-xl p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                                        <Field label="Free messages per day" hint="After this many, guests see your gate message">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="100"
+                                                value={aiFreeMessages}
+                                                onChange={(e) => setAiFreeMessages(e.target.value)}
+                                                className="input"
+                                                style={{ maxWidth: 120 }}
+                                            />
+                                        </Field>
+
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-sans text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>Members get unlimited</p>
+                                                <p className="font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.2)" }}>Guests with a membership skip the limit</p>
+                                            </div>
+                                            <button
+                                                onClick={() => setAiRequireMembership(!aiRequireMembership)}
+                                                className="relative h-6 w-11 shrink-0 rounded-full transition"
+                                                style={{ backgroundColor: aiRequireMembership ? "#4ADE80" : "rgba(255,255,255,0.1)" }}
+                                            >
+                                                <div
+                                                    className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all"
+                                                    style={{ left: aiRequireMembership ? 22 : 2 }}
+                                                />
+                                            </button>
+                                        </div>
+
+                                        <Field label="What guests see when they hit the limit" hint="Make it friendly — offer a reason to sign up">
+                                            <textarea
+                                                value={aiGateMessage}
+                                                onChange={(e) => setAiGateMessage(e.target.value)}
+                                                rows={2}
+                                                className="input resize-none"
+                                                placeholder="You've used your free messages for today. Sign up to keep chatting!"
+                                            />
+                                        </Field>
+
+                                        <div className="flex items-center justify-between">
+                                            <button
+                                                onClick={async () => {
+                                                    const stats = await getAiUsageStats();
+                                                    if (!("error" in stats)) setAiUsageStats(stats);
+                                                }}
+                                                className="font-sans text-[11px] font-medium underline"
+                                                style={{ color: "rgba(255,255,255,0.3)" }}
+                                            >
+                                                View today&apos;s usage
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    setSavingAiLimits(true);
+                                                    setAiLimitsMsg("");
+                                                    const result = await updateAiLimits({
+                                                        free_messages_per_day: parseInt(aiFreeMessages) || 10,
+                                                        require_membership: aiRequireMembership,
+                                                        gate_message: aiGateMessage,
+                                                    });
+                                                    if (result.error) setAiLimitsMsg(result.error);
+                                                    else { setAiLimitsMsg("Saved!"); setTimeout(() => setAiLimitsMsg(""), 2000); }
+                                                    setSavingAiLimits(false);
+                                                }}
+                                                disabled={savingAiLimits}
+                                                className="rounded-lg px-4 py-2 font-sans text-[12px] font-semibold text-black active:scale-95 disabled:opacity-40"
+                                                style={{ backgroundColor: "#F97316" }}
+                                            >
+                                                {savingAiLimits ? "Saving..." : "Save Limits"}
+                                            </button>
+                                        </div>
+
+                                        {aiLimitsMsg && (
+                                            <p className="font-sans text-[12px] font-medium" style={{ color: aiLimitsMsg === "Saved!" ? "#4ADE80" : "#EF4444" }}>{aiLimitsMsg}</p>
+                                        )}
+
+                                        {aiUsageStats && (
+                                            <div className="flex gap-3">
+                                                <div className="flex-1 rounded-lg p-3 text-center" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.15)" }}>
+                                                    <p className="font-mono text-[18px] font-bold" style={{ color: "#F97316" }}>{aiUsageStats.todayMessages}</p>
+                                                    <p className="font-sans text-[10px] text-white/30">messages today</p>
+                                                </div>
+                                                <div className="flex-1 rounded-lg p-3 text-center" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
+                                                    <p className="font-mono text-[18px] font-bold" style={{ color: "#4ADE80" }}>{aiUsageStats.todayGuests}</p>
+                                                    <p className="font-sans text-[10px] text-white/30">guests today</p>
+                                                </div>
+                                                <div className="flex-1 rounded-lg p-3 text-center" style={{ backgroundColor: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.15)" }}>
+                                                    <p className="font-mono text-[18px] font-bold" style={{ color: "#a78bfa" }}>{aiUsageStats.weekMessages}</p>
+                                                    <p className="font-sans text-[10px] text-white/30">this week</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </Card>
 
                         {/* ─── Members ──────────────────────────────────────────── */}
-                        <Card id="members" title="Members" desc={`${memberCount} total members at ${venue.name}.`}>
+                        <Card id="members" title="Members" desc={`${memberCount} people have joined ${venue.name}. They show up here when they sign up.`}>
                             {members.length === 0 ? (
                                 <div className="rounded-xl py-8 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
                                     <p className="font-sans text-[14px] text-white/40">No members yet.</p>
@@ -1875,7 +2028,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         </Card>
 
                         {/* ─── Account ──────────────────────────────────────────── */}
-                        <Card id="account" title="Account" desc="Your account and access.">
+                        <Card id="account" title="Account" desc="Your login and role at this venue.">
                             <div className="flex flex-col gap-2">
                                 <Row label="Email" value={user.email} />
                                 <Row label="Role" value={role} />

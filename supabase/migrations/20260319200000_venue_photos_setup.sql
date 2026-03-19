@@ -33,9 +33,13 @@ FROM venues v WHERE v.name = 'The Loft'
 ON CONFLICT DO NOTHING;
 
 -- Add RLS policy for venue owners to manage their gallery
-CREATE POLICY IF NOT EXISTS "venue_owners_manage_gallery" ON venue_gallery
-  FOR ALL USING (
-    venue_id IN (SELECT vo.venue_id FROM venue_owners vo WHERE vo.user_id = auth.uid())
-  ) WITH CHECK (
-    venue_id IN (SELECT vo.venue_id FROM venue_owners vo WHERE vo.user_id = auth.uid())
-  );
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'venue_owners_manage_gallery' AND tablename = 'venue_gallery') THEN
+    CREATE POLICY "venue_owners_manage_gallery" ON venue_gallery
+      FOR ALL USING (
+        venue_id IN (SELECT vo.venue_id FROM venue_owners vo WHERE vo.user_id = auth.uid())
+      ) WITH CHECK (
+        venue_id IN (SELECT vo.venue_id FROM venue_owners vo WHERE vo.user_id = auth.uid())
+      );
+  END IF;
+END $$;
