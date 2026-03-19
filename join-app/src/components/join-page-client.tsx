@@ -142,16 +142,12 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 </header>
             </div>
 
-            {/* Tag rail — above the command bar */}
-            <AnimatePresence>
-                {!selectedVenue && (
-                    <TagRail
-                        venues={venues}
-                        activeTag={activeTag?.id || null}
-                        onTagSelect={handleTagSelect}
-                    />
-                )}
-            </AnimatePresence>
+            {/* Tag rail — always visible */}
+            <TagRail
+                venues={venues}
+                activeTag={activeTag?.id || null}
+                onTagSelect={handleTagSelect}
+            />
 
             {/* Edge arrows — prev/next venue (show when venue selected OR tag active) */}
             <AnimatePresence>

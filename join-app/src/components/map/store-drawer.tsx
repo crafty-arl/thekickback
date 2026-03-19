@@ -238,6 +238,7 @@ function PerkCard({
 
 export function StoreDrawer({ venues, onClose, onVenueSelect, userLocation }: StoreDrawerProps) {
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [activeTab, setActiveTab] = useState<"foryou" | "discover">("foryou");
 
   // Load user data for personalized shelves
   useEffect(() => {
@@ -309,6 +310,43 @@ export function StoreDrawer({ venues, onClose, onVenueSelect, userLocation }: St
     return userData.perks.sort((a, b) => a.point_cost - b.point_cost);
   }, [userData]);
 
+  // Trending: highest occupancy percentage
+  const trending = useMemo(
+    () => [...claimedVenues]
+      .filter((v) => v.capacity > 0)
+      .sort((a, b) => getOccupancyPercent(b) - getOccupancyPercent(a))
+      .slice(0, 10),
+    [claimedVenues]
+  );
+
+  // Try Something New: venues in categories the user hasn't visited
+  const trySomethingNew = useMemo(() => {
+    if (!userData?.venueProfiles.length) return claimedVenues.slice(0, 10);
+    const visitedVenueIds = new Set(userData.venueProfiles.map((vp) => vp.venue_id));
+    const visitedCategories = new Set(
+      userData.venueProfiles
+        .map((vp) => venues.find((v) => v.id === vp.venue_id)?.category)
+        .filter(Boolean)
+    );
+    return claimedVenues
+      .filter((v) => !visitedVenueIds.has(v.id) && !visitedCategories.has(v.category))
+      .slice(0, 10);
+  }, [claimedVenues, venues, userData]);
+
+  // Recommended: venues the user hasn't visited but in categories they like
+  const recommended = useMemo(() => {
+    if (!userData?.venueProfiles.length) return [];
+    const visitedVenueIds = new Set(userData.venueProfiles.map((vp) => vp.venue_id));
+    const visitedCategories = new Set(
+      userData.venueProfiles
+        .map((vp) => venues.find((v) => v.id === vp.venue_id)?.category)
+        .filter(Boolean)
+    );
+    return claimedVenues
+      .filter((v) => !visitedVenueIds.has(v.id) && visitedCategories.has(v.category))
+      .slice(0, 10);
+  }, [claimedVenues, venues, userData]);
+
   const venueNameMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const v of venues) m.set(v.id, v.name);
@@ -336,7 +374,7 @@ export function StoreDrawer({ venues, onClose, onVenueSelect, userLocation }: St
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pb-4">
+      <div className="flex items-center justify-between px-5 pb-2">
         <h1 className="font-sans text-[26px] font-bold tracking-tight text-white">Explore</h1>
         <motion.button
           onClick={onClose}
@@ -350,100 +388,180 @@ export function StoreDrawer({ venues, onClose, onVenueSelect, userLocation }: St
         </motion.button>
       </div>
 
+      {/* Pill Tabs */}
+      <div className="flex gap-1.5 px-5 pb-4">
+        {(["foryou", "discover"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className="relative rounded-full px-4 py-1.5 font-sans text-[13px] font-semibold transition-colors"
+            style={{ color: activeTab === tab ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
+          >
+            {activeTab === tab && (
+              <motion.div
+                layoutId="explore-pill"
+                className="absolute inset-0 rounded-full"
+                style={{ backgroundColor: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.08)" }}
+                transition={{ type: "spring", damping: 30, stiffness: 400 }}
+              />
+            )}
+            <span className="relative z-10">{tab === "foryou" ? "For You" : "Discover"}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Scrollable shelves */}
       <div
         className="flex-1 overflow-y-auto overscroll-contain pb-[max(24px,env(safe-area-inset-bottom))]"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        {/* ── Happening Now ── */}
-        {happeningNow.length > 0 && (
-          <Shelf title="HAPPENING NOW" count={happeningNow.length}>
-            {happeningNow.map((v, i) => (
-              <VenueCard
-                key={v.id}
-                venue={v}
-                onClick={() => onVenueSelect(v)}
-                delay={Math.min(i * 0.04, 0.2)}
-                xp={userData?.venueProfiles.find((vp) => vp.venue_id === v.id)?.xp}
-              />
-            ))}
-          </Shelf>
-        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, x: activeTab === "foryou" ? -20 : 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: activeTab === "foryou" ? 20 : -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeTab === "foryou" ? (
+              <>
+                {/* ── Your Spots ── */}
+                {yourSpots.length > 0 && (
+                  <Shelf title="YOUR SPOTS">
+                    {yourSpots.map(({ venue, xp }, i) => (
+                      <VenueCard
+                        key={venue.id}
+                        venue={venue}
+                        onClick={() => onVenueSelect(venue)}
+                        delay={Math.min(i * 0.04, 0.2)}
+                        xp={xp}
+                      />
+                    ))}
+                  </Shelf>
+                )}
 
-        {/* ── Your Spots ── */}
-        {yourSpots.length > 0 && (
-          <Shelf title="YOUR SPOTS">
-            {yourSpots.map(({ venue, xp }, i) => (
-              <VenueCard
-                key={venue.id}
-                venue={venue}
-                onClick={() => onVenueSelect(venue)}
-                delay={Math.min(i * 0.04, 0.2)}
-                xp={xp}
-              />
-            ))}
-          </Shelf>
-        )}
+                {/* ── Recommended ── */}
+                {recommended.length > 0 && (
+                  <Shelf title="RECOMMENDED" count={recommended.length}>
+                    {recommended.map((v, i) => (
+                      <VenueCard
+                        key={v.id}
+                        venue={v}
+                        onClick={() => onVenueSelect(v)}
+                        delay={Math.min(i * 0.04, 0.2)}
+                      />
+                    ))}
+                  </Shelf>
+                )}
 
-        {/* ── Near You ── */}
-        {nearYou.length > 0 && (
-          <Shelf title="NEAR YOU">
-            {nearYou.map(({ venue, dist }, i) => (
-              <VenueCard
-                key={venue.id}
-                venue={venue}
-                onClick={() => onVenueSelect(venue)}
-                delay={Math.min(i * 0.04, 0.2)}
-                distance={dist}
-              />
-            ))}
-          </Shelf>
-        )}
+                {/* ── Your Perks ── */}
+                {affordablePerks.length > 0 && (
+                  <Shelf title="YOUR PERKS" count={affordablePerks.length}>
+                    {affordablePerks.map((perk, i) => (
+                      <PerkCard
+                        key={perk.id}
+                        perk={perk}
+                        venueName={venueNameMap.get(perk.venue_id) || "Venue"}
+                        canAfford={(userData?.balance || 0) >= perk.point_cost}
+                        onClick={() => {
+                          const venue = findVenue(perk.venue_id);
+                          if (venue) onVenueSelect(venue);
+                        }}
+                        delay={Math.min(i * 0.04, 0.2)}
+                      />
+                    ))}
+                  </Shelf>
+                )}
 
-        {/* ── Good for Focus ── */}
-        {quietSpots.length > 0 && (
-          <Shelf title="GOOD FOR FOCUS">
-            {quietSpots.map((v, i) => (
-              <VenueCard
-                key={v.id}
-                venue={v}
-                onClick={() => onVenueSelect(v)}
-                delay={Math.min(i * 0.04, 0.2)}
-              />
-            ))}
-          </Shelf>
-        )}
+                {/* ── Near You ── */}
+                {nearYou.length > 0 && (
+                  <Shelf title="NEAR YOU">
+                    {nearYou.map(({ venue, dist }, i) => (
+                      <VenueCard
+                        key={venue.id}
+                        venue={venue}
+                        onClick={() => onVenueSelect(venue)}
+                        delay={Math.min(i * 0.04, 0.2)}
+                        distance={dist}
+                      />
+                    ))}
+                  </Shelf>
+                )}
 
-        {/* ── Your Perks ── */}
-        {affordablePerks.length > 0 && (
-          <Shelf title="YOUR PERKS" count={affordablePerks.length}>
-            {affordablePerks.map((perk, i) => (
-              <PerkCard
-                key={perk.id}
-                perk={perk}
-                venueName={venueNameMap.get(perk.venue_id) || "Venue"}
-                canAfford={(userData?.balance || 0) >= perk.point_cost}
-                onClick={() => {
-                  const venue = findVenue(perk.venue_id);
-                  if (venue) onVenueSelect(venue);
-                }}
-                delay={Math.min(i * 0.04, 0.2)}
-              />
-            ))}
-          </Shelf>
-        )}
+                {/* ── Good for Focus ── */}
+                {quietSpots.length > 0 && (
+                  <Shelf title="GOOD FOR FOCUS">
+                    {quietSpots.map((v, i) => (
+                      <VenueCard
+                        key={v.id}
+                        venue={v}
+                        onClick={() => onVenueSelect(v)}
+                        delay={Math.min(i * 0.04, 0.2)}
+                      />
+                    ))}
+                  </Shelf>
+                )}
+              </>
+            ) : (
+              <>
+                {/* ── Happening Now ── */}
+                {happeningNow.length > 0 && (
+                  <Shelf title="HAPPENING NOW" count={happeningNow.length}>
+                    {happeningNow.map((v, i) => (
+                      <VenueCard
+                        key={v.id}
+                        venue={v}
+                        onClick={() => onVenueSelect(v)}
+                        delay={Math.min(i * 0.04, 0.2)}
+                        xp={userData?.venueProfiles.find((vp) => vp.venue_id === v.id)?.xp}
+                      />
+                    ))}
+                  </Shelf>
+                )}
 
-        {/* ── All Venues ── */}
-        <Shelf title="ALL VENUES" count={venues.length}>
-          {venues.map((v, i) => (
-            <VenueCard
-              key={v.id}
-              venue={v}
-              onClick={() => onVenueSelect(v)}
-              delay={Math.min(i * 0.04, 0.2)}
-            />
-          ))}
-        </Shelf>
+                {/* ── Trending ── */}
+                {trending.length > 0 && (
+                  <Shelf title="TRENDING" count={trending.length}>
+                    {trending.map((v, i) => (
+                      <VenueCard
+                        key={v.id}
+                        venue={v}
+                        onClick={() => onVenueSelect(v)}
+                        delay={Math.min(i * 0.04, 0.2)}
+                      />
+                    ))}
+                  </Shelf>
+                )}
+
+                {/* ── Try Something New ── */}
+                {trySomethingNew.length > 0 && (
+                  <Shelf title="TRY SOMETHING NEW" count={trySomethingNew.length}>
+                    {trySomethingNew.map((v, i) => (
+                      <VenueCard
+                        key={v.id}
+                        venue={v}
+                        onClick={() => onVenueSelect(v)}
+                        delay={Math.min(i * 0.04, 0.2)}
+                      />
+                    ))}
+                  </Shelf>
+                )}
+
+                {/* ── All Venues ── */}
+                <Shelf title="ALL VENUES" count={venues.length}>
+                  {venues.map((v, i) => (
+                    <VenueCard
+                      key={v.id}
+                      venue={v}
+                      onClick={() => onVenueSelect(v)}
+                      delay={Math.min(i * 0.04, 0.2)}
+                    />
+                  ))}
+                </Shelf>
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </motion.div>
   );

@@ -98,7 +98,7 @@ export function TagRail({ venues, activeTag, onTagSelect }: TagRailProps) {
 
   return (
     <div
-      className="fixed inset-x-0 z-40 flex items-center"
+      className="fixed inset-x-0 z-[55] flex items-center"
       style={{ bottom: "max(68px, calc(62px + env(safe-area-inset-bottom, 6px)))" }}
     >
       {/* Scrollable tag row */}

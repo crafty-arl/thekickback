@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import Image from "next/image";
 import { VenueOfferings } from "./venue-offerings";
+import { VenueGallery } from "./venue-gallery";
 import { VibeCard, MenuCard, EventsCard, ReserveCard } from "../map/tab-cards";
 
 /* ── Types ── */
@@ -31,6 +32,13 @@ interface VenuePage {
   hours: { day: string; open: string; close: string }[];
 }
 
+interface GalleryImage {
+  id: string;
+  image_url: string;
+  caption: string | null;
+  sort_order: number;
+}
+
 interface OfferingData {
   id: string;
   type: string;
@@ -50,6 +58,7 @@ interface Props {
   ref?: string;
   user?: { id: string; email: string } | null;
   offerings: OfferingData[];
+  gallery?: GalleryImage[];
 }
 
 type Tab = "chat" | "vibe" | "menu" | "events" | "reserve";
@@ -132,7 +141,7 @@ function toCardVenue(venue: Venue) {
    VENUE PAGE CLIENT — Immersive single-screen design
    ═══════════════════════════════════════════════════ */
 
-export function VenuePageClient({ page, venue, table, user, offerings }: Props) {
+export function VenuePageClient({ page, venue, table, user, offerings, gallery = [] }: Props) {
   const color = vibeColor(venue.vibe);
   const theme = page.theme_color;
   const pct = Math.round((venue.occupancy / venue.max_occupancy) * 100);
@@ -422,6 +431,11 @@ export function VenuePageClient({ page, venue, table, user, offerings }: Props) 
                 {/* Description */}
                 {page.description && (
                   <p className="font-sans text-[13px] leading-relaxed text-white/40">{page.description}</p>
+                )}
+
+                {/* Gallery */}
+                {gallery.length > 0 && (
+                  <VenueGallery gallery={gallery} themeColor={theme} />
                 )}
 
                 {/* Offerings */}

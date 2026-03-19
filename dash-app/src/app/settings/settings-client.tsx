@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate } from "./actions";
+import { uploadGalleryImage, deleteGalleryImage, updateHeroImage, removeHeroImage } from "../../app/edit/gallery-actions";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -33,6 +34,7 @@ const SECTIONS = [
     { id: "general", label: "General", icon: "◉" },
     { id: "location", label: "Location", icon: "◎" },
     { id: "branding", label: "Branding", icon: "◈" },
+    { id: "photos", label: "Photos", icon: "📷" },
     { id: "hours", label: "Hours & Menu", icon: "◇" },
     { id: "rules", label: "Rules & Vibe", icon: "◆" },
     { id: "offerings", label: "Offerings", icon: "💰" },
@@ -249,6 +251,7 @@ interface Props {
         tagline: string;
         description: string;
         theme_color: string;
+        hero_image: string | null;
         hours: { day: string; open: string; close: string }[];
         menu_sections: { name: string; items: string[] }[];
         review_status: string;
@@ -261,14 +264,23 @@ interface Props {
     xpActions: XpAction[];
     xpMilestones: XpMilestone[];
     customTemplates: { id: string; name: string; actions: unknown[]; milestones: unknown[] }[];
+    gallery: { id: string; image_url: string; caption: string | null; sort_order: number }[];
 }
 
 // ─── Main Component ──────────────────────────────────────────────
 
-export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates }: Props) {
+export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [] }: Props) {
     const [activeSection, setActiveSection] = useState("general");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
+
+    // Gallery state
+    const [galleryImages, setGalleryImages] = useState(initialGallery);
+    const [heroImage, setHeroImage] = useState(page?.hero_image || null);
+    const [uploadingHero, setUploadingHero] = useState(false);
+    const [uploadingGallery, setUploadingGallery] = useState(false);
+    const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
+    const [photoMsg, setPhotoMsg] = useState("");
 
     // Venue fields
     const [name, setName] = useState(venue.name);
@@ -559,6 +571,161 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                     <div className="h-10 w-20 rounded-lg" style={{ backgroundColor: themeColor }} />
                                 </div>
                             </Field>
+                        </Card>
+
+                        {/* ─── Photos ──────────────────────────────────────────── */}
+                        <Card id="photos" title="Photos" desc="Hero image and gallery photos that guests see on your venue page.">
+                            {/* Hero Image */}
+                            <Field label="Hero Image" hint="This is the main background image on your venue page">
+                                {heroImage ? (
+                                    <div className="group relative overflow-hidden rounded-xl" style={{ height: 180 }}>
+                                        <img src={heroImage} alt="Hero" className="h-full w-full object-cover" />
+                                        <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 transition group-hover:opacity-100" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+                                            <label className="cursor-pointer rounded-lg px-3 py-2 font-sans text-[12px] font-medium text-white" style={{ backgroundColor: "rgba(255,255,255,0.15)" }}>
+                                                Change
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (!file) return;
+                                                        setUploadingHero(true);
+                                                        setPhotoMsg("");
+                                                        const fd = new FormData();
+                                                        fd.append("file", file);
+                                                        const result = await updateHeroImage(venue.id, fd);
+                                                        if (result.error) { setPhotoMsg(result.error); }
+                                                        else if (result.url) { setHeroImage(result.url); setPhotoMsg("Hero updated!"); setTimeout(() => setPhotoMsg(""), 2000); }
+                                                        setUploadingHero(false);
+                                                    }}
+                                                />
+                                            </label>
+                                            <button
+                                                onClick={async () => {
+                                                    setUploadingHero(true);
+                                                    await removeHeroImage(venue.id);
+                                                    setHeroImage(null);
+                                                    setUploadingHero(false);
+                                                }}
+                                                className="rounded-lg px-3 py-2 font-sans text-[12px] font-medium"
+                                                style={{ backgroundColor: "rgba(239,68,68,0.2)", color: "#EF4444" }}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                        {uploadingHero && (
+                                            <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+                                                <span className="font-sans text-[13px] text-white/60">Uploading...</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-10 transition hover:border-solid" style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                                            <circle cx="9" cy="9" r="2" />
+                                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                                        </svg>
+                                        <span className="font-sans text-[13px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                                            {uploadingHero ? "Uploading..." : "Click to upload hero image"}
+                                        </span>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            disabled={uploadingHero}
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+                                                setUploadingHero(true);
+                                                setPhotoMsg("");
+                                                const fd = new FormData();
+                                                fd.append("file", file);
+                                                const result = await updateHeroImage(venue.id, fd);
+                                                if (result.error) { setPhotoMsg(result.error); }
+                                                else if (result.url) { setHeroImage(result.url); setPhotoMsg("Hero uploaded!"); setTimeout(() => setPhotoMsg(""), 2000); }
+                                                setUploadingHero(false);
+                                            }}
+                                        />
+                                    </label>
+                                )}
+                            </Field>
+
+                            {/* Gallery */}
+                            <Field label="Gallery" hint={`${galleryImages.length}/10 photos`}>
+                                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                                    {galleryImages.map((img) => (
+                                        <div key={img.id} className="group relative aspect-square overflow-hidden rounded-xl" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                                            <img src={img.image_url} alt={img.caption || "Gallery photo"} className="h-full w-full object-cover" />
+                                            <button
+                                                onClick={async () => {
+                                                    setDeletingImageId(img.id);
+                                                    const result = await deleteGalleryImage(venue.id, img.id);
+                                                    if (!result.error) {
+                                                        setGalleryImages((prev) => prev.filter((g) => g.id !== img.id));
+                                                    }
+                                                    setDeletingImageId(null);
+                                                }}
+                                                disabled={deletingImageId === img.id}
+                                                className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full opacity-0 transition group-hover:opacity-100"
+                                                style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
+                                            >
+                                                {deletingImageId === img.id ? (
+                                                    <span className="text-[10px] text-white/50">...</span>
+                                                ) : (
+                                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round">
+                                                        <path d="M18 6 6 18M6 6l12 12" />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                            {img.caption && (
+                                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 pb-1.5 pt-4">
+                                                    <span className="font-sans text-[9px] text-white/70 line-clamp-1">{img.caption}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {/* Add photo button */}
+                                    {galleryImages.length < 10 && (
+                                        <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed transition hover:border-solid" style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" strokeLinecap="round">
+                                                <line x1="12" y1="5" x2="12" y2="19" />
+                                                <line x1="5" y1="12" x2="19" y2="12" />
+                                            </svg>
+                                            <span className="font-sans text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+                                                {uploadingGallery ? "..." : "Add"}
+                                            </span>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                disabled={uploadingGallery}
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (!file) return;
+                                                    setUploadingGallery(true);
+                                                    setPhotoMsg("");
+                                                    const fd = new FormData();
+                                                    fd.append("file", file);
+                                                    const result = await uploadGalleryImage(venue.id, fd);
+                                                    if (result.error) { setPhotoMsg(result.error); }
+                                                    else if (result.url) {
+                                                        setGalleryImages((prev) => [...prev, { id: Date.now().toString(), image_url: result.url!, caption: null, sort_order: prev.length }]);
+                                                        setPhotoMsg("Photo added!"); setTimeout(() => setPhotoMsg(""), 2000);
+                                                    }
+                                                    setUploadingGallery(false);
+                                                }}
+                                            />
+                                        </label>
+                                    )}
+                                </div>
+                            </Field>
+
+                            {photoMsg && (
+                                <p className="font-sans text-[13px] font-medium" style={{ color: photoMsg.includes("!") ? "#4ADE80" : "#EF4444" }}>{photoMsg}</p>
+                            )}
                         </Card>
 
                         {/* ─── Hours & Menu ─────────────────────────────────────── */}
