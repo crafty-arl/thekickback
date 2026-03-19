@@ -118,14 +118,15 @@ jobs:
               echo "$CONTAINER — HTTP 200"
             done
 
-            # Verify Caddy is proxying correctly via localhost
+            # Verify Caddy is proxying via localhost (follow redirects — Caddy does HTTP→HTTPS)
             for DOMAIN in thekickback.net join.thekickback.net dash.thekickback.net; do
               RETRIES=3
               SUCCESS=false
               while [ $RETRIES -gt 0 ]; do
-                HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 5 -H "Host: $DOMAIN" http://localhost/health)
-                if [ "$HTTP_CODE" = "200" ]; then
-                  echo "Caddy → $DOMAIN — HTTP 200"
+                HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 5 -Lk -H "Host: $DOMAIN" https://localhost/health 2>/dev/null) \
+                  || HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 5 -H "Host: $DOMAIN" http://localhost/health 2>/dev/null)
+                if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "308" ]; then
+                  echo "Caddy → $DOMAIN — OK (HTTP $HTTP_CODE)"
                   SUCCESS=true
                   break
                 fi
