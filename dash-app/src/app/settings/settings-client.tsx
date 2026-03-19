@@ -37,6 +37,7 @@ const SECTIONS = [
     { id: "rules", label: "Rules & Vibe", icon: "◆" },
     { id: "offerings", label: "Offerings", icon: "💰" },
     { id: "xp", label: "XP Roadmap", icon: "⚡" },
+    { id: "qr", label: "QR Codes", icon: "▣" },
     { id: "agent", label: "AI Agent", icon: "🤖" },
     { id: "members", label: "Members", icon: "👥" },
     { id: "account", label: "Account", icon: "⚙" },
@@ -1029,6 +1030,134 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+                        </Card>
+
+                        {/* ─── QR Codes ──────────────────────────────────────────── */}
+                        <Card id="qr" title="QR Codes" desc="Generate printable QR codes for your venue. Guests scan to check in and earn XP.">
+                            {/* Venue-wide QR */}
+                            <div className="mb-6">
+                                <h3 className="mb-3 font-sans text-[13px] font-semibold text-white/60">Venue Check-In QR</h3>
+                                <div className="flex flex-col items-center gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
+                                    <div id="qr-venue" className="rounded-xl bg-white p-3" />
+                                    <p className="font-sans text-[12px] text-white/30 text-center">
+                                        join.thekickback.net/checkin/{venue.id}
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => {
+                                                import("qrcode").then((QRCode) => {
+                                                    const el = document.getElementById("qr-venue");
+                                                    if (!el) return;
+                                                    el.innerHTML = "";
+                                                    QRCode.toCanvas(
+                                                        `https://join.thekickback.net/checkin/${venue.id}`,
+                                                        { width: 200, margin: 1, color: { dark: "#000", light: "#fff" } },
+                                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                        (err: any, canvas: any) => {
+                                                            if (!err && canvas) el.appendChild(canvas);
+                                                        }
+                                                    );
+                                                });
+                                            }}
+                                            className="rounded-lg px-4 py-2 font-sans text-[12px] font-semibold text-black active:scale-95"
+                                            style={{ backgroundColor: "#F97316" }}
+                                        >
+                                            Generate QR
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const canvas = document.querySelector("#qr-venue canvas") as HTMLCanvasElement;
+                                                if (!canvas) return;
+                                                const link = document.createElement("a");
+                                                link.download = `${venue.name.replace(/\s+/g, "-").toLowerCase()}-checkin-qr.png`;
+                                                link.href = canvas.toDataURL();
+                                                link.click();
+                                            }}
+                                            className="rounded-lg border border-white/[0.08] px-4 py-2 font-sans text-[12px] font-medium text-white/40 active:scale-95"
+                                        >
+                                            Download
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Table-specific QR codes */}
+                            <div>
+                                <h3 className="mb-3 font-sans text-[13px] font-semibold text-white/60">Table QR Codes</h3>
+                                <div className="flex gap-2 mb-4">
+                                    <input
+                                        id="qr-table-count"
+                                        type="number"
+                                        min="1"
+                                        max="50"
+                                        defaultValue="10"
+                                        placeholder="Number of tables"
+                                        className="w-32 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none"
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            import("qrcode").then((QRCode) => {
+                                                const count = parseInt((document.getElementById("qr-table-count") as HTMLInputElement).value) || 10;
+                                                const grid = document.getElementById("qr-table-grid");
+                                                if (!grid) return;
+                                                grid.innerHTML = "";
+                                                for (let i = 1; i <= Math.min(count, 50); i++) {
+                                                    const wrapper = document.createElement("div");
+                                                    wrapper.className = "flex flex-col items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3";
+                                                    wrapper.innerHTML = `<div class="rounded-lg bg-white p-2" id="qr-t-${i}"></div><span class="font-sans text-[11px] font-semibold text-white/40">Table ${i}</span>`;
+                                                    grid.appendChild(wrapper);
+
+                                                    setTimeout(() => {
+                                                        const el = document.getElementById(`qr-t-${i}`);
+                                                        if (!el) return;
+                                                        QRCode.toCanvas(
+                                                            `https://join.thekickback.net/checkin/${venue.id}?table=${i}`,
+                                                            { width: 120, margin: 1, color: { dark: "#000", light: "#fff" } },
+                                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                            (err: any, canvas: any) => {
+                                                                if (!err && canvas) el.appendChild(canvas);
+                                                            }
+                                                        );
+                                                    }, i * 50);
+                                                }
+                                            });
+                                        }}
+                                        className="rounded-lg px-4 py-2 font-sans text-[12px] font-semibold text-black active:scale-95"
+                                        style={{ backgroundColor: "#F97316" }}
+                                    >
+                                        Generate All
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const grid = document.getElementById("qr-table-grid");
+                                            if (!grid) return;
+                                            const w = window.open("", "_blank");
+                                            if (!w) return;
+                                            const canvases = grid.querySelectorAll("canvas");
+                                            let html = `<html><head><title>${venue.name} — Table QR Codes</title><style>
+                                                body { font-family: system-ui, sans-serif; background: #fff; padding: 20px; }
+                                                .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+                                                .card { text-align: center; page-break-inside: avoid; padding: 16px; border: 1px solid #eee; border-radius: 12px; }
+                                                .card img { width: 150px; height: 150px; }
+                                                .card p { margin: 8px 0 0; font-size: 14px; font-weight: 600; }
+                                                .card small { color: #999; font-size: 10px; }
+                                                @media print { .grid { gap: 16px; } }
+                                            </style></head><body><h2>${venue.name} — Table QR Codes</h2><div class="grid">`;
+                                            canvases.forEach((canvas, i) => {
+                                                html += `<div class="card"><img src="${canvas.toDataURL()}" /><p>Table ${i + 1}</p><small>Scan to check in</small></div>`;
+                                            });
+                                            html += `</div></body></html>`;
+                                            w.document.write(html);
+                                            w.document.close();
+                                            setTimeout(() => w.print(), 500);
+                                        }}
+                                        className="rounded-lg border border-white/[0.08] px-4 py-2 font-sans text-[12px] font-medium text-white/40 active:scale-95"
+                                    >
+                                        Print All
+                                    </button>
+                                </div>
+                                <div id="qr-table-grid" className="grid grid-cols-3 gap-3 sm:grid-cols-4" />
                             </div>
                         </Card>
 
