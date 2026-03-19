@@ -238,21 +238,10 @@ jobs:
                   -d '{"model":"openclaw","input":"Respond with exactly one word: KICKBACK"}' 2>/dev/null)
 
                 if echo "$AI_RESP" | grep -q "output_text"; then
-                  AI_TEXT=$(echo "$AI_RESP" | python3 -c "
-import sys,json
-try:
-  d=json.load(sys.stdin)
-  msgs=[o for o in d.get('output',[]) if o.get('type')=='message']
-  print(msgs[0]['content'][0]['text'][:80] if msgs else 'empty')
-except: print('parse_error')" 2>/dev/null)
+                  AI_TEXT=$(echo "$AI_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); msgs=[o for o in d.get('output',[]) if o.get('type')=='message']; print(msgs[0]['content'][0]['text'][:80] if msgs else 'empty')" 2>/dev/null)
                   ok "AI agent responding — said: $AI_TEXT"
                 elif echo "$AI_RESP" | grep -q "failed\|error"; then
-                  ERROR=$(echo "$AI_RESP" | python3 -c "
-import sys,json
-try:
-  d=json.load(sys.stdin)
-  print(d.get('error',{}).get('message','unknown')[:100])
-except: print('parse_error')" 2>/dev/null)
+                  ERROR=$(echo "$AI_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('message','unknown')[:100])" 2>/dev/null)
                   fail "AI agent error: $ERROR"
                   docker logs claw --tail 5 2>&1 || true
                 else
