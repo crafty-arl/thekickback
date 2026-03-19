@@ -17,14 +17,33 @@ interface VenuePage {
         name: string;
         type: string;
         address: string | null;
+        neighborhood: string | null;
+        lat: number | null;
+        lng: number | null;
         max_occupancy: number;
     };
+}
+
+interface OrphanVenue {
+    id: string;
+    name: string;
+    type: string;
+    address: string | null;
+    neighborhood: string | null;
+    lat: number | null;
+    lng: number | null;
+    max_occupancy: number;
+    state: string;
+    vibe: string;
+    occupancy: number;
+    created_at: string;
 }
 
 interface Stats {
     totalVenues: number;
     pendingVenues: number;
     publishedVenues: number;
+    orphanVenues: number;
     totalMembers: number;
     totalSessions: number;
     totalKnowledge: number;
@@ -33,15 +52,16 @@ interface Stats {
 
 interface Props {
     pages: VenuePage[];
+    orphanVenues: OrphanVenue[];
     stats: Stats | null;
     authed: boolean;
 }
 
-export function RootClient({ pages, stats, authed }: Props) {
+export function RootClient({ pages, orphanVenues, stats, authed }: Props) {
     // If not authed, show OTP gate
     if (!authed) return <OtpGate />;
 
-    return <AdminDashboard pages={pages} stats={stats!} />;
+    return <AdminDashboard pages={pages} orphanVenues={orphanVenues || []} stats={stats!} />;
 }
 
 // ─── OTP Gate ────────────────────────────────────────────────────
@@ -133,8 +153,8 @@ function OtpGate() {
 
 // ─── Admin Dashboard ─────────────────────────────────────────────
 
-function AdminDashboard({ pages, stats }: { pages: VenuePage[]; stats: Stats }) {
-    const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+function AdminDashboard({ pages, orphanVenues, stats }: { pages: VenuePage[]; orphanVenues: OrphanVenue[]; stats: Stats }) {
+    const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected" | "orphan">("all");
     const [acting, setActing] = useState<string | null>(null);
 
     const filtered = filter === "all" ? pages : pages.filter((p) => p.review_status === filter);
@@ -160,6 +180,7 @@ function AdminDashboard({ pages, stats }: { pages: VenuePage[]; stats: Stats }) 
                     <StatBox label="Venues" value={stats.totalVenues} />
                     <StatBox label="Pending" value={stats.pendingVenues} accent="#F97316" />
                     <StatBox label="Published" value={stats.publishedVenues} accent="#4ADE80" />
+                    <StatBox label="No Page" value={stats.orphanVenues} accent="#EF4444" />
                     <StatBox label="Members" value={stats.totalMembers} />
                     <StatBox label="Sessions" value={stats.totalSessions} />
                     <StatBox label="Knowledge" value={stats.totalKnowledge} />
@@ -169,8 +190,10 @@ function AdminDashboard({ pages, stats }: { pages: VenuePage[]; stats: Stats }) 
                 {/* Filters */}
                 <div className="mb-4 flex items-center gap-2">
                     <h2 className="flex-1 font-sans text-[16px] font-semibold text-white">Venues</h2>
-                    {(["all", "pending", "approved", "rejected"] as const).map((f) => {
-                        const count = f === "all" ? pages.length : pages.filter((p) => p.review_status === f).length;
+                    {(["all", "pending", "approved", "rejected", "orphan"] as const).map((f) => {
+                        const count = f === "all" ? pages.length + orphanVenues.length
+                            : f === "orphan" ? orphanVenues.length
+                                : pages.filter((p) => p.review_status === f).length;
                         return (
                             <button
                                 key={f}
@@ -193,7 +216,7 @@ function AdminDashboard({ pages, stats }: { pages: VenuePage[]; stats: Stats }) 
                     {filtered.length === 0 && (
                         <p className="py-8 text-center font-sans text-[14px] text-white/30">No venues match this filter.</p>
                     )}
-                    {filtered.map((p) => (
+                    {filter !== "orphan" && filtered.map((p) => (
                         <div
                             key={p.id}
                             className="flex items-center gap-4 rounded-xl border p-4"
@@ -222,6 +245,7 @@ function AdminDashboard({ pages, stats }: { pages: VenuePage[]; stats: Stats }) 
                                 <div className="mt-1 flex items-center gap-3">
                                     <span className="font-sans text-[12px] text-white/30">{p.slug}</span>
                                     {p.venues?.type && <span className="font-sans text-[11px] capitalize text-white/20">{p.venues.type}</span>}
+                                    {p.venues?.address && <span className="font-sans text-[11px] text-white/15 truncate max-w-[200px]">{p.venues.address}</span>}
                                 </div>
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
@@ -243,6 +267,35 @@ function AdminDashboard({ pages, stats }: { pages: VenuePage[]; stats: Stats }) 
                                 <a href={`https://join.thekickback.net/${p.slug}`} target="_blank" className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-medium" style={{ backgroundColor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.25)" }}>
                                     Preview
                                 </a>
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* Orphan venues — show when filter is 'all' or 'orphan' */}
+                    {(filter === "all" || filter === "orphan") && orphanVenues.map((v) => (
+                        <div
+                            key={v.id}
+                            className="flex items-center gap-4 rounded-xl border p-4"
+                            style={{
+                                borderColor: "rgba(239,68,68,0.2)",
+                                backgroundColor: "rgba(239,68,68,0.04)",
+                            }}
+                        >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(239,68,68,0.15)" }}>
+                                <span className="text-[16px]">⚠️</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                    <p className="font-sans text-[14px] font-semibold text-white">{v.name}</p>
+                                    <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold tracking-wider" style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#EF4444" }}>
+                                        NO PAGE
+                                    </span>
+                                </div>
+                                <div className="mt-1 flex items-center gap-3">
+                                    {v.type && <span className="font-sans text-[11px] capitalize text-white/20">{v.type}</span>}
+                                    {v.address && <span className="font-sans text-[11px] text-white/15 truncate max-w-[200px]">{v.address}</span>}
+                                    <span className="font-sans text-[11px] text-white/10">Venue exists but has no landing page</span>
+                                </div>
                             </div>
                         </div>
                     ))}

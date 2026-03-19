@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect } from "react";
 import Map, { Marker, type MapRef } from "react-map-gl";
-import { MOCK_VENUES, type Venue } from "@/lib/venues";
+import { type Venue } from "@/lib/venues";
 import { VenueMarker } from "./venue-marker";
 
 interface MapViewProps {
@@ -85,16 +85,15 @@ export function MapView({ venues, selectedVenue, onVenueSelect }: MapViewProps) 
 
   useEffect(() => {
     if (fittedRef.current || !mapRef.current) return;
-    const allVenues = MOCK_VENUES;
-    if (allVenues.length < 2) return;
+    if (venues.length < 2) return;
 
-    const { sw, ne } = getBounds(allVenues);
+    const { sw, ne } = getBounds(venues);
     mapRef.current.fitBounds([sw, ne], {
       padding: { top: 100, bottom: 80, left: 40, right: 40 },
       duration: 0,
     });
     fittedRef.current = true;
-  }, []);
+  }, [venues]);
 
   // Fly to venue when selectedVenue changes (e.g. from arrow nav)
   useEffect(() => {
@@ -125,9 +124,8 @@ export function MapView({ venues, selectedVenue, onVenueSelect }: MapViewProps) 
     if (!map) return;
 
     // Fit bounds
-    const allVenues = MOCK_VENUES;
-    if (allVenues.length >= 2) {
-      const { sw, ne } = getBounds(allVenues);
+    if (venues.length >= 2) {
+      const { sw, ne } = getBounds(venues);
       map.fitBounds([sw, ne], {
         padding: { top: 100, bottom: 80, left: 40, right: 40 },
         duration: 0,
@@ -169,7 +167,7 @@ export function MapView({ venues, selectedVenue, onVenueSelect }: MapViewProps) 
         labelLayerId
       );
     }
-  }, []);
+  }, [venues]);
 
   return (
     <Map

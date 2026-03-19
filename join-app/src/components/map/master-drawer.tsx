@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, useAnimationControls } from "framer-motion";
-import { type Venue, MOCK_VENUES } from "@/lib/venues";
+import { type Venue } from "@/lib/venues";
 
 interface Message {
   id: string;
@@ -12,12 +12,14 @@ interface Message {
 }
 
 interface MasterDrawerProps {
+  venues: Venue[];
   onVenueSelect: (venue: Venue) => void;
 }
 
 const ACCENT = "#a78bfa"; // soft purple for the master agent
 
 function parseVenueChips(
+  venues: Venue[],
   text: string,
   onTap: (venue: Venue) => void
 ): React.ReactNode[] {
@@ -26,7 +28,7 @@ function parseVenueChips(
     const match = part.match(/^\[\[venue:([^\]]+)\]\]$/);
     if (match) {
       const venueId = match[1];
-      const venue = MOCK_VENUES.find((v) => v.id === venueId);
+      const venue = venues.find((v) => v.id === venueId);
       if (venue) {
         return (
           <button
@@ -61,7 +63,7 @@ function parseVenueChips(
   });
 }
 
-export function MasterDrawer({ onVenueSelect }: MasterDrawerProps) {
+export function MasterDrawer({ venues, onVenueSelect }: MasterDrawerProps) {
   const [expanded, setExpanded] = useState(false);
   const controls = useAnimationControls();
 
@@ -338,28 +340,27 @@ export function MasterDrawer({ onVenueSelect }: MasterDrawerProps) {
                     className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
-                        msg.sender === "guest"
+                      className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.sender === "guest"
                           ? "rounded-br-sm"
                           : "rounded-bl-sm"
-                      }`}
+                        }`}
                       style={
                         msg.sender === "guest"
                           ? {
-                              backgroundColor: ACCENT,
-                              color: "#000",
-                              boxShadow: `0 2px 12px ${ACCENT}33`,
-                            }
+                            backgroundColor: ACCENT,
+                            color: "#000",
+                            boxShadow: `0 2px 12px ${ACCENT}33`,
+                          }
                           : {
-                              backgroundColor: "rgba(255,255,255,0.07)",
-                              color: "rgba(255,255,255,0.8)",
-                              border: "1px solid rgba(255,255,255,0.05)",
-                            }
+                            backgroundColor: "rgba(255,255,255,0.07)",
+                            color: "rgba(255,255,255,0.8)",
+                            border: "1px solid rgba(255,255,255,0.05)",
+                          }
                       }
                     >
                       <p className="font-sans text-[14px] leading-[1.5]">
                         {msg.sender === "ai"
-                          ? parseVenueChips(msg.body, onVenueSelect)
+                          ? parseVenueChips(venues, msg.body, onVenueSelect)
                           : msg.body}
                       </p>
                     </div>
