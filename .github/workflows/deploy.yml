@@ -53,12 +53,14 @@ jobs:
               -d '{"query":"ALTER TABLE venue_offerings ADD COLUMN IF NOT EXISTS cal_event_type_id integer; ALTER TABLE venues ADD COLUMN IF NOT EXISTS cal_api_key text;"}' \
               2>/dev/null || echo "Note: migration may need manual run via Supabase SQL Editor"
 
-            # Clean up only orphan containers (don't take down running services)
+            # Clean up dead containers
             docker container prune -f 2>/dev/null || true
 
-            # Rebuild and restart only app services (Caddy stays up)
-            docker compose build --no-cache landing-blue
-            docker compose up -d --build landing-blue join-app dash-app
+            # Rebuild app services
+            docker compose build --no-cache landing-blue join-app dash-app
+
+            # Bring everything up (including Caddy) — docker compose handles deps
+            docker compose up -d landing-blue join-app dash-app
 
             # Wait for all app services to be healthy
             echo "Waiting for health checks..."
@@ -76,9 +78,9 @@ jobs:
               echo "$SERVICE is healthy"
             done
 
-            # Reload Caddy config without restarting (zero-downtime)
-            docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null \
-              || docker compose restart caddy
+            # Restart Caddy so it re-resolves container DNS
+            docker compose up -d --force-recreate caddy
+            sleep 5
 
             echo "Deploy verified: all services healthy"
 
@@ -109,13 +111,24 @@ jobs:
               echo "$CONTAINER — HTTP 200"
             done
 
-            # Also verify Caddy is proxying correctly via localhost
+            # Verify Caddy is proxying correctly via localhost
             for DOMAIN in thekickback.net join.thekickback.net dash.thekickback.net; do
-              HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 5 -H "Host: $DOMAIN" http://localhost/health)
-              if [ "$HTTP_CODE" != "200" ]; then
-                echo "WARN: Caddy proxy for $DOMAIN returned HTTP $HTTP_CODE (may need TLS warmup)"
-              else
-                echo "Caddy → $DOMAIN — HTTP 200"
+              RETRIES=3
+              SUCCESS=false
+              while [ $RETRIES -gt 0 ]; do
+                HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 5 -H "Host: $DOMAIN" http://localhost/health)
+                if [ "$HTTP_CODE" = "200" ]; then
+                  echo "Caddy → $DOMAIN — HTTP 200"
+                  SUCCESS=true
+                  break
+                fi
+                RETRIES=$((RETRIES - 1))
+                sleep 3
+              done
+              if [ "$SUCCESS" != "true" ]; then
+                echo "FAIL: Caddy proxy for $DOMAIN returned HTTP $HTTP_CODE"
+                docker logs kickback-caddy --tail 15 2>&1 || true
+                exit 1
               fi
             done
 
