@@ -506,7 +506,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
                     );
                   }
 
-                  // AI messages with a tab — render custom card
+                  // AI messages with a card type — render ONLY the component, no AI text
                   if (msg.tab && msg.tab !== "chat") {
                     return (
                       <motion.div
@@ -516,13 +516,13 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
                         className="flex justify-start"
                       >
-                        {msg.tab === "vibe" && <VibeCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
-                        {msg.tab === "menu" && <MenuCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
-                        {msg.tab === "events" && <EventsCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
-                        {msg.tab === "reserve" && <ReserveCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
-                        {msg.tab === "shop" && <ShopCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
-                        {msg.tab === "subscribe" && <SubscribeCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
-                        {msg.tab === "join" && <JoinCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "vibe" && <VibeCard body="" venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "menu" && <MenuCard body="" venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "events" && <EventsCard body="" venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "reserve" && <ReserveCard body="" venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "shop" && <ShopCard body="" venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "subscribe" && <SubscribeCard body="" venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "join" && <JoinCard body="" venue={venue} vibeColor={vibeColor} />}
                       </motion.div>
                     );
                   }

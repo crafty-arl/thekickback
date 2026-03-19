@@ -684,13 +684,13 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                     if (msg.tab && msg.tab !== "chat") {
                       return (
                         <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                          {msg.tab === "vibe" && <VibeCard body={msg.body} venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "menu" && <MenuCard body={msg.body} venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "events" && <EventsCard body={msg.body} venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "reserve" && <ReserveCard body={msg.body} venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "shop" && <ShopCard body={msg.body} venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "subscribe" && <SubscribeCard body={msg.body} venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "join" && <JoinCard body={msg.body} venue={cardVenue} vibeColor={color} />}
+                          {msg.tab === "vibe" && <VibeCard body="" venue={cardVenue} vibeColor={color} />}
+                          {msg.tab === "menu" && <MenuCard body="" venue={cardVenue} vibeColor={color} />}
+                          {msg.tab === "events" && <EventsCard body="" venue={cardVenue} vibeColor={color} />}
+                          {msg.tab === "reserve" && <ReserveCard body="" venue={cardVenue} vibeColor={color} />}
+                          {msg.tab === "shop" && <ShopCard body="" venue={cardVenue} vibeColor={color} />}
+                          {msg.tab === "subscribe" && <SubscribeCard body="" venue={cardVenue} vibeColor={color} />}
+                          {msg.tab === "join" && <JoinCard body="" venue={cardVenue} vibeColor={color} />}
                         </motion.div>
                       );
                     }
