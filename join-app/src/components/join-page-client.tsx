@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,8 +17,42 @@ interface JoinPageClientProps {
     venues: Venue[];
 }
 
-export function JoinPageClient({ venues }: JoinPageClientProps) {
+export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
+    const [venues, setVenues] = useState<Venue[]>(serverVenues);
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
+    const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+    // Request geolocation and fetch local discovery venues
+    useEffect(() => {
+        if (!navigator.geolocation) return;
+
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const { latitude, longitude } = pos.coords;
+                setUserLocation({ latitude, longitude });
+
+                try {
+                    const res = await fetch(`/api/discover?lat=${latitude}&lng=${longitude}`);
+                    if (!res.ok) return;
+                    const localVenues: Venue[] = await res.json();
+
+                    // Merge: keep claimed (Supabase) venues, replace discovery with local ones
+                    const claimed = serverVenues.filter((v) => v.claimed !== false);
+                    const claimedNames = new Set(claimed.map((v) => v.name.toLowerCase()));
+                    const uniqueLocal = localVenues.filter(
+                        (v) => !claimedNames.has(v.name.toLowerCase())
+                    );
+                    setVenues([...claimed, ...uniqueLocal]);
+                } catch {
+                    // Keep server-rendered venues on error
+                }
+            },
+            () => {
+                // Geolocation denied or unavailable — keep server defaults
+            },
+            { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+        );
+    }, [serverVenues]);
 
     const navigateVenue = useCallback((dir: -1 | 1) => {
         if (!selectedVenue || venues.length === 0) return;
@@ -34,6 +68,7 @@ export function JoinPageClient({ venues }: JoinPageClientProps) {
                 venues={venues}
                 selectedVenue={selectedVenue}
                 onVenueSelect={setSelectedVenue}
+                userLocation={userLocation}
             />
 
             {/* Header overlay — logo only */}

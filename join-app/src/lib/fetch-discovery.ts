@@ -1,5 +1,3 @@
-"use server";
-
 import { unstable_cache } from "next/cache";
 import { type Venue } from "./venues";
 
@@ -12,8 +10,8 @@ const FSQ_FIELDS = [
 // Foursquare category IDs for venue types we care about
 const SEARCH_QUERIES = ["bar", "cafe", "restaurant", "lounge", "nightclub"];
 
-// Austin TX center
-const CENTER = { lat: 30.267, lng: -97.743 };
+// Austin TX fallback center
+const DEFAULT_CENTER = { lat: 30.267, lng: -97.743 };
 const RADIUS = 5000; // 5 km
 
 interface FsqPlace {
@@ -30,10 +28,14 @@ interface FsqPlace {
     };
 }
 
-async function fetchFsqPlaces(query: string, token: string): Promise<FsqPlace[]> {
+async function fetchFsqPlaces(
+    query: string,
+    token: string,
+    center: { lat: number; lng: number }
+): Promise<FsqPlace[]> {
     const params = new URLSearchParams({
         query,
-        ll: `${CENTER.lat},${CENTER.lng}`,
+        ll: `${center.lat},${center.lng}`,
         radius: String(RADIUS),
         limit: "15",
         fields: FSQ_FIELDS,
@@ -73,16 +75,21 @@ function mapCategory(categories?: { name: string; short_name?: string }[]): stri
     return "venue";
 }
 
-async function _fetchDiscoveryVenues(): Promise<Venue[]> {
+export async function fetchDiscoveryVenuesForLocation(
+    lat: number,
+    lng: number
+): Promise<Venue[]> {
     const token = process.env.FOURSQUARE_SERVICE_TOKEN;
     if (!token) {
         console.warn("[fetchDiscovery] No FOURSQUARE_SERVICE_TOKEN — skipping discovery venues");
         return [];
     }
 
+    const center = { lat, lng };
+
     // Fetch all categories in parallel
     const results = await Promise.all(
-        SEARCH_QUERIES.map((q) => fetchFsqPlaces(q, token))
+        SEARCH_QUERIES.map((q) => fetchFsqPlaces(q, token, center))
     );
 
     // Flatten and deduplicate by fsq_place_id
@@ -121,11 +128,11 @@ async function _fetchDiscoveryVenues(): Promise<Venue[]> {
 }
 
 /**
- * Fetches discovery venues from Foursquare, cached for 1 hour.
- * These are "unclaimed" venues that appear on the map as muted markers.
+ * Fetches discovery venues from Foursquare for the default Austin center,
+ * cached for 1 hour. Used as the server-side fallback.
  */
 export const fetchDiscoveryVenues = unstable_cache(
-    _fetchDiscoveryVenues,
-    ["discovery-venues"],
+    () => fetchDiscoveryVenuesForLocation(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng),
+    ["discovery-venues-default"],
     { revalidate: 3600 } // 1 hour
 );

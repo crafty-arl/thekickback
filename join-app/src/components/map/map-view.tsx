@@ -9,6 +9,7 @@ interface MapViewProps {
   venues: Venue[];
   selectedVenue: Venue | null;
   onVenueSelect: (venue: Venue | null) => void;
+  userLocation?: { latitude: number; longitude: number } | null;
 }
 
 function getBounds(venues: Venue[]) {
@@ -79,7 +80,7 @@ function desaturateMap(map: mapboxgl.Map) {
   }
 }
 
-export function MapView({ venues, selectedVenue, onVenueSelect }: MapViewProps) {
+export function MapView({ venues, selectedVenue, onVenueSelect, userLocation }: MapViewProps) {
   const mapRef = useRef<MapRef>(null);
   const fittedRef = useRef(false);
 
@@ -94,6 +95,16 @@ export function MapView({ venues, selectedVenue, onVenueSelect }: MapViewProps) 
     });
     fittedRef.current = true;
   }, [venues]);
+
+  // Re-fit when user location is obtained and venues update
+  useEffect(() => {
+    if (!userLocation || !mapRef.current || venues.length < 2) return;
+    const { sw, ne } = getBounds(venues);
+    mapRef.current.fitBounds([sw, ne], {
+      padding: { top: 100, bottom: 80, left: 40, right: 40 },
+      duration: 1200,
+    });
+  }, [userLocation, venues]);
 
   // Fly to venue when selectedVenue changes (e.g. from arrow nav)
   useEffect(() => {
@@ -201,6 +212,26 @@ export function MapView({ venues, selectedVenue, onVenueSelect }: MapViewProps) 
           />
         </Marker>
       ))}
+
+      {/* User location dot */}
+      {userLocation && (
+        <Marker
+          longitude={userLocation.longitude}
+          latitude={userLocation.latitude}
+          anchor="center"
+        >
+          <div className="relative flex items-center justify-center" style={{ width: 24, height: 24 }}>
+            <div
+              className="absolute rounded-full animate-ping"
+              style={{ width: 24, height: 24, backgroundColor: "rgba(59, 130, 246, 0.3)" }}
+            />
+            <div
+              className="rounded-full border-2 border-white"
+              style={{ width: 12, height: 12, backgroundColor: "#3b82f6", boxShadow: "0 0 8px rgba(59,130,246,0.5)" }}
+            />
+          </div>
+        </Marker>
+      )}
     </Map>
   );
 }
