@@ -442,6 +442,320 @@ async function sendAPNsPush(pushToken: string): Promise<void> {
   // In production, use @parse/node-apn here
 }
 
+// ─── Reward Badge Pass (Apple — coupon type) ─────────────────────
+
+interface RewardBadgeData {
+  redemptionId: string;
+  perkName: string;
+  perkDescription: string;
+  perkCategory: string;
+  pointsSpent: number;
+  venueName: string;
+  venueId: string;
+  userId: string;
+  expiresAt: string;
+  venueLatitude?: number;
+  venueLongitude?: number;
+}
+
+async function generateRewardBadge(data: RewardBadgeData): Promise<Buffer> {
+  const serialNumber = `kb-reward-${data.redemptionId}`;
+  const authToken = crypto.randomBytes(32).toString("hex");
+
+  await supabase("wallet_passes", {
+    method: "POST",
+    body: JSON.stringify({
+      serial_number: serialNumber,
+      auth_token: authToken,
+      user_id: data.userId,
+      venue_id: data.venueId,
+      pass_type_id: PASS_TYPE_ID,
+    }),
+  });
+
+  const signerCert = fs.readFileSync(path.join(CERTS_DIR, "signerCert.pem"));
+  const signerKey = fs.readFileSync(path.join(CERTS_DIR, "signerKey.pem"));
+  const wwdr = fs.readFileSync(path.join(CERTS_DIR, "wwdr.pem"));
+
+  const CATEGORY_EMOJI: Record<string, string> = {
+    drink: "☕", food: "🍔", access: "🔑", experience: "✨", merch: "🎁",
+  };
+  const emoji = CATEGORY_EMOJI[data.perkCategory] || "🎯";
+
+  const pass = new PKPass(
+    {},
+    { wwdr, signerCert, signerKey },
+    {
+      serialNumber,
+      passTypeIdentifier: PASS_TYPE_ID,
+      teamIdentifier: TEAM_ID,
+      organizationName: "theKickBack",
+      description: `${data.perkName} — ${data.venueName}`,
+      foregroundColor: "rgb(255, 255, 255)",
+      backgroundColor: "rgb(0, 0, 0)",
+      labelColor: "rgb(249, 115, 22)",
+      logoText: "theKickBack",
+      webServiceURL: "https://thekickback.net/wallet",
+      authenticationToken: authToken,
+    }
+  );
+
+  pass.type = "coupon";
+  pass.setExpirationDate(new Date(data.expiresAt));
+
+  // Header
+  pass.headerFields.push({
+    key: "points",
+    label: "POINTS SPENT",
+    value: `${data.pointsSpent}`,
+  });
+
+  // Primary — the reward name
+  pass.primaryFields.push({
+    key: "reward",
+    label: `${emoji} REWARD`,
+    value: data.perkName,
+  });
+
+  // Secondary
+  pass.secondaryFields.push(
+    {
+      key: "venue",
+      label: "VENUE",
+      value: data.venueName,
+    },
+    {
+      key: "status",
+      label: "STATUS",
+      value: "Ready to Claim",
+    }
+  );
+
+  // Auxiliary
+  pass.auxiliaryFields.push(
+    {
+      key: "redeemed",
+      label: "REDEEMED",
+      value: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    },
+    {
+      key: "expires",
+      label: "EXPIRES",
+      value: new Date(data.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    }
+  );
+
+  // Back
+  pass.backFields.push(
+    {
+      key: "description",
+      label: "DETAILS",
+      value: data.perkDescription || data.perkName,
+    },
+    {
+      key: "instructions",
+      label: "HOW TO USE",
+      value: "Show this pass at the venue. Staff will scan the QR code to fulfill your reward.",
+    },
+    {
+      key: "venue_address",
+      label: "VENUE",
+      value: data.venueName,
+    }
+  );
+
+  // QR code — links to redemption verification
+  pass.setBarcodes({
+    format: "PKBarcodeFormatQR",
+    message: `https://thekickback.net/wallet/redeem/${data.redemptionId}`,
+    messageEncoding: "iso-8859-1",
+  });
+
+  // Location trigger — notify when near the venue
+  if (data.venueLatitude && data.venueLongitude) {
+    pass.setLocations({
+      latitude: data.venueLatitude,
+      longitude: data.venueLongitude,
+      relevantText: `Your ${data.perkName} is waiting at ${data.venueName}`,
+    });
+  }
+
+  // Add images
+  const logoPath = path.join(TEMPLATE_DIR, "logo.png");
+  if (fs.existsSync(logoPath)) {
+    pass.addBuffer("logo.png", fs.readFileSync(logoPath));
+    pass.addBuffer("logo@2x.png", fs.readFileSync(logoPath));
+  }
+  const iconPath = path.join(TEMPLATE_DIR, "icon.png");
+  if (fs.existsSync(iconPath)) {
+    pass.addBuffer("icon.png", fs.readFileSync(iconPath));
+    pass.addBuffer("icon@2x.png", fs.readFileSync(iconPath));
+  }
+
+  return pass.getAsBuffer();
+}
+
+// ─── Google Wallet Pass (JWT) ────────────────────────────────────
+
+function buildGoogleWalletUrl(data: RewardBadgeData): string {
+  // Google Wallet uses a JWT-based Save to Google Wallet link
+  // For now, generate a deep link that creates a generic pass object
+  // Full implementation requires Google Pay API for Passes setup
+  const passObject = {
+    iss: "kickback@thekickback.iam.gserviceaccount.com",
+    aud: "google",
+    typ: "savetowallet",
+    iat: Math.floor(Date.now() / 1000),
+    payload: {
+      genericObjects: [{
+        id: `kickback.reward.${data.redemptionId}`,
+        classId: "kickback.reward_class",
+        genericType: "GENERIC_TYPE_UNSPECIFIED",
+        hexBackgroundColor: "#000000",
+        logo: {
+          sourceUri: { uri: "https://thekickback.net/logo.png" },
+        },
+        cardTitle: { defaultValue: { language: "en", value: "theKickBack" } },
+        subheader: { defaultValue: { language: "en", value: data.venueName } },
+        header: { defaultValue: { language: "en", value: data.perkName } },
+        barcode: {
+          type: "QR_CODE",
+          value: `https://thekickback.net/wallet/redeem/${data.redemptionId}`,
+        },
+        textModulesData: [
+          { id: "points", header: "POINTS SPENT", body: `${data.pointsSpent}` },
+          { id: "status", header: "STATUS", body: "Ready to Claim" },
+          { id: "expires", header: "EXPIRES", body: new Date(data.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) },
+        ],
+      }],
+    },
+  };
+
+  // Encode as base64 JWT-like payload (simplified — full implementation needs signing)
+  const encoded = Buffer.from(JSON.stringify(passObject)).toString("base64url");
+  return `https://pay.google.com/gp/v/save/${encoded}`;
+}
+
+// ─── Reward Badge Endpoint (platform-aware) ──────────────────────
+
+app.get("/wallet/reward/:redemptionId", async (req, res) => {
+  try {
+    const { redemptionId } = req.params;
+    const ua = (req.headers["user-agent"] || "").toLowerCase();
+
+    // Detect platform
+    const isIOS = /iphone|ipad|ipod/i.test(ua) || /mac/i.test(ua);
+    const isAndroid = /android/i.test(ua);
+
+    // Get redemption data
+    const redemptions = await supabase(
+      `perk_redemptions?id=eq.${redemptionId}&select=*,venue_perks(name,description,category,point_cost),profiles(id)&limit=1`
+    ) as any[];
+
+    if (!redemptions || redemptions.length === 0) {
+      return res.status(404).json({ error: "Redemption not found" });
+    }
+
+    const redemption = redemptions[0];
+    const perk = Array.isArray(redemption.venue_perks)
+      ? redemption.venue_perks[0]
+      : redemption.venue_perks;
+
+    if (!perk) return res.status(404).json({ error: "Perk not found" });
+
+    // Get venue
+    const venues = await supabase(`venues?id=eq.${redemption.venue_id}&limit=1`) as any[];
+    const venue = venues?.[0];
+    if (!venue) return res.status(404).json({ error: "Venue not found" });
+
+    const badgeData: RewardBadgeData = {
+      redemptionId,
+      perkName: perk.name,
+      perkDescription: perk.description || perk.name,
+      perkCategory: perk.category,
+      pointsSpent: redemption.points_spent,
+      venueName: venue.name,
+      venueId: venue.id,
+      userId: redemption.user_id,
+      expiresAt: redemption.expires_at || new Date(Date.now() + 7 * 86400000).toISOString(),
+      venueLatitude: venue.latitude,
+      venueLongitude: venue.longitude,
+    };
+
+    if (isAndroid) {
+      // Redirect to Google Wallet save URL
+      const googleUrl = buildGoogleWalletUrl(badgeData);
+      return res.redirect(googleUrl);
+    }
+
+    if (isIOS) {
+      // Return Apple Wallet .pkpass file
+      const passBuffer = await generateRewardBadge(badgeData);
+      res.set({
+        "Content-Type": "application/vnd.apple.pkpass",
+        "Content-Disposition": `attachment; filename=reward-${redemptionId.slice(0, 8)}.pkpass`,
+      });
+      return res.send(passBuffer);
+    }
+
+    // Desktop/unknown — return JSON with both options
+    const googleUrl = buildGoogleWalletUrl(badgeData);
+    res.json({
+      redemptionId,
+      perk: perk.name,
+      venue: venue.name,
+      status: redemption.status,
+      expires: redemption.expires_at,
+      appleWalletUrl: `https://thekickback.net/wallet/reward/${redemptionId}`,
+      googleWalletUrl: googleUrl,
+    });
+  } catch (err) {
+    console.error("Reward badge error:", err);
+    res.status(500).json({ error: "Failed to generate reward badge" });
+  }
+});
+
+// ─── Redeem verification endpoint (venue staff scans QR) ─────────
+
+app.post("/wallet/redeem/:redemptionId", async (req, res) => {
+  try {
+    const { redemptionId } = req.params;
+
+    // Get redemption
+    const redemptions = await supabase(
+      `perk_redemptions?id=eq.${redemptionId}&limit=1`
+    ) as any[];
+
+    if (!redemptions || redemptions.length === 0) {
+      return res.status(404).json({ error: "Redemption not found" });
+    }
+
+    const redemption = redemptions[0];
+
+    if (redemption.status === "fulfilled") {
+      return res.status(400).json({ error: "Already claimed", status: "fulfilled" });
+    }
+
+    if (redemption.status === "expired" || (redemption.expires_at && new Date(redemption.expires_at) < new Date())) {
+      return res.status(400).json({ error: "Expired", status: "expired" });
+    }
+
+    // Mark as fulfilled
+    await supabase(`perk_redemptions?id=eq.${redemptionId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: "fulfilled",
+        fulfilled_at: new Date().toISOString(),
+      }),
+    });
+
+    res.json({ ok: true, status: "fulfilled", redemptionId });
+  } catch (err) {
+    console.error("Redeem error:", err);
+    res.status(500).json({ error: "Failed to process redemption" });
+  }
+});
+
 // ─── Utilities ───────────────────────────────────────────────────
 
 function capitalize(s: string): string {
@@ -453,5 +767,7 @@ function capitalize(s: string): string {
 app.listen(PORT, () => {
   console.log(`Wallet service running on port ${PORT}`);
   console.log(`Pass generation: GET /wallet/pass/:venueId/:userId`);
+  console.log(`Reward badge: GET /wallet/reward/:redemptionId`);
+  console.log(`Redeem verify: POST /wallet/redeem/:redemptionId`);
   console.log(`Push updates:    POST /wallet/push/:venueId`);
 });
