@@ -51,42 +51,40 @@ jobs:
             echo "Building images..."
             docker compose build --parallel landing-blue join-app dash-app wallet-service
 
+            # ── Seed OpenClaw config into volume ──
+            docker compose stop claw 2>/dev/null || true
+            docker run --rm \
+              -v deploy_claw_config:/config \
+              -v "$(pwd)/openclaw-config/openclaw.json:/src/openclaw.json:ro" \
+              alpine sh -c "cp /src/openclaw.json /config/openclaw.json && chown 1000:1000 /config/openclaw.json"
+            echo "OpenClaw config seeded"
+
             # ── Start everything at once ──
             echo "Starting services..."
             docker compose up -d landing-blue join-app dash-app wallet-service claw
 
             # ── Wait for health — all in parallel ──
             echo "Waiting for health..."
-            ALL_HEALTHY=true
             for SERVICE in landing-blue join-app dash-app wallet-service; do
-              (
-                RETRIES=30
-                until docker inspect $SERVICE --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; do
-                  RETRIES=$((RETRIES - 1))
-                  if [ $RETRIES -le 0 ]; then
-                    echo "WARN: $SERVICE timed out"
-                    exit 1
-                  fi
+              ( for i in $(seq 1 30); do
+                  docker inspect $SERVICE --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy" && break
                   sleep 2
                 done
-                echo "$SERVICE: healthy"
-              ) &
+                echo "$SERVICE: $(docker inspect $SERVICE --format '{{.State.Health.Status}}' 2>/dev/null)" ) &
             done
-            wait || ALL_HEALTHY=false
+            wait
 
-            if [ "$ALL_HEALTHY" = "false" ]; then
-              echo "Some services not healthy — continuing anyway"
-            fi
-
-            # ── OpenClaw onboard (if needed) ──
-            docker exec -u root claw chown -R node:node /home/node/.openclaw/ 2>/dev/null || true
+            # ── OpenClaw: fix permissions + onboard ──
+            sleep 10
+            docker exec -u root claw sh -c "chown -R node:node /home/node/.openclaw && mkdir -p /home/node/.openclaw/agents /home/node/.openclaw/cron /home/node/.openclaw/logs && chown -R node:node /home/node/.openclaw" 2>/dev/null || true
             if ! docker exec claw cat /home/node/.openclaw/agents/main/agent/auth-profiles.json 2>/dev/null | grep -q openrouter; then
-              echo "Onboarding OpenClaw..."
+              echo "Onboarding OpenClaw with OpenRouter..."
               docker exec claw openclaw onboard --non-interactive --accept-risk \
                 --auth-choice apiKey --token-provider openrouter \
                 --token "${OPENROUTER_API_KEY}" \
                 --anthropic-api-key "${OPENROUTER_API_KEY}" 2>&1 || true
               docker compose restart claw
+              sleep 15
             fi
 
             # ── Caddy ──
