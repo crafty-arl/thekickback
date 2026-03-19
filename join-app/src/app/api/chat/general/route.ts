@@ -17,16 +17,32 @@ interface VenueRow {
   latitude: number | null;
   longitude: number | null;
   neighborhood: string | null;
+  type: string | null;
+  address: string | null;
 }
 
 async function getActiveVenues(): Promise<VenueRow[]> {
   const { data } = await supabase
     .from("venues")
-    .select("id, name, state, vibe, occupancy, max_occupancy, latitude, longitude, neighborhood")
+    .select("id, name, state, vibe, occupancy, max_occupancy, latitude, longitude, neighborhood, type, address")
     .eq("state", "active")
     .order("name");
 
-  return data || [];
+  return (data || []) as VenueRow[];
+}
+
+async function getVenuePageData(venueIds: string[]): Promise<Record<string, { tagline: string | null; theme_color: string; hours: unknown[] }>> {
+  if (venueIds.length === 0) return {};
+  const { data } = await supabase
+    .from("venue_pages")
+    .select("venue_id, tagline, theme_color, hours")
+    .in("venue_id", venueIds);
+
+  const map: Record<string, { tagline: string | null; theme_color: string; hours: unknown[] }> = {};
+  for (const p of data || []) {
+    map[p.venue_id] = { tagline: p.tagline, theme_color: p.theme_color || "#F97316", hours: p.hours || [] };
+  }
+  return map;
 }
 
 function buildVenueDirectory(venues: VenueRow[]): string {
@@ -70,9 +86,15 @@ export async function POST(request: Request) {
   const context = [
     "You are KickBack's concierge — the master agent for theKickBack platform.",
     "Help users discover venues, answer general questions, and make recommendations.",
-    "When you recommend a venue, include its ID like this: [[venue:the-venue-id]].",
-    "IMPORTANT: Use the exact venue ID from the list below. Do NOT include the venue name inside the brackets.",
-    "The user can tap the venue name to open it.",
+    "",
+    "VENUE CARD INSTRUCTIONS:",
+    "When recommending a venue, use: [[VENUE_CARD:venue-id-here]]",
+    "This renders a full venue card with stats, vibe, and a chat button.",
+    "Use VENUE_CARD for specific recommendations. You can include multiple cards.",
+    "Use the exact venue ID from the list below.",
+    "",
+    "For casual mentions without a full card, use: [[venue:venue-id-here]]",
+    "This renders a small tappable chip.",
     "",
     "Active venues:",
     directory,
@@ -81,6 +103,7 @@ export async function POST(request: Request) {
     `User says: "${message}"`,
     "",
     "Keep responses concise (1-3 sentences). No emojis. Be direct and helpful.",
+    "Always use VENUE_CARD when the user asks where to go, what's good, or for recommendations.",
   ].join("\n");
 
   let reply = "Something went wrong. Try again in a moment.";
@@ -118,20 +141,41 @@ export async function POST(request: Request) {
     console.error("Claw fetch error:", err);
   }
 
-  // Extract referenced venues so the client can navigate to them
-  const referencedIds = [...reply.matchAll(/\[\[venue:([^:\]]+)/g)].map((m) => m[1]);
+  // Extract venue card IDs [[VENUE_CARD:id]] and chip IDs [[venue:id]]
+  const venueCardIds = [...reply.matchAll(/\[\[VENUE_CARD:([^\]]+)\]\]/g)].map((m) => m[1]);
+  const chipIds = [...reply.matchAll(/\[\[venue:([^:\]]+)/g)].map((m) => m[1]);
+  const allReferencedIds = [...new Set([...venueCardIds, ...chipIds])];
+
+  // Get page data (tagline, theme color, hours) for referenced venues
+  const pageData = await getVenuePageData(allReferencedIds);
+
+  // Build rich venue objects
   const referencedVenues = venues
-    .filter((v) => referencedIds.includes(v.id))
-    .map((v) => ({
-      id: v.id,
-      name: v.name,
-      vibe: v.vibe,
-      occupancy: v.occupancy,
-      capacity: v.max_occupancy,
-      latitude: v.latitude,
-      longitude: v.longitude,
-      neighborhood: v.neighborhood,
-    }));
+    .filter((v) => allReferencedIds.includes(v.id))
+    .map((v) => {
+      const page = pageData[v.id];
+      const hours = Array.isArray(page?.hours)
+        ? (page.hours as { day: string; open: string; close?: string }[])
+            .map((h) => `${h.day} ${h.open}${h.close ? `–${h.close}` : ""}`)
+            .join(", ")
+        : "";
+      return {
+        id: v.id,
+        name: v.name,
+        vibe: v.vibe,
+        occupancy: v.occupancy,
+        capacity: v.max_occupancy,
+        latitude: v.latitude,
+        longitude: v.longitude,
+        neighborhood: v.neighborhood,
+        type: v.type || "venue",
+        address: v.address,
+        tagline: page?.tagline || null,
+        themeColor: page?.theme_color || "#F97316",
+        hours,
+        isCard: venueCardIds.includes(v.id),
+      };
+    });
 
   // Async preference extraction (fire-and-forget)
   if (userId) {
