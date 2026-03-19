@@ -17,9 +17,6 @@ services:
         condition: service_healthy
       dash-app:
         condition: service_healthy
-      claw:
-        condition: service_started
-        required: false
       wallet-service:
         condition: service_started
         required: false
@@ -141,25 +138,6 @@ services:
     profiles:
       - deploy
 
-  foursquare-mcp:
-    build:
-      context: ../foursquare-mcp
-      dockerfile: Dockerfile
-    container_name: foursquare-mcp
-    environment:
-      - FOURSQUARE_SERVICE_TOKEN=${FOURSQUARE_SERVICE_TOKEN}
-    expose:
-      - "8080"
-    healthcheck:
-      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/sse')" ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    restart: unless-stopped
-    networks:
-      - kickback
-
   claw:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: claw
@@ -182,9 +160,6 @@ services:
       - ./openclaw-config/openclaw.json:/home/node/.openclaw/openclaw.json:ro
     expose:
       - "18789"
-    depends_on:
-      foursquare-mcp:
-        condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "--spider", "-q", "http://127.0.0.1:18789/healthz" ]
       interval: 30s
