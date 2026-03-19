@@ -351,7 +351,7 @@ export function LandingExperience() {
   const [screen, setScreen] = useState<Screen>("home");
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-black">
+    <div className="relative h-full w-full overflow-hidden bg-black">
       {/* Remotion background — always running, full viewport */}
       <div className={`absolute inset-0 transition-opacity duration-500 ${screen === "home" ? "opacity-100" : "opacity-30"}`}>
         <PlayerWrapper
