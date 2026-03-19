@@ -24,12 +24,13 @@ export default async function SettingsPage() {
   if (!ownership) redirect("/onboarding");
 
   // Parallel fetch all data
-  const [venueRes, pageRes, knowledgeRes, membersRes, memberCountRes] = await Promise.all([
+  const [venueRes, pageRes, knowledgeRes, membersRes, memberCountRes, offeringsRes] = await Promise.all([
     service.from("venues").select("*").eq("id", ownership.venue_id).single(),
     service.from("venue_pages").select("*").eq("venue_id", ownership.venue_id).single(),
     service.from("venue_knowledge").select("id, content, category, created_at").eq("venue_id", ownership.venue_id).order("created_at", { ascending: false }),
     service.from("memberships").select("id, user_id, tier, created_at, profiles(phone, email, display_name)").eq("venue_id", ownership.venue_id).order("created_at", { ascending: false }).limit(50),
     service.from("memberships").select("id", { count: "exact", head: true }).eq("venue_id", ownership.venue_id),
+    service.from("venue_offerings").select("*").eq("venue_id", ownership.venue_id).order("sort_order", { ascending: true }),
   ]);
 
   const venue = venueRes.data;
@@ -54,6 +55,7 @@ export default async function SettingsPage() {
       knowledge={knowledgeRes.data || []}
       members={members}
       memberCount={memberCountRes.count || 0}
+      offerings={offeringsRes.data || []}
     />
   );
 }

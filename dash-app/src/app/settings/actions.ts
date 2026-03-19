@@ -151,3 +151,85 @@ export async function deleteKnowledge(id: string) {
     revalidatePath("/settings");
     return { ok: true };
 }
+
+// ─── Offering actions ────────────────────────────────────────────
+
+export async function addOffering(data: {
+    name: string;
+    type: string;
+    description?: string;
+    price_cents: number;
+    recurring?: boolean;
+    interval?: string;
+    perks?: string[];
+}) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+    if (!data.name.trim()) return { error: "Name is required" };
+
+    const { error } = await service.from("venue_offerings").insert({
+        venue_id: auth.venueId,
+        name: data.name.trim(),
+        type: data.type,
+        description: data.description?.trim() || null,
+        price_cents: data.price_cents,
+        recurring: data.recurring || false,
+        interval: data.recurring ? (data.interval || "month") : null,
+        perks: data.perks || [],
+    });
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function updateOffering(id: string, data: {
+    name?: string;
+    description?: string;
+    price_cents?: number;
+    perks?: string[];
+    active?: boolean;
+}) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_offerings")
+        .update(data)
+        .eq("id", id)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function deleteOffering(id: string) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_offerings")
+        .delete()
+        .eq("id", id)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function toggleOffering(id: string, active: boolean) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_offerings")
+        .update({ active })
+        .eq("id", id)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}

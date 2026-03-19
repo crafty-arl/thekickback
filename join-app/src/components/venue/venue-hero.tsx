@@ -9,11 +9,23 @@ interface Props {
     logo: string | null;
     tagline: string | null;
     theme_color: string;
+    hours: { day: string; open: string; close: string }[];
   };
   venue: {
     name: string;
     vibe: string;
+    address?: string;
+    neighborhood?: string;
   };
+}
+
+function getOpenStatus(hours: { day: string; open: string; close: string }[]): string | null {
+  if (!hours || hours.length === 0) return null;
+  // Simple: show first close time as "Open until X"
+  const today = hours[0];
+  if (today?.close) return `Open until ${today.close}`;
+  if (today?.open) return `Opens at ${today.open}`;
+  return null;
 }
 
 export function VenueHero({ page, venue }: Props) {
@@ -70,7 +82,9 @@ export function VenueHero({ page, venue }: Props) {
           {page.tagline ? (
             <p className="mt-1 font-sans text-[13px] text-white/50 sm:text-sm">{page.tagline}</p>
           ) : (
-            <p className="mt-1 font-sans text-[13px] text-white/50 sm:text-sm">Downtown · Open until 12 AM</p>
+            <p className="mt-1 font-sans text-[13px] text-white/50 sm:text-sm">
+              {[venue.neighborhood, getOpenStatus(page.hours)].filter(Boolean).join(" · ") || "Welcome"}
+            </p>
           )}
         </motion.div>
       </div>

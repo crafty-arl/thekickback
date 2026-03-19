@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { VenueHero } from "./venue-hero";
 import { VenueChat } from "./venue-chat";
 import { VenueInfo } from "./venue-info";
+import { VenueOfferings } from "./venue-offerings";
 
 interface Venue {
   id: string;
@@ -15,6 +16,8 @@ interface Venue {
   max_occupancy: number;
   vibe: string;
   rules: string[];
+  address?: string;
+  neighborhood?: string;
 }
 
 interface VenuePage {
@@ -28,12 +31,25 @@ interface VenuePage {
   hours: { day: string; open: string; close: string }[];
 }
 
+interface OfferingData {
+  id: string;
+  type: string;
+  name: string;
+  description: string | null;
+  price_cents: number;
+  recurring: boolean;
+  interval: string | null;
+  perks: string[];
+  active: boolean;
+}
+
 interface Props {
   page: VenuePage;
   venue: Venue;
   table?: string;
   ref?: string;
   user?: { id: string; email: string } | null;
+  offerings: OfferingData[];
 }
 
 function vibeColor(vibe: string): string {
@@ -56,7 +72,7 @@ function vibeLabel(vibe: string): string {
   }
 }
 
-export function VenuePageClient({ page, venue, table, user }: Props) {
+export function VenuePageClient({ page, venue, table, user, offerings }: Props) {
   const router = useRouter();
   const [joined, setJoined] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -113,6 +129,13 @@ export function VenuePageClient({ page, venue, table, user }: Props) {
               >
                 Tap to Join
               </button>
+
+              {/* Pre-join offerings preview */}
+              {offerings.length > 0 && (
+                <div className="mt-6 w-full">
+                  <VenueOfferings offerings={offerings} themeColor={page.theme_color} venueName={venue.name} />
+                </div>
+              )}
 
               {/* Alt methods — min 44px touch targets */}
               <div className="mt-3 grid w-full grid-cols-2 gap-3">
@@ -189,6 +212,11 @@ export function VenuePageClient({ page, venue, table, user }: Props) {
                   <p className="font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>Live updates on lock screen</p>
                 </div>
               </a>
+
+              {/* Venue offerings — post join */}
+              {offerings.length > 0 && (
+                <VenueOfferings offerings={offerings} themeColor={page.theme_color} venueName={venue.name} />
+              )}
 
               {/* Venue info */}
               <div id="info" className="pt-2">

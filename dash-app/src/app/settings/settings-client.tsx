@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge } from "./actions";
+import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering } from "./actions";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -19,12 +19,21 @@ const KNOWLEDGE_CATEGORIES = [
     { id: "general", label: "Custom", icon: "📝", placeholder: "Add any other information your AI should know about your venue..." },
 ];
 
+const OFFERING_TYPES = [
+    { id: "membership", label: "Membership", icon: "👑", recurring: true, defaultPrice: 2500, defaultName: "Membership", defaultDesc: "Exclusive access and perks" },
+    { id: "booth_hold", label: "Booth Hold", icon: "🪑", recurring: false, defaultPrice: 5000, defaultName: "Booth Reservation", defaultDesc: "Reserve a booth for your group" },
+    { id: "space_rental", label: "Space Rental", icon: "🏠", recurring: false, defaultPrice: 25000, defaultName: "Private Event Space", defaultDesc: "Rent the venue for your private event" },
+    { id: "event_ticket", label: "Event Ticket", icon: "🎟️", recurring: false, defaultPrice: 1500, defaultName: "Event Ticket", defaultDesc: "Entry to a special event" },
+    { id: "custom", label: "Custom", icon: "✦", recurring: false, defaultPrice: 0, defaultName: "", defaultDesc: "" },
+];
+
 const SECTIONS = [
     { id: "general", label: "General", icon: "◉" },
     { id: "location", label: "Location", icon: "◎" },
     { id: "branding", label: "Branding", icon: "◈" },
     { id: "hours", label: "Hours & Menu", icon: "◇" },
     { id: "rules", label: "Rules & Vibe", icon: "◆" },
+    { id: "offerings", label: "Offerings", icon: "💰" },
     { id: "agent", label: "AI Agent", icon: "🤖" },
     { id: "members", label: "Members", icon: "👥" },
     { id: "account", label: "Account", icon: "⚙" },
@@ -45,6 +54,21 @@ interface Membership {
     tier: string;
     created_at: string;
     profiles: { phone: string; email: string | null; display_name: string | null };
+}
+
+interface Offering {
+    id: string;
+    type: string;
+    name: string;
+    description: string | null;
+    price_cents: number;
+    recurring: boolean;
+    interval: string | null;
+    perks: string[];
+    active: boolean;
+    sort_order: number;
+    stripe_price_id: string | null;
+    created_at: string;
 }
 
 interface Props {
@@ -73,11 +97,12 @@ interface Props {
     knowledge: Knowledge[];
     members: Membership[];
     memberCount: number;
+    offerings: Offering[];
 }
 
 // ─── Main Component ──────────────────────────────────────────────
 
-export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount }: Props) {
+export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings }: Props) {
     const [activeSection, setActiveSection] = useState("general");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
@@ -107,6 +132,18 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [savingKnowledge, setSavingKnowledge] = useState(false);
     const [deletingKnowledge, setDeletingKnowledge] = useState<string | null>(null);
     const [knowledgeMsg, setKnowledgeMsg] = useState("");
+
+    // Offering fields
+    const [showAddOffering, setShowAddOffering] = useState(false);
+    const [offeringType, setOfferingType] = useState("membership");
+    const [offeringName, setOfferingName] = useState("");
+    const [offeringDesc, setOfferingDesc] = useState("");
+    const [offeringPrice, setOfferingPrice] = useState("");
+    const [offeringPerks, setOfferingPerks] = useState("");
+    const [savingOffering, setSavingOffering] = useState(false);
+    const [offeringMsg, setOfferingMsg] = useState("");
+    const [togglingOffering, setTogglingOffering] = useState<string | null>(null);
+    const [deletingOfferingId, setDeletingOfferingId] = useState<string | null>(null);
 
     const slug = page?.slug || venue.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const venueEmail = `${slug}@thekickback.net`;
@@ -162,6 +199,54 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
         setDeletingKnowledge(id);
         await deleteKnowledge(id);
         setDeletingKnowledge(null);
+    }
+
+    // ─── Offering handlers ────────────────────────────────────────
+
+    function loadOfferingTemplate(typeId: string) {
+        setOfferingType(typeId);
+        const t = OFFERING_TYPES.find((o) => o.id === typeId);
+        if (t) {
+            setOfferingName(t.defaultName);
+            setOfferingDesc(t.defaultDesc);
+            setOfferingPrice(String(t.defaultPrice / 100));
+        }
+    }
+
+    async function handleAddOffering() {
+        if (!offeringName.trim()) return;
+        setSavingOffering(true);
+        setOfferingMsg("");
+        const template = OFFERING_TYPES.find((o) => o.id === offeringType);
+        const result = await addOffering({
+            name: offeringName.trim(),
+            type: offeringType,
+            description: offeringDesc.trim() || undefined,
+            price_cents: Math.round(parseFloat(offeringPrice || "0") * 100),
+            recurring: template?.recurring || false,
+            interval: template?.recurring ? "month" : undefined,
+            perks: offeringPerks.split("\n").map((p) => p.trim()).filter(Boolean),
+        });
+        if (result.error) { setOfferingMsg(result.error); }
+        else {
+            setOfferingMsg("Added!");
+            setShowAddOffering(false);
+            setOfferingName(""); setOfferingDesc(""); setOfferingPrice(""); setOfferingPerks("");
+            setTimeout(() => setOfferingMsg(""), 2000);
+        }
+        setSavingOffering(false);
+    }
+
+    async function handleToggleOffering(id: string, active: boolean) {
+        setTogglingOffering(id);
+        await toggleOffering(id, active);
+        setTogglingOffering(null);
+    }
+
+    async function handleDeleteOffering(id: string) {
+        setDeletingOfferingId(id);
+        await deleteOffering(id);
+        setDeletingOfferingId(null);
     }
 
     // ─── Navigate to section ───────────────────────────────────────
@@ -318,6 +403,135 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                             <Field label="House Rules" hint="One rule per line">
                                 <textarea value={rulesText} onChange={(e) => setRulesText(e.target.value)} rows={4} placeholder={"Quiet after 10 PM\nMembers get priority\n21+ only"} className="input resize-none" />
                             </Field>
+                        </Card>
+
+                        {/* ─── Offerings ───────────────────────────────────────── */}
+                        <Card id="offerings" title="Offerings" desc="Memberships, booth holds, space rentals, and more. These appear on your venue page.">
+                            {/* Existing offerings */}
+                            {offerings.length === 0 && !showAddOffering && (
+                                <div className="rounded-xl py-8 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                                    <p className="font-sans text-[14px] text-white/40">No offerings configured yet.</p>
+                                    <p className="mt-1 font-sans text-[12px] text-white/20">Add a membership, booth hold, or space rental to start earning.</p>
+                                </div>
+                            )}
+                            {offerings.map((o) => {
+                                const typeInfo = OFFERING_TYPES.find((t) => t.id === o.type);
+                                return (
+                                    <div key={o.id} className="group flex items-start gap-4 rounded-xl border p-4" style={{ borderColor: o.active ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)", backgroundColor: "rgba(255,255,255,0.02)", opacity: o.active ? 1 : 0.5 }}>
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(249,115,22,0.15)" }}>
+                                            <span className="text-[18px]">{typeInfo?.icon || "✦"}</span>
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-sans text-[14px] font-semibold text-white">{o.name}</p>
+                                                <span className="rounded-full px-2 py-0.5 font-sans text-[10px] font-medium" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.35)" }}>
+                                                    {typeInfo?.label || o.type}
+                                                </span>
+                                            </div>
+                                            {o.description && <p className="mt-1 font-sans text-[12px] text-white/40">{o.description}</p>}
+                                            <div className="mt-2 flex items-center gap-3">
+                                                <span className="font-mono text-[14px] font-bold" style={{ color: "#F97316" }}>
+                                                    ${(o.price_cents / 100).toFixed(2)}
+                                                    {o.recurring && <span className="font-sans text-[11px] font-normal text-white/30">/{o.interval || "mo"}</span>}
+                                                </span>
+                                                {o.perks && o.perks.length > 0 && (
+                                                    <span className="font-sans text-[11px] text-white/25">{o.perks.length} perks</span>
+                                                )}
+                                                {o.stripe_price_id && (
+                                                    <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold tracking-wider" style={{ backgroundColor: "rgba(74,222,128,0.15)", color: "#4ADE80" }}>STRIPE</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <button
+                                                onClick={() => handleToggleOffering(o.id, !o.active)}
+                                                disabled={togglingOffering === o.id}
+                                                className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-medium transition"
+                                                style={{ backgroundColor: o.active ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.06)", color: o.active ? "#4ADE80" : "rgba(255,255,255,0.3)" }}
+                                            >
+                                                {togglingOffering === o.id ? "..." : o.active ? "Active" : "Paused"}
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteOffering(o.id)}
+                                                disabled={deletingOfferingId === o.id}
+                                                className="rounded-lg p-1.5 opacity-0 transition group-hover:opacity-100"
+                                                style={{ backgroundColor: "rgba(239,68,68,0.1)" }}
+                                            >
+                                                {deletingOfferingId === o.id ? (
+                                                    <span className="font-sans text-[11px]" style={{ color: "#EF4444" }}>...</span>
+                                                ) : (
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {/* Add offering form */}
+                            {showAddOffering ? (
+                                <div className="rounded-xl border p-4" style={{ borderColor: "rgba(249,115,22,0.2)", backgroundColor: "rgba(249,115,22,0.04)" }}>
+                                    <p className="mb-3 font-sans text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>Type</p>
+                                    <div className="mb-4 flex flex-wrap gap-2">
+                                        {OFFERING_TYPES.map((t) => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => loadOfferingTemplate(t.id)}
+                                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-sans text-[12px] font-medium transition"
+                                                style={{
+                                                    backgroundColor: offeringType === t.id ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.04)",
+                                                    color: offeringType === t.id ? "#F97316" : "rgba(255,255,255,0.35)",
+                                                    border: `1px solid ${offeringType === t.id ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.06)"}`,
+                                                }}
+                                            >
+                                                {t.icon} {t.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="flex flex-col gap-3">
+                                        <Field label="Name">
+                                            <input value={offeringName} onChange={(e) => setOfferingName(e.target.value)} placeholder="e.g. VIP Membership" className="input" />
+                                        </Field>
+                                        <Field label="Description">
+                                            <input value={offeringDesc} onChange={(e) => setOfferingDesc(e.target.value)} placeholder="Short description for guests" className="input" />
+                                        </Field>
+                                        <Field label={OFFERING_TYPES.find((t) => t.id === offeringType)?.recurring ? "Price ($/month)" : "Price ($)"}>
+                                            <input type="number" step="0.01" value={offeringPrice} onChange={(e) => setOfferingPrice(e.target.value)} placeholder="25.00" className="input" />
+                                        </Field>
+                                        <Field label="Perks" hint="One per line">
+                                            <textarea value={offeringPerks} onChange={(e) => setOfferingPerks(e.target.value)} rows={3} placeholder={"Priority seating\n10% off drinks\nExclusive events"} className="input resize-none" />
+                                        </Field>
+                                    </div>
+                                    <div className="mt-4 flex items-center justify-end gap-2">
+                                        <button onClick={() => setShowAddOffering(false)} className="rounded-xl px-4 py-2 font-sans text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>Cancel</button>
+                                        <button
+                                            onClick={handleAddOffering}
+                                            disabled={savingOffering || !offeringName.trim()}
+                                            className="rounded-xl px-5 py-2 font-sans text-[13px] font-bold text-black active:scale-[0.98] disabled:opacity-40"
+                                            style={{ backgroundColor: "#F97316" }}
+                                        >
+                                            {savingOffering ? "Saving..." : "Add Offering"}
+                                        </button>
+                                    </div>
+                                    {offeringMsg && <p className="mt-2 font-sans text-[13px]" style={{ color: offeringMsg === "Added!" ? "#4ADE80" : "#EF4444" }}>{offeringMsg}</p>}
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => { setShowAddOffering(true); loadOfferingTemplate("membership"); }}
+                                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-3 font-sans text-[13px] font-medium transition hover:border-solid"
+                                    style={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.35)" }}
+                                >
+                                    + Add Offering
+                                </button>
+                            )}
+
+                            {!offerings.some((o) => o.stripe_price_id) && offerings.length > 0 && (
+                                <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.06)" }}>
+                                    <span className="font-sans text-[11px]" style={{ color: "rgba(249,115,22,0.6)" }}>
+                                        💳 Stripe not connected yet — offerings will show on your page but payments won&apos;t process until connected.
+                                    </span>
+                                </div>
+                            )}
                         </Card>
 
                         {/* ─── AI Agent ─────────────────────────────────────────── */}

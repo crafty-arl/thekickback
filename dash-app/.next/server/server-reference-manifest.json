@@ -104,6 +104,51 @@
       },
       "filename": "dash-app/src/app/settings/actions.ts",
       "exportedName": "deleteKnowledge"
+    },
+    "40a56f2bd32ea790297bca075308ca9578661f3f0e": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "addOffering",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "filename": "dash-app/src/app/settings/actions.ts",
+      "exportedName": "addOffering"
+    },
+    "40bbc1cd3bd8376235e32d47345c2642633920d0b8": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "deleteOffering",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "filename": "dash-app/src/app/settings/actions.ts",
+      "exportedName": "deleteOffering"
+    },
+    "609e229745362d1bbc5352c5710cfd12e1500e6af9": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "toggleOffering",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "filename": "dash-app/src/app/settings/actions.ts",
+      "exportedName": "toggleOffering"
     }
   },
   "edge": {},

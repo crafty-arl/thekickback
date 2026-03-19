@@ -43,6 +43,14 @@ export default async function VenuePage({ params, searchParams }: Props) {
 
   if (!page) notFound();
 
+  // Fetch active offerings for this venue
+  const { data: offerings } = await serviceClient
+    .from("venue_offerings")
+    .select("id, type, name, description, price_cents, recurring, interval, perks, active")
+    .eq("venue_id", page.venues.id)
+    .eq("active", true)
+    .order("sort_order", { ascending: true });
+
   // Check if the current user is authenticated
   const supabase = await createClient();
   const {
@@ -56,6 +64,7 @@ export default async function VenuePage({ params, searchParams }: Props) {
       table={table}
       ref={ref}
       user={user ? { id: user.id, email: user.email ?? "" } : null}
+      offerings={offerings || []}
     />
   );
 }
