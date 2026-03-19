@@ -12,6 +12,7 @@
   "/api/discover/route": "/api/discover",
   "/api/orders/route": "/api/orders",
   "/api/points/route": "/api/points",
+  "/api/preferences/route": "/api/preferences",
   "/api/receipt/route": "/api/receipt",
   "/checkin/[venueId]/page": "/checkin/[venueId]",
   "/health/route": "/health",

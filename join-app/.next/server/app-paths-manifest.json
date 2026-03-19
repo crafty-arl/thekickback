@@ -12,6 +12,7 @@
   "/api/discover/route": "app/api/discover/route.js",
   "/api/orders/route": "app/api/orders/route.js",
   "/api/points/route": "app/api/points/route.js",
+  "/api/preferences/route": "app/api/preferences/route.js",
   "/api/receipt/route": "app/api/receipt/route.js",
   "/checkin/[venueId]/page": "app/checkin/[venueId]/page.js",
   "/health/route": "app/health/route.js",

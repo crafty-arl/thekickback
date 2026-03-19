@@ -118,6 +118,12 @@
       "namedRegex": "^/api/points(?:/)?$"
     },
     {
+      "page": "/api/preferences",
+      "regex": "^/api/preferences(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/preferences(?:/)?$"
+    },
+    {
       "page": "/api/receipt",
       "regex": "^/api/receipt(?:/)?$",
       "routeKeys": {},
