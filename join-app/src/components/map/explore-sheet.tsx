@@ -77,12 +77,15 @@ const CATEGORY_ICONS: Record<string, string> = {
   restaurant: "M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3",
   club: "M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM21 16a3 3 0 11-6 0 3 3 0 016 0z",
   coworking: "M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM12 11v4M8 11v4M16 11v4",
+  barbershop: "M5 3v18M5 8h7a4 4 0 000-8H5M5 16h6a4 4 0 100-8H5",
+  nail_salon: "M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2M12 8v4l3 3",
   venue: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 7v3M12 14h.01",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
   cafe: "Cafes", bar: "Bars", restaurant: "Eats", lounge: "Lounges",
   cowork: "Cowork", coworking: "Cowork", rooftop: "Rooftops", club: "Clubs",
+  barbershop: "Barbershops", nail_salon: "Nail Salons",
 };
 
 const VIBE_LABELS: Record<string, string> = {

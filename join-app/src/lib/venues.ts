@@ -33,6 +33,8 @@ export const VENUE_CATEGORIES: { value: string; label: string }[] = [
   { value: "coworking", label: "Cowork" },
   { value: "restaurant", label: "Restaurants" },
   { value: "club", label: "Clubs" },
+  { value: "barbershop", label: "Barbershops" },
+  { value: "nail_salon", label: "Nail Salons" },
   { value: "venue", label: "Venues" },
 ];
 

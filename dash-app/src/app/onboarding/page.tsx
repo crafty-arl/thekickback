@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { createVenue } from "./actions";
 
-const TYPES = ["Bar", "Restaurant", "Lounge", "Club", "Cafe", "Coworking", "Other"];
+const TYPES = ["Bar", "Restaurant", "Lounge", "Club", "Cafe", "Coworking", "Barbershop", "Nail Salon", "Other"];
 
 export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);

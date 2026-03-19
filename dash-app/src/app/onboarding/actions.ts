@@ -53,6 +53,8 @@ export async function createVenue(formData: VenueFormData) {
     cafe: "#4ADE80", coworking: "#4ADE80",
     restaurant: "#EF4444",
     lounge: "#8B5CF6",
+    barbershop: "#F59E0B",
+    nail_salon: "#EC4899",
   };
   const themeColor = themeColors[formData.type] || "#F97316";
 
