@@ -134,8 +134,8 @@ function ScrollCamera() {
   const { camera } = useThree();
   const scrollRef = useRef(0);
   const targetRef = useRef(0);
-  // eslint-disable-next-line react-hooks/immutability -- R3F camera mutations are idiomatic
-  const cam = camera;
+  const camRef = useRef(camera);
+  camRef.current = camera;
 
   useEffect(() => {
     function onScroll() {
@@ -152,9 +152,10 @@ function ScrollCamera() {
     const t = scrollRef.current;
 
     // Camera drifts through space as user scrolls
-    cam.position.y = 2 - t * 8;
-    cam.position.z = 20 - t * 15;
-    cam.rotation.x = -t * 0.15;
+    const c = camRef.current;
+    c.position.y = 2 - t * 8;
+    c.position.z = 20 - t * 15;
+    c.rotation.x = -t * 0.15;
   });
 
   return null;
@@ -176,14 +177,19 @@ function AmbientRotation({ children }: { children: React.ReactNode }) {
 
 /* ── Main Skybox Component ── */
 export function Skybox() {
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- Client-only mount guard
-  const [mounted, setMounted] = useState(false);
+  const mountedRef = useRef(false);
+  const [, forceRender] = useState(0);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
+  if (!mountedRef.current) {
+    // Schedule a re-render after mount (via microtask to avoid sync setState in effect)
+    if (typeof window !== "undefined") {
+      Promise.resolve().then(() => {
+        mountedRef.current = true;
+        forceRender((n) => n + 1);
+      });
+    }
+    return null;
+  }
 
   return (
     <div

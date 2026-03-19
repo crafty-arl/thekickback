@@ -9,8 +9,8 @@ create table if not exists venue_knowledge (
   updated_at timestamptz not null default now()
 );
 
-create index idx_venue_knowledge_venue on venue_knowledge(venue_id);
-create index idx_venue_knowledge_category on venue_knowledge(venue_id, category);
+create index if not exists idx_venue_knowledge_venue on venue_knowledge(venue_id);
+create index if not exists idx_venue_knowledge_category on venue_knowledge(venue_id, category);
 
 -- RLS
 alter table venue_knowledge enable row level security;
