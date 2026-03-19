@@ -51,6 +51,9 @@ export function PlayerWrapper({
           fps={fps}
           autoPlay
           loop
+          controls
+          clickToPlay
+          doubleClickToFullscreen
           style={{ width: "100%", height: "100%" }}
         />
       )}
