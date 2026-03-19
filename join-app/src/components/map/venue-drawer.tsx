@@ -337,15 +337,17 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
               className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
             />
 
+            {/* Back to KickBack button */}
             <motion.button
               onClick={() => { setDismissed(true); setTimeout(onClose, 300); }}
-              whileTap={{ scale: 0.85 }}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-              style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+              whileTap={{ scale: 0.9 }}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5"
+              style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="opacity-40">
-                <path d="M18 6 6 18M6 6l12 12" />
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
               </svg>
+              <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
             </motion.button>
           </div>
         )}
@@ -369,15 +371,17 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
                   {getVibeLabel(venue.vibe)} · {pct}%
                 </span>
               </div>
+              {/* Back to KickBack */}
               <motion.button
                 onClick={() => { setDismissed(true); setTimeout(onClose, 300); }}
-                whileTap={{ scale: 0.85 }}
-                className="flex h-7 w-7 items-center justify-center rounded-full"
-                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                whileTap={{ scale: 0.9 }}
+                className="flex h-7 items-center gap-1.5 rounded-full px-2.5"
+                style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="opacity-40">
-                  <path d="M18 6 6 18M6 6l12 12" />
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
                 </svg>
+                <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
               </motion.button>
             </div>
 
