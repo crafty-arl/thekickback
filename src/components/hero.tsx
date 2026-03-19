@@ -32,7 +32,7 @@ export function Hero() {
         priority
       />
 
-      {/* Remotion animation — the entire focus */}
+      {/* Remotion — mirrors the actual product */}
       <div className="w-full max-w-[380px] sm:max-w-[420px]">
         <PlayerWrapper
           component={HeroComposition as React.ComponentType}
@@ -46,12 +46,12 @@ export function Hero() {
 
       {/* Headline */}
       <h1 className="mt-10 text-center font-display text-3xl font-semibold leading-[1.05] tracking-[-1px] text-white sm:text-4xl">
-        Text a venue. Enter the network.
+        The digital front door for real-world venues.
       </h1>
 
       {/* One-liner */}
       <p className="mt-4 max-w-md text-center font-sans text-base leading-[1.6] text-white/40">
-        No app. No account. Just send a message.
+        Discover venues, chat with AI agents, and move through the network.
       </p>
 
       {/* Single CTA */}
