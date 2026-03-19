@@ -9,195 +9,326 @@ import {
   Sequence,
 } from "remotion";
 
-/* ── Venue nodes on the "map" ── */
-const VENUES = [
-  { x: 52, y: 32, name: "The Rooftop", color: "#f97316", vibe: "Busy", occ: 72 },
-  { x: 24, y: 48, name: "Daily Grind", color: "#4ade80", vibe: "Quiet", occ: 18 },
-  { x: 78, y: 55, name: "Study Loft", color: "#facc15", vibe: "Moderate", occ: 46 },
-  { x: 38, y: 72, name: "North House", color: "#f87171", vibe: "Lit", occ: 88 },
-  { x: 68, y: 22, name: "The Yard", color: "#4ade80", vibe: "Quiet", occ: 22 },
-];
+/* ═══════════════════════════════════════════════════
+   PARALLAX LANDING — "You're Invited to the Kickback"
 
-/* ── Chat flow that mirrors the actual product ── */
-const CONCIERGE_FLOW = [
-  { from: "guest" as const, text: "Where should I go tonight?" },
-  {
-    from: "ai" as const,
-    text: "Here are a few spots that are live right now:",
-    chips: [
-      { name: "The Rooftop", color: "#f97316" },
-      { name: "North House", color: "#f87171" },
-    ],
-  },
-];
+   A cinematic scroll through the product.
+   Camera drifts forward through a starfield while
+   text panels and UI mockups fly in at different depths.
 
-const VENUE_FLOW = [
-  { from: "ai" as const, text: "Welcome to The Rooftop. Busy right now — 28 people. What can I help with?" },
-  { from: "guest" as const, text: "Any booths open?" },
-  { from: "ai" as const, text: "Booth 4 near the window is open. Want me to hold it?" },
-  { from: "guest" as const, text: "Yes please" },
-  { from: "ai" as const, text: "Done — booth 4 held for 10 min. Head over when ready." },
-];
+   Timeline (900 frames @ 30fps = 30 seconds):
+   ┌─────────────────────────────────────────────────┐
+   │  0–120   Intro: "You're invited"                │
+   │ 120–240  What is this?: third places             │
+   │ 240–390  The Map: discover venues                │
+   │ 390–540  The Drawer: talk to venues              │
+   │ 540–680  The Tabs: book, meet, greet             │
+   │ 680–820  The Network: move through it            │
+   │ 820–900  CTA: "Pull up"                          │
+   └─────────────────────────────────────────────────┘
+   ═══════════════════════════════════════════════════ */
 
-const TABS = ["Chat", "Vibe", "Menu", "Events", "Reserve"];
+/* ── Starfield background (pure CSS, no Three.js dep) ── */
+function Starfield() {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const progress = frame / durationInFrames;
 
-/* ── Pulsing venue marker ── */
-function VenueMarker({
-  x, y, color, name, selected, delay,
+  // Generate star positions deterministically
+  const stars = [];
+  for (let i = 0; i < 120; i++) {
+    const seed = i * 7919;
+    const x = ((seed * 13) % 100);
+    const y = ((seed * 17) % 100);
+    const size = (seed % 3) + 1;
+    const depth = (seed % 4) + 1; // parallax layer 1-4
+    const drift = progress * depth * 25;
+    const opacity = 0.15 + (depth / 4) * 0.25;
+
+    stars.push(
+      <div
+        key={i}
+        style={{
+          position: "absolute",
+          left: `${x}%`,
+          top: `${((y + drift) % 120) - 10}%`,
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          backgroundColor: "#fff",
+          opacity,
+        }}
+      />
+    );
+  }
+
+  return <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>{stars}</div>;
+}
+
+/* ── Floating venue orbs (parallax depth) ── */
+function VenueOrbs() {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const progress = frame / durationInFrames;
+
+  const orbs = [
+    { x: 15, y: 20, color: "#f97316", size: 16, depth: 2 },
+    { x: 80, y: 35, color: "#4ade80", size: 12, depth: 3 },
+    { x: 35, y: 60, color: "#facc15", size: 14, depth: 1.5 },
+    { x: 70, y: 75, color: "#f87171", size: 18, depth: 2.5 },
+    { x: 25, y: 85, color: "#a78bfa", size: 10, depth: 3.5 },
+    { x: 60, y: 15, color: "#4ade80", size: 11, depth: 2.8 },
+    { x: 90, y: 55, color: "#f97316", size: 13, depth: 1.8 },
+  ];
+
+  return (
+    <>
+      {orbs.map((orb, i) => {
+        const drift = progress * orb.depth * 30;
+        const pulse = Math.sin(frame * 0.06 + i * 2) * 0.3 + 1;
+        const yPos = ((orb.y + drift) % 130) - 15;
+
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: `${orb.x}%`,
+              top: `${yPos}%`,
+              transform: "translate(-50%, -50%)",
+            }}
+          >
+            {/* Glow */}
+            <div
+              style={{
+                width: orb.size * 3 * pulse,
+                height: orb.size * 3 * pulse,
+                borderRadius: "50%",
+                backgroundColor: `${orb.color}08`,
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+            />
+            {/* Ring */}
+            <div
+              style={{
+                width: orb.size * 1.8,
+                height: orb.size * 1.8,
+                borderRadius: "50%",
+                border: `1px solid ${orb.color}25`,
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: `translate(-50%, -50%) scale(${pulse})`,
+              }}
+            />
+            {/* Core */}
+            <div
+              style={{
+                width: orb.size,
+                height: orb.size,
+                borderRadius: "50%",
+                backgroundColor: orb.color,
+                boxShadow: `0 0 ${orb.size}px ${orb.color}50`,
+                position: "relative",
+              }}
+            />
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/* ── Scene panel with parallax enter/exit ── */
+function Scene({
+  children,
+  enterFrame,
+  holdFrames,
+  speed = 1,
 }: {
-  x: number; y: number; color: string; name: string; selected: boolean; delay: number;
+  children: React.ReactNode;
+  enterFrame: number;
+  holdFrames: number;
+  speed?: number;
 }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const exitFrame = enterFrame + holdFrames;
 
-  const enter = spring({ frame: frame - delay, fps, config: { damping: 14, stiffness: 100 } });
-  if (frame < delay) return null;
+  const enter = spring({
+    frame: frame - enterFrame,
+    fps,
+    config: { damping: 22, stiffness: 100 },
+  });
 
-  const pulse = interpolate((frame + delay) % 75, [0, 37, 75], [1, 1.5, 1]);
-  const pulseOpacity = interpolate((frame + delay) % 75, [0, 37, 75], [0.25, 0, 0.25]);
-  const selectedScale = selected
-    ? interpolate((frame) % 45, [0, 22, 45], [1, 1.8, 1])
-    : 1;
+  const exit = frame > exitFrame
+    ? interpolate(frame, [exitFrame, exitFrame + 30], [0, 1], { extrapolateRight: "clamp" })
+    : 0;
+
+  const opacity = enter * (1 - exit);
+  const y = interpolate(enter, [0, 1], [60, 0]) - exit * 40 * speed;
+  const scale = interpolate(enter, [0, 1], [0.92, 1]) * interpolate(exit, [0, 1], [1, 0.95]);
+
+  if (frame < enterFrame - 5 || opacity < 0.01) return null;
 
   return (
     <div
       style={{
         position: "absolute",
-        left: `${x}%`,
-        top: `${y}%`,
-        transform: `translate(-50%, -50%) scale(${enter})`,
+        inset: 0,
         display: "flex",
         flexDirection: "column",
+        justifyContent: "center",
         alignItems: "center",
-        gap: 4,
+        padding: "0 28px",
+        opacity,
+        transform: `translateY(${y}px) scale(${scale})`,
       }}
     >
-      {/* Pulse ring */}
-      <div
-        style={{
-          position: "absolute",
-          width: 36,
-          height: 36,
-          borderRadius: "50%",
-          border: `1.5px solid ${color}`,
-          opacity: pulseOpacity,
-          transform: `scale(${pulse})`,
-        }}
-      />
-      {selected && (
-        <div
-          style={{
-            position: "absolute",
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            border: `1px solid ${color}`,
-            opacity: pulseOpacity * 0.6,
-            transform: `scale(${selectedScale})`,
-          }}
-        />
-      )}
-
-      {/* Core dot */}
-      <div
-        style={{
-          width: 14,
-          height: 14,
-          borderRadius: "50%",
-          backgroundColor: color,
-          boxShadow: `0 0 12px ${color}60`,
-          position: "relative",
-          zIndex: 2,
-        }}
-      />
-
-      {/* Connector ticks */}
-      {[0, 60, 120, 180, 240, 300].map((angle) => (
-        <div
-          key={angle}
-          style={{
-            position: "absolute",
-            width: 1,
-            height: 6,
-            backgroundColor: `${color}40`,
-            transform: `rotate(${angle}deg) translateY(-14px)`,
-            transformOrigin: "center center",
-          }}
-        />
-      ))}
-
-      {/* Name label (shows when selected) */}
-      {selected && (
-        <div
-          style={{
-            marginTop: 6,
-            padding: "2px 8px",
-            borderRadius: 6,
-            backgroundColor: "rgba(0,0,0,0.7)",
-            backdropFilter: "blur(8px)",
-            fontSize: 9,
-            color: "rgba(255,255,255,0.7)",
-            fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
-            whiteSpace: "nowrap",
-            letterSpacing: 0.5,
-          }}
-        >
-          {name}
-        </div>
-      )}
+      {children}
     </div>
   );
 }
 
-/* ── Loading dots ── */
-function LoadingDots({ color }: { color: string }) {
+/* ── Mini map mockup ── */
+function MiniMap() {
   const frame = useCurrentFrame();
+
+  const markers = [
+    { x: 30, y: 35, color: "#f97316", name: "The Rooftop" },
+    { x: 55, y: 55, color: "#4ade80", name: "Daily Grind" },
+    { x: 72, y: 30, color: "#facc15", name: "Study Loft" },
+    { x: 40, y: 70, color: "#f87171", name: "North House" },
+  ];
+
   return (
-    <div style={{ display: "flex", gap: 4, padding: "6px 0" }}>
-      {[0, 1, 2].map((i) => (
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 320,
+        aspectRatio: "4/3",
+        borderRadius: 20,
+        background: "#1a1a1a",
+        position: "relative",
+        overflow: "hidden",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      {/* Grid lines */}
+      {[25, 50, 75].map((p) => (
+        <div key={`h${p}`} style={{ position: "absolute", left: 0, right: 0, top: `${p}%`, height: 1, backgroundColor: "rgba(255,255,255,0.03)" }} />
+      ))}
+      {[33, 66].map((p) => (
+        <div key={`v${p}`} style={{ position: "absolute", top: 0, bottom: 0, left: `${p}%`, width: 1, backgroundColor: "rgba(255,255,255,0.03)" }} />
+      ))}
+      {/* Blocks */}
+      {[
+        { x: 10, y: 15, w: 18, h: 12 },
+        { x: 45, y: 10, w: 14, h: 16 },
+        { x: 70, y: 50, w: 16, h: 10 },
+        { x: 15, y: 60, w: 20, h: 14 },
+      ].map((b, i) => (
         <div
           key={i}
           style={{
-            width: 5,
-            height: 5,
-            borderRadius: "50%",
-            backgroundColor: color,
-            opacity: 0.5,
-            transform: `translateY(${interpolate((frame + i * 5) % 18, [0, 9, 18], [0, -4, 0])}px)`,
+            position: "absolute",
+            left: `${b.x}%`,
+            top: `${b.y}%`,
+            width: `${b.w}%`,
+            height: `${b.h}%`,
+            backgroundColor: "rgba(255,255,255,0.02)",
+            borderRadius: 3,
+            border: "1px solid rgba(255,255,255,0.02)",
           }}
         />
       ))}
+      {/* Venue markers */}
+      {markers.map((m, i) => {
+        const pulse = Math.sin(frame * 0.08 + i * 1.5) * 0.3 + 1;
+        return (
+          <div
+            key={m.name}
+            style={{
+              position: "absolute",
+              left: `${m.x}%`,
+              top: `${m.y}%`,
+              transform: "translate(-50%, -50%)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 3,
+            }}
+          >
+            <div
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                backgroundColor: m.color,
+                boxShadow: `0 0 8px ${m.color}50`,
+                transform: `scale(${pulse})`,
+              }}
+            />
+            <span style={{ fontSize: 7, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>
+              {m.name}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-/* ── Chat bubble matching actual product style ── */
-function ChatBubble({
-  msg,
-  delay,
-  accentColor,
-}: {
-  msg: (typeof VENUE_FLOW)[number] | (typeof CONCIERGE_FLOW)[number];
-  delay: number;
-  accentColor: string;
-}) {
+/* ── Mini drawer mockup ── */
+function MiniDrawer({ phase }: { phase: "collapsed" | "expanded" }) {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const dot = Math.sin(frame * 0.1) * 0.2 + 1;
 
-  const enter = spring({
-    frame: frame - delay,
-    fps,
-    config: { damping: 18, stiffness: 140, mass: 0.7 },
-  });
-
-  const isGuest = msg.from === "guest";
-  if (frame < delay) return null;
-
-  // Show dots briefly before AI messages
-  if (!isGuest && frame < delay + 10) {
+  if (phase === "collapsed") {
     return (
-      <div style={{ display: "flex", justifyContent: "flex-start", paddingLeft: 4 }}>
-        <LoadingDots color="rgba(255,255,255,0.3)" />
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 320,
+          height: 44,
+          borderRadius: 22,
+          background: "rgba(15, 15, 18, 0.9)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          display: "flex",
+          alignItems: "center",
+          padding: "0 14px",
+          gap: 8,
+          fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            backgroundColor: "#f97316",
+            transform: `scale(${dot})`,
+            boxShadow: "0 0 6px #f9731650",
+          }}
+        />
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>The Rooftop</span>
+        <div
+          style={{
+            flex: 1,
+            marginLeft: 4,
+            padding: "5px 10px",
+            borderRadius: 12,
+            backgroundColor: "rgba(255,255,255,0.04)",
+            fontSize: 10,
+            color: "rgba(255,255,255,0.2)",
+          }}
+        >
+          Ask anything...
+        </div>
       </div>
     );
   }
@@ -205,514 +336,340 @@ function ChatBubble({
   return (
     <div
       style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: isGuest ? "flex-end" : "flex-start",
-        opacity: enter,
-        transform: `translateY(${interpolate(enter, [0, 1], [10, 0])}px) scale(${interpolate(enter, [0, 1], [0.96, 1])})`,
-        gap: 6,
+        width: "100%",
+        maxWidth: 320,
+        borderRadius: "20px 20px 0 0",
+        background: "rgba(15, 15, 18, 0.9)",
+        backdropFilter: "blur(20px)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
+        overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          maxWidth: "85%",
-          padding: "8px 14px",
-          borderRadius: 14,
-          ...(isGuest
-            ? {
-                borderBottomRightRadius: 4,
-                background: accentColor,
-                color: "#000",
-                boxShadow: `0 2px 12px ${accentColor}30`,
-              }
-            : {
-                borderBottomLeftRadius: 4,
-                background: "rgba(255,255,255,0.07)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                color: "rgba(255,255,255,0.8)",
-              }),
-          fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
-          fontSize: 12,
-          lineHeight: 1.5,
-        }}
-      >
-        {msg.text}
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", padding: "10px 14px", gap: 8 }}>
+        <div
+          style={{
+            width: 7, height: 7, borderRadius: "50%",
+            backgroundColor: "#f97316", transform: `scale(${dot})`,
+            boxShadow: "0 0 6px #f9731650",
+          }}
+        />
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>The Rooftop</div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)" }}>Busy · 72%</div>
+        </div>
       </div>
 
-      {/* Venue chips (for concierge recommendations) */}
-      {"chips" in msg && msg.chips && (
-        <div style={{ display: "flex", gap: 6, paddingLeft: 4 }}>
-          {msg.chips.map((chip) => (
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 3, padding: "0 12px 8px" }}>
+        {["Chat", "Vibe", "Menu", "Events", "Reserve"].map((t, i) => (
+          <div
+            key={t}
+            style={{
+              padding: "3px 8px",
+              borderRadius: 6,
+              fontSize: 9,
+              fontWeight: 500,
+              backgroundColor: i === 0 ? "#f9731620" : "rgba(255,255,255,0.04)",
+              color: i === 0 ? "#f97316" : "rgba(255,255,255,0.3)",
+              border: `1px solid ${i === 0 ? "#f9731630" : "rgba(255,255,255,0.04)"}`,
+            }}
+          >
+            {t}
+          </div>
+        ))}
+      </div>
+
+      {/* Messages */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "0 12px 8px" }}>
+        <div style={{ display: "flex" }}>
+          <div style={{ padding: "6px 10px", borderRadius: "12px 12px 12px 3px", background: "rgba(255,255,255,0.06)", fontSize: 10, color: "rgba(255,255,255,0.7)", maxWidth: "80%" }}>
+            Welcome to The Rooftop. Busy tonight — 28 people.
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ padding: "6px 10px", borderRadius: "12px 12px 3px 12px", background: "#f97316", fontSize: 10, color: "#000", maxWidth: "75%" }}>
+            Any booths open?
+          </div>
+        </div>
+        <div style={{ display: "flex" }}>
+          <div style={{ padding: "6px 10px", borderRadius: "12px 12px 12px 3px", background: "rgba(255,255,255,0.06)", fontSize: 10, color: "rgba(255,255,255,0.7)", maxWidth: "80%" }}>
+            Booth 4 is open. Want me to hold it?
+          </div>
+        </div>
+      </div>
+
+      {/* Input */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px 10px" }}>
+        <div style={{ flex: 1, padding: "6px 10px", borderRadius: 14, backgroundColor: "rgba(255,255,255,0.04)", fontSize: 10, color: "rgba(255,255,255,0.15)" }}>
+          Ask anything...
+        </div>
+        <div style={{ width: 26, height: 26, borderRadius: "50%", backgroundColor: "#f97316", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5" />
+            <polyline points="5 12 12 5 19 12" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Text helpers ── */
+const heading = (s: string): React.CSSProperties => ({
+  fontFamily: "var(--font-fraunces), Georgia, serif",
+  fontSize: 28,
+  fontWeight: 600,
+  lineHeight: 1.1,
+  letterSpacing: -0.5,
+  color: "#fff",
+  textAlign: "center",
+});
+
+const body = (s?: string): React.CSSProperties => ({
+  fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
+  fontSize: 13,
+  lineHeight: 1.6,
+  color: "rgba(255,255,255,0.45)",
+  textAlign: "center",
+  maxWidth: 300,
+});
+
+const label = (): React.CSSProperties => ({
+  fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
+  fontSize: 9,
+  fontWeight: 600,
+  letterSpacing: 2.5,
+  color: "rgba(255,255,255,0.25)",
+  textAlign: "center",
+  textTransform: "uppercase" as const,
+});
+
+/* ═══════════════════════════════════════════════════
+   MAIN COMPOSITION
+   ═══════════════════════════════════════════════════ */
+export function HeroComposition() {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+
+  // Global vignette
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#000", overflow: "hidden" }}>
+      {/* 3D-ish starfield + venue orbs (parallax bg) */}
+      <Starfield />
+      <VenueOrbs />
+
+      {/* Radial vignette */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0,0,0,0.7) 100%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* ── Scene 1: You're Invited ── */}
+      <Scene enterFrame={10} holdFrames={100}>
+        <div style={label()}>YOU&apos;RE INVITED</div>
+        <div style={{ height: 12 }} />
+        <div style={heading("")}>
+          Welcome to<br />the Kickback.
+        </div>
+        <div style={{ height: 14 }} />
+        <div style={body()}>
+          Think of it like this — you know those spots? The coffee shop
+          where everybody knows your order. The rooftop where the vibe
+          is always right. The study loft that just works.
+        </div>
+        <div style={{ height: 10 }} />
+        <div style={body()}>
+          We put them all in one place.
+        </div>
+      </Scene>
+
+      {/* ── Scene 2: Third Places ── */}
+      <Scene enterFrame={130} holdFrames={100}>
+        <div style={label()}>WHAT IS THIS</div>
+        <div style={{ height: 12 }} />
+        <div style={heading("")}>
+          Your third places.<br />
+          <span style={{ color: "rgba(255,255,255,0.3)" }}>All of them.</span>
+        </div>
+        <div style={{ height: 14 }} />
+        <div style={body()}>
+          Not home. Not work. The places in between where life actually
+          happens. We call them third places — and theKickBack connects
+          you to every single one.
+        </div>
+        <div style={{ height: 14 }} />
+        <div style={{ display: "flex", gap: 8 }}>
+          {["Book a spot", "Meet people", "Just vibe"].map((t) => (
             <div
-              key={chip.name}
+              key={t}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "5px 10px",
+                padding: "6px 14px",
                 borderRadius: 10,
-                backgroundColor: `${chip.color}18`,
-                border: `1px solid ${chip.color}30`,
+                border: "1px solid rgba(255,255,255,0.08)",
+                backgroundColor: "rgba(255,255,255,0.03)",
                 fontSize: 10,
-                fontWeight: 600,
-                color: chip.color,
+                fontWeight: 500,
+                color: "rgba(255,255,255,0.5)",
                 fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
               }}
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={chip.color} strokeWidth="2.5">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              {chip.name}
+              {t}
             </div>
           ))}
         </div>
-      )}
-    </div>
-  );
-}
+      </Scene>
 
-/* ── Glass drawer (mirrors the morphing command bar) ── */
-function Drawer({
-  expanded,
-  expandProgress,
-  children,
-  accentColor,
-  venueName,
-  vibeLabel,
-  occupancy,
-  showTabs,
-  activeTab,
-}: {
-  expanded: boolean;
-  expandProgress: number;
-  children: React.ReactNode;
-  accentColor: string;
-  venueName: string;
-  vibeLabel?: string;
-  occupancy?: number;
-  showTabs: boolean;
-  activeTab: number;
-}) {
-  const frame = useCurrentFrame();
-
-  const collapsedH = 48;
-  const expandedH = 340;
-  const height = collapsedH + (expandedH - collapsedH) * expandProgress;
-  const borderRadius = interpolate(expandProgress, [0, 1], [28, 20]);
-  const bottomRadius = interpolate(expandProgress, [0, 1], [28, 0]);
-
-  const dotPulse = interpolate((frame) % 60, [0, 30, 60], [1, 1.3, 1]);
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        bottom: 6,
-        left: 8,
-        right: 8,
-        height,
-        borderTopLeftRadius: borderRadius,
-        borderTopRightRadius: borderRadius,
-        borderBottomLeftRadius: bottomRadius,
-        borderBottomRightRadius: bottomRadius,
-        background: "rgba(15, 15, 18, 0.85)",
-        backdropFilter: "blur(40px) saturate(1.8)",
-        WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow:
-          "0 0 0 1px rgba(255,255,255,0.1), 0 -4px 40px rgba(0,0,0,0.3), 0 4px 30px rgba(0,0,0,0.2)",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
-      }}
-    >
-      {/* Collapsed bar / Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "0 14px",
-          height: collapsedH,
-          flexShrink: 0,
-          gap: 8,
-        }}
-      >
-        {/* Pulsing dot */}
-        <div
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            backgroundColor: accentColor,
-            transform: `scale(${dotPulse})`,
-            boxShadow: `0 0 8px ${accentColor}50`,
-            flexShrink: 0,
-          }}
-        />
-
-        {/* Venue name + meta */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>
-            {venueName}
-          </span>
-          {expanded && vibeLabel && (
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
-              {vibeLabel} · {occupancy}%
-            </span>
-          )}
+      {/* ── Scene 3: The Map ── */}
+      <Scene enterFrame={250} holdFrames={130}>
+        <div style={label()}>DISCOVER</div>
+        <div style={{ height: 12 }} />
+        <div style={heading("")}>
+          See what&apos;s live<br />around you.
         </div>
+        <div style={{ height: 16 }} />
+        <MiniMap />
+        <div style={{ height: 14 }} />
+        <div style={body()}>
+          Every dot is a venue. Every color is a vibe. Green means chill.
+          Orange means it&apos;s poppin. Tap one and you&apos;re in.
+        </div>
+      </Scene>
 
-        {/* Input placeholder (when collapsed) */}
-        {!expanded && (
-          <div
-            style={{
-              flex: 1,
-              marginLeft: 4,
-              padding: "6px 12px",
-              borderRadius: 16,
-              backgroundColor: "rgba(255,255,255,0.04)",
-              fontSize: 12,
-              color: "rgba(255,255,255,0.25)",
-            }}
-          >
-            {venueName === "KickBack" ? "Where should I go tonight?" : "Ask anything..."}
-          </div>
-        )}
-      </div>
+      {/* ── Scene 4: The Drawer ── */}
+      <Scene enterFrame={400} holdFrames={130}>
+        <div style={label()}>TALK TO IT</div>
+        <div style={{ height: 12 }} />
+        <div style={heading("")}>
+          Every venue has<br />its own AI.
+        </div>
+        <div style={{ height: 16 }} />
+        <MiniDrawer phase="collapsed" />
+        <div style={{ height: 10 }} />
+        <MiniDrawer phase="expanded" />
+        <div style={{ height: 14 }} />
+        <div style={body()}>
+          Ask if there&apos;s space. Check the menu. Reserve a booth.
+          The venue talks back — like texting a friend who works there.
+        </div>
+      </Scene>
 
-      {/* Tabs (venue drawer only) */}
-      {expanded && showTabs && (
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            padding: "0 12px 8px",
-            flexShrink: 0,
-          }}
-        >
-          {TABS.map((tab, i) => {
-            const isActive = i === activeTab;
-            return (
+      {/* ── Scene 5: The Tabs ── */}
+      <Scene enterFrame={550} holdFrames={120}>
+        <div style={label()}>DO THINGS</div>
+        <div style={{ height: 12 }} />
+        <div style={heading("")}>
+          Book. Meet. Greet.<br />
+          <span style={{ color: "rgba(255,255,255,0.3)" }}>All from one chat.</span>
+        </div>
+        <div style={{ height: 18 }} />
+        {/* Tab showcase */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 300 }}>
+          {[
+            { tab: "Vibe", desc: "What's the energy like right now?", color: "#4ade80" },
+            { tab: "Menu", desc: "See what they're serving", color: "#facc15" },
+            { tab: "Events", desc: "Anything happening tonight?", color: "#a78bfa" },
+            { tab: "Reserve", desc: "Lock down a table or booth", color: "#f97316" },
+          ].map((item) => (
+            <div
+              key={item.tab}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 14px",
+                borderRadius: 14,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
+              }}
+            >
               <div
-                key={tab}
                 style={{
                   padding: "4px 10px",
                   borderRadius: 8,
+                  backgroundColor: `${item.color}18`,
                   fontSize: 10,
-                  fontWeight: 500,
-                  backgroundColor: isActive
-                    ? `${accentColor}20`
-                    : "rgba(255,255,255,0.04)",
-                  color: isActive ? accentColor : "rgba(255,255,255,0.35)",
-                  border: `1px solid ${isActive ? `${accentColor}30` : "rgba(255,255,255,0.06)"}`,
+                  fontWeight: 600,
+                  color: item.color,
                 }}
               >
-                {tab}
+                {item.tab}
               </div>
-            );
-          })}
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                {item.desc}
+              </span>
+            </div>
+          ))}
         </div>
-      )}
+      </Scene>
 
-      {/* Chat messages */}
-      {expanded && (
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            padding: "0 12px",
-            overflowY: "hidden",
-          }}
-        >
-          {children}
+      {/* ── Scene 6: The Network ── */}
+      <Scene enterFrame={690} holdFrames={120}>
+        <div style={label()}>THE NETWORK</div>
+        <div style={{ height: 12 }} />
+        <div style={heading("")}>
+          One identity.<br />Every venue.
         </div>
-      )}
-
-      {/* Input bar (expanded) */}
-      {expanded && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 12px",
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              flex: 1,
-              padding: "8px 14px",
-              borderRadius: 20,
-              backgroundColor: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              fontSize: 12,
-              color: "rgba(255,255,255,0.2)",
-            }}
-          >
-            Ask anything...
-          </div>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              backgroundColor: accentColor,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: `0 2px 10px ${accentColor}40`,
-            }}
-          >
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="19" x2="12" y2="5" />
-              <polyline points="5 12 12 5 19 12" />
-            </svg>
-          </div>
+        <div style={{ height: 14 }} />
+        <div style={body()}>
+          Walk into any KickBack venue and you&apos;re already recognized.
+          Your preferences travel with you. Your membership stacks.
+          No sign-ups. No check-ins. Just pull up.
         </div>
-      )}
-    </div>
-  );
-}
+        <div style={{ height: 16 }} />
+        {/* Connected dots */}
+        <svg width="240" height="60" viewBox="0 0 240 60">
+          {/* Connection lines */}
+          <line x1="40" y1="30" x2="80" y2="20" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+          <line x1="80" y1="20" x2="120" y2="35" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+          <line x1="120" y1="35" x2="160" y2="18" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+          <line x1="160" y1="18" x2="200" y2="30" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+          {/* Nodes */}
+          {[
+            { cx: 40, cy: 30, color: "#f97316" },
+            { cx: 80, cy: 20, color: "#4ade80" },
+            { cx: 120, cy: 35, color: "#facc15" },
+            { cx: 160, cy: 18, color: "#f87171" },
+            { cx: 200, cy: 30, color: "#a78bfa" },
+          ].map((n, i) => (
+            <g key={i}>
+              <circle cx={n.cx} cy={n.cy} r="8" fill={`${n.color}15`} />
+              <circle cx={n.cx} cy={n.cy} r="4" fill={n.color} />
+            </g>
+          ))}
+        </svg>
+      </Scene>
 
-/* ── Map grid lines (faux grayscale map) ── */
-function MapBackground() {
-  return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
-      {/* Base */}
-      <div style={{ position: "absolute", inset: 0, background: "#1a1a1a" }} />
-
-      {/* Faux road grid */}
-      {[20, 40, 60, 80].map((y) => (
-        <div
-          key={`h-${y}`}
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: `${y}%`,
-            height: 1,
-            backgroundColor: "rgba(255,255,255,0.04)",
-          }}
-        />
-      ))}
-      {[25, 50, 75].map((x) => (
-        <div
-          key={`v-${x}`}
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: `${x}%`,
-            width: 1,
-            backgroundColor: "rgba(255,255,255,0.04)",
-          }}
-        />
-      ))}
-      {/* Diagonal streets */}
-      <div
-        style={{
-          position: "absolute",
-          left: "10%",
-          top: "15%",
-          width: "60%",
-          height: 1,
-          backgroundColor: "rgba(255,255,255,0.03)",
-          transform: "rotate(25deg)",
-          transformOrigin: "left center",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          right: "5%",
-          top: "30%",
-          width: "50%",
-          height: 1,
-          backgroundColor: "rgba(255,255,255,0.03)",
-          transform: "rotate(-15deg)",
-          transformOrigin: "right center",
-        }}
-      />
-
-      {/* Block shapes */}
-      {[
-        { x: 8, y: 10, w: 12, h: 14 },
-        { x: 30, y: 5, w: 16, h: 10 },
-        { x: 60, y: 38, w: 10, h: 18 },
-        { x: 82, y: 8, w: 8, h: 12 },
-        { x: 12, y: 60, w: 14, h: 10 },
-        { x: 55, y: 65, w: 18, h: 8 },
-      ].map((block, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            left: `${block.x}%`,
-            top: `${block.y}%`,
-            width: `${block.w}%`,
-            height: `${block.h}%`,
-            backgroundColor: "rgba(255,255,255,0.02)",
-            borderRadius: 2,
-            border: "1px solid rgba(255,255,255,0.02)",
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-/* ── Main composition ── */
-export function HeroComposition() {
-  const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
-
-  /*
-   * Timeline:
-   *   0–60:   Map appears, markers animate in, master drawer collapsed
-   *  60–80:   Master drawer expands
-   *  80–140:  Concierge conversation plays out
-   * 140–160:  Transition — master collapses, venue marker selected, venue drawer appears
-   * 160–180:  Venue drawer expands with tabs
-   * 180–280:  Venue conversation plays out
-   * 280–300:  Hold / loop reset
-   */
-
-  const phase1End = 60;
-  const phase2Start = 60;
-  const phase2End = 140;
-  const transitionStart = 140;
-  const transitionEnd = 160;
-  const phase3Start = 160;
-
-  // Which venue is selected (The Rooftop = index 0)
-  const selectedVenueIdx = frame >= transitionStart ? 0 : -1;
-
-  // Master drawer
-  const showMaster = frame < transitionEnd;
-  const masterExpand = showMaster
-    ? spring({
-        frame: frame - phase2Start,
-        fps,
-        config: { damping: 25, stiffness: 200 },
-      })
-    : 0;
-
-  // Venue drawer
-  const showVenue = frame >= transitionStart;
-  const venueDrawerEnter = showVenue
-    ? spring({
-        frame: frame - transitionStart,
-        fps,
-        config: { damping: 22, stiffness: 180 },
-      })
-    : 0;
-  const venueExpand = showVenue
-    ? spring({
-        frame: frame - phase3Start,
-        fps,
-        config: { damping: 25, stiffness: 200 },
-      })
-    : 0;
-
-  // Concierge message delays (relative to phase2Start)
-  const conciergeDelays = [70, 95];
-  // Venue message delays (relative to phase3Start)
-  const venueDelays = [170, 200, 220, 248, 265];
-
-  return (
-    <AbsoluteFill style={{ backgroundColor: "#000", overflow: "hidden" }}>
-      <MapBackground />
-
-      {/* Venue markers */}
-      {VENUES.map((v, i) => (
-        <VenueMarker
-          key={v.name}
-          x={v.x}
-          y={v.y}
-          color={v.color}
-          name={v.name}
-          selected={i === selectedVenueIdx}
-          delay={8 + i * 8}
-        />
-      ))}
-
-      {/* Logo */}
-      <div
-        style={{
-          position: "absolute",
-          top: 16,
-          left: 0,
-          right: 0,
-          display: "flex",
-          justifyContent: "center",
-          opacity: interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" }),
-        }}
-      >
+      {/* ── Scene 7: CTA ── */}
+      <Scene enterFrame={830} holdFrames={70}>
+        <div style={heading("")}>
+          Pull up.
+        </div>
+        <div style={{ height: 12 }} />
+        <div style={body()}>
+          The kickback is happening. You&apos;re invited.
+        </div>
+        <div style={{ height: 20 }} />
         <div
           style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: 3,
-            color: "rgba(255,255,255,0.5)",
+            padding: "10px 28px",
+            borderRadius: 50,
+            backgroundColor: "#F97316",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#000",
             fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
           }}
         >
-          theKickBack
+          Open theKickBack
         </div>
-      </div>
-
-      {/* Master Drawer (concierge) */}
-      {showMaster && (
-        <div style={{ opacity: frame >= transitionStart ? interpolate(frame, [transitionStart, transitionStart + 10], [1, 0], { extrapolateRight: "clamp" }) : 1 }}>
-          <Drawer
-            expanded={masterExpand > 0.5}
-            expandProgress={masterExpand}
-            accentColor="#a78bfa"
-            venueName="KickBack"
-            showTabs={false}
-            activeTab={0}
-          >
-            {CONCIERGE_FLOW.map((msg, i) => (
-              <ChatBubble
-                key={i}
-                msg={msg}
-                delay={conciergeDelays[i]}
-                accentColor="#a78bfa"
-              />
-            ))}
-          </Drawer>
-        </div>
-      )}
-
-      {/* Venue Drawer (The Rooftop) */}
-      {showVenue && (
-        <div style={{ opacity: venueDrawerEnter }}>
-          <Drawer
-            expanded={venueExpand > 0.5}
-            expandProgress={venueExpand}
-            accentColor="#f97316"
-            venueName="The Rooftop"
-            vibeLabel="Busy"
-            occupancy={72}
-            showTabs={true}
-            activeTab={0}
-          >
-            {VENUE_FLOW.map((msg, i) => (
-              <ChatBubble
-                key={i}
-                msg={msg}
-                delay={venueDelays[i]}
-                accentColor="#f97316"
-              />
-            ))}
-          </Drawer>
-        </div>
-      )}
+      </Scene>
     </AbsoluteFill>
   );
 }
