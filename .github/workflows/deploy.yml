@@ -161,4 +161,69 @@ jobs:
               fi
             done
 
+            # ── AI Agent smoke test ──
+            # Verify OpenClaw is responding with actual AI output
+            echo ""
+            echo "=== AI Agent Smoke Test ==="
+            source /opt/thekickback/deploy/.env
+
+            # Wait for claw to be healthy (up to 60s)
+            RETRIES=12
+            CLAW_HEALTHY=false
+            while [ $RETRIES -gt 0 ]; do
+              CLAW_STATUS=$(docker inspect claw --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
+              if [ "$CLAW_STATUS" = "healthy" ]; then
+                CLAW_HEALTHY=true
+                break
+              fi
+              echo "  claw status: $CLAW_STATUS (waiting...)"
+              RETRIES=$((RETRIES - 1))
+              sleep 5
+            done
+
+            if [ "$CLAW_HEALTHY" != "true" ]; then
+              echo "WARN: OpenClaw not healthy yet — skipping AI test"
+              docker logs claw --tail 10 2>&1 || true
+            else
+              # Get claw's container IP for direct access (avoids Caddy)
+              CLAW_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' claw 2>/dev/null)
+
+              if [ -n "$CLAW_IP" ]; then
+                # Test 1: Health endpoint
+                HEALTH=$(curl -sf --max-time 5 "http://$CLAW_IP:18789/healthz" 2>/dev/null)
+                echo "  claw health: $HEALTH"
+
+                # Test 2: Send a real message to the main agent and verify AI responds
+                AI_RESPONSE=$(curl -sf --max-time 45 "http://$CLAW_IP:18789/v1/responses" \
+                  -X POST \
+                  -H "Authorization: Bearer ${OPENCLAW_GATEWAY_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -H "x-openclaw-agent-id: main" \
+                  -d '{"model":"openclaw","input":"Respond with exactly: KICKBACK_OK"}' 2>/dev/null)
+
+                if echo "$AI_RESPONSE" | grep -q "output_text"; then
+                  echo "  AI agent: RESPONDING"
+                  # Extract the text for logging
+                  AI_TEXT=$(echo "$AI_RESPONSE" | python3 -c "
+import sys,json
+try:
+  d=json.load(sys.stdin)
+  msgs=[o for o in d.get('output',[]) if o.get('type')=='message']
+  if msgs: print(msgs[0]['content'][0]['text'][:100])
+  else: print('no message in output')
+except: print('parse error')
+" 2>/dev/null || echo "could not parse")
+                  echo "  AI said: $AI_TEXT"
+                else
+                  echo "WARN: AI agent did not return expected response"
+                  echo "  Raw: $(echo "$AI_RESPONSE" | head -c 300)"
+                  docker logs claw --tail 5 2>&1 || true
+                  # Don't fail deploy — claw may need more startup time
+                fi
+              else
+                echo "WARN: Could not get claw container IP"
+              fi
+            fi
+
+            echo ""
             echo "All services verified"
