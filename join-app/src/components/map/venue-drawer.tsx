@@ -139,7 +139,16 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [dismissed, setDismissed] = useState(false);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const controls = useAnimationControls();
+
+  // Resolve authenticated user for personalization
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setAuthUserId(user.id);
+    });
+  }, []);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -214,6 +223,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
           venueName: venue.name,
           vibe: venue.vibe,
           occupancy: venue.occupancy,
+          userId: authUserId,
         }),
       });
 

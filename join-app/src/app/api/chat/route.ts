@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { extractPreferences, getPreferencesContext } from "@/lib/personalization";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -77,16 +78,17 @@ function parseBooking(text: string): { reply: string; booking: Record<string, un
 }
 
 export async function POST(request: Request) {
-  const { message, venueId, venueName, vibe, occupancy, table } = await request.json();
+  const { message, venueId, venueName, vibe, occupancy, table, userId } = await request.json();
 
   if (!message || !venueId) {
     return Response.json({ reply: "Missing message or venue." }, { status: 400 });
   }
 
-  // Fetch venue-specific knowledge and offerings
-  const [knowledge, offerings] = await Promise.all([
+  // Fetch venue-specific knowledge, offerings, and user preferences
+  const [knowledge, offerings, prefsContext] = await Promise.all([
     getVenueKnowledge(venueId),
     getVenueOfferings(venueId),
+    userId ? getPreferencesContext(userId, venueId) : Promise.resolve(""),
   ]);
 
   // Build context for claw
@@ -94,6 +96,7 @@ export async function POST(request: Request) {
     `You are the AI agent for ${venueName}. Respond as the venue.`,
     knowledge ? `\nVenue knowledge:\n${knowledge}\n` : "",
     offerings ? `\nAvailable offerings:\n${offerings}\n` : "",
+    prefsContext || "",
     `A guest says: "${message}".`,
     `Venue is ${vibe}, ${occupancy} people.`,
     table ? `Guest is at Table ${table}.` : "",
@@ -200,6 +203,11 @@ export async function POST(request: Request) {
     } catch (err) {
       console.error("Booking fetch error:", err);
     }
+  }
+
+  // Async preference extraction (fire-and-forget)
+  if (userId) {
+    extractPreferences(userId, message, reply, venueId, venueName).catch(() => {});
   }
 
   return Response.json({ reply, checkout, booking: bookingResult });

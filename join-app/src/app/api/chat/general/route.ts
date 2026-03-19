@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { extractPreferences, getPreferencesContext } from "@/lib/personalization";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -48,13 +49,16 @@ function resolveVenueTags(text: string, venues: VenueRow[]): string {
 }
 
 export async function POST(request: Request) {
-  const { message } = await request.json();
+  const { message, userId } = await request.json();
 
   if (!message) {
     return Response.json({ reply: "Missing message." }, { status: 400 });
   }
 
-  const venues = await getActiveVenues();
+  const [venues, prefsContext] = await Promise.all([
+    getActiveVenues(),
+    userId ? getPreferencesContext(userId) : Promise.resolve(""),
+  ]);
   const directory = buildVenueDirectory(venues);
 
   const context = [
@@ -67,6 +71,7 @@ export async function POST(request: Request) {
     "Active venues:",
     directory,
     "",
+    prefsContext || "",
     `User says: "${message}"`,
     "",
     "Keep responses concise (1-3 sentences). No emojis. Be direct and helpful.",
@@ -121,6 +126,11 @@ export async function POST(request: Request) {
       longitude: v.longitude,
       neighborhood: v.neighborhood,
     }));
+
+  // Async preference extraction (fire-and-forget)
+  if (userId) {
+    extractPreferences(userId, message, reply, null).catch(() => {});
+  }
 
   return Response.json({ reply, venues: referencedVenues });
 }

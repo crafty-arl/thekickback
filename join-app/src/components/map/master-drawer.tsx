@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { type Venue } from "@/lib/venues";
 import { createClient } from "@/lib/supabase/client";
+import { PreferencesSection } from "./preferences-section";
 
 interface Message {
   id: string;
@@ -123,6 +124,7 @@ interface VenueXpProfile {
 }
 
 interface UserProfile {
+  authId: string;
   email: string;
   kickbackScore: number;
   totalEarned: number;
@@ -148,6 +150,7 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
         const res = await fetch(`/api/points?userId=${authUser.id}`);
         const data = await res.json();
         setUser({
+          authId: authUser.id,
           email: authUser.email,
           kickbackScore: data.balance?.kickback_score || data.balance?.total_earned || 0,
           totalEarned: data.balance?.total_earned || 0,
@@ -157,6 +160,7 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
         });
       } catch {
         setUser({
+          authId: authUser.id,
           email: authUser.email,
           kickbackScore: 0,
           totalEarned: 0,
@@ -232,7 +236,7 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
         const res = await fetch("/api/chat/general", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: msg }),
+          body: JSON.stringify({ message: msg, userId: user?.authId }),
         });
 
         const data = await res.json();
@@ -589,6 +593,9 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                         <p className="font-sans text-[11px] text-white/20">Visit venues to start earning XP</p>
                       )}
                     </div>
+
+                    {/* What I know about you */}
+                    <PreferencesSection userId={user.authId} />
 
                     {/* Sign out */}
                     <button
