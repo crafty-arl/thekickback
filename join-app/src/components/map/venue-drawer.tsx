@@ -371,42 +371,91 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
         {/* === EXPANDED: header + tabs + messages + input === */}
         {expanded && (
           <>
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-3 pb-1">
-              <div className="flex items-center gap-2">
-                <motion.div
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: vibeColor }}
-                  animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
-                <span className="font-sans text-[15px] font-semibold text-white/90">
-                  {venue.name}
-                </span>
-                <span className="font-sans text-[11px] text-white/30">
-                  {getVibeLabel(venue.vibe)} · {pct}%
-                </span>
+            {/* Header — dense venue info */}
+            <div className="px-4 pt-3 pb-1">
+              {/* Row 1: Name + KB back */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <motion.div
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: vibeColor }}
+                    animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                  <span className="font-sans text-[15px] font-semibold text-white/90">
+                    {venue.name}
+                  </span>
+                </div>
+                <motion.button
+                  onClick={() => { setDismissed(true); setTimeout(onClose, 300); }}
+                  whileTap={{ scale: 0.9 }}
+                  className="flex h-7 items-center gap-1.5 rounded-full px-2.5"
+                  style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
+                </motion.button>
               </div>
-              {/* Back to KickBack */}
-              <motion.button
-                onClick={() => { setDismissed(true); setTimeout(onClose, 300); }}
-                whileTap={{ scale: 0.9 }}
-                className="flex h-7 items-center gap-1.5 rounded-full px-2.5"
-                style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-                <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
-              </motion.button>
+
+              {/* Row 2: Live stats bar */}
+              <div className="mt-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                {/* Vibe badge */}
+                <div className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: `${vibeColor}15`, border: `1px solid ${vibeColor}20` }}>
+                  <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor }} />
+                  <span className="font-sans text-[9px] font-semibold" style={{ color: vibeColor }}>{getVibeLabel(venue.vibe)}</span>
+                </div>
+                {/* Occupancy */}
+                <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/[0.04] px-2 py-0.5" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                  </svg>
+                  <span className="font-mono text-[9px] font-semibold text-white/40">{venue.occupancy}/{venue.capacity}</span>
+                </div>
+                {/* Capacity bar */}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="h-1.5 w-12 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: vibeColor }} />
+                  </div>
+                  <span className="font-mono text-[8px] text-white/20">{pct}%</span>
+                </div>
+                {/* Category */}
+                {venue.category && venue.category !== "venue" && (
+                  <span className="shrink-0 rounded-full bg-white/[0.04] px-2 py-0.5 font-sans text-[8px] font-medium capitalize text-white/25" style={{ border: "1px solid rgba(255,255,255,0.04)" }}>
+                    {venue.category}
+                  </span>
+                )}
+                {/* Neighborhood */}
+                {venue.neighborhood && (
+                  <span className="shrink-0 font-sans text-[9px] text-white/20">
+                    {venue.neighborhood}
+                  </span>
+                )}
+                {/* Hours */}
+                {venue.hours && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <span className="font-sans text-[8px] text-white/15">{venue.hours.split(",")[0]}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Tagline */}
+              {venue.tagline && (
+                <p className="mt-1 font-sans text-[10px] italic text-white/25 line-clamp-1">"{venue.tagline}"</p>
+              )}
             </div>
 
-            {/* Tabs — clean horizontal row */}
+            {/* Tabs — horizontal scroll for mobile */}
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="flex gap-1 px-3 pb-2"
+              className="flex gap-1 overflow-x-auto px-3 pb-2 no-scrollbar"
+              style={{ WebkitOverflowScrolling: "touch" }}
             >
               {TABS.map((tab) => {
                 const isActive = activeTab === tab.id;
@@ -415,7 +464,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
                     key={tab.id}
                     onClick={() => handleTabTap(tab.id)}
                     whileTap={{ scale: 0.92 }}
-                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium transition-colors"
+                    className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium transition-colors"
                     style={{
                       backgroundColor: isActive ? `${vibeColor}20` : "rgba(255,255,255,0.04)",
                       color: isActive ? vibeColor : "rgba(255,255,255,0.35)",
