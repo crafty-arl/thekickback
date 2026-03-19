@@ -225,12 +225,15 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
 
       const data = await res.json();
 
+      // Use the AI's card tag if present, otherwise fall back to active tab
+      const cardTab = data.card || (activeTab !== "chat" ? activeTab : undefined);
+
       const aiMsg: Message = {
         id: `ai-${Date.now()}`,
         sender: "ai",
         body: data.reply || "Couldn't reach the venue right now. Try again.",
         timestamp: Date.now(),
-        tab: activeTab,
+        tab: cardTab as Tab | undefined,
       };
 
       // If the AI generated a checkout card, attach it

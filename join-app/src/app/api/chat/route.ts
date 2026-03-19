@@ -78,16 +78,70 @@ function parseBooking(text: string): { reply: string; booking: Record<string, un
   }
 }
 
+// ─── AI usage gate ─────────────────────────────────────────────
+async function checkAiUsageGate(
+  venueId: string,
+  userId: string | null,
+  deviceId: string | null
+): Promise<{ allowed: boolean; gateMessage?: string; usage?: number; limit?: number }> {
+  const { data: limits } = await supabase
+    .from("venue_ai_limits")
+    .select("free_messages_per_day, require_membership, gate_message")
+    .eq("venue_id", venueId)
+    .maybeSingle();
+
+  if (!limits) return { allowed: true };
+
+  // Members skip limits
+  if (limits.require_membership && userId) {
+    const { data: isMember } = await supabase.rpc("has_venue_membership", {
+      p_user_id: userId,
+      p_venue_id: venueId,
+    });
+    if (isMember) return { allowed: true };
+  }
+
+  // Increment usage and check count
+  const { data: count } = await supabase.rpc("increment_ai_usage", {
+    p_venue_id: venueId,
+    p_user_id: userId || null,
+    p_device_id: !userId ? (deviceId || null) : null,
+  });
+
+  const messageCount = count ?? 0;
+  if (messageCount > limits.free_messages_per_day) {
+    return {
+      allowed: false,
+      gateMessage: limits.gate_message,
+      usage: messageCount,
+      limit: limits.free_messages_per_day,
+    };
+  }
+
+  return { allowed: true, usage: messageCount, limit: limits.free_messages_per_day };
+}
+
 export async function POST(request: Request) {
   // Verify authenticated user from session cookie
   const authClient = await createAuthClient();
   const { data: { user: authUser } } = await authClient.auth.getUser();
   const userId = authUser?.id || null;
 
-  const { message, venueId, venueName, vibe, occupancy, table } = await request.json();
+  const { message, venueId, venueName, vibe, occupancy, table, deviceId } = await request.json();
 
   if (!message || !venueId) {
     return Response.json({ reply: "Missing message or venue." }, { status: 400 });
+  }
+
+  // Check usage limits before calling the AI
+  const gate = await checkAiUsageGate(venueId, userId, deviceId);
+  if (!gate.allowed) {
+    return Response.json({
+      reply: gate.gateMessage,
+      gated: true,
+      usage: gate.usage,
+      limit: gate.limit,
+    });
   }
 
   // Fetch venue-specific knowledge, offerings, and user preferences
@@ -107,6 +161,16 @@ export async function POST(request: Request) {
     `Venue is ${vibe}, ${occupancy} people.`,
     table ? `Guest is at Table ${table}.` : "",
     "Keep it under 280 chars. No emojis. Be direct and helpful.",
+    "",
+    "CARD INSTRUCTIONS:",
+    "Based on what the guest is asking about, include a card type tag at the END of your response:",
+    "[[CARD:vibe]] — if they ask about the vibe, energy, crowd, atmosphere, how busy it is",
+    "[[CARD:menu]] — if they ask about food, drinks, menu, what you serve",
+    "[[CARD:events]] — if they ask about events, shows, what's happening, tonight, this week",
+    "[[CARD:reserve]] — if they ask about reserving, booking a table/booth/spot",
+    "[[CARD:shop]] — if they ask about buying, ordering, products, prices, what's available",
+    "[[CARD:join]] — if they ask about membership, joining, the venue itself, perks, XP",
+    "Only include ONE card tag. If the message is general chat, do NOT include any card tag.",
     "",
     offerings ? [
       "CHECKOUT INSTRUCTIONS:",
@@ -141,6 +205,7 @@ export async function POST(request: Request) {
   let reply = "Couldn't reach the venue right now. Try again in a moment.";
   let checkout = null;
   let booking: Record<string, unknown> | null = null;
+  let card: string | null = null;
 
   try {
     const res = await fetch(`${process.env.OPENCLAW_GATEWAY_URL}/v1/responses`, {
@@ -166,6 +231,14 @@ export async function POST(request: Request) {
         reply = parsedBooking.reply;
         checkout = parsedCheckout.checkout;
         booking = parsedBooking.booking;
+
+        // Parse [[CARD:type]] tag
+        const cardMatch = reply.match(/\[\[CARD:(\w+)\]\]/);
+        if (cardMatch) {
+          card = cardMatch[1];
+          reply = reply.replace(/\[\[CARD:\w+\]\]/, "").trim();
+        }
+
         if (reply.length > 320) reply = reply.slice(0, 317) + "...";
       }
     } else {
@@ -216,5 +289,5 @@ export async function POST(request: Request) {
     extractPreferences(userId, message, reply, venueId, venueName).catch(() => {});
   }
 
-  return Response.json({ reply, checkout, booking: bookingResult });
+  return Response.json({ reply, checkout, booking: bookingResult, card });
 }
