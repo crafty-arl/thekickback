@@ -1,3 +1,5 @@
+"use client";
+
 const STEPS = [
   {
     number: "01",
@@ -15,7 +17,7 @@ const STEPS = [
     number: "03",
     command: "request",
     title: "Request anything",
-    body: "Need a booth? Want to order ahead? Request a late checkout on your table? Send REQUEST and the venue handles it. No flagging anyone down.",
+    body: "Need a booth? Want to order ahead? Request a late checkout on your table? Send REQUEST and the venue handles it.",
   },
   {
     number: "04",
@@ -27,40 +29,40 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section id="how" className="py-14">
+    <section id="how" className="py-14 md:py-20">
       {/* Section header */}
       <div className="flex flex-col gap-4 pb-10">
-        <span className="font-sans text-[11px] font-medium tracking-[2.4px] text-black/45">
+        <span className="font-sans text-[11px] font-medium tracking-[2.4px] text-white/35">
           HOW IT WORKS
         </span>
-        <h2 className="font-display text-3xl font-semibold leading-[1.05] tracking-[-1px] text-black sm:text-4xl md:text-[42px] md:tracking-[-1.5px]">
+        <h2 className="font-display text-3xl font-semibold leading-[1.05] tracking-[-1px] text-white sm:text-4xl md:text-[42px] md:tracking-[-1.5px]">
           One thread. Full venue access.
         </h2>
-        <p className="max-w-2xl font-sans text-base leading-[1.6] text-black/65">
+        <p className="max-w-2xl font-sans text-base leading-[1.6] text-white/45">
           Every interaction with a venue happens through a single conversation.
           No app to learn. No UI to navigate. Just text what you need.
         </p>
       </div>
 
       {/* Steps */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
         {STEPS.map((step) => (
           <div
             key={step.number}
-            className="flex flex-col gap-4 rounded-[28px] border border-black/5 bg-white p-8"
+            className="group flex flex-col gap-4 rounded-[24px] border border-white/[0.06] bg-white/[0.02] p-7 transition-all hover:border-white/10 hover:bg-white/[0.04]"
           >
             <div className="flex items-center justify-between">
-              <span className="font-sans text-[11px] font-medium tracking-[2px] text-black/30">
+              <span className="font-sans text-[11px] font-medium tracking-[2px] text-white/20">
                 {step.number}
               </span>
-              <span className="rounded-lg bg-black px-3 py-1 font-mono text-sm font-medium text-orange">
+              <span className="rounded-lg bg-orange/10 px-3 py-1 font-mono text-sm font-medium text-orange">
                 {step.command}
               </span>
             </div>
-            <h3 className="font-sans text-xl font-semibold tracking-tight text-black">
+            <h3 className="font-sans text-xl font-semibold tracking-tight text-white">
               {step.title}
             </h3>
-            <p className="font-sans text-sm leading-[1.6] text-black/60">
+            <p className="font-sans text-sm leading-[1.6] text-white/40">
               {step.body}
             </p>
           </div>
