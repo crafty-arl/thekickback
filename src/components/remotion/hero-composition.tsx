@@ -15,15 +15,15 @@ import {
    Uses useVideoConfig() width/height to switch between
    mobile (stacked) and desktop (side-by-side) layouts.
 
-   Timeline (900 frames @ 30fps = 30 seconds):
+   Timeline (1800 frames @ 30fps = 60 seconds):
    ┌─────────────────────────────────────────────────┐
-   │  0–120   Intro: "You're invited"                │
-   │ 120–240  What is this?: third places             │
-   │ 240–390  The Map: discover venues                │
-   │ 390–540  The Drawer: talk to venues              │
-   │ 540–680  The Tabs: book, meet, greet             │
-   │ 680–820  The Network: move through it            │
-   │ 820–900  CTA: "Pull up"                          │
+   │   0–260   Intro: "You're invited"               │
+   │ 260–520   What is this?: third places            │
+   │ 520–780   The Map: discover venues               │
+   │ 780–1040  The Drawer: talk to venues             │
+   │ 1040–1300 The Tabs: book, meet, greet            │
+   │ 1300–1560 The Network: move through it           │
+   │ 1560–1800 CTA: "Pull up"                         │
    └─────────────────────────────────────────────────┘
    ═══════════════════════════════════════════════════ */
 
@@ -515,7 +515,7 @@ export function HeroComposition() {
       />
 
       {/* ── Scene 1: You're Invited ── */}
-      <Scene enterFrame={10} holdFrames={100}>
+      <Scene enterFrame={10} holdFrames={220}>
         <div style={styles.label}>YOU&apos;RE INVITED</div>
         <div style={{ height: isWide ? 20 : 12 }} />
         <div style={styles.heading}>
@@ -532,7 +532,7 @@ export function HeroComposition() {
       </Scene>
 
       {/* ── Scene 2: Third Places ── */}
-      <Scene enterFrame={130} holdFrames={100}>
+      <Scene enterFrame={270} holdFrames={220}>
         <div style={styles.label}>WHAT IS THIS</div>
         <div style={{ height: isWide ? 20 : 12 }} />
         <div style={styles.heading}>
@@ -557,7 +557,7 @@ export function HeroComposition() {
       </Scene>
 
       {/* ── Scene 3: The Map ── */}
-      <Scene enterFrame={250} holdFrames={130}>
+      <Scene enterFrame={530} holdFrames={220}>
         <SplitLayout
           left={
             <>
@@ -580,7 +580,7 @@ export function HeroComposition() {
       </Scene>
 
       {/* ── Scene 4: The Drawer ── */}
-      <Scene enterFrame={400} holdFrames={130}>
+      <Scene enterFrame={790} holdFrames={220}>
         <SplitLayout
           left={
             <>
@@ -608,7 +608,7 @@ export function HeroComposition() {
       </Scene>
 
       {/* ── Scene 5: The Tabs ── */}
-      <Scene enterFrame={550} holdFrames={120}>
+      <Scene enterFrame={1050} holdFrames={220}>
         <SplitLayout
           left={
             <>
@@ -669,7 +669,7 @@ export function HeroComposition() {
       </Scene>
 
       {/* ── Scene 6: The Network ── */}
-      <Scene enterFrame={690} holdFrames={120}>
+      <Scene enterFrame={1310} holdFrames={220}>
         <div style={styles.label}>THE NETWORK</div>
         <div style={{ height: isWide ? 20 : 12 }} />
         <div style={styles.heading}>
@@ -709,7 +709,7 @@ export function HeroComposition() {
       </Scene>
 
       {/* ── Scene 7: CTA ── */}
-      <Scene enterFrame={830} holdFrames={70}>
+      <Scene enterFrame={1570} holdFrames={200}>
         <div style={styles.heading}>Pull up.</div>
         <div style={{ height: isWide ? 16 : 12 }} />
         <div style={styles.body}>

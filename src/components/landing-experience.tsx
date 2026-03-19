@@ -356,7 +356,7 @@ export function LandingExperience() {
       <div className={`absolute inset-0 transition-opacity duration-500 ${screen === "home" ? "opacity-100" : "opacity-30"}`}>
         <PlayerWrapper
           component={HeroComposition as React.ComponentType}
-          durationInFrames={900}
+          durationInFrames={1800}
           fps={30}
         />
       </div>
