@@ -37,9 +37,12 @@ jobs:
             cd /opt/thekickback
             GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git pull origin main
 
-            # Rebuild all app services + restart Caddy to pick up new containers
-            # Force rebuild landing page (bust Docker layer cache)
+            # Clean up orphan containers from previous failed deploys
             cd deploy
+            docker compose down --remove-orphans 2>/dev/null || true
+            docker container prune -f 2>/dev/null || true
+
+            # Rebuild all app services + restart Caddy
             docker compose build --no-cache landing-blue
             docker compose up -d --build landing-blue join-app dash-app
             docker compose restart caddy
