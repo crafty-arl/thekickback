@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, PanInfo, useAnimationControls } from "framer-motion";
 import { Venue, getVibeHexColor, getVibeLabel, getOccupancyPercent } from "@/lib/venues";
 import { createClient } from "@/lib/supabase/client";
-import { VibeCard, MenuCard, EventsCard, ReserveCard, ShopCard, JoinCard } from "./tab-cards";
+import { VibeCard, MenuCard, EventsCard, ReserveCard, ShopCard, SubscribeCard, JoinCard } from "./tab-cards";
 import { PointsBadge } from "./points-badge";
 import { CheckoutCard, type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
 
@@ -22,7 +22,7 @@ interface VenueDrawerProps {
   onClose: () => void;
 }
 
-type Tab = "chat" | "vibe" | "menu" | "events" | "reserve" | "shop" | "join";
+type Tab = "chat" | "vibe" | "menu" | "events" | "reserve" | "shop" | "subscribe" | "join";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "chat", label: "Chat", icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" },
@@ -31,6 +31,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "events", label: "Events", icon: "M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" },
   { id: "reserve", label: "Reserve", icon: "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" },
   { id: "shop", label: "Shop", icon: "M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2M20 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2" },
+  { id: "subscribe", label: "Subscribe", icon: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" },
   { id: "join", label: "Join", icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },
 ];
 
@@ -41,6 +42,7 @@ const TAB_COMMANDS: Record<Tab, string> = {
   events: "any events tonight?",
   reserve: "I'd like to reserve a spot",
   shop: "what can I buy or order here?",
+  subscribe: "how can I stay updated on what's happening here?",
   join: "tell me about this venue and how to join",
 };
 
@@ -476,6 +478,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
                         {msg.tab === "events" && <EventsCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
                         {msg.tab === "reserve" && <ReserveCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
                         {msg.tab === "shop" && <ShopCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "subscribe" && <SubscribeCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
                         {msg.tab === "join" && <JoinCard body={msg.body} venue={venue} vibeColor={vibeColor} userId={authUserId} />}
                       </motion.div>
                     );
