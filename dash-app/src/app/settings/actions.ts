@@ -237,3 +237,86 @@ export async function toggleOffering(id: string, active: boolean) {
     revalidatePath("/settings");
     return { ok: true };
 }
+
+// ─── XP Roadmap actions ─────────────────────────────────────────
+
+export async function addXpAction(data: { action: string; label: string; points: number; description?: string; max_per_day?: number }) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service.from("venue_xp_actions").insert({
+        venue_id: auth.venueId,
+        action: data.action,
+        label: data.label,
+        points: data.points,
+        description: data.description || null,
+        max_per_day: data.max_per_day || null,
+    });
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function deleteXpAction(id: string) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_xp_actions")
+        .delete()
+        .eq("id", id)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function toggleXpAction(id: string, active: boolean) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_xp_actions")
+        .update({ active })
+        .eq("id", id)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function addXpMilestone(data: { name: string; threshold: number; color: string; reward?: string; perks?: string[] }) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service.from("venue_xp_milestones").insert({
+        venue_id: auth.venueId,
+        name: data.name,
+        threshold: data.threshold,
+        color: data.color,
+        reward: data.reward || null,
+        perks: data.perks || [],
+    });
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function deleteXpMilestone(id: string) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_xp_milestones")
+        .delete()
+        .eq("id", id)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}

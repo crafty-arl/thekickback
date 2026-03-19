@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering } from "./actions";
+import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone } from "./actions";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -36,6 +36,7 @@ const SECTIONS = [
     { id: "hours", label: "Hours & Menu", icon: "◇" },
     { id: "rules", label: "Rules & Vibe", icon: "◆" },
     { id: "offerings", label: "Offerings", icon: "💰" },
+    { id: "xp", label: "XP Roadmap", icon: "⚡" },
     { id: "agent", label: "AI Agent", icon: "🤖" },
     { id: "members", label: "Members", icon: "👥" },
     { id: "account", label: "Account", icon: "⚙" },
@@ -73,6 +74,40 @@ interface Offering {
     created_at: string;
 }
 
+interface XpAction {
+    id: string;
+    action: string;
+    label: string;
+    points: number;
+    description: string | null;
+    max_per_day: number | null;
+    active: boolean;
+    sort_order: number;
+}
+
+interface XpMilestone {
+    id: string;
+    name: string;
+    threshold: number;
+    color: string;
+    reward: string | null;
+    perks: string[];
+}
+
+const XP_ACTION_PRESETS = [
+    { action: "visit", label: "Visit", points: 50, description: "Earn XP every time you visit" },
+    { action: "first_visit", label: "First Visit", points: 100, description: "Bonus XP for your first visit" },
+    { action: "order", label: "Place an Order", points: 25, description: "Earn XP when you order" },
+    { action: "referral", label: "Refer a Friend", points: 200, description: "Bring someone new" },
+    { action: "event_attend", label: "Attend an Event", points: 75, description: "Show up to a venue event" },
+    { action: "review", label: "Leave a Review", points: 50, description: "Share your experience" },
+    { action: "membership", label: "Become a Member", points: 300, description: "Join the membership program" },
+    { action: "challenge", label: "Complete a Challenge", points: 150, description: "Finish a venue challenge" },
+    { action: "custom", label: "Custom Action", points: 10, description: "" },
+];
+
+const MILESTONE_COLORS = ["#4ade80", "#facc15", "#f97316", "#a78bfa", "#f87171", "#60a5fa", "#34d399", "#fb923c"];
+
 interface Props {
     user: { id: string; email: string };
     role: string;
@@ -100,11 +135,13 @@ interface Props {
     members: Membership[];
     memberCount: number;
     offerings: Offering[];
+    xpActions: XpAction[];
+    xpMilestones: XpMilestone[];
 }
 
 // ─── Main Component ──────────────────────────────────────────────
 
-export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings }: Props) {
+export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones }: Props) {
     const [activeSection, setActiveSection] = useState("general");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
@@ -557,6 +594,194 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                     </span>
                                 </div>
                             )}
+                        </Card>
+
+                        {/* ─── XP Roadmap ───────────────────────────────────────── */}
+                        <Card id="xp" title="XP Roadmap" desc="Define how guests earn XP at your venue and what milestones they unlock.">
+                            {/* Actions section */}
+                            <div className="mb-6">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="font-sans text-[13px] font-semibold text-white/60">Actions that earn XP</h3>
+                                    <span className="rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold" style={{ backgroundColor: "rgba(74,222,128,0.12)", color: "#4ADE80" }}>
+                                        {xpActions.length} actions
+                                    </span>
+                                </div>
+
+                                {/* Existing actions */}
+                                {xpActions.map((a) => (
+                                    <div key={a.id} className="mb-2 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: a.active ? "rgba(249,115,22,0.1)" : "rgba(255,255,255,0.04)" }}>
+                                            <span className="font-mono text-[13px] font-bold" style={{ color: a.active ? "#F97316" : "rgba(255,255,255,0.2)" }}>
+                                                +{a.points}
+                                            </span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-sans text-[13px] font-semibold text-white/80">{a.label}</p>
+                                            {a.description && <p className="font-sans text-[11px] text-white/30">{a.description}</p>}
+                                            {a.max_per_day && <p className="font-sans text-[10px] text-white/20">Max {a.max_per_day}x per day</p>}
+                                        </div>
+                                        <button
+                                            onClick={async () => { await toggleXpAction(a.id, !a.active); }}
+                                            className="shrink-0 rounded-lg px-2.5 py-1 font-sans text-[10px] font-semibold"
+                                            style={{
+                                                backgroundColor: a.active ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.04)",
+                                                color: a.active ? "#4ADE80" : "rgba(255,255,255,0.3)",
+                                                border: `1px solid ${a.active ? "rgba(74,222,128,0.2)" : "rgba(255,255,255,0.06)"}`,
+                                            }}
+                                        >
+                                            {a.active ? "Active" : "Paused"}
+                                        </button>
+                                        <button
+                                            onClick={async () => { await deleteXpAction(a.id); }}
+                                            className="shrink-0 rounded-lg p-1.5 opacity-40 hover:opacity-100"
+                                            style={{ backgroundColor: "rgba(239,68,68,0.1)" }}
+                                        >
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {/* Add action — preset grid */}
+                                <p className="mt-3 mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/20">ADD AN ACTION</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {XP_ACTION_PRESETS.map((preset) => {
+                                        const exists = xpActions.some((a) => a.action === preset.action);
+                                        return (
+                                            <button
+                                                key={preset.action}
+                                                disabled={exists && preset.action !== "custom"}
+                                                onClick={async () => {
+                                                    setSaving(true);
+                                                    await addXpAction(preset);
+                                                    setSaving(false);
+                                                }}
+                                                className="flex flex-col items-center gap-1 rounded-xl border p-3 font-sans text-[11px] font-medium transition active:scale-95 disabled:opacity-30"
+                                                style={{
+                                                    borderColor: exists ? "rgba(74,222,128,0.2)" : "rgba(255,255,255,0.06)",
+                                                    backgroundColor: exists ? "rgba(74,222,128,0.04)" : "rgba(255,255,255,0.02)",
+                                                    color: exists ? "#4ADE80" : "rgba(255,255,255,0.4)",
+                                                }}
+                                            >
+                                                <span className="font-mono text-[12px] font-bold" style={{ color: "#F97316" }}>+{preset.points}</span>
+                                                {preset.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Milestones section */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="font-sans text-[13px] font-semibold text-white/60">Milestones</h3>
+                                    <span className="rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold" style={{ backgroundColor: "rgba(167,139,250,0.12)", color: "#a78bfa" }}>
+                                        {xpMilestones.length} tiers
+                                    </span>
+                                </div>
+
+                                {/* Visual roadmap */}
+                                {xpMilestones.length > 0 && (
+                                    <div className="mb-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                                        <div className="relative">
+                                            {/* Track line */}
+                                            <div className="absolute left-4 top-0 bottom-0 w-0.5" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
+                                            {xpMilestones.map((m, i) => (
+                                                <div key={m.id} className="relative flex items-start gap-4 pb-5 last:pb-0">
+                                                    {/* Node */}
+                                                    <div
+                                                        className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                                                        style={{ backgroundColor: `${m.color}20`, border: `2px solid ${m.color}50` }}
+                                                    >
+                                                        <span className="font-mono text-[10px] font-bold" style={{ color: m.color }}>{i + 1}</span>
+                                                    </div>
+                                                    {/* Content */}
+                                                    <div className="flex-1 pt-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-sans text-[14px] font-bold" style={{ color: m.color }}>{m.name}</span>
+                                                            <span className="font-mono text-[11px] text-white/25">{m.threshold.toLocaleString()} XP</span>
+                                                        </div>
+                                                        {m.reward && <p className="mt-0.5 font-sans text-[12px] text-white/40">{m.reward}</p>}
+                                                        {m.perks.length > 0 && (
+                                                            <div className="mt-1.5 flex flex-wrap gap-1">
+                                                                {m.perks.map((p) => (
+                                                                    <span key={p} className="rounded-md px-2 py-0.5 font-sans text-[10px]" style={{ backgroundColor: `${m.color}10`, color: `${m.color}cc`, border: `1px solid ${m.color}20` }}>
+                                                                        {p}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {/* Delete */}
+                                                    <button
+                                                        onClick={async () => { await deleteXpMilestone(m.id); }}
+                                                        className="shrink-0 rounded-lg p-1.5 opacity-30 hover:opacity-100"
+                                                        style={{ backgroundColor: "rgba(239,68,68,0.1)" }}
+                                                    >
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Add milestone form */}
+                                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                                    <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/20">ADD A MILESTONE</p>
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex gap-2">
+                                            <input id="ms-name" placeholder="Tier name (e.g. Regular)" className="flex-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
+                                            <input id="ms-threshold" type="number" placeholder="XP needed" className="w-24 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
+                                        </div>
+                                        <input id="ms-reward" placeholder="Reward (e.g. Free coffee on every visit)" className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
+                                        <input id="ms-perks" placeholder="Perks (comma-separated, e.g. Priority seating, 10% off)" className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/20 focus:outline-none" />
+                                        {/* Color picker */}
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-sans text-[11px] text-white/25">Color:</span>
+                                            {MILESTONE_COLORS.map((c) => (
+                                                <button
+                                                    key={c}
+                                                    id={`ms-color-${c}`}
+                                                    onClick={() => {
+                                                        document.querySelectorAll("[id^=ms-color-]").forEach((el) => el.classList.remove("ring-2"));
+                                                        document.getElementById(`ms-color-${c}`)?.classList.add("ring-2");
+                                                    }}
+                                                    className="h-5 w-5 rounded-full ring-white/50 ring-offset-1 ring-offset-black"
+                                                    style={{ backgroundColor: c }}
+                                                />
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                const nameEl = document.getElementById("ms-name") as HTMLInputElement;
+                                                const thresholdEl = document.getElementById("ms-threshold") as HTMLInputElement;
+                                                const rewardEl = document.getElementById("ms-reward") as HTMLInputElement;
+                                                const perksEl = document.getElementById("ms-perks") as HTMLInputElement;
+                                                const selectedColor = document.querySelector("[id^=ms-color-].ring-2") as HTMLElement;
+                                                if (!nameEl.value || !thresholdEl.value) return;
+                                                setSaving(true);
+                                                await addXpMilestone({
+                                                    name: nameEl.value,
+                                                    threshold: parseInt(thresholdEl.value),
+                                                    color: selectedColor?.style.backgroundColor || "#F97316",
+                                                    reward: rewardEl.value || undefined,
+                                                    perks: perksEl.value ? perksEl.value.split(",").map((p) => p.trim()).filter(Boolean) : undefined,
+                                                });
+                                                nameEl.value = "";
+                                                thresholdEl.value = "";
+                                                rewardEl.value = "";
+                                                perksEl.value = "";
+                                                setSaving(false);
+                                            }}
+                                            disabled={saving}
+                                            className="mt-1 rounded-xl px-5 py-2.5 font-sans text-[13px] font-bold text-black active:scale-[0.98] disabled:opacity-40"
+                                            style={{ backgroundColor: "#F97316" }}
+                                        >
+                                            {saving ? "Saving..." : "Add Milestone"}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </Card>
 
                         {/* ─── AI Agent ─────────────────────────────────────────── */}
