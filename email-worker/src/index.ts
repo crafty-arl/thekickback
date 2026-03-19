@@ -4,6 +4,7 @@ export interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_KEY: string;
   OPENCLAW_GATEWAY_URL: string;
+  OPENCLAW_GATEWAY_TOKEN: string;
   OPENCLAW_HOOKS_TOKEN: string;
   RESEND_API_KEY: string;
   EMAIL_FROM: string;
@@ -417,15 +418,54 @@ async function handleAsk(profile: Profile, question: string, venue: Venue | null
     await supa(env, `venues?id=eq.${v.id}`, { method: "PATCH", body: JSON.stringify({ occupancy: v.occupancy + 1 }) });
   }
 
-  return askClaw(`A guest at ${v.name} asks: "${question}". Venue is ${v.vibe}, ${v.occupancy} people. Respond in 1-2 sentences. No emojis.`, profile.phone || profile.id, env);
+  const knowledge = await getVenueKnowledge(v.id, env);
+  return askClaw(
+    [
+      `You are the AI agent for ${v.name}. Respond as the venue.`,
+      knowledge ? `\nVenue knowledge:\n${knowledge}\n` : "",
+      `A guest asks: "${question}". Venue is ${v.vibe}, ${v.occupancy} people. 1-2 sentences. No emojis.`,
+    ].filter(Boolean).join(" "),
+    profile.phone || profile.id,
+    v.id,
+    env
+  );
 }
 
-async function askClaw(message: string, userIdentifier: string, env: Env): Promise<string> {
+async function askClaw(message: string, userIdentifier: string, venueId: string, env: Env): Promise<string> {
   try {
-    const res = await fetch(`${env.OPENCLAW_GATEWAY_URL}/hooks/agent`, { method: "POST", headers: { Authorization: `Bearer ${env.OPENCLAW_HOOKS_TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify({ message, from: userIdentifier, agentId: "main" }) });
-    if (res.ok) { const data = (await res.json()) as { payloads?: { text?: string }[] }; if (data.payloads?.[0]?.text) return data.payloads[0].text; }
+    const res = await fetch(`${env.OPENCLAW_GATEWAY_URL}/v1/responses`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.OPENCLAW_GATEWAY_TOKEN}`,
+        "Content-Type": "application/json",
+        "x-openclaw-agent-id": venueId ? `venue-${venueId}` : "main",
+      },
+      body: JSON.stringify({ model: "openclaw", input: message, user: userIdentifier }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { output?: { type: string; content?: { type: string; text?: string }[] }[] };
+      const msg = data.output?.find((o) => o.type === "message");
+      const text = msg?.content?.find((c) => c.type === "output_text")?.text;
+      if (text) return text;
+    }
   } catch (err) { console.error("Claw error:", err); }
   return "Couldn't reach the venue right now. Try again in a moment.";
+}
+
+async function getVenueKnowledge(venueId: string, env: Env): Promise<string> {
+  const data = (await supa(env, `venue_knowledge?venue_id=eq.${venueId}&order=category`)) as { content: string; category: string }[] | null;
+  if (!data || data.length === 0) return "";
+
+  const grouped: Record<string, string[]> = {};
+  for (const row of data) {
+    const cat = row.category || "general";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(row.content);
+  }
+
+  return Object.entries(grouped)
+    .map(([cat, items]) => `[${cat}]\n${items.join("\n")}`)
+    .join("\n\n");
 }
 
 async function handleRequest(profile: Profile, what: string, venue: Venue | null, env: Env): Promise<string> {
@@ -516,12 +556,32 @@ async function handleFreeform(profile: Profile, raw: string, venue: Venue | null
   if (!session && venue) {
     await supa(env, "sessions", { method: "POST", body: JSON.stringify({ user_id: profile.id, venue_id: venue.id, status: "active" }) });
     await supa(env, `venues?id=eq.${venue.id}`, { method: "PATCH", body: JSON.stringify({ occupancy: venue.occupancy + 1 }) });
-    return askClaw(`A new guest just emailed ${venue.name} saying: "${raw}". Venue is ${venue.vibe}, ${venue.occupancy + 1} people. Welcome them and answer. Concise. No emojis.`, profile.phone || profile.id, env);
+    const knowledge = await getVenueKnowledge(venue.id, env);
+    return askClaw(
+      [
+        `You are the AI agent for ${venue.name}. Respond as the venue.`,
+        knowledge ? `\nVenue knowledge:\n${knowledge}\n` : "",
+        `A new guest just emailed saying: "${raw}". Venue is ${venue.vibe}, ${venue.occupancy + 1} people. Welcome them and answer. Concise. No emojis.`,
+      ].filter(Boolean).join(" "),
+      profile.phone || profile.id,
+      venue.id,
+      env
+    );
   }
 
   if (session) {
     const v = await getVenueById(session.venue_id, env);
-    return askClaw(`Guest at ${v?.name} sent: "${raw}". Venue is ${v?.vibe}, ${v?.occupancy} people. Respond as venue. Concise. No emojis.`, profile.phone || profile.id, env);
+    const knowledge = v ? await getVenueKnowledge(v.id, env) : "";
+    return askClaw(
+      [
+        `You are the AI agent for ${v?.name || "the venue"}. Respond as the venue.`,
+        knowledge ? `\nVenue knowledge:\n${knowledge}\n` : "",
+        `Guest sent: "${raw}". Venue is ${v?.vibe}, ${v?.occupancy} people. Concise. No emojis.`,
+      ].filter(Boolean).join(" "),
+      profile.phone || profile.id,
+      v?.id || "",
+      env
+    );
   }
 
   return "Hey! Send JOIN to enter a venue, or email a venue directly at venue-name@thekickback.net.\n\nCommands: JOIN, ASK, REQUEST, STATUS, LEAVE, MEMBERSHIP";

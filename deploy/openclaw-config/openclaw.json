@@ -3,5 +3,14 @@
     "foursquare-places": {
       "url": "http://foursquare-mcp:8080/sse"
     }
+  },
+  "gateway": {
+    "http": {
+      "endpoints": {
+        "responses": {
+          "enabled": true
+        }
+      }
+    }
   }
 }
