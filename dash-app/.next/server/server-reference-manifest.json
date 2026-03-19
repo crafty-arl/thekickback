@@ -45,6 +45,36 @@
       "filename": "dash-app/src/app/onboarding/actions.ts",
       "exportedName": "createVenue"
     },
+    "4012a983086f95d3ab4dcd0e8a5c386eba9a7e5fb1": {
+      "workers": {
+        "app/root/page": {
+          "moduleId": 59396,
+          "async": false,
+          "exportedName": "rootSendOtp",
+          "filename": "dash-app/src/app/root/actions.ts"
+        }
+      },
+      "layer": {
+        "app/root/page": "action-browser"
+      },
+      "filename": "dash-app/src/app/root/actions.ts",
+      "exportedName": "rootSendOtp"
+    },
+    "6043c910e01114b19e3aa38dd15ae1ba802330552c": {
+      "workers": {
+        "app/root/page": {
+          "moduleId": 59396,
+          "async": false,
+          "exportedName": "rootVerifyOtp",
+          "filename": "dash-app/src/app/root/actions.ts"
+        }
+      },
+      "layer": {
+        "app/root/page": "action-browser"
+      },
+      "filename": "dash-app/src/app/root/actions.ts",
+      "exportedName": "rootVerifyOtp"
+    },
     "40e4ccc4903462c2965635cf45db38063b7eca55a1": {
       "workers": {
         "app/root/page": {

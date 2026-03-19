@@ -4,9 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-const ROOT_USER_IDS: string[] = [
-    // Add your Supabase auth user ID here
-    // You can find it in Supabase Dashboard → Authentication → Users
+// ─── Admin whitelist ─────────────────────────────────────────────
+// Only these emails can access /root. Add more via the admin dashboard.
+const ROOT_EMAILS: string[] = [
+    "carl@craftthefuture.xyz",
 ];
 
 const service = createClient(
@@ -18,12 +19,55 @@ async function assertRoot(): Promise<string> {
     const supabase = await createAuthClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
-    // If ROOT_USER_IDS is empty, allow any authenticated venue owner (bootstrap mode)
-    if (ROOT_USER_IDS.length > 0 && !ROOT_USER_IDS.includes(user.id)) {
+    if (!user.email || !ROOT_EMAILS.includes(user.email)) {
         throw new Error("Not authorized");
     }
     return user.id;
 }
+
+// ─── OTP actions ─────────────────────────────────────────────────
+
+export async function rootSendOtp(email: string) {
+    if (!ROOT_EMAILS.includes(email.toLowerCase().trim())) {
+        return { error: "Access denied" };
+    }
+
+    const supabase = await createAuthClient();
+    const { error } = await supabase.auth.signInWithOtp({
+        email: email.toLowerCase().trim(),
+        options: { shouldCreateUser: true },
+    });
+
+    if (error) return { error: error.message };
+    return { success: true };
+}
+
+export async function rootVerifyOtp(email: string, token: string) {
+    if (!ROOT_EMAILS.includes(email.toLowerCase().trim())) {
+        return { error: "Access denied" };
+    }
+
+    const supabase = await createAuthClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+        email: email.toLowerCase().trim(),
+        token,
+        type: "email",
+    });
+
+    if (error) return { error: error.message };
+
+    if (data.user) {
+        await supabase.from("profiles").upsert(
+            { id: data.user.id, email: data.user.email },
+            { onConflict: "id" },
+        );
+    }
+
+    revalidatePath("/root");
+    return { success: true };
+}
+
+// ─── Venue approval actions ──────────────────────────────────────
 
 export async function approveVenue(venuePageId: string) {
     await assertRoot();

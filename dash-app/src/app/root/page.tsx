@@ -1,26 +1,25 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createService } from "@supabase/supabase-js";
 import { RootClient } from "./root-client";
 
+const ROOT_EMAILS = ["carl@craftthefuture.xyz"];
+
 export default async function RootPage() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) redirect("/login");
 
+    // Not logged in or not an admin → show OTP gate
+    if (!user || !user.email || !ROOT_EMAILS.includes(user.email)) {
+        return <RootClient pages={[]} stats={null} authed={false} />;
+    }
+
+    // Admin is authed — fetch platform data
     const service = createService(
         process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_KEY!,
     );
 
-    // Parallel fetch: all venue pages + counts
-    const [
-        pagesRes,
-        memberCountRes,
-        sessionCountRes,
-        knowledgeCountRes,
-        offeringCountRes,
-    ] = await Promise.all([
+    const [pagesRes, memberCountRes, sessionCountRes, knowledgeCountRes, offeringCountRes] = await Promise.all([
         service.from("venue_pages").select("*, venues(id, name, type, address, max_occupancy)").order("created_at", { ascending: false }),
         service.from("memberships").select("id", { count: "exact", head: true }),
         service.from("sessions").select("id", { count: "exact", head: true }),
@@ -40,5 +39,5 @@ export default async function RootPage() {
         totalOfferings: offeringCountRes.count || 0,
     };
 
-    return <RootClient pages={pages} stats={stats} />;
+    return <RootClient pages={pages} stats={stats} authed={true} />;
 }

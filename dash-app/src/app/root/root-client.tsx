@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { approveVenue, rejectVenue, unpublishVenue } from "./actions";
+import { rootSendOtp, rootVerifyOtp, approveVenue, rejectVenue, unpublishVenue } from "./actions";
 
 interface VenuePage {
     id: string;
@@ -33,36 +33,118 @@ interface Stats {
 
 interface Props {
     pages: VenuePage[];
-    stats: Stats;
+    stats: Stats | null;
+    authed: boolean;
 }
 
-export function RootClient({ pages, stats }: Props) {
+export function RootClient({ pages, stats, authed }: Props) {
+    // If not authed, show OTP gate
+    if (!authed) return <OtpGate />;
+
+    return <AdminDashboard pages={pages} stats={stats!} />;
+}
+
+// ─── OTP Gate ────────────────────────────────────────────────────
+
+function OtpGate() {
+    const [email, setEmail] = useState("");
+    const [otp, setOtp] = useState("");
+    const [step, setStep] = useState<"email" | "verify">("email");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    async function handleSend(e: React.FormEvent) {
+        e.preventDefault();
+        setError("");
+        setLoading(true);
+        const result = await rootSendOtp(email);
+        if (result.error) { setError(result.error); setLoading(false); return; }
+        setStep("verify");
+        setLoading(false);
+    }
+
+    async function handleVerify(e: React.FormEvent) {
+        e.preventDefault();
+        setError("");
+        setLoading(true);
+        const result = await rootVerifyOtp(email, otp);
+        if (result?.error) { setError(result.error); setLoading(false); }
+        // On success, server revalidates and page re-renders with authed=true
+    }
+
+    return (
+        <main className="flex min-h-svh items-center justify-center" style={{ backgroundColor: "#0A0A0A" }}>
+            <div className="w-full max-w-sm px-6">
+                {/* Header */}
+                <div className="mb-8 text-center">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: "rgba(239,68,68,0.15)" }}>
+                        <span className="text-[24px]">🔒</span>
+                    </div>
+                    <h1 className="font-sans text-[24px] font-bold text-white">Root Access</h1>
+                    <p className="mt-1 font-sans text-[13px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                        {step === "email" ? "Enter your admin email to continue." : `Code sent to ${email}`}
+                    </p>
+                </div>
+
+                {step === "email" ? (
+                    <form onSubmit={handleSend} className="flex flex-col gap-4">
+                        <input
+                            type="email"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="admin@email.com"
+                            autoFocus
+                            className="rounded-xl border px-4 py-3.5 font-sans text-[14px] text-white placeholder:text-white/20 focus:outline-none"
+                            style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}
+                        />
+                        {error && <p className="rounded-lg px-3 py-2 font-sans text-[13px]" style={{ backgroundColor: "rgba(239,68,68,0.1)", color: "#EF4444" }}>{error}</p>}
+                        <button type="submit" disabled={loading} className="rounded-xl py-3.5 font-sans text-[15px] font-bold text-white active:scale-[0.98] disabled:opacity-50" style={{ backgroundColor: "#EF4444" }}>
+                            {loading ? "Sending..." : "Send Code"}
+                        </button>
+                    </form>
+                ) : (
+                    <form onSubmit={handleVerify} className="flex flex-col gap-4">
+                        <input
+                            type="text"
+                            required
+                            inputMode="numeric"
+                            maxLength={6}
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                            placeholder="000000"
+                            autoFocus
+                            className="rounded-xl border px-4 py-3.5 text-center font-mono text-[24px] tracking-[0.3em] text-white placeholder:text-white/15 focus:outline-none"
+                            style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}
+                        />
+                        {error && <p className="rounded-lg px-3 py-2 font-sans text-[13px]" style={{ backgroundColor: "rgba(239,68,68,0.1)", color: "#EF4444" }}>{error}</p>}
+                        <button type="submit" disabled={loading || otp.length < 6} className="rounded-xl py-3.5 font-sans text-[15px] font-bold text-white active:scale-[0.98] disabled:opacity-50" style={{ backgroundColor: "#EF4444" }}>
+                            {loading ? "Verifying..." : "Verify"}
+                        </button>
+                        <button type="button" onClick={() => { setStep("email"); setOtp(""); setError(""); }} className="font-sans text-[13px] active:opacity-60" style={{ color: "rgba(255,255,255,0.3)" }}>
+                            Use a different email
+                        </button>
+                    </form>
+                )}
+            </div>
+        </main>
+    );
+}
+
+// ─── Admin Dashboard ─────────────────────────────────────────────
+
+function AdminDashboard({ pages, stats }: { pages: VenuePage[]; stats: Stats }) {
     const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
     const [acting, setActing] = useState<string | null>(null);
 
     const filtered = filter === "all" ? pages : pages.filter((p) => p.review_status === filter);
 
-    async function handleApprove(id: string) {
-        setActing(id);
-        await approveVenue(id);
-        setActing(null);
-    }
-
-    async function handleReject(id: string) {
-        setActing(id);
-        await rejectVenue(id);
-        setActing(null);
-    }
-
-    async function handleUnpublish(id: string) {
-        setActing(id);
-        await unpublishVenue(id);
-        setActing(null);
-    }
+    async function handleApprove(id: string) { setActing(id); await approveVenue(id); setActing(null); }
+    async function handleReject(id: string) { setActing(id); await rejectVenue(id); setActing(null); }
+    async function handleUnpublish(id: string) { setActing(id); await unpublishVenue(id); setActing(null); }
 
     return (
         <main className="min-h-svh" style={{ backgroundColor: "#0A0A0A" }}>
-            {/* Header */}
             <header className="sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 backdrop-blur-xl sm:px-6" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(10,10,10,0.9)" }}>
                 <div className="flex items-center gap-3">
                     <Link href="/"><img src="/logo.png" alt="theKickBack" className="h-6 w-auto" /></Link>
@@ -120,24 +202,15 @@ export function RootClient({ pages, stats }: Props) {
                                 backgroundColor: p.review_status === "pending" ? "rgba(249,115,22,0.04)" : "rgba(255,255,255,0.02)",
                             }}
                         >
-                            {/* Color dot */}
                             <div className="h-10 w-10 shrink-0 rounded-lg" style={{ backgroundColor: p.theme_color || "#F97316" }} />
-
-                            {/* Info */}
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                     <p className="font-sans text-[14px] font-semibold text-white">{p.venues?.name || p.slug}</p>
                                     <span
                                         className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold tracking-wider"
                                         style={{
-                                            backgroundColor:
-                                                p.review_status === "approved" ? "rgba(74,222,128,0.15)" :
-                                                    p.review_status === "rejected" ? "rgba(239,68,68,0.15)" :
-                                                        "rgba(249,115,22,0.15)",
-                                            color:
-                                                p.review_status === "approved" ? "#4ADE80" :
-                                                    p.review_status === "rejected" ? "#EF4444" :
-                                                        "#F97316",
+                                            backgroundColor: p.review_status === "approved" ? "rgba(74,222,128,0.15)" : p.review_status === "rejected" ? "rgba(239,68,68,0.15)" : "rgba(249,115,22,0.15)",
+                                            color: p.review_status === "approved" ? "#4ADE80" : p.review_status === "rejected" ? "#EF4444" : "#F97316",
                                         }}
                                     >
                                         {p.review_status?.toUpperCase() || "PENDING"}
@@ -149,48 +222,25 @@ export function RootClient({ pages, stats }: Props) {
                                 <div className="mt-1 flex items-center gap-3">
                                     <span className="font-sans text-[12px] text-white/30">{p.slug}</span>
                                     {p.venues?.type && <span className="font-sans text-[11px] capitalize text-white/20">{p.venues.type}</span>}
-                                    {p.venues?.address && <span className="font-sans text-[11px] text-white/15 hidden sm:inline">{p.venues.address}</span>}
                                 </div>
                             </div>
-
-                            {/* Actions */}
                             <div className="flex shrink-0 items-center gap-2">
                                 {p.review_status !== "approved" && (
-                                    <button
-                                        onClick={() => handleApprove(p.id)}
-                                        disabled={acting === p.id}
-                                        className="rounded-lg px-3 py-1.5 font-sans text-[12px] font-bold transition active:scale-95"
-                                        style={{ backgroundColor: "rgba(74,222,128,0.15)", color: "#4ADE80" }}
-                                    >
+                                    <button onClick={() => handleApprove(p.id)} disabled={acting === p.id} className="rounded-lg px-3 py-1.5 font-sans text-[12px] font-bold transition active:scale-95" style={{ backgroundColor: "rgba(74,222,128,0.15)", color: "#4ADE80" }}>
                                         {acting === p.id ? "..." : "Approve"}
                                     </button>
                                 )}
                                 {p.review_status !== "rejected" && !p.published && (
-                                    <button
-                                        onClick={() => handleReject(p.id)}
-                                        disabled={acting === p.id}
-                                        className="rounded-lg px-3 py-1.5 font-sans text-[12px] font-medium transition active:scale-95"
-                                        style={{ backgroundColor: "rgba(239,68,68,0.1)", color: "#EF4444" }}
-                                    >
+                                    <button onClick={() => handleReject(p.id)} disabled={acting === p.id} className="rounded-lg px-3 py-1.5 font-sans text-[12px] font-medium transition active:scale-95" style={{ backgroundColor: "rgba(239,68,68,0.1)", color: "#EF4444" }}>
                                         {acting === p.id ? "..." : "Reject"}
                                     </button>
                                 )}
                                 {p.published && (
-                                    <button
-                                        onClick={() => handleUnpublish(p.id)}
-                                        disabled={acting === p.id}
-                                        className="rounded-lg px-3 py-1.5 font-sans text-[12px] font-medium transition active:scale-95"
-                                        style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}
-                                    >
+                                    <button onClick={() => handleUnpublish(p.id)} disabled={acting === p.id} className="rounded-lg px-3 py-1.5 font-sans text-[12px] font-medium transition active:scale-95" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>
                                         {acting === p.id ? "..." : "Unpublish"}
                                     </button>
                                 )}
-                                <a
-                                    href={`https://join.thekickback.net/${p.slug}`}
-                                    target="_blank"
-                                    className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-medium"
-                                    style={{ backgroundColor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.25)" }}
-                                >
+                                <a href={`https://join.thekickback.net/${p.slug}`} target="_blank" className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-medium" style={{ backgroundColor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.25)" }}>
                                     Preview
                                 </a>
                             </div>
