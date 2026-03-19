@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Venue } from "@/lib/venues";
 import { VenueDrawer } from "@/components/map/venue-drawer";
 import { MasterDrawer } from "@/components/map/master-drawer";
+import type { MapRef } from "react-map-gl";
 
 const MapView = dynamic(
     () => import("@/components/map/map-view").then((m) => m.MapView),
@@ -21,6 +22,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     const [venues, setVenues] = useState<Venue[]>(serverVenues);
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+    const mapRef = useRef<MapRef | null>(null);
 
     // Request geolocation and fetch local discovery venues
     useEffect(() => {
@@ -61,6 +63,16 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
         setSelectedVenue(venues[next]);
     }, [selectedVenue, venues]);
 
+    const handleRecenter = useCallback(() => {
+        if (!userLocation || !mapRef.current) return;
+        mapRef.current.flyTo({
+            center: [userLocation.longitude, userLocation.latitude],
+            zoom: 14,
+            pitch: 40,
+            duration: 1000,
+        });
+    }, [userLocation]);
+
     return (
         <main className="relative h-dvh w-full overflow-hidden bg-black">
             {/* Full-screen map */}
@@ -69,11 +81,15 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 selectedVenue={selectedVenue}
                 onVenueSelect={setSelectedVenue}
                 userLocation={userLocation}
+                mapRef={mapRef}
             />
 
-            {/* Header overlay — logo only */}
+            {/* Header overlay — logo + location button */}
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
-                <header className="pointer-events-auto flex items-center justify-center px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2">
+                <header className="pointer-events-auto flex items-center justify-between px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2">
+                    {/* Spacer for centering */}
+                    <div className="w-10" />
+
                     <Image
                         src="/logo.png"
                         alt="theKickBack"
@@ -83,6 +99,29 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                         style={{ filter: "invert(1)" }}
                         priority
                     />
+
+                    {/* Location recenter button — matches pill aesthetic */}
+                    {userLocation ? (
+                        <button
+                            onClick={handleRecenter}
+                            className="flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-90"
+                            style={{
+                                backgroundColor: "rgba(15, 15, 18, 0.65)",
+                                backdropFilter: "blur(40px) saturate(1.8)",
+                                WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+                                border: "1px solid rgba(255,255,255,0.08)",
+                                boxShadow: "0 2px 12px rgba(0,0,0,0.25)",
+                            }}
+                            aria-label="Center on my location"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                            </svg>
+                        </button>
+                    ) : (
+                        <div className="w-10" />
+                    )}
                 </header>
             </div>
 

@@ -5,11 +5,12 @@ import Map, { Marker, type MapRef } from "react-map-gl";
 import { type Venue } from "@/lib/venues";
 import { VenueMarker } from "./venue-marker";
 
-interface MapViewProps {
+export interface MapViewProps {
   venues: Venue[];
   selectedVenue: Venue | null;
   onVenueSelect: (venue: Venue | null) => void;
   userLocation?: { latitude: number; longitude: number } | null;
+  mapRef?: React.RefObject<MapRef | null>;
 }
 
 function getBounds(venues: Venue[]) {
@@ -80,8 +81,9 @@ function desaturateMap(map: mapboxgl.Map) {
   }
 }
 
-export function MapView({ venues, selectedVenue, onVenueSelect, userLocation }: MapViewProps) {
-  const mapRef = useRef<MapRef>(null);
+export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, mapRef: externalMapRef }: MapViewProps) {
+  const internalMapRef = useRef<MapRef>(null);
+  const mapRef = externalMapRef || internalMapRef;
   const fittedRef = useRef(false);
 
   useEffect(() => {
@@ -180,92 +182,58 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation }: 
     }
   }, [venues]);
 
-  const handleRecenter = useCallback(() => {
-    if (!userLocation || !mapRef.current) return;
-    mapRef.current.flyTo({
-      center: [userLocation.longitude, userLocation.latitude],
-      zoom: 14,
-      pitch: 40,
-      duration: 1000,
-    });
-  }, [userLocation]);
-
   return (
-    <>
-      <Map
-        ref={mapRef}
-        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
-        initialViewState={{
-          longitude: -97.743,
-          latitude: 30.267,
-          zoom: 13,
-          pitch: 40,
-          bearing: -10,
-        }}
-        style={{ width: "100%", height: "100%" }}
-        mapStyle="mapbox://styles/mapbox/light-v11"
-        onClick={() => onVenueSelect(null)}
-        onLoad={handleLoad}
-        attributionControl={false}
-        logoPosition="bottom-right"
-      >
-        {venues.map((venue) => (
-          <Marker
-            key={venue.id}
-            longitude={venue.longitude}
-            latitude={venue.latitude}
-            anchor="center"
-          >
-            <VenueMarker
-              venue={venue}
-              selected={selectedVenue?.id === venue.id}
-              onClick={() => handleMarkerClick(venue)}
-            />
-          </Marker>
-        ))}
-
-        {/* User location dot */}
-        {userLocation && (
-          <Marker
-            longitude={userLocation.longitude}
-            latitude={userLocation.latitude}
-            anchor="center"
-          >
-            <div className="relative flex items-center justify-center" style={{ width: 24, height: 24 }}>
-              <div
-                className="absolute rounded-full animate-ping"
-                style={{ width: 24, height: 24, backgroundColor: "rgba(59, 130, 246, 0.3)" }}
-              />
-              <div
-                className="rounded-full border-2 border-white"
-                style={{ width: 12, height: 12, backgroundColor: "#3b82f6", boxShadow: "0 0 8px rgba(59,130,246,0.5)" }}
-              />
-            </div>
-          </Marker>
-        )}
-      </Map>
-
-      {/* Recenter on me button */}
-      {userLocation && (
-        <button
-          onClick={handleRecenter}
-          className="absolute right-3 z-20 flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-90"
-          style={{
-            top: "max(80px, calc(env(safe-area-inset-top, 12px) + 68px))",
-            backgroundColor: "rgba(15, 15, 18, 0.7)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
-          }}
-          aria-label="Center on my location"
+    <Map
+      ref={mapRef}
+      mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
+      initialViewState={{
+        longitude: -97.743,
+        latitude: 30.267,
+        zoom: 13,
+        pitch: 40,
+        bearing: -10,
+      }}
+      style={{ width: "100%", height: "100%" }}
+      mapStyle="mapbox://styles/mapbox/light-v11"
+      onClick={() => onVenueSelect(null)}
+      onLoad={handleLoad}
+      attributionControl={false}
+      logoPosition="bottom-right"
+    >
+      {venues.map((venue) => (
+        <Marker
+          key={venue.id}
+          longitude={venue.longitude}
+          latitude={venue.latitude}
+          anchor="center"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-          </svg>
-        </button>
+          <VenueMarker
+            venue={venue}
+            selected={selectedVenue?.id === venue.id}
+            onClick={() => handleMarkerClick(venue)}
+          />
+        </Marker>
+      ))}
+
+      {/* User location dot */}
+      {userLocation && (
+        <Marker
+          longitude={userLocation.longitude}
+          latitude={userLocation.latitude}
+          anchor="center"
+        >
+          <div className="relative flex items-center justify-center" style={{ width: 24, height: 24 }}>
+            <div
+              className="absolute rounded-full animate-ping"
+              style={{ width: 24, height: 24, backgroundColor: "rgba(59, 130, 246, 0.3)" }}
+            />
+            <div
+              className="rounded-full border-2 border-white"
+              style={{ width: 12, height: 12, backgroundColor: "#3b82f6", boxShadow: "0 0 8px rgba(59,130,246,0.5)" }}
+            />
+          </div>
+        </Marker>
       )}
-    </>
+    </Map>
   );
 }
