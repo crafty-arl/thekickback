@@ -307,42 +307,62 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
           touchAction: "none",
         }}
       >
-        {/* === COLLAPSED: KickBack branding + profile + input === */}
+        {/* === COLLAPSED: [avatar+location] [dot KickBack] [input] [streak] === */}
         {!expanded && (
-          <div className="flex h-full items-center gap-2 px-3">
-            <button
-              onClick={() => setExpanded(true)}
-              className="flex items-center gap-2 pl-1"
-            >
-              <motion.div
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: ACCENT }}
-                animate={{
-                  scale: [1, 1.2, 1],
-                  opacity: [0.8, 1, 0.8],
-                }}
-                transition={{ duration: 3, repeat: Infinity }}
-              />
-              <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-white/90">
-                KickBack
-              </span>
-            </button>
-
-            {/* Profile avatar — tap to expand and show profile */}
-            {user && (
+          <div className="flex h-full items-center gap-1.5 px-2">
+            {/* Left cluster: profile + location */}
+            <div className="flex shrink-0 items-center gap-1">
+              {/* Profile avatar */}
               <button
                 onClick={() => { setExpanded(true); setShowProfile(true); }}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                className="flex h-8 w-8 items-center justify-center rounded-full transition-transform active:scale-90"
                 style={{
-                  backgroundColor: `${TIER_CONFIG[user.tier]?.color || TIER_CONFIG.explorer.color}20`,
-                  border: `1.5px solid ${TIER_CONFIG[user.tier]?.color || TIER_CONFIG.explorer.color}40`,
+                  backgroundColor: user ? `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}15` : "rgba(255,255,255,0.06)",
+                  border: `1.5px solid ${user ? `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}30` : "rgba(255,255,255,0.08)"}`,
                 }}
               >
-                <span className="font-sans text-[10px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || TIER_CONFIG.explorer.color }}>
-                  {user.email[0].toUpperCase()}
-                </span>
+                {user ? (
+                  <span className="font-sans text-[11px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || "#94a3b8" }}>
+                    {user.email[0].toUpperCase()}
+                  </span>
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                  </svg>
+                )}
               </button>
-            )}
+
+              {/* Location */}
+              {hasLocation && onRecenter && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRecenter(); }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full transition-transform active:scale-90"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                  aria-label="Center on my location"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Center: KickBack brand + input */}
+            <button
+              onClick={() => setExpanded(true)}
+              className="flex items-center gap-1.5 pl-1"
+            >
+              <motion.div
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: ACCENT }}
+                animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
+                transition={{ duration: 3, repeat: Infinity }}
+              />
+              <span className="whitespace-nowrap font-sans text-[12px] font-semibold text-white/80">
+                KB
+              </span>
+            </button>
 
             <input
               type="text"
@@ -357,22 +377,12 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
               className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
             />
 
-            {/* Location recenter button */}
-            {hasLocation && onRecenter && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onRecenter(); }}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                }}
-                aria-label="Center on my location"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                </svg>
-              </button>
+            {/* Right: streak indicator */}
+            {user && user.streak > 0 && (
+              <div className="flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(249,115,22,0.08)" }}>
+                <span className="text-[10px]">🔥</span>
+                <span className="font-mono text-[10px] font-bold text-orange">{user.streak}</span>
+              </div>
             )}
           </div>
         )}
@@ -399,48 +409,51 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                   Concierge
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                {/* Profile toggle */}
-                {user && (
+              <div className="flex items-center gap-1.5">
+                {/* Location */}
+                {hasLocation && onRecenter && (
                   <button
-                    onClick={() => setShowProfile(!showProfile)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full transition-all"
-                    style={{
-                      backgroundColor: showProfile
-                        ? `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}20`
-                        : "rgba(255,255,255,0.06)",
-                      border: showProfile
-                        ? `1.5px solid ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}40`
-                        : "1.5px solid rgba(255,255,255,0.08)",
-                    }}
+                    onClick={(e) => { e.stopPropagation(); onRecenter(); }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full transition-transform active:scale-90"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
                   >
-                    <span
-                      className="font-sans text-[10px] font-bold"
-                      style={{ color: showProfile ? (TIER_CONFIG[user.tier]?.color || "#94a3b8") : "rgba(255,255,255,0.4)" }}
-                    >
-                      {user.email[0].toUpperCase()}
-                    </span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                    </svg>
                   </button>
                 )}
-              <motion.button
-                onClick={() => setExpanded(false)}
-                whileTap={{ scale: 0.85 }}
-                className="flex h-7 w-7 items-center justify-center rounded-full"
-                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  className="opacity-50"
+                {/* Profile */}
+                <button
+                  onClick={() => setShowProfile(!showProfile)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full transition-all"
+                  style={{
+                    backgroundColor: showProfile
+                      ? `${TIER_CONFIG[user?.tier || "explorer"]?.color || "#94a3b8"}20`
+                      : "rgba(255,255,255,0.06)",
+                    border: `1.5px solid ${showProfile ? `${TIER_CONFIG[user?.tier || "explorer"]?.color || "#94a3b8"}40` : "rgba(255,255,255,0.08)"}`,
+                  }}
                 >
-                  <polyline points="18 15 12 9 6 15" />
-                </svg>
-              </motion.button>
+                  {user ? (
+                    <span className="font-sans text-[10px] font-bold" style={{ color: showProfile ? (TIER_CONFIG[user.tier]?.color || "#94a3b8") : "rgba(255,255,255,0.4)" }}>
+                      {user.email[0].toUpperCase()}
+                    </span>
+                  ) : (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                    </svg>
+                  )}
+                </button>
+                {/* Collapse */}
+                <motion.button
+                  onClick={() => { setExpanded(false); setShowProfile(false); }}
+                  whileTap={{ scale: 0.85 }}
+                  className="flex h-7 w-7 items-center justify-center rounded-full"
+                  style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-50">
+                    <polyline points="18 15 12 9 6 15" />
+                  </svg>
+                </motion.button>
               </div>
             </div>
 
@@ -455,16 +468,16 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                   className="overflow-hidden"
                 >
                   <div className="px-4 pb-3">
-                    {/* User info */}
-                    <div className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    {/* Identity row */}
+                    <div className="flex items-center gap-3">
                       <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
                         style={{
-                          backgroundColor: `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}18`,
+                          background: `linear-gradient(135deg, ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}30, ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}10)`,
                           border: `2px solid ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}40`,
                         }}
                       >
-                        <span className="font-sans text-[16px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || "#94a3b8" }}>
+                        <span className="font-sans text-[18px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || "#94a3b8" }}>
                           {user.email[0].toUpperCase()}
                         </span>
                       </div>
@@ -474,59 +487,101 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                           <span
                             className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider"
                             style={{
-                              backgroundColor: `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}18`,
+                              backgroundColor: `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}15`,
                               color: TIER_CONFIG[user.tier]?.color || "#94a3b8",
                             }}
                           >
                             {TIER_CONFIG[user.tier]?.label || "Explorer"}
                           </span>
+                          {user.streak > 0 && (
+                            <span className="flex items-center gap-1 font-sans text-[10px] font-semibold text-orange">
+                              🔥 {user.streak}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                      <button
-                        onClick={() => setShowProfile(false)}
-                        className="flex h-6 w-6 items-center justify-center rounded-full"
-                        style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-40">
-                          <polyline points="18 15 12 9 6 15" />
-                        </svg>
-                      </button>
-                    </div>
-
-                    {/* Stats row */}
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      <div className="rounded-xl px-3 py-2.5 text-center" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                        <p className="font-mono text-[16px] font-bold" style={{ color: ACCENT }}>{user.points.toLocaleString()}</p>
-                        <p className="font-sans text-[9px] font-medium tracking-wide text-white/25">POINTS</p>
-                      </div>
-                      <div className="rounded-xl px-3 py-2.5 text-center" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                        <p className="font-mono text-[16px] font-bold text-white/70">{user.venuesVisited}</p>
-                        <p className="font-sans text-[9px] font-medium tracking-wide text-white/25">VENUES</p>
-                      </div>
-                      <div className="rounded-xl px-3 py-2.5 text-center" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                        <p className="font-mono text-[16px] font-bold text-white/70">{user.streak > 0 ? `${user.streak}wk` : "—"}</p>
-                        <p className="font-sans text-[9px] font-medium tracking-wide text-white/25">STREAK</p>
                       </div>
                     </div>
 
-                    {/* Tier progress */}
-                    {TIER_CONFIG[user.tier]?.next && (
-                      <div className="mt-2">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${Math.min((user.totalEarned / TIER_CONFIG[user.tier].threshold) * 100, 100)}%`,
-                              backgroundColor: TIER_CONFIG[user.tier].color,
-                            }}
-                          />
-                        </div>
-                        <div className="mt-1 flex justify-between">
-                          <span className="font-sans text-[9px] text-white/20">{user.totalEarned.toLocaleString()} earned</span>
-                          <span className="font-sans text-[9px] text-white/20">{TIER_CONFIG[user.tier].threshold.toLocaleString()} for {TIER_CONFIG[user.tier].next}</span>
-                        </div>
+                    {/* XP Meter */}
+                    <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">XP</span>
+                        <span className="font-mono text-[13px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || "#94a3b8" }}>
+                          {user.points.toLocaleString()}
+                          {TIER_CONFIG[user.tier]?.next && (
+                            <span className="text-white/20 font-normal"> / {TIER_CONFIG[user.tier].threshold.toLocaleString()}</span>
+                          )}
+                        </span>
                       </div>
-                    )}
+                      <div className="relative h-2.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${TIER_CONFIG[user.tier]?.next ? Math.min((user.totalEarned / TIER_CONFIG[user.tier].threshold) * 100, 100) : 100}%` }}
+                          transition={{ duration: 0.8, ease: "easeOut" }}
+                          className="h-full rounded-full"
+                          style={{
+                            background: `linear-gradient(90deg, ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}, ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}cc)`,
+                            boxShadow: `0 0 10px ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}40`,
+                          }}
+                        />
+                        {/* Tier markers */}
+                        {TIER_CONFIG[user.tier]?.next && (
+                          <div className="absolute inset-0 flex items-center">
+                            {[500, 1500, 5000].map((t) => {
+                              const pos = (t / TIER_CONFIG[user.tier].threshold) * 100;
+                              if (pos > 100 || pos < 5) return null;
+                              return <div key={t} className="absolute h-full w-px bg-white/10" style={{ left: `${pos}%` }} />;
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      {TIER_CONFIG[user.tier]?.next && (
+                        <p className="mt-1.5 font-sans text-[9px] text-white/20">
+                          {(TIER_CONFIG[user.tier].threshold - user.totalEarned).toLocaleString()} XP to {TIER_CONFIG[user.tier].next}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Venue Badges */}
+                    <div className="mt-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">VENUES COLLECTED</span>
+                        <span className="font-mono text-[11px] font-bold text-white/40">{user.venuesVisited}</span>
+                      </div>
+                      {user.venuesVisited > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {/* Show venue badge circles — each visited venue gets a colored circle */}
+                          {Array.from({ length: Math.min(user.venuesVisited, 12) }).map((_, i) => {
+                            const colors = ["#f97316", "#4ade80", "#facc15", "#f87171", "#a78bfa", "#60a5fa", "#fb923c", "#34d399", "#fbbf24", "#f472b6", "#818cf8", "#38bdf8"];
+                            return (
+                              <div
+                                key={i}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg"
+                                style={{
+                                  backgroundColor: `${colors[i % colors.length]}12`,
+                                  border: `1.5px solid ${colors[i % colors.length]}25`,
+                                }}
+                              >
+                                <div
+                                  className="h-2.5 w-2.5 rounded-full"
+                                  style={{
+                                    backgroundColor: colors[i % colors.length],
+                                    boxShadow: `0 0 6px ${colors[i % colors.length]}40`,
+                                  }}
+                                />
+                              </div>
+                            );
+                          })}
+                          {user.venuesVisited > 12 && (
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                              <span className="font-mono text-[9px] font-bold text-white/30">+{user.venuesVisited - 12}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="font-sans text-[11px] text-white/20">Visit venues to collect badges</p>
+                      )}
+                    </div>
 
                     {/* Sign out */}
                     <button
@@ -535,9 +590,12 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                         await supabase.auth.signOut();
                         window.location.reload();
                       }}
-                      className="mt-3 w-full rounded-xl py-2 font-sans text-[12px] font-medium text-white/30 transition hover:bg-white/[0.04]"
-                      style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
+                      style={{ border: "1px solid rgba(255,255,255,0.05)" }}
                     >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                      </svg>
                       Sign Out
                     </button>
                   </div>
