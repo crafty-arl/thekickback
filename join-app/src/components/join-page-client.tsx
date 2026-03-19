@@ -84,12 +84,9 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 mapRef={mapRef}
             />
 
-            {/* Header overlay — logo + location button */}
+            {/* Header overlay — logo only */}
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
-                <header className="pointer-events-auto flex items-center justify-between px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2">
-                    {/* Spacer for centering */}
-                    <div className="w-10" />
-
+                <header className="pointer-events-auto flex items-center justify-center px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2">
                     <Image
                         src="/logo.png"
                         alt="theKickBack"
@@ -99,29 +96,6 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                         style={{ filter: "invert(1)" }}
                         priority
                     />
-
-                    {/* Location recenter button — matches pill aesthetic */}
-                    {userLocation ? (
-                        <button
-                            onClick={handleRecenter}
-                            className="flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-90"
-                            style={{
-                                backgroundColor: "rgba(15, 15, 18, 0.65)",
-                                backdropFilter: "blur(40px) saturate(1.8)",
-                                WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-                                border: "1px solid rgba(255,255,255,0.08)",
-                                boxShadow: "0 2px 12px rgba(0,0,0,0.25)",
-                            }}
-                            aria-label="Center on my location"
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="3" />
-                                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                            </svg>
-                        </button>
-                    ) : (
-                        <div className="w-10" />
-                    )}
                 </header>
             </div>
 
@@ -187,6 +161,8 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                         key="master"
                         venues={venues}
                         onVenueSelect={setSelectedVenue}
+                        onRecenter={handleRecenter}
+                        hasLocation={!!userLocation}
                     />
                 )}
             </AnimatePresence>

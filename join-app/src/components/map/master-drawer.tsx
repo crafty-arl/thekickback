@@ -14,6 +14,8 @@ interface Message {
 interface MasterDrawerProps {
   venues: Venue[];
   onVenueSelect: (venue: Venue) => void;
+  onRecenter?: () => void;
+  hasLocation?: boolean;
 }
 
 const ACCENT = "#a78bfa"; // soft purple for the master agent
@@ -63,7 +65,7 @@ function parseVenueChips(
   });
 }
 
-export function MasterDrawer({ venues, onVenueSelect }: MasterDrawerProps) {
+export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }: MasterDrawerProps) {
   const [expanded, setExpanded] = useState(false);
   const controls = useAnimationControls();
 
@@ -234,6 +236,24 @@ export function MasterDrawer({ venues, onVenueSelect }: MasterDrawerProps) {
               autoCorrect="off"
               className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
             />
+
+            {/* Location recenter button */}
+            {hasLocation && onRecenter && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRecenter(); }}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
+                aria-label="Center on my location"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                </svg>
+              </button>
+            )}
           </div>
         )}
 
@@ -341,8 +361,8 @@ export function MasterDrawer({ venues, onVenueSelect }: MasterDrawerProps) {
                   >
                     <div
                       className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.sender === "guest"
-                          ? "rounded-br-sm"
-                          : "rounded-bl-sm"
+                        ? "rounded-br-sm"
+                        : "rounded-bl-sm"
                         }`}
                       style={
                         msg.sender === "guest"
