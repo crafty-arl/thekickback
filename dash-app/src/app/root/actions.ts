@@ -2,10 +2,10 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 // ─── Admin whitelist ─────────────────────────────────────────────
-// Only these emails can access /root. Add more via the admin dashboard.
 const ROOT_EMAILS: string[] = [
     "carl@craftthefuture.xyz",
 ];
@@ -16,6 +16,10 @@ const service = createClient(
 );
 
 async function assertRoot(): Promise<string> {
+    const cookieStore = await cookies();
+    const rootToken = cookieStore.get("root_access")?.value;
+    if (!rootToken) throw new Error("Root access required");
+
     const supabase = await createAuthClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
@@ -62,6 +66,16 @@ export async function rootVerifyOtp(email: string, token: string) {
             { onConflict: "id" },
         );
     }
+
+    // Set root access cookie — expires in 1 hour
+    const cookieStore = await cookies();
+    cookieStore.set("root_access", "granted", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60, // 1 hour
+        path: "/root",
+    });
 
     revalidatePath("/root");
     return { success: true };
