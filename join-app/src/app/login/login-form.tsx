@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { sendOtp, verifyOtp } from "./actions";
+import { getDeviceId } from "@/lib/device-id";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
@@ -14,6 +15,12 @@ export function LoginForm() {
   const [step, setStep] = useState<"email" | "verify">("email");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deviceId, setDeviceId] = useState("");
+
+  // Generate device fingerprint on mount
+  useEffect(() => {
+    getDeviceId().then(setDeviceId);
+  }, []);
 
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
@@ -37,7 +44,10 @@ export function LoginForm() {
     setError("");
     setLoading(true);
 
-    const result = await verifyOtp(email, otpCode, returnTo);
+    // Ensure we have a device ID
+    const did = deviceId || (await getDeviceId());
+
+    const result = await verifyOtp(email, otpCode, did, returnTo);
 
     if (result?.error) {
       setError(result.error);
