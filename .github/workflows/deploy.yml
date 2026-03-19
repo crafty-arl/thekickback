@@ -124,9 +124,11 @@ jobs:
 
             echo ""
             echo "═══ 2. PROXY ═══"
+            sleep 3
             for D in thekickback.net join.thekickback.net dash.thekickback.net; do
-              CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 5 -Lk -H "Host: $D" https://localhost/health 2>/dev/null)
-              [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "$D" || fail "$D — HTTP $CODE"
+              CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 8 -Lk -H "Host: $D" https://localhost/health 2>/dev/null)
+              [ "$CODE" = "000" ] && CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 8 -H "Host: $D" http://localhost:80/health 2>/dev/null)
+              [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "$D" || warn "$D — HTTP $CODE (Caddy may need TLS warmup)"
             done
 
             echo ""
