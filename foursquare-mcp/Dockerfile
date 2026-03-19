@@ -2,10 +2,8 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY pyproject.toml .
+COPY pyproject.toml server.py ./
 RUN pip install --no-cache-dir .
-
-COPY server.py .
 
 EXPOSE 8080
 
