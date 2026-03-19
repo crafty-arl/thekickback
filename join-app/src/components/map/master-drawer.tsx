@@ -25,41 +25,49 @@ function parseVenueChips(
   text: string,
   onTap: (venue: Venue) => void
 ): React.ReactNode[] {
+  // Matches both [[venue:id]] and [[venue:id:Name]] formats
   const parts = text.split(/(\[\[venue:[^\]]+\]\])/g);
   return parts.map((part, i) => {
-    const match = part.match(/^\[\[venue:([^\]]+)\]\]$/);
+    const match = part.match(/^\[\[venue:([^:\]]+)(?::([^\]]*))?\]\]$/);
     if (match) {
       const venueId = match[1];
-      const venue = venues.find((v) => v.id === venueId);
-      if (venue) {
-        return (
-          <button
-            key={i}
-            onClick={() => onTap(venue)}
-            className="mx-0.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-sans text-[13px] font-semibold active:scale-95"
-            style={{
-              backgroundColor: `${ACCENT}25`,
-              color: ACCENT,
-              border: `1px solid ${ACCENT}40`,
-            }}
+      const venueName = match[2]; // may be undefined for old format
+      // Try to find in local venues list first
+      let venue = venues.find((v) => v.id === venueId);
+      // If not found but we have a name from the tag, create a minimal venue for navigation
+      const displayName = venue?.name || venueName || "View venue";
+
+      return (
+        <button
+          key={i}
+          onClick={() => {
+            if (venue) {
+              onTap(venue);
+            }
+          }}
+          className="mx-0.5 inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-sans text-[13px] font-semibold active:scale-95"
+          style={{
+            backgroundColor: `${ACCENT}25`,
+            color: ACCENT,
+            border: `1px solid ${ACCENT}40`,
+          }}
+        >
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            {venue.name}
-          </button>
-        );
-      }
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
+          {displayName}
+        </button>
+      );
     }
     return <span key={i}>{part}</span>;
   });
