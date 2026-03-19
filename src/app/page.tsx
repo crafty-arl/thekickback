@@ -376,7 +376,7 @@ export default function Home() {
               height={30}
               className="h-5 w-auto invert"
             />
-            <span className="font-sans text-[11px] text-white/20">The digital front door for real-world venues.</span>
+            <span className="font-sans text-[11px] text-white/20">The culture layer for real-world venues.</span>
           </div>
           <div className="flex gap-6">
             <a href="https://dash.thekickback.net" className="font-sans text-[12px] text-white/30 transition hover:text-white/50">Dashboard</a>

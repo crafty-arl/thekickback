@@ -1,24 +1,26 @@
+/* eslint-disable react-compiler/react-compiler */
 "use client";
 
 import { useRef, useMemo, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Stars } from "@react-three/drei";
 import * as THREE from "three";
 
-/* ── Venue orbs floating in 3D space ── */
-function VenueOrbs() {
+/* ── City lights: warm dots scattered like a city seen from above ── */
+function CityLights() {
   const ref = useRef<THREE.Group>(null);
-  const orbs = useMemo(() => {
-    const colors = ["#f97316", "#4ade80", "#facc15", "#f87171", "#a78bfa"];
-    return Array.from({ length: 40 }, (_, i) => ({
+  const lights = useMemo(() => {
+    const warm = ["#f97316", "#facc15", "#fbbf24", "#fb923c", "#fca5a1", "#fdba74"];
+    const cool = ["#a78bfa", "#60a5fa"];
+    const all = [...warm, ...warm, ...warm, ...cool]; // mostly warm
+    return Array.from({ length: 80 }, (_, i) => ({
       position: [
-        (Math.random() - 0.5) * 60,
-        (Math.random() - 0.5) * 60,
-        (Math.random() - 0.5) * 40 - 10,
+        (Math.random() - 0.5) * 80,
+        (Math.random() - 0.5) * 40 - 5,
+        (Math.random() - 0.5) * 50 - 15,
       ] as [number, number, number],
-      color: colors[i % colors.length],
-      size: Math.random() * 0.15 + 0.05,
-      speed: Math.random() * 0.3 + 0.1,
+      color: all[i % all.length],
+      size: Math.random() * 0.08 + 0.02,
+      speed: Math.random() * 0.4 + 0.1,
       phase: Math.random() * Math.PI * 2,
     }));
   }, []);
@@ -27,36 +29,31 @@ function VenueOrbs() {
     if (!ref.current) return;
     const t = clock.getElapsedTime();
     ref.current.children.forEach((child, i) => {
-      const orb = orbs[i];
-      child.position.y += Math.sin(t * orb.speed + orb.phase) * 0.002;
-      const s = 1 + Math.sin(t * orb.speed * 2 + orb.phase) * 0.3;
-      child.scale.setScalar(s);
+      const light = lights[i];
+      // Gentle flicker like distant city windows
+      const flicker = 0.5 + Math.sin(t * light.speed * 3 + light.phase) * 0.5;
+      child.scale.setScalar(0.6 + flicker * 0.8);
     });
   });
 
   return (
     <group ref={ref}>
-      {orbs.map((orb, i) => (
-        <group key={i} position={orb.position}>
-          {/* Glow */}
+      {lights.map((light, i) => (
+        <group key={i} position={light.position}>
+          {/* Soft glow */}
           <mesh>
-            <sphereGeometry args={[orb.size * 3, 16, 16]} />
-            <meshBasicMaterial color={orb.color} transparent opacity={0.04} />
-          </mesh>
-          {/* Ring */}
-          <mesh>
-            <ringGeometry args={[orb.size * 1.5, orb.size * 1.8, 32]} />
+            <sphereGeometry args={[light.size * 4, 8, 8]} />
             <meshBasicMaterial
-              color={orb.color}
+              color={light.color}
               transparent
-              opacity={0.08}
-              side={THREE.DoubleSide}
+              opacity={0.03}
+              blending={THREE.AdditiveBlending}
             />
           </mesh>
-          {/* Core */}
+          {/* Core point */}
           <mesh>
-            <sphereGeometry args={[orb.size, 16, 16]} />
-            <meshBasicMaterial color={orb.color} />
+            <sphereGeometry args={[light.size, 8, 8]} />
+            <meshBasicMaterial color={light.color} transparent opacity={0.7} />
           </mesh>
         </group>
       ))}
@@ -64,20 +61,19 @@ function VenueOrbs() {
   );
 }
 
-/* ── Nebula clouds ── */
-function NebulaClouds() {
+/* ── Warm ambient haze — like city glow on clouds ── */
+function CityHaze() {
   const ref = useRef<THREE.Group>(null);
-  const clouds = useMemo(
+  const patches = useMemo(
     () =>
-      Array.from({ length: 8 }, (_, i) => ({
+      Array.from({ length: 6 }, () => ({
         position: [
-          (Math.random() - 0.5) * 50,
-          (Math.random() - 0.5) * 40,
-          -20 - Math.random() * 20,
+          (Math.random() - 0.5) * 60,
+          (Math.random() - 0.5) * 30 - 5,
+          -25 - Math.random() * 15,
         ] as [number, number, number],
-        scale: Math.random() * 8 + 4,
-        color: ["#f97316", "#a78bfa", "#4ade80", "#f87171"][i % 4],
-        rotation: Math.random() * Math.PI,
+        scale: Math.random() * 12 + 6,
+        color: ["#f97316", "#facc15", "#fbbf24"][Math.floor(Math.random() * 3)],
       })),
     []
   );
@@ -86,19 +82,19 @@ function NebulaClouds() {
     if (!ref.current) return;
     const t = clock.getElapsedTime();
     ref.current.children.forEach((child, i) => {
-      child.rotation.z = clouds[i].rotation + t * 0.01;
+      child.rotation.z = t * 0.005 + i;
     });
   });
 
   return (
     <group ref={ref}>
-      {clouds.map((cloud, i) => (
-        <mesh key={i} position={cloud.position}>
-          <planeGeometry args={[cloud.scale, cloud.scale]} />
+      {patches.map((patch, i) => (
+        <mesh key={i} position={patch.position}>
+          <planeGeometry args={[patch.scale, patch.scale]} />
           <meshBasicMaterial
-            color={cloud.color}
+            color={patch.color}
             transparent
-            opacity={0.015}
+            opacity={0.012}
             side={THREE.DoubleSide}
             blending={THREE.AdditiveBlending}
           />
@@ -108,12 +104,12 @@ function NebulaClouds() {
   );
 }
 
-/* ── Grid floor ── */
-function GridFloor() {
+/* ── Street grid floor ── */
+function StreetGrid() {
   return (
     <group rotation={[-Math.PI / 2, 0, 0]} position={[0, -15, -10]}>
       <gridHelper
-        args={[100, 40, "rgba(255,255,255,0.03)", "rgba(255,255,255,0.02)"]}
+        args={[100, 40, "rgba(249,115,22,0.03)", "rgba(255,255,255,0.015)"]}
         rotation={[Math.PI / 2, 0, 0]}
       />
     </group>
@@ -136,11 +132,8 @@ function ScrollCamera() {
   }, []);
 
   useFrame(() => {
-    // Smooth lerp toward target
     scrollRef.current += (targetRef.current - scrollRef.current) * 0.05;
     const t = scrollRef.current;
-
-    // Camera drifts through space as user scrolls
     camera.position.y = 2 - t * 8;
     camera.position.z = 20 - t * 15;
     camera.rotation.x = -t * 0.15;
@@ -156,8 +149,8 @@ function AmbientRotation({ children }: { children: React.ReactNode }) {
   useFrame(({ clock }) => {
     if (!ref.current) return;
     const t = clock.getElapsedTime();
-    ref.current.rotation.y = t * 0.008;
-    ref.current.rotation.x = Math.sin(t * 0.005) * 0.02;
+    ref.current.rotation.y = t * 0.006;
+    ref.current.rotation.x = Math.sin(t * 0.004) * 0.015;
   });
 
   return <group ref={ref}>{children}</group>;
@@ -186,30 +179,20 @@ export function Skybox() {
           powerPreference: "high-performance",
         }}
         dpr={[1, 1.5]}
-        style={{ background: "#000" }}
+        style={{ background: "#0a0a0c" }}
       >
-        <fog attach="fog" args={["#000", 30, 80]} />
+        {/* Warm fog — city atmosphere */}
+        <fog attach="fog" args={["#0a0a0c", 25, 70]} />
 
         <ScrollCamera />
 
         <AmbientRotation>
-          <Stars
-            radius={60}
-            depth={50}
-            count={3000}
-            factor={3}
-            saturation={0}
-            fade
-            speed={0.5}
-          />
-
-          <VenueOrbs />
-          <NebulaClouds />
-          <GridFloor />
+          <CityLights />
+          <CityHaze />
+          <StreetGrid />
         </AmbientRotation>
 
-        {/* Subtle ambient light */}
-        <ambientLight intensity={0.1} />
+        <ambientLight intensity={0.08} color="#f97316" />
       </Canvas>
     </div>
   );
