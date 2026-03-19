@@ -18,9 +18,11 @@ services:
       dash-app:
         condition: service_healthy
       claw:
-        condition: service_healthy
+        condition: service_started
+        required: false
       wallet-service:
-        condition: service_healthy
+        condition: service_started
+        required: false
     restart: always
     networks:
       - kickback

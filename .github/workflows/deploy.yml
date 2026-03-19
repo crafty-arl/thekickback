@@ -56,31 +56,40 @@ jobs:
             # Clean up dead containers
             docker container prune -f 2>/dev/null || true
 
-            # Rebuild app services
+            # Rebuild and deploy the 3 core app services
             docker compose build --no-cache landing-blue join-app dash-app
-
-            # Bring up entire stack — docker compose starts deps + recreates changed services
             docker compose up -d --force-recreate landing-blue join-app dash-app
-            docker compose up -d
 
-            # Wait for app services + Caddy to be healthy
-            echo "Waiting for health checks..."
-            for SERVICE in landing-blue join-app dash-app kickback-caddy; do
+            # Wait for app services to be healthy
+            echo "Waiting for app health checks..."
+            for SERVICE in landing-blue join-app dash-app; do
               RETRIES=30
-              until docker inspect $SERVICE --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy" || \
-                    docker inspect $SERVICE --format '{{.State.Status}}' 2>/dev/null | grep -q "running"; do
+              until docker inspect $SERVICE --format '{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; do
                 RETRIES=$((RETRIES - 1))
                 if [ $RETRIES -le 0 ]; then
-                  echo "FAIL: $SERVICE never became ready"
+                  echo "FAIL: $SERVICE health check never passed"
                   docker logs $SERVICE --tail 20
                   exit 1
                 fi
                 sleep 2
               done
-              echo "$SERVICE is ready"
+              echo "$SERVICE is healthy"
             done
 
-            echo "Deploy verified: all services healthy"
+            # Start Caddy (and optional deps like wallet-service)
+            # Caddy depends_on the 3 apps with service_healthy, claw/wallet with service_started (optional)
+            docker compose up -d --force-recreate caddy
+            sleep 5
+
+            # Verify Caddy is running
+            if ! docker inspect kickback-caddy --format '{{.State.Status}}' 2>/dev/null | grep -q "running"; then
+              echo "FAIL: Caddy is not running"
+              docker logs kickback-caddy --tail 20 2>&1 || true
+              exit 1
+            fi
+            echo "Caddy is running"
+
+            echo "Deploy complete"
 
       - name: Verify health
         uses: appleboy/ssh-action@v1
