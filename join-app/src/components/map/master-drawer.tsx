@@ -114,13 +114,21 @@ const TIER_CONFIG: Record<string, { color: string; label: string; next: string; 
   vip: { color: "#a78bfa", label: "VIP", next: "", threshold: Infinity },
 };
 
+interface VenueXpProfile {
+  venue_id: string;
+  xp: number;
+  visits: number;
+  venues?: { id: string; name: string; vibe: string };
+  venue_xp_milestones?: { name: string; color: string; threshold: number } | null;
+}
+
 interface UserProfile {
   email: string;
-  points: number;
+  kickbackScore: number;
   totalEarned: number;
   tier: string;
   streak: number;
-  venuesVisited: number;
+  venueProfiles: VenueXpProfile[];
 }
 
 export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }: MasterDrawerProps) {
@@ -141,20 +149,20 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
         const data = await res.json();
         setUser({
           email: authUser.email,
-          points: data.balance?.balance || 0,
+          kickbackScore: data.balance?.kickback_score || data.balance?.total_earned || 0,
           totalEarned: data.balance?.total_earned || 0,
           tier: data.balance?.tier || "explorer",
           streak: data.balance?.current_streak || 0,
-          venuesVisited: data.balance?.venues_visited || 0,
+          venueProfiles: data.venueProfiles || [],
         });
       } catch {
         setUser({
           email: authUser.email,
-          points: 0,
+          kickbackScore: 0,
           totalEarned: 0,
           tier: "explorer",
           streak: 0,
-          venuesVisited: 0,
+          venueProfiles: [],
         });
       }
     });
@@ -502,12 +510,12 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                       </div>
                     </div>
 
-                    {/* XP Meter */}
+                    {/* KickBack Score — XP meter (aggregate of all venue XP) */}
                     <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">XP</span>
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">KICKBACK SCORE</span>
                         <span className="font-mono text-[13px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || "#94a3b8" }}>
-                          {user.points.toLocaleString()}
+                          {user.kickbackScore.toLocaleString()}
                           {TIER_CONFIG[user.tier]?.next && (
                             <span className="text-white/20 font-normal"> / {TIER_CONFIG[user.tier].threshold.toLocaleString()}</span>
                           )}
@@ -516,7 +524,7 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                       <div className="relative h-2.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${TIER_CONFIG[user.tier]?.next ? Math.min((user.totalEarned / TIER_CONFIG[user.tier].threshold) * 100, 100) : 100}%` }}
+                          animate={{ width: `${TIER_CONFIG[user.tier]?.next ? Math.min((user.kickbackScore / TIER_CONFIG[user.tier].threshold) * 100, 100) : 100}%` }}
                           transition={{ duration: 0.8, ease: "easeOut" }}
                           className="h-full rounded-full"
                           style={{
@@ -524,62 +532,61 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                             boxShadow: `0 0 10px ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}40`,
                           }}
                         />
-                        {/* Tier markers */}
-                        {TIER_CONFIG[user.tier]?.next && (
-                          <div className="absolute inset-0 flex items-center">
-                            {[500, 1500, 5000].map((t) => {
-                              const pos = (t / TIER_CONFIG[user.tier].threshold) * 100;
-                              if (pos > 100 || pos < 5) return null;
-                              return <div key={t} className="absolute h-full w-px bg-white/10" style={{ left: `${pos}%` }} />;
-                            })}
-                          </div>
-                        )}
                       </div>
                       {TIER_CONFIG[user.tier]?.next && (
                         <p className="mt-1.5 font-sans text-[9px] text-white/20">
-                          {(TIER_CONFIG[user.tier].threshold - user.totalEarned).toLocaleString()} XP to {TIER_CONFIG[user.tier].next}
+                          {(TIER_CONFIG[user.tier].threshold - user.kickbackScore).toLocaleString()} XP to {TIER_CONFIG[user.tier].next}
                         </p>
                       )}
                     </div>
 
-                    {/* Venue Badges */}
+                    {/* Venue Badges — real per-venue XP profiles */}
                     <div className="mt-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">VENUES COLLECTED</span>
-                        <span className="font-mono text-[11px] font-bold text-white/40">{user.venuesVisited}</span>
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">VENUES</span>
+                        <span className="font-mono text-[11px] font-bold text-white/40">{user.venueProfiles.length}</span>
                       </div>
-                      {user.venuesVisited > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {/* Show venue badge circles — each visited venue gets a colored circle */}
-                          {Array.from({ length: Math.min(user.venuesVisited, 12) }).map((_, i) => {
-                            const colors = ["#f97316", "#4ade80", "#facc15", "#f87171", "#a78bfa", "#60a5fa", "#fb923c", "#34d399", "#fbbf24", "#f472b6", "#818cf8", "#38bdf8"];
+                      {user.venueProfiles.length > 0 ? (
+                        <div className="flex flex-col gap-1.5">
+                          {user.venueProfiles.slice(0, 6).map((vp) => {
+                            const milestoneColor = vp.venue_xp_milestones?.color || "#94a3b8";
+                            const milestoneName = vp.venue_xp_milestones?.name;
+                            const venueName = vp.venues?.name || "Venue";
                             return (
                               <div
-                                key={i}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg"
-                                style={{
-                                  backgroundColor: `${colors[i % colors.length]}12`,
-                                  border: `1.5px solid ${colors[i % colors.length]}25`,
-                                }}
+                                key={vp.venue_id}
+                                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2"
+                                style={{ backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}
                               >
+                                {/* Badge dot */}
                                 <div
-                                  className="h-2.5 w-2.5 rounded-full"
-                                  style={{
-                                    backgroundColor: colors[i % colors.length],
-                                    boxShadow: `0 0 6px ${colors[i % colors.length]}40`,
-                                  }}
-                                />
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                                  style={{ backgroundColor: `${milestoneColor}15`, border: `1.5px solid ${milestoneColor}30` }}
+                                >
+                                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: milestoneColor, boxShadow: `0 0 6px ${milestoneColor}50` }} />
+                                </div>
+                                {/* Venue name + milestone */}
+                                <div className="flex-1 min-w-0">
+                                  <p className="truncate font-sans text-[11px] font-semibold text-white/70">{venueName}</p>
+                                  <p className="font-sans text-[9px] text-white/25">
+                                    {milestoneName || "New"} · {vp.visits} visit{vp.visits !== 1 ? "s" : ""}
+                                  </p>
+                                </div>
+                                {/* XP at this venue */}
+                                <span className="font-mono text-[11px] font-bold" style={{ color: milestoneColor }}>
+                                  {vp.xp.toLocaleString()}
+                                </span>
                               </div>
                             );
                           })}
-                          {user.venuesVisited > 12 && (
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
-                              <span className="font-mono text-[9px] font-bold text-white/30">+{user.venuesVisited - 12}</span>
-                            </div>
+                          {user.venueProfiles.length > 6 && (
+                            <p className="text-center font-sans text-[9px] text-white/20">
+                              +{user.venueProfiles.length - 6} more venues
+                            </p>
                           )}
                         </div>
                       ) : (
-                        <p className="font-sans text-[11px] text-white/20">Visit venues to collect badges</p>
+                        <p className="font-sans text-[11px] text-white/20">Visit venues to start earning XP</p>
                       )}
                     </div>
 

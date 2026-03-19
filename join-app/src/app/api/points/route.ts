@@ -21,35 +21,73 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "userId required" }, { status: 400 });
   }
 
-  // Fetch balance, venue perks, active challenges, and user's recent points at this venue
-  const [balance, perks, challenges, recentPoints] = await Promise.all([
-    // User's point balance
+  const queries: Promise<unknown>[] = [
+    // KickBack score (aggregate)
     supabaseGet(`point_balances?user_id=eq.${userId}&select=*`),
 
-    // Perks at this venue (if venueId provided)
-    venueId
-      ? supabaseGet(`venue_perks?venue_id=eq.${venueId}&active=eq.true&order=sort_order.asc&select=*`)
-      : Promise.resolve([]),
+    // All venue XP profiles for this user (for badge collection)
+    supabaseGet(
+      `user_venue_xp?user_id=eq.${userId}&select=*,venues(id,name,vibe),venue_xp_milestones(name,color,threshold)&order=xp.desc`
+    ),
 
     // Active challenges
     supabaseGet(`challenges?active=eq.true&select=*`),
+  ];
 
-    // Recent point events for this user at this venue
-    venueId
-      ? supabaseGet(
-          `point_ledger?user_id=eq.${userId}&venue_id=eq.${venueId}&order=created_at.desc&limit=10&select=*`
-        )
-      : Promise.resolve([]),
-  ]);
+  // If viewing a specific venue, also fetch venue-specific data
+  if (venueId) {
+    queries.push(
+      // This venue's XP actions (what earns XP here)
+      supabaseGet(`venue_xp_actions?venue_id=eq.${venueId}&active=eq.true&order=sort_order.asc&select=*`),
+      // This venue's milestones
+      supabaseGet(`venue_xp_milestones?venue_id=eq.${venueId}&order=threshold.asc&select=*`),
+      // User's XP at this venue
+      supabaseGet(`user_venue_xp?user_id=eq.${userId}&venue_id=eq.${venueId}&select=*`),
+      // Perks at this venue
+      supabaseGet(`venue_perks?venue_id=eq.${venueId}&active=eq.true&order=sort_order.asc&select=*`),
+    );
+  }
 
-  const userBalance = Array.isArray(balance) && balance.length > 0
-    ? balance[0]
-    : { balance: 0, total_earned: 0, total_spent: 0, tier: "explorer", venues_visited: 0, current_streak: 0 };
+  const results = await Promise.all(queries);
 
-  return NextResponse.json({
-    balance: userBalance,
-    perks: Array.isArray(perks) ? perks : [],
+  const [balanceRes, venueXpProfiles, challenges] = results as [
+    Record<string, unknown>[],
+    Record<string, unknown>[],
+    Record<string, unknown>[],
+  ];
+
+  const kickbackScore =
+    Array.isArray(balanceRes) && balanceRes.length > 0
+      ? balanceRes[0]
+      : {
+          balance: 0,
+          total_earned: 0,
+          total_spent: 0,
+          tier: "explorer",
+          venues_visited: 0,
+          current_streak: 0,
+          kickback_score: 0,
+        };
+
+  const response: Record<string, unknown> = {
+    balance: kickbackScore,
+    venueProfiles: Array.isArray(venueXpProfiles) ? venueXpProfiles : [],
     challenges: Array.isArray(challenges) ? challenges : [],
-    recentPoints: Array.isArray(recentPoints) ? recentPoints : [],
-  });
+  };
+
+  if (venueId) {
+    const [xpActions, milestones, venueXp, perks] = results.slice(3) as [
+      Record<string, unknown>[],
+      Record<string, unknown>[],
+      Record<string, unknown>[],
+      Record<string, unknown>[],
+    ];
+
+    response.venueXpActions = Array.isArray(xpActions) ? xpActions : [];
+    response.venueMilestones = Array.isArray(milestones) ? milestones : [];
+    response.venueXp = Array.isArray(venueXp) && venueXp.length > 0 ? venueXp[0] : { xp: 0, visits: 0 };
+    response.perks = Array.isArray(perks) ? perks : [];
+  }
+
+  return NextResponse.json(response);
 }
