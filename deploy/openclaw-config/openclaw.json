@@ -1,15 +1,21 @@
 {
-  "mcpServers": {
-    "foursquare-places": {
-      "url": "http://foursquare-mcp:8080/sse"
-    }
-  },
   "gateway": {
+    "bind": "lan",
     "http": {
       "endpoints": {
         "responses": {
           "enabled": true
         }
+      }
+    },
+    "controlUi": {
+      "dangerouslyAllowHostHeaderOriginFallback": true
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openrouter/anthropic/claude-sonnet-4"
       }
     }
   }

@@ -142,6 +142,7 @@ services:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: claw
     init: true
+    command: ["openclaw", "gateway", "run", "--bind", "lan", "--allow-unconfigured"]
     environment:
       - HOME=/home/node
       - TERM=xterm-256color
@@ -157,7 +158,6 @@ services:
     volumes:
       - claw_config:/home/node/.openclaw
       - claw_workspace:/home/node/.openclaw/workspace
-      - ./openclaw-config/openclaw.json:/home/node/.openclaw/openclaw.json:ro
     expose:
       - "18789"
     healthcheck:
