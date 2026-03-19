@@ -257,6 +257,81 @@ export function ReserveCard({ body, venue, vibeColor }: TabCardProps) {
   );
 }
 
+// ─── Shop Card (Products, Services, Packages) ──────────────────
+
+export function ShopCard({ body, venue, vibeColor }: TabCardProps) {
+  const [offerings, setOfferings] = useState<{ id: string; type: string; name: string; description: string | null; price_cents: number }[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/offerings?venueId=${venue.id}`)
+      .then((r) => r.ok ? r.json() : { offerings: [] })
+      .then((d) => setOfferings(d.offerings || []))
+      .catch(() => {});
+  }, [venue.id]);
+
+  const typeIcons: Record<string, string> = {
+    membership: "👑", reservation: "🪑", service: "✂️", product: "☕",
+    event: "🎟️", package: "📦", custom: "✦",
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      className="w-full overflow-hidden rounded-2xl"
+      style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: `${vibeColor}20` }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+          </svg>
+        </div>
+        <span className="font-sans text-[14px] font-bold text-white/90">Shop</span>
+        <span className="font-sans text-[11px] text-white/25">{venue.name}</span>
+      </div>
+
+      {/* AI description */}
+      <div className="px-4 pb-2">
+        <p className="whitespace-pre-wrap font-sans text-[13px] leading-[1.7] text-white/60">{body}</p>
+      </div>
+
+      {/* Live offerings from DB */}
+      {offerings.length > 0 && (
+        <div className="px-4 pb-3">
+          <p className="mb-2 font-sans text-[9px] font-semibold tracking-[1.5px] text-white/25">AVAILABLE NOW</p>
+          <div className="flex flex-col gap-1.5">
+            {offerings.slice(0, 6).map((o) => {
+              const price = o.price_cents === 0 ? "Free" : `$${(o.price_cents / 100).toFixed(0)}`;
+              return (
+                <div
+                  key={o.id}
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2"
+                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
+                >
+                  <span className="text-[14px]">{typeIcons[o.type] || "✦"}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-sans text-[12px] font-semibold text-white/70">{o.name}</p>
+                    {o.description && <p className="truncate font-sans text-[9px] text-white/25">{o.description}</p>}
+                  </div>
+                  <span className="font-mono text-[12px] font-bold" style={{ color: vibeColor }}>{price}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Footer hint */}
+      <div className="px-4 pb-3">
+        <p className="font-sans text-[10px] text-white/20">Ask me to order or book anything above.</p>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Join Card (Venue Profile + Membership + Perks) ──────────────
 
 interface JoinCardProps extends TabCardProps {

@@ -5,7 +5,9 @@ import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import Image from "next/image";
 import { VenueOfferings } from "./venue-offerings";
 import { VenueGallery } from "./venue-gallery";
-import { VibeCard, MenuCard, EventsCard, ReserveCard } from "../map/tab-cards";
+import { VenueStaff } from "./venue-staff";
+import type { StaffMember } from "./venue-staff";
+import { VibeCard, MenuCard, EventsCard, ReserveCard, ShopCard } from "../map/tab-cards";
 
 /* ── Types ── */
 
@@ -59,9 +61,10 @@ interface Props {
   user?: { id: string; email: string } | null;
   offerings: OfferingData[];
   gallery?: GalleryImage[];
+  staff?: StaffMember[];
 }
 
-type Tab = "chat" | "vibe" | "menu" | "events" | "reserve";
+type Tab = "chat" | "vibe" | "menu" | "events" | "reserve" | "shop";
 
 interface Message {
   id: string;
@@ -107,6 +110,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "menu", label: "Menu", icon: "M3 6h18M3 12h18M3 18h18" },
   { id: "events", label: "Events", icon: "M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" },
   { id: "reserve", label: "Reserve", icon: "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" },
+  { id: "shop", label: "Shop", icon: "M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2M20 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2" },
 ];
 
 const TAB_COMMANDS: Record<Tab, string> = {
@@ -115,6 +119,7 @@ const TAB_COMMANDS: Record<Tab, string> = {
   menu: "show me the menu",
   events: "any events tonight?",
   reserve: "I'd like to reserve a spot",
+  shop: "what can I buy or order here?",
 };
 
 /* ── Fake venue object for tab-cards (maps DB venue to lib/venues shape) ── */
@@ -141,7 +146,7 @@ function toCardVenue(venue: Venue) {
    VENUE PAGE CLIENT — Immersive single-screen design
    ═══════════════════════════════════════════════════ */
 
-export function VenuePageClient({ page, venue, table, user, offerings, gallery = [] }: Props) {
+export function VenuePageClient({ page, venue, table, user, offerings, gallery = [], staff = [] }: Props) {
   const color = vibeColor(venue.vibe);
   const theme = page.theme_color;
   const pct = Math.round((venue.occupancy / venue.max_occupancy) * 100);
@@ -438,6 +443,11 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                   <VenueGallery gallery={gallery} themeColor={theme} />
                 )}
 
+                {/* Staff */}
+                {staff.length > 0 && (
+                  <VenueStaff staff={staff} themeColor={theme} />
+                )}
+
                 {/* Offerings */}
                 {offerings.length > 0 && (
                   <VenueOfferings offerings={offerings} themeColor={theme} venueName={venue.name} />
@@ -655,6 +665,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                           {msg.tab === "menu" && <MenuCard body={msg.body} venue={cardVenue} vibeColor={color} />}
                           {msg.tab === "events" && <EventsCard body={msg.body} venue={cardVenue} vibeColor={color} />}
                           {msg.tab === "reserve" && <ReserveCard body={msg.body} venue={cardVenue} vibeColor={color} />}
+                          {msg.tab === "shop" && <ShopCard body={msg.body} venue={cardVenue} vibeColor={color} />}
                         </motion.div>
                       );
                     }
