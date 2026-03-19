@@ -1,5 +1,5 @@
 import { LandingExperience } from "@/components/landing-experience";
-import { Skybox } from "@/components/skybox";
+import { MapBackdrop } from "@/components/map-backdrop";
 import Image from "next/image";
 
 function CheckIcon() {
@@ -13,8 +13,8 @@ function CheckIcon() {
 export default function Home() {
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-black">
-      {/* ═══ 3D SKYBOX: persistent space environment ═══ */}
-      <Skybox />
+      {/* ═══ MAPBOX BACKDROP: ambient dark map with venue pins ═══ */}
+      <MapBackdrop />
 
       {/* ═══ HERO: Cinematic Remotion experience ═══ */}
       <section className="relative z-10 h-dvh">
