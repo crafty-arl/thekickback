@@ -25,16 +25,28 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh the session (keeps cookies alive) but don't force redirects.
-  // This is a public app — all pages are accessible without auth.
+  // Refresh the session (keeps cookies alive)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Only redirect: authenticated users away from /login
-  if (user && request.nextUrl.pathname === "/login") {
+  const pathname = request.nextUrl.pathname;
+
+  // Allow /login and API routes without auth
+  const isPublic = pathname === "/login" || pathname.startsWith("/api/");
+
+  // Redirect authenticated users away from /login
+  if (user && pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+
+  // Redirect unauthenticated users to /login
+  if (!user && !isPublic) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("returnTo", pathname);
     return NextResponse.redirect(url);
   }
 

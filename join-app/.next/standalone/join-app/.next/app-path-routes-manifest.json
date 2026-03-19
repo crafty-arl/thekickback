@@ -4,6 +4,7 @@
   "/_not-found/page": "/_not-found",
   "/api/chat/general/route": "/api/chat/general",
   "/api/chat/route": "/api/chat",
+  "/api/discover/route": "/api/discover",
   "/api/points/route": "/api/points",
   "/health/route": "/health",
   "/login/page": "/login",

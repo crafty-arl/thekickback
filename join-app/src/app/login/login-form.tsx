@@ -137,10 +137,7 @@ export function LoginForm() {
         </div>
 
         <p className="mt-6 text-center text-xs" style={{ color: "rgba(255,255,255,0.2)" }}>
-          Sign in to join venues and chat.{" "}
-          <a href="/" className="text-orange underline">
-            Browse first
-          </a>
+          Sign in to discover and chat with venues near you.
         </p>
       </div>
     </main>

@@ -6,6 +6,7 @@ import { Venue, getVibeHexColor, getVibeLabel, getOccupancyPercent } from "@/lib
 import { createClient } from "@/lib/supabase/client";
 import { VibeCard, MenuCard, EventsCard, ReserveCard } from "./tab-cards";
 import { PointsBadge } from "./points-badge";
+import { CheckoutCard, type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
 
 interface Message {
   id: string;
@@ -13,6 +14,7 @@ interface Message {
   body: string;
   timestamp: number;
   tab?: Tab;
+  checkout?: CheckoutCardData;
 }
 
 interface VenueDrawerProps {
@@ -217,16 +219,24 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
 
       const data = await res.json();
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `ai-${Date.now()}`,
-          sender: "ai",
-          body: data.reply || "Couldn't reach the venue right now. Try again.",
-          timestamp: Date.now(),
-          tab: activeTab,
-        },
-      ]);
+      const aiMsg: Message = {
+        id: `ai-${Date.now()}`,
+        sender: "ai",
+        body: data.reply || "Couldn't reach the venue right now. Try again.",
+        timestamp: Date.now(),
+        tab: activeTab,
+      };
+
+      // If the AI generated a checkout card, attach it
+      if (data.checkout) {
+        aiMsg.checkout = {
+          ...data.checkout,
+          venue_name: venue.name,
+          venue_id: venue.id,
+        };
+      }
+
+      setMessages((prev) => [...prev, aiMsg]);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -447,6 +457,77 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
                         {msg.tab === "menu" && <MenuCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
                         {msg.tab === "events" && <EventsCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
                         {msg.tab === "reserve" && <ReserveCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
+                      </motion.div>
+                    );
+                  }
+
+                  // AI message with checkout card
+                  if (msg.checkout) {
+                    return (
+                      <motion.div
+                        key={msg.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        className="flex flex-col gap-2"
+                      >
+                        {msg.body && (
+                          <div className="flex justify-start">
+                            <div
+                              className="max-w-[80%] rounded-2xl rounded-bl-sm px-3.5 py-2.5"
+                              style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}
+                            >
+                              <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
+                            </div>
+                          </div>
+                        )}
+                        <CheckoutCard
+                          data={msg.checkout}
+                          vibeColor={vibeColor}
+                          onConfirm={async (addOns: CheckoutAddOn[], pointsToSpend: number) => {
+                            try {
+                              const res = await fetch("/api/orders", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  venueId: venue.id,
+                                  items: msg.checkout!.items,
+                                  addOns,
+                                  pointsToSpend,
+                                  notes: msg.checkout!.notes,
+                                }),
+                              });
+                              const result = await res.json();
+                              if (result.orderId) {
+                                setMessages((prev) => [
+                                  ...prev,
+                                  {
+                                    id: `order-${Date.now()}`,
+                                    sender: "ai",
+                                    body: `You're all set! Order confirmed. ${pointsToSpend > 0 ? `Used ${pointsToSpend} points. ` : ""}Show this to the host when you arrive.`,
+                                    timestamp: Date.now(),
+                                  },
+                                ]);
+                              } else {
+                                setMessages((prev) => [
+                                  ...prev,
+                                  { id: `err-${Date.now()}`, sender: "ai", body: result.error || "Something went wrong with the order.", timestamp: Date.now() },
+                                ]);
+                              }
+                            } catch {
+                              setMessages((prev) => [
+                                ...prev,
+                                { id: `err-${Date.now()}`, sender: "ai", body: "Couldn't process the order. Try again.", timestamp: Date.now() },
+                              ]);
+                            }
+                          }}
+                          onDismiss={() => {
+                            setMessages((prev) => [
+                              ...prev,
+                              { id: `cancel-${Date.now()}`, sender: "ai", body: "No worries — let me know if you change your mind.", timestamp: Date.now() },
+                            ]);
+                          }}
+                        />
                       </motion.div>
                     );
                   }

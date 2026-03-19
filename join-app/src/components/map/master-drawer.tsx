@@ -20,30 +20,63 @@ interface MasterDrawerProps {
 
 const ACCENT = "#a78bfa"; // soft purple for the master agent
 
+interface ApiVenue {
+  id: string;
+  name: string;
+  vibe: string;
+  occupancy: number;
+  capacity: number;
+  latitude: number | null;
+  longitude: number | null;
+  neighborhood: string | null;
+}
+
+function buildVenueFromApi(av: ApiVenue): Venue {
+  return {
+    id: av.id,
+    name: av.name,
+    category: "lounge",
+    neighborhood: av.neighborhood || "",
+    vibe: (av.vibe || "quiet") as Venue["vibe"],
+    occupancy: av.occupancy,
+    capacity: av.capacity,
+    description: "",
+    tags: [],
+    hours: "",
+    memberOnly: false,
+    textNumber: "",
+    latitude: av.latitude || 0,
+    longitude: av.longitude || 0,
+    claimed: true,
+  };
+}
+
 function parseVenueChips(
   venues: Venue[],
+  apiVenues: Record<string, ApiVenue>,
   text: string,
   onTap: (venue: Venue) => void
 ): React.ReactNode[] {
-  // Matches both [[venue:id]] and [[venue:id:Name]] formats
   const parts = text.split(/(\[\[venue:[^\]]+\]\])/g);
   return parts.map((part, i) => {
     const match = part.match(/^\[\[venue:([^:\]]+)(?::([^\]]*))?\]\]$/);
     if (match) {
       const venueId = match[1];
-      const venueName = match[2]; // may be undefined for old format
-      // Try to find in local venues list first
+      const venueName = match[2];
+
+      // Try local venues first, then API venues
       let venue = venues.find((v) => v.id === venueId);
-      // If not found but we have a name from the tag, create a minimal venue for navigation
+      if (!venue && apiVenues[venueId]) {
+        venue = buildVenueFromApi(apiVenues[venueId]);
+      }
+
       const displayName = venue?.name || venueName || "View venue";
 
       return (
         <button
           key={i}
           onClick={() => {
-            if (venue) {
-              onTap(venue);
-            }
+            if (venue) onTap(venue);
           }}
           className="mx-0.5 inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-sans text-[13px] font-semibold active:scale-95"
           style={{
@@ -57,7 +90,7 @@ function parseVenueChips(
             height="10"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="currentColor"
+            stroke={ACCENT}
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -89,6 +122,8 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Venues returned by the API that may not be on the map
+  const [apiVenues, setApiVenues] = useState<Record<string, { id: string; name: string; vibe: string; occupancy: number; capacity: number; latitude: number | null; longitude: number | null; neighborhood: string | null }>>({});
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -143,6 +178,17 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
         });
 
         const data = await res.json();
+
+        // Store venue metadata from API for chip navigation
+        if (data.venues?.length) {
+          setApiVenues((prev) => {
+            const next = { ...prev };
+            for (const v of data.venues) {
+              next[v.id] = v;
+            }
+            return next;
+          });
+        }
 
         setMessages((prev) => [
           ...prev,
@@ -388,7 +434,7 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                     >
                       <p className="font-sans text-[14px] leading-[1.5]">
                         {msg.sender === "ai"
-                          ? parseVenueChips(venues, msg.body, onVenueSelect)
+                          ? parseVenueChips(venues, apiVenues, msg.body, onVenueSelect)
                           : msg.body}
                       </p>
                     </div>

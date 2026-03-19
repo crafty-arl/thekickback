@@ -21,9 +21,11 @@ const KNOWLEDGE_CATEGORIES = [
 
 const OFFERING_TYPES = [
     { id: "membership", label: "Membership", icon: "👑", recurring: true, defaultPrice: 2500, defaultName: "Membership", defaultDesc: "Exclusive access and perks" },
-    { id: "booth_hold", label: "Booth Hold", icon: "🪑", recurring: false, defaultPrice: 5000, defaultName: "Booth Reservation", defaultDesc: "Reserve a booth for your group" },
-    { id: "space_rental", label: "Space Rental", icon: "🏠", recurring: false, defaultPrice: 25000, defaultName: "Private Event Space", defaultDesc: "Rent the venue for your private event" },
-    { id: "event_ticket", label: "Event Ticket", icon: "🎟️", recurring: false, defaultPrice: 1500, defaultName: "Event Ticket", defaultDesc: "Entry to a special event" },
+    { id: "reservation", label: "Reservation", icon: "🪑", recurring: false, defaultPrice: 5000, defaultName: "Table / Booth", defaultDesc: "Reserve a spot for your group" },
+    { id: "service", label: "Service", icon: "✂️", recurring: false, defaultPrice: 3500, defaultName: "Service", defaultDesc: "A priced service with a set duration" },
+    { id: "product", label: "Product", icon: "☕", recurring: false, defaultPrice: 500, defaultName: "Item", defaultDesc: "A physical good available for purchase" },
+    { id: "event", label: "Event", icon: "🎟️", recurring: false, defaultPrice: 1500, defaultName: "Event Ticket", defaultDesc: "Entry to a special event" },
+    { id: "package", label: "Package", icon: "📦", recurring: false, defaultPrice: 10000, defaultName: "Package", defaultDesc: "A bundle of services and access" },
     { id: "custom", label: "Custom", icon: "✦", recurring: false, defaultPrice: 0, defaultName: "", defaultDesc: "" },
 ];
 
@@ -140,6 +142,8 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [offeringDesc, setOfferingDesc] = useState("");
     const [offeringPrice, setOfferingPrice] = useState("");
     const [offeringPerks, setOfferingPerks] = useState("");
+    const [offeringDuration, setOfferingDuration] = useState("");
+    const [offeringAddOns, setOfferingAddOns] = useState("");
     const [savingOffering, setSavingOffering] = useState(false);
     const [offeringMsg, setOfferingMsg] = useState("");
     const [togglingOffering, setTogglingOffering] = useState<string | null>(null);
@@ -498,8 +502,14 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                         <Field label={OFFERING_TYPES.find((t) => t.id === offeringType)?.recurring ? "Price ($/month)" : "Price ($)"}>
                                             <input type="number" step="0.01" value={offeringPrice} onChange={(e) => setOfferingPrice(e.target.value)} placeholder="25.00" className="input" />
                                         </Field>
-                                        <Field label="Perks" hint="One per line">
+                                        <Field label="Duration (minutes)" hint="For services and reservations">
+                                            <input type="number" value={offeringDuration} onChange={(e) => setOfferingDuration(e.target.value)} placeholder="60" className="input" />
+                                        </Field>
+                                        <Field label="Perks / Includes" hint="One per line">
                                             <textarea value={offeringPerks} onChange={(e) => setOfferingPerks(e.target.value)} rows={3} placeholder={"Priority seating\n10% off drinks\nExclusive events"} className="input resize-none" />
+                                        </Field>
+                                        <Field label="Add-ons" hint="Format: Name - Price (one per line)">
+                                            <textarea value={offeringAddOns} onChange={(e) => setOfferingAddOns(e.target.value)} rows={2} placeholder={"Bottle Service - 120.00\nSkip the Line - 25.00"} className="input resize-none" />
                                         </Field>
                                     </div>
                                     <div className="mt-4 flex items-center justify-end gap-2">

@@ -12,12 +12,15 @@ interface VenueRow {
   vibe: string;
   occupancy: number;
   max_occupancy: number;
+  latitude: number | null;
+  longitude: number | null;
+  neighborhood: string | null;
 }
 
 async function getActiveVenues(): Promise<VenueRow[]> {
   const { data } = await supabase
     .from("venues")
-    .select("id, name, state, vibe, occupancy, max_occupancy")
+    .select("id, name, state, vibe, occupancy, max_occupancy, latitude, longitude, neighborhood")
     .eq("state", "active")
     .order("name");
 
@@ -104,5 +107,20 @@ export async function POST(request: Request) {
     console.error("Claw fetch error:", err);
   }
 
-  return Response.json({ reply });
+  // Extract referenced venues so the client can navigate to them
+  const referencedIds = [...reply.matchAll(/\[\[venue:([^:\]]+)/g)].map((m) => m[1]);
+  const referencedVenues = venues
+    .filter((v) => referencedIds.includes(v.id))
+    .map((v) => ({
+      id: v.id,
+      name: v.name,
+      vibe: v.vibe,
+      occupancy: v.occupancy,
+      capacity: v.max_occupancy,
+      latitude: v.latitude,
+      longitude: v.longitude,
+      neighborhood: v.neighborhood,
+    }));
+
+  return Response.json({ reply, venues: referencedVenues });
 }
