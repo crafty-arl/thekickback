@@ -149,8 +149,34 @@ async function handleInbound(request: Request, env: Env): Promise<Response> {
 
   console.log(`Parsed body: "${firstLine}" | Venue: ${venue?.name || "default"}`);
 
+  // Log inbound guest email to chat_messages
+  if (venue) {
+    await supa(env, "chat_messages", {
+      method: "POST",
+      body: JSON.stringify({
+        venue_id: venue.id,
+        sender_type: "guest",
+        sender_phone: fromEmail,
+        body: firstLine,
+      }),
+    });
+  }
+
   // Process command with venue context
   const reply = await handleCommand(fromEmail, firstLine, venue, env);
+
+  // Log AI reply to chat_messages
+  if (venue) {
+    await supa(env, "chat_messages", {
+      method: "POST",
+      body: JSON.stringify({
+        venue_id: venue.id,
+        sender_type: "ai",
+        sender_phone: null,
+        body: reply,
+      }),
+    });
+  }
 
   // Send rich HTML reply from the venue's email address
   const command = firstLine.toLowerCase().trim().split(/\s+/)[0];

@@ -1,4 +1,65 @@
 {
-  "node": {},
+  "node": {
+    "60584734f16ef9783ec5aa4dfcb609007d8651bbb6": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "updateVenue",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "updateVenue",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "60bed3da59053c885dc18f9f19c760aeacd2ca7b1b": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "updateVenuePage",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "updateVenuePage",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "609f8ae2fcbf2643a41a1b3280d7f8389081a194da": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "addKnowledge",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "addKnowledge",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "40709d20c5c16245535a4374732e1c542e0b2a82ac": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "deleteKnowledge",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "deleteKnowledge",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    }
+  },
   "edge": {}
 }

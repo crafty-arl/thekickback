@@ -1,7 +1,8 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { MOCK_STATS, MOCK_SESSIONS, MOCK_REQUESTS } from "@/lib/dashboard";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
+import type { GuestSession, VenueRequest, ChatMessage, VenueStats } from "@/lib/dashboard";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { GuestTable } from "@/components/dashboard/guest-table";
 import { RequestFeed } from "@/components/dashboard/request-feed";
@@ -41,11 +42,83 @@ export default async function DashboardPage() {
     vibe: string;
   };
 
-  // Use real venue data for header, keep mock stats for now
-  const stats = {
-    ...MOCK_STATS,
+  // ─── Use service client for data queries (bypasses RLS) ──────────
+  const service = createServiceClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayISO = todayStart.toISOString();
+
+  // ─── Parallel queries for dashboard data ─────────────────────────
+  const [sessionsRes, requestsRes, messagesRes, membersRes, todaySessionsRes, todayMessagesRes] =
+    await Promise.all([
+      // Active sessions with profile info
+      service
+        .from("sessions")
+        .select("id, user_id, venue_id, started_at, ended_at, status, profiles(phone, email, display_name)")
+        .eq("venue_id", venue.id)
+        .eq("status", "active")
+        .order("started_at", { ascending: false }),
+
+      // Recent requests with profile info
+      service
+        .from("requests")
+        .select("id, user_id, venue_id, session_id, type, body, status, created_at, profiles(phone, email)")
+        .eq("venue_id", venue.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+
+      // Recent chat messages
+      service
+        .from("chat_messages")
+        .select("id, venue_id, sender_phone, sender_type, body, created_at")
+        .eq("venue_id", venue.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+
+      // Total members
+      service
+        .from("memberships")
+        .select("id", { count: "exact", head: true })
+        .eq("venue_id", venue.id),
+
+      // Total sessions today
+      service
+        .from("sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("venue_id", venue.id)
+        .gte("started_at", todayISO),
+
+      // Total messages today
+      service
+        .from("chat_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("venue_id", venue.id)
+        .gte("created_at", todayISO),
+    ]);
+
+  // Supabase joins return related records as arrays — extract first element
+  const sessions: GuestSession[] = (sessionsRes.data || []).map((s: Record<string, unknown>) => ({
+    ...s,
+    profiles: Array.isArray(s.profiles) ? s.profiles[0] : s.profiles,
+  })) as GuestSession[];
+
+  const requests: VenueRequest[] = (requestsRes.data || []).map((r: Record<string, unknown>) => ({
+    ...r,
+    profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
+  })) as VenueRequest[];
+
+  const messages = (messagesRes.data || []) as ChatMessage[];
+
+  const stats: VenueStats = {
     currentOccupancy: venue.occupancy,
     capacity: venue.max_occupancy,
+    totalToday: todaySessionsRes.count || 0,
+    totalMessages: todayMessagesRes.count || 0,
+    members: membersRes.count || 0,
   };
 
   return (
@@ -76,12 +149,6 @@ export default async function DashboardPage() {
                 {venue.name}
               </span>
             </div>
-            <a href="/agent" className="rounded-lg bg-black/[0.06] px-3 py-1.5 font-sans text-xs font-medium text-black/50 transition hover:bg-black/[0.1]">
-              AI Agent
-            </a>
-            <a href="/edit" className="rounded-lg bg-black/[0.06] px-3 py-1.5 font-sans text-xs font-medium text-black/50 transition hover:bg-black/[0.1]">
-              Edit
-            </a>
             <a href="/settings" className="rounded-lg bg-black/[0.06] px-3 py-1.5 font-sans text-xs font-medium text-black/50 transition hover:bg-black/[0.1]">
               Settings
             </a>
@@ -118,17 +185,17 @@ export default async function DashboardPage() {
           <StatCard
             label="TOTAL TODAY"
             value={stats.totalToday}
-            sub="unique visitors"
+            sub="visitors today"
           />
           <StatCard
-            label="TEXTS TODAY"
-            value={stats.totalTexts}
-            sub="in + out"
+            label="MESSAGES TODAY"
+            value={stats.totalMessages}
+            sub="email + chat"
           />
           <StatCard
             label="MEMBERS"
             value={stats.members}
-            sub={`${stats.avgSessionMin} min avg session`}
+            sub="active memberships"
           />
         </section>
 
@@ -141,13 +208,13 @@ export default async function DashboardPage() {
         <section className="flex flex-col gap-6 pb-8 lg:flex-row">
           {/* Left: Sessions + Requests */}
           <div className="flex flex-1 flex-col gap-6">
-            <GuestTable sessions={MOCK_SESSIONS} />
-            <RequestFeed requests={MOCK_REQUESTS} />
+            <GuestTable sessions={sessions} />
+            <RequestFeed requests={requests} />
           </div>
 
           {/* Right: Live text feed */}
           <div className="w-full lg:w-[400px]">
-            <TextLog />
+            <TextLog messages={messages} />
           </div>
         </section>
       </div>

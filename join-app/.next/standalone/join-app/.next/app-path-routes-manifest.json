@@ -2,6 +2,7 @@
   "/[slug]/page": "/[slug]",
   "/_global-error/page": "/_global-error",
   "/_not-found/page": "/_not-found",
+  "/api/chat/general/route": "/api/chat/general",
   "/api/chat/route": "/api/chat",
   "/health/route": "/health",
   "/login/page": "/login",

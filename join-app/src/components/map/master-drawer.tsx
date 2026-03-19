@@ -1,0 +1,466 @@
+"use client";
+
+import { useState, useRef, useEffect, useCallback } from "react";
+import { motion, useAnimationControls } from "framer-motion";
+import { type Venue, MOCK_VENUES } from "@/lib/venues";
+
+interface Message {
+  id: string;
+  sender: "guest" | "ai";
+  body: string;
+  timestamp: number;
+}
+
+interface MasterDrawerProps {
+  onVenueSelect: (venue: Venue) => void;
+}
+
+const ACCENT = "#a78bfa"; // soft purple for the master agent
+
+function parseVenueChips(
+  text: string,
+  onTap: (venue: Venue) => void
+): React.ReactNode[] {
+  const parts = text.split(/(\[\[venue:[^\]]+\]\])/g);
+  return parts.map((part, i) => {
+    const match = part.match(/^\[\[venue:([^\]]+)\]\]$/);
+    if (match) {
+      const venueId = match[1];
+      const venue = MOCK_VENUES.find((v) => v.id === venueId);
+      if (venue) {
+        return (
+          <button
+            key={i}
+            onClick={() => onTap(venue)}
+            className="mx-0.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-sans text-[13px] font-semibold active:scale-95"
+            style={{
+              backgroundColor: `${ACCENT}25`,
+              color: ACCENT,
+              border: `1px solid ${ACCENT}40`,
+            }}
+          >
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            {venue.name}
+          </button>
+        );
+      }
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+export function MasterDrawer({ onVenueSelect }: MasterDrawerProps) {
+  const [expanded, setExpanded] = useState(false);
+  const controls = useAnimationControls();
+
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      sender: "ai",
+      body: "Hey. I'm KickBack. Ask me anything — what's happening tonight, where to go, or vibe check a spot.",
+      timestamp: Date.now(),
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      scrollRef.current?.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    };
+    window.visualViewport?.addEventListener("resize", handleResize);
+    return () =>
+      window.visualViewport?.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    controls.start({
+      height: expanded ? "70dvh" : 56,
+      borderRadius: expanded ? "24px 24px 0 0" : 28,
+      transition: { type: "spring", damping: 30, stiffness: 300 },
+    });
+  }, [expanded, controls]);
+
+  const send = useCallback(
+    async (text?: string) => {
+      const msg = (text || input).trim();
+      if (!msg || loading) return;
+
+      if (!expanded) setExpanded(true);
+
+      const userMsg: Message = {
+        id: `user-${Date.now()}`,
+        sender: "guest",
+        body: msg,
+        timestamp: Date.now(),
+      };
+
+      setMessages((prev) => [...prev, userMsg]);
+      setInput("");
+      setLoading(true);
+
+      try {
+        const res = await fetch("/api/chat/general", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msg }),
+        });
+
+        const data = await res.json();
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `ai-${Date.now()}`,
+            sender: "ai",
+            body:
+              data.reply || "Something went wrong. Try again in a moment.",
+            timestamp: Date.now(),
+          },
+        ]);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `err-${Date.now()}`,
+            sender: "ai",
+            body: "Something went wrong. Try again in a moment.",
+            timestamp: Date.now(),
+          },
+        ]);
+      } finally {
+        setLoading(false);
+        inputRef.current?.focus();
+      }
+    },
+    [input, loading, expanded]
+  );
+
+  function handleDrag(
+    _: MouseEvent | TouchEvent | PointerEvent,
+    info: { offset: { y: number }; velocity: { y: number } }
+  ) {
+    if (info.offset.y > 80 || info.velocity.y > 300) {
+      if (expanded) setExpanded(false);
+    } else if (info.offset.y < -60 || info.velocity.y < -300) {
+      if (!expanded) setExpanded(true);
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ y: 80, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 80, opacity: 0 }}
+      transition={{ type: "spring", damping: 28, stiffness: 280 }}
+      className="fixed inset-x-0 bottom-0 z-50"
+      style={{
+        paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))",
+      }}
+    >
+      <motion.div
+        animate={controls}
+        drag="y"
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={0.15}
+        onDragEnd={handleDrag}
+        className="relative mx-3 flex flex-col overflow-hidden"
+        style={{
+          height: 56,
+          borderRadius: 28,
+          background: "rgba(15, 15, 18, 0.85)",
+          backdropFilter: "blur(40px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+          boxShadow: `0 0 0 1px rgba(255,255,255,0.1), 0 -4px 40px rgba(0,0,0,0.3), 0 4px 30px rgba(0,0,0,0.2)`,
+          touchAction: "none",
+        }}
+      >
+        {/* === COLLAPSED: KickBack branding + input === */}
+        {!expanded && (
+          <div className="flex h-full items-center gap-2 px-3">
+            <button
+              onClick={() => setExpanded(true)}
+              className="flex items-center gap-2 pl-1"
+            >
+              <motion.div
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: ACCENT }}
+                animate={{
+                  scale: [1, 1.2, 1],
+                  opacity: [0.8, 1, 0.8],
+                }}
+                transition={{ duration: 3, repeat: Infinity }}
+              />
+              <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-white/90">
+                KickBack
+              </span>
+            </button>
+
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              onFocus={() => setExpanded(true)}
+              placeholder="Where should I go tonight?"
+              enterKeyHint="send"
+              autoComplete="off"
+              autoCorrect="off"
+              className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
+            />
+          </div>
+        )}
+
+        {/* === EXPANDED: header + messages + input === */}
+        {expanded && (
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <div className="flex items-center gap-2">
+                <motion.div
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: ACCENT }}
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.8, 1, 0.8],
+                  }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                />
+                <span className="font-sans text-[15px] font-semibold text-white/90">
+                  KickBack
+                </span>
+                <span className="font-sans text-[11px] text-white/30">
+                  Concierge
+                </span>
+              </div>
+              <motion.button
+                onClick={() => setExpanded(false)}
+                whileTap={{ scale: 0.85 }}
+                className="flex h-7 w-7 items-center justify-center rounded-full"
+                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  className="opacity-50"
+                >
+                  <polyline points="18 15 12 9 6 15" />
+                </svg>
+              </motion.button>
+            </div>
+
+            {/* Quick suggestions — only show if no user messages yet */}
+            {messages.length <= 1 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="flex gap-2 overflow-x-auto px-4 pb-2"
+                style={{ WebkitOverflowScrolling: "touch" }}
+              >
+                {[
+                  "What's open right now?",
+                  "Somewhere quiet to work",
+                  "Best spot for a date",
+                  "Where's the party?",
+                ].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => send(q)}
+                    className="shrink-0 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.04)",
+                      color: "rgba(255,255,255,0.4)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+
+            {/* Divider */}
+            <div
+              className="mx-4 h-px"
+              style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+            />
+
+            {/* Messages */}
+            <div
+              ref={scrollRef}
+              className="flex-1 overflow-y-auto overscroll-contain px-4 py-3"
+              style={{
+                WebkitOverflowScrolling: "touch",
+                touchAction: "pan-y",
+              }}
+            >
+              <div className="flex flex-col gap-2.5">
+                {messages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{
+                      type: "spring",
+                      damping: 25,
+                      stiffness: 300,
+                    }}
+                    className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
+                        msg.sender === "guest"
+                          ? "rounded-br-sm"
+                          : "rounded-bl-sm"
+                      }`}
+                      style={
+                        msg.sender === "guest"
+                          ? {
+                              backgroundColor: ACCENT,
+                              color: "#000",
+                              boxShadow: `0 2px 12px ${ACCENT}33`,
+                            }
+                          : {
+                              backgroundColor: "rgba(255,255,255,0.07)",
+                              color: "rgba(255,255,255,0.8)",
+                              border: "1px solid rgba(255,255,255,0.05)",
+                            }
+                      }
+                    >
+                      <p className="font-sans text-[14px] leading-[1.5]">
+                        {msg.sender === "ai"
+                          ? parseVenueChips(msg.body, onVenueSelect)
+                          : msg.body}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+
+                {loading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex justify-start"
+                  >
+                    <div
+                      className="rounded-2xl rounded-bl-sm px-4 py-3"
+                      style={{
+                        backgroundColor: "rgba(255,255,255,0.07)",
+                        border: "1px solid rgba(255,255,255,0.05)",
+                      }}
+                    >
+                      <div className="flex gap-1.5">
+                        <motion.div
+                          className="h-2 w-2 rounded-full bg-white/30"
+                          animate={{ y: [0, -6, 0] }}
+                          transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            delay: 0,
+                          }}
+                        />
+                        <motion.div
+                          className="h-2 w-2 rounded-full bg-white/30"
+                          animate={{ y: [0, -6, 0] }}
+                          transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            delay: 0.15,
+                          }}
+                        />
+                        <motion.div
+                          className="h-2 w-2 rounded-full bg-white/30"
+                          animate={{ y: [0, -6, 0] }}
+                          transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            delay: 0.3,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
+            {/* Input bar */}
+            <div className="flex items-center gap-2 px-3 pb-2 pt-1">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send()}
+                placeholder="Ask anything..."
+                enterKeyHint="send"
+                autoComplete="off"
+                autoCorrect="off"
+                className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                style={{
+                  height: 40,
+                  backgroundColor: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              />
+              <motion.button
+                onClick={() => send()}
+                disabled={!input.trim() || loading}
+                whileTap={{ scale: 0.9 }}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+                style={{
+                  backgroundColor: ACCENT,
+                  boxShadow: `0 2px 10px ${ACCENT}40`,
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="black"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="12" y1="19" x2="12" y2="5" />
+                  <polyline points="5 12 12 5 19 12" />
+                </svg>
+              </motion.button>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}

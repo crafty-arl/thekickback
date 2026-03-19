@@ -1,7 +1,9 @@
 import { VenueStats } from "@/lib/dashboard";
 
 export function OccupancyBar({ stats }: { stats: VenueStats }) {
-  const pct = Math.round((stats.currentOccupancy / stats.capacity) * 100);
+  const pct = stats.capacity > 0
+    ? Math.round((stats.currentOccupancy / stats.capacity) * 100)
+    : 0;
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-black/5 bg-white p-4 sm:p-5">
@@ -15,9 +17,8 @@ export function OccupancyBar({ stats }: { stats: VenueStats }) {
       </div>
       <div className="h-3 w-full overflow-hidden rounded-full bg-black/[0.06]">
         <div
-          className={`h-full rounded-full transition-all ${
-            pct >= 90 ? "bg-red-400" : pct >= 65 ? "bg-orange" : pct >= 35 ? "bg-yellow-400" : "bg-green-400"
-          }`}
+          className={`h-full rounded-full transition-all ${pct >= 90 ? "bg-red-400" : pct >= 65 ? "bg-orange" : pct >= 35 ? "bg-yellow-400" : "bg-green-400"
+            }`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -26,7 +27,7 @@ export function OccupancyBar({ stats }: { stats: VenueStats }) {
           {pct}% full
         </span>
         <span className="font-sans text-xs text-black/35">
-          Peak hour: {stats.peakHour}
+          {stats.capacity - stats.currentOccupancy} spots open
         </span>
       </div>
     </div>

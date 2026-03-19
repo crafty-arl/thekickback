@@ -1,35 +1,4 @@
 {
-  "node": {
-    "600c4bb50fa1a559c95cff46124113c27e8d790e82": {
-      "workers": {
-        "app/edit/page": {
-          "moduleId": 60909,
-          "async": false,
-          "exportedName": "updateVenue",
-          "filename": "dash-app/src/app/edit/actions.ts"
-        }
-      },
-      "layer": {
-        "app/edit/page": "action-browser"
-      },
-      "exportedName": "updateVenue",
-      "filename": "dash-app/src/app/edit/actions.ts"
-    },
-    "6075e4b4133c83e9be68db6a52bfb5840430e7e004": {
-      "workers": {
-        "app/edit/page": {
-          "moduleId": 60909,
-          "async": false,
-          "exportedName": "updateVenuePage",
-          "filename": "dash-app/src/app/edit/actions.ts"
-        }
-      },
-      "layer": {
-        "app/edit/page": "action-browser"
-      },
-      "exportedName": "updateVenuePage",
-      "filename": "dash-app/src/app/edit/actions.ts"
-    }
-  },
+  "node": {},
   "edge": {}
 }

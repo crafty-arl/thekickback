@@ -6,6 +6,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { MOCK_VENUES, type Venue } from "@/lib/venues";
 import { VenueDrawer } from "@/components/map/venue-drawer";
+import { MasterDrawer } from "@/components/map/master-drawer";
 
 const MapView = dynamic(
   () => import("@/components/map/map-view").then((m) => m.MapView),
@@ -37,9 +38,9 @@ export default function JoinPage() {
           <Image
             src="/logo.png"
             alt="theKickBack"
-            width={240}
-            height={160}
-            className="h-14 w-auto drop-shadow-2xl sm:h-16"
+            width={400}
+            height={200}
+            className="h-20 w-auto drop-shadow-2xl sm:h-24"
             style={{ filter: "invert(1)" }}
             priority
           />
@@ -95,13 +96,18 @@ export default function JoinPage() {
         )}
       </AnimatePresence>
 
-      {/* Chat drawer */}
-      <AnimatePresence>
-        {selectedVenue && (
+      {/* Command bar — always visible, morphs between master and venue agent */}
+      <AnimatePresence mode="wait">
+        {selectedVenue ? (
           <VenueDrawer
             key={selectedVenue.id}
             venue={selectedVenue}
             onClose={() => setSelectedVenue(null)}
+          />
+        ) : (
+          <MasterDrawer
+            key="master"
+            onVenueSelect={setSelectedVenue}
           />
         )}
       </AnimatePresence>
