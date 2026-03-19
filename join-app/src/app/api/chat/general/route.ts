@@ -177,6 +177,18 @@ export async function POST(request: Request) {
       };
     });
 
+  // Save to thread (master = venue_id null)
+  if (userId) {
+    try {
+      await supabase.rpc("save_thread_message", {
+        p_user_id: userId, p_venue_id: null, p_sender_type: "guest", p_body: message,
+      });
+      await supabase.rpc("save_thread_message", {
+        p_user_id: userId, p_venue_id: null, p_sender_type: "ai", p_body: reply,
+      });
+    } catch { /* thread save is non-critical */ }
+  }
+
   // Async preference extraction (fire-and-forget)
   if (userId) {
     extractPreferences(userId, message, reply, null).catch(() => {});

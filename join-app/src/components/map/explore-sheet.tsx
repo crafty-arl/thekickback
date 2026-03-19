@@ -10,6 +10,7 @@ import {
 } from "@/lib/venues";
 import { createClient } from "@/lib/supabase/client";
 import { PreferencesSection } from "./preferences-section";
+import { ThreadsList, useThreadCount } from "./threads-list";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -265,6 +266,7 @@ export function ExploreSheet({ venues, onVenueSelect, onTagSelect, activeTag, us
   const [user, setUser] = useState<UserProfile | null>(null);
   const [perks, setPerks] = useState<Perk[]>([]);
   const [balance, setBalance] = useState(0);
+  const threadInfo = useThreadCount();
   const controls = useAnimationControls();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -541,6 +543,19 @@ export function ExploreSheet({ venues, onVenueSelect, onTagSelect, activeTag, us
             </div>
           )}
 
+          {/* Thread count */}
+          {threadInfo.count > 0 && (
+            <div className="relative flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(167,139,250,0.08)" }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span className="font-mono text-[10px] font-bold text-[#a78bfa]">{threadInfo.count}</span>
+              {threadInfo.unread > 0 && (
+                <div className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-orange" />
+              )}
+            </div>
+          )}
+
           {/* Chevron */}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" strokeLinecap="round" className="shrink-0">
             <polyline points={snap === "peek" ? "6 9 12 15 18 9" : "6 15 12 9 18 15"} />
@@ -764,6 +779,22 @@ export function ExploreSheet({ venues, onVenueSelect, onTagSelect, activeTag, us
             {/* ── Full-only sections ── */}
             {snap === "full" && user && (
               <>
+                {/* Conversations */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-between px-4 pb-2">
+                    <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">CONVERSATIONS</span>
+                  </div>
+                  <ThreadsList
+                    onThreadSelect={(venueId) => {
+                      if (venueId) {
+                        const venue = venues.find((v) => v.id === venueId);
+                        if (venue) onVenueSelect(venue);
+                      }
+                      // Master thread — just close the explore sheet, master drawer shows
+                    }}
+                  />
+                </div>
+
                 {/* Preferences */}
                 <div className="px-4">
                   <PreferencesSection />

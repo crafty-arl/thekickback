@@ -194,12 +194,14 @@ export async function POST(request: Request) {
     ].join("\n") : "",
   ].filter(Boolean).join(" ");
 
-  // Save guest message to chat_messages
-  await supabase.from("chat_messages").insert({
-    venue_id: venueId,
-    sender_type: "guest",
-    body: message,
-  });
+  // Save guest message to thread (or legacy chat_messages if no user)
+  if (userId) {
+    await supabase.rpc("save_thread_message", {
+      p_user_id: userId, p_venue_id: venueId, p_sender_type: "guest", p_body: message,
+    });
+  } else {
+    await supabase.from("chat_messages").insert({ venue_id: venueId, sender_type: "guest", body: message });
+  }
 
   // Forward to claw via OpenResponses API (synchronous, per-venue agent)
   let reply = "Couldn't reach the venue right now. Try again in a moment.";
@@ -248,12 +250,14 @@ export async function POST(request: Request) {
     console.error("Claw fetch error:", err);
   }
 
-  // Save AI reply to chat_messages
-  await supabase.from("chat_messages").insert({
-    venue_id: venueId,
-    sender_type: "ai",
-    body: reply,
-  });
+  // Save AI reply to thread
+  if (userId) {
+    await supabase.rpc("save_thread_message", {
+      p_user_id: userId, p_venue_id: venueId, p_sender_type: "ai", p_body: reply,
+    });
+  } else {
+    await supabase.from("chat_messages").insert({ venue_id: venueId, sender_type: "ai", body: reply });
+  }
 
   // If AI generated a booking tag, execute it
   let bookingResult = null;
