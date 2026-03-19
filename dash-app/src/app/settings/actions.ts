@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { createCalEventType, deleteCalEventType } from "@/lib/cal";
 
 const CF_ACCOUNT_ID = "6c235bb622d4bca66876392df398234b";
 const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || "";
@@ -28,6 +29,17 @@ async function getAuthVenue(): Promise<{ userId: string; venueId: string } | nul
 
     if (!data) return null;
     return { userId: user.id, venueId: data.venue_id };
+}
+
+// ─── Cal.com key helper ──────────────────────────────────────────
+
+async function getVenueCalKey(venueId: string): Promise<string | null> {
+    const { data } = await service
+        .from("venues")
+        .select("cal_api_key")
+        .eq("id", venueId)
+        .single();
+    return data?.cal_api_key || process.env.CAL_API_KEY || null;
 }
 
 // ─── Venue actions ───────────────────────────────────────────────
@@ -169,7 +181,7 @@ export async function addOffering(data: {
     if (!auth) return { error: "Not authenticated" };
     if (!data.name.trim()) return { error: "Name is required" };
 
-    const { error } = await service.from("venue_offerings").insert({
+    const { data: insertedRows, error } = await service.from("venue_offerings").insert({
         venue_id: auth.venueId,
         name: data.name.trim(),
         type: data.type,
@@ -180,9 +192,27 @@ export async function addOffering(data: {
         perks: data.perks || [],
         duration_minutes: data.duration_minutes || null,
         add_ons: data.add_ons || [],
-    });
+    }).select("id");
 
     if (error) return { error: error.message };
+
+    // Sync to Cal.com — create matching event type
+    const calKey = await getVenueCalKey(auth.venueId);
+    if (calKey && insertedRows?.[0]) {
+        const venue = await service.from("venues").select("address").eq("id", auth.venueId).single();
+        const calResult = await createCalEventType(calKey, {
+            title: data.name.trim(),
+            durationMinutes: data.duration_minutes || 30,
+            description: data.description?.trim(),
+            address: venue.data?.address || undefined,
+        });
+        if ("id" in calResult) {
+            await service.from("venue_offerings")
+                .update({ cal_event_type_id: calResult.id })
+                .eq("id", insertedRows[0].id);
+        }
+    }
+
     revalidatePath("/settings");
     return { ok: true };
 }
@@ -212,6 +242,14 @@ export async function deleteOffering(id: string) {
     const auth = await getAuthVenue();
     if (!auth) return { error: "Not authenticated" };
 
+    // Get cal_event_type_id before deleting
+    const { data: offering } = await service
+        .from("venue_offerings")
+        .select("cal_event_type_id")
+        .eq("id", id)
+        .eq("venue_id", auth.venueId)
+        .single();
+
     const { error } = await service
         .from("venue_offerings")
         .delete()
@@ -219,6 +257,15 @@ export async function deleteOffering(id: string) {
         .eq("venue_id", auth.venueId);
 
     if (error) return { error: error.message };
+
+    // Delete from Cal.com too
+    if (offering?.cal_event_type_id) {
+        const calKey = await getVenueCalKey(auth.venueId);
+        if (calKey) {
+            await deleteCalEventType(calKey, offering.cal_event_type_id);
+        }
+    }
+
     revalidatePath("/settings");
     return { ok: true };
 }

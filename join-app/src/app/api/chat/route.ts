@@ -63,6 +63,19 @@ function parseCheckout(text: string): { reply: string; checkout: Record<string, 
   }
 }
 
+function parseBooking(text: string): { reply: string; booking: Record<string, unknown> | null } {
+  const match = text.match(/\[\[BOOKING:([\s\S]*?)\]\]/);
+  if (!match) return { reply: text, booking: null };
+
+  const reply = text.replace(/\[\[BOOKING:[\s\S]*?\]\]/, "").trim();
+  try {
+    const booking = JSON.parse(match[1]);
+    return { reply, booking };
+  } catch {
+    return { reply: text.replace(/\[\[BOOKING:[\s\S]*?\]\]/, "").trim(), booking: null };
+  }
+}
+
 export async function POST(request: Request) {
   const { message, venueId, venueName, vibe, occupancy, table } = await request.json();
 
@@ -98,6 +111,13 @@ export async function POST(request: Request) {
       "- Include date/time/guests if the guest mentioned them.",
       "- If the guest hasn't specified enough details (like date or time), ask — don't generate a checkout yet.",
       "- Never invent offerings that aren't in the list.",
+      "",
+      "BOOKING INSTRUCTIONS:",
+      "If the guest wants to RESERVE or BOOK a time slot (booth, table, event) and you have enough info (offering, date/time, and the guest has shared their name/email), include a booking tag:",
+      '[[BOOKING:{"offering_id":"uuid-here","start":"2026-03-20T02:00:00Z","attendee_name":"Guest Name","attendee_email":"guest@email.com","attendee_timezone":"America/Chicago"}]]',
+      "- Use ISO 8601 UTC for the start time.",
+      "- Only generate when the guest explicitly confirms the booking.",
+      "- If the guest hasn't given their name or email, ask for it first.",
     ].join("\n") : "",
   ].filter(Boolean).join(" ");
 
@@ -111,6 +131,7 @@ export async function POST(request: Request) {
   // Forward to claw via OpenResponses API (synchronous, per-venue agent)
   let reply = "Couldn't reach the venue right now. Try again in a moment.";
   let checkout = null;
+  let booking: Record<string, unknown> | null = null;
 
   try {
     const res = await fetch(`${process.env.OPENCLAW_GATEWAY_URL}/v1/responses`, {
@@ -131,9 +152,11 @@ export async function POST(request: Request) {
       const msg = data.output?.find((o: { type: string }) => o.type === "message");
       const text = msg?.content?.find((c: { type: string; text?: string }) => c.type === "output_text")?.text;
       if (text) {
-        const parsed = parseCheckout(text);
-        reply = parsed.reply;
-        checkout = parsed.checkout;
+        const parsedCheckout = parseCheckout(text);
+        const parsedBooking = parseBooking(parsedCheckout.reply);
+        reply = parsedBooking.reply;
+        checkout = parsedCheckout.checkout;
+        booking = parsedBooking.booking;
         if (reply.length > 320) reply = reply.slice(0, 317) + "...";
       }
     } else {
@@ -150,5 +173,34 @@ export async function POST(request: Request) {
     body: reply,
   });
 
-  return Response.json({ reply, checkout });
+  // If AI generated a booking tag, execute it
+  let bookingResult = null;
+  if (booking) {
+    try {
+      const bookRes = await fetch(
+        `${request.headers.get("origin") || "http://localhost:3000"}/api/book`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            venueId,
+            offeringId: (booking as Record<string, unknown>).offering_id,
+            start: (booking as Record<string, unknown>).start,
+            attendeeName: (booking as Record<string, unknown>).attendee_name,
+            attendeeEmail: (booking as Record<string, unknown>).attendee_email,
+            attendeeTimezone: (booking as Record<string, unknown>).attendee_timezone || "America/Chicago",
+          }),
+        }
+      );
+      if (bookRes.ok) {
+        bookingResult = await bookRes.json();
+      } else {
+        console.error("Booking API error:", bookRes.status, await bookRes.text());
+      }
+    } catch (err) {
+      console.error("Booking fetch error:", err);
+    }
+  }
+
+  return Response.json({ reply, checkout, booking: bookingResult });
 }

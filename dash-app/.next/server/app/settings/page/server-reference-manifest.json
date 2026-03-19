@@ -104,6 +104,126 @@
       },
       "exportedName": "toggleOffering",
       "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "4050694c0cc40fb65c535a92619336bfad7129ef7e": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "addXpAction",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "addXpAction",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "40d60ae9761bff75ddc3de7620101f69a7ec209023": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "deleteXpAction",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "deleteXpAction",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "60f68d42b6e90211e4ac755889c373b538e1b9478f": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "toggleXpAction",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "toggleXpAction",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "40823ae11248f8740bd1de581dff83474ecb8a0933": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "addXpMilestone",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "addXpMilestone",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "40dfe6e9ed298448ec6f13f445a094d41c79740877": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "deleteXpMilestone",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "deleteXpMilestone",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "6017593cd544a606406bcb7b38aa047a2b483f8b22": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "applyXpTemplate",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "applyXpTemplate",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "70e433a54d7e5783061650bc96f083fae6d66344cc": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "saveCustomTemplate",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "saveCustomTemplate",
+      "filename": "dash-app/src/app/settings/actions.ts"
+    },
+    "40e08a09f3cc22bf698c522230e7568d07a347caeb": {
+      "workers": {
+        "app/settings/page": {
+          "moduleId": 91435,
+          "async": false,
+          "exportedName": "deleteCustomTemplate",
+          "filename": "dash-app/src/app/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/settings/page": "action-browser"
+      },
+      "exportedName": "deleteCustomTemplate",
+      "filename": "dash-app/src/app/settings/actions.ts"
     }
   },
   "edge": {}

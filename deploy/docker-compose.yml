@@ -41,7 +41,7 @@ services:
       - "3003"
     restart: always
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3003/wallet/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3003/wallet/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -67,9 +67,10 @@ services:
       - OPENCLAW_GATEWAY_URL=https://claw.thekickback.net
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
       - OPENCLAW_HOOKS_TOKEN=${OPENCLAW_HOOKS_TOKEN}
+      - CAL_API_KEY=${CAL_API_KEY}
     restart: always
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -91,9 +92,10 @@ services:
       - SUPABASE_URL=https://wofvgfhejrvudvfxdytc.supabase.co
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - CAL_API_KEY=${CAL_API_KEY}
     restart: always
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -110,7 +112,7 @@ services:
       - "3000"
     restart: always
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -127,7 +129,7 @@ services:
       - "3000"
     restart: always
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -147,7 +149,7 @@ services:
     expose:
       - "8080"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/sse')"]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/sse')" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -182,7 +184,7 @@ services:
       foursquare-mcp:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:18789/healthz"]
+      test: [ "CMD", "wget", "--spider", "-q", "http://127.0.0.1:18789/healthz" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -214,6 +216,7 @@ volumes:
   caddy_config:
   claw_config:
   claw_workspace:
+
 
 networks:
   kickback:

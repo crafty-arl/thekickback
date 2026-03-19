@@ -11,6 +11,8 @@ Read more: https://nextjs.org/docs/messages/invalid-use-server-value`),"__NEXT_E
         type,
         address,
         neighborhood,
+        latitude,
+        longitude,
         lat,
         lng,
         occupancy,
@@ -19,6 +21,6 @@ Read more: https://nextjs.org/docs/messages/invalid-use-server-value`),"__NEXT_E
         phone,
         twilio_number
       )
-    `).eq("published",!0).eq("review_status","approved");return d?(console.error("[fetchApprovedVenues] Supabase error:",d.message),[]):b&&0!==b.length?b.filter(a=>{let b=a.venues;return b&&"number"==typeof b.lat&&"number"==typeof b.lng}).map(a=>{let b=a.venues,c=a.hours,d=c&&c.length>0?c.map(a=>`${a.day} ${a.open}${a.close?` – ${a.close}`:""}`).join(", "):"Hours vary";return{id:a.slug,name:b.name,slug:a.slug,category:b.type||"venue",neighborhood:b.neighborhood||"",vibe:b.vibe||"quiet",occupancy:b.occupancy||0,capacity:b.max_occupancy||100,description:a.description||a.tagline||"",tags:[],hours:d,memberOnly:!1,textNumber:b.twilio_number||b.phone||"",latitude:b.lat,longitude:b.lng,themeColor:a.theme_color||"#F97316"}}):[]}(0,a.i(50914).ensureServerEntryExports)([d]),(0,b.registerServerReference)(d,"00d16b21ed4b62efc7c9e7d5ff8a218bb5ad83c6a9",null),a.s(["fetchApprovedVenues",()=>d])},84565,a=>{"use strict";var b=a.i(56677);a.s([],80424),a.i(80424),a.s(["00d16b21ed4b62efc7c9e7d5ff8a218bb5ad83c6a9",()=>b.fetchApprovedVenues],84565)}];
+    `).eq("published",!0).eq("review_status","approved");return d?(console.error("[fetchApprovedVenues] Supabase error:",d.message),[]):b&&0!==b.length?b.filter(a=>{let b=a.venues;return!!b&&("number"==typeof b.latitude&&"number"==typeof b.longitude||"number"==typeof b.lat&&"number"==typeof b.lng)}).map(a=>{let b=a.venues,c=a.hours,d=c&&c.length>0?c.map(a=>`${a.day} ${a.open}${a.close?` – ${a.close}`:""}`).join(", "):"Hours vary";return{id:b.id,name:b.name,slug:a.slug,category:b.type||"venue",neighborhood:b.neighborhood||"",vibe:b.vibe||"quiet",occupancy:b.occupancy||0,capacity:b.max_occupancy||100,description:a.description||a.tagline||"",tags:[],hours:d,memberOnly:!1,textNumber:b.twilio_number||b.phone||"",latitude:b.latitude||b.lat,longitude:b.longitude||b.lng,themeColor:a.theme_color||"#F97316"}}):[]}(0,a.i(50914).ensureServerEntryExports)([d]),(0,b.registerServerReference)(d,"00d16b21ed4b62efc7c9e7d5ff8a218bb5ad83c6a9",null),a.s(["fetchApprovedVenues",()=>d])},84565,a=>{"use strict";var b=a.i(56677);a.s([],80424),a.i(80424),a.s(["00d16b21ed4b62efc7c9e7d5ff8a218bb5ad83c6a9",()=>b.fetchApprovedVenues],84565)}];
 
 //# sourceMappingURL=join-app_2aaa84b9._.js.map

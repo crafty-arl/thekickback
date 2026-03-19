@@ -50,6 +50,12 @@
       "namedRegex": "^/_not\\-found(?:/)?$"
     },
     {
+      "page": "/api/book",
+      "regex": "^/api/book(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/book(?:/)?$"
+    },
+    {
       "page": "/api/chat",
       "regex": "^/api/chat(?:/)?$",
       "routeKeys": {},
