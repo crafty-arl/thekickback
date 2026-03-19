@@ -217,6 +217,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                         onVenueSelect={setSelectedVenue}
                         onRecenter={handleRecenter}
                         hasLocation={!!userLocation}
+                        userLocation={userLocation}
                     />
                 )}
             </AnimatePresence>

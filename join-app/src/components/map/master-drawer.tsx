@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { type Venue } from "@/lib/venues";
 import { createClient } from "@/lib/supabase/client";
 import { PreferencesSection } from "./preferences-section";
+import { StoreDrawer } from "./store-drawer";
 
 interface Message {
   id: string;
@@ -18,6 +19,7 @@ interface MasterDrawerProps {
   onVenueSelect: (venue: Venue) => void;
   onRecenter?: () => void;
   hasLocation?: boolean;
+  userLocation?: { latitude: number; longitude: number } | null;
 }
 
 const ACCENT = "#a78bfa"; // soft purple for the master agent
@@ -133,9 +135,10 @@ interface UserProfile {
   venueProfiles: VenueXpProfile[];
 }
 
-export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }: MasterDrawerProps) {
+export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, userLocation }: MasterDrawerProps) {
   const [expanded, setExpanded] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showStore, setShowStore] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const controls = useAnimationControls();
 
@@ -358,6 +361,21 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                   </svg>
                 </button>
               )}
+
+              {/* Store */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowStore(true); }}
+                className="flex h-8 w-8 items-center justify-center rounded-full transition-transform active:scale-90"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                aria-label="Explore venues"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+              </button>
             </div>
 
             {/* Center: KickBack brand + input */}
@@ -434,6 +452,20 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                     </svg>
                   </button>
                 )}
+                {/* Store */}
+                <button
+                  onClick={() => { setShowStore(true); setExpanded(false); setShowProfile(false); }}
+                  className="flex h-7 w-7 items-center justify-center rounded-full transition-transform active:scale-90"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                  aria-label="Explore venues"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                  </svg>
+                </button>
                 {/* Profile */}
                 <button
                   onClick={() => setShowProfile(!showProfile)}
@@ -799,6 +831,21 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
           </>
         )}
       </motion.div>
+
+      {/* Store drawer overlay */}
+      <AnimatePresence>
+        {showStore && (
+          <StoreDrawer
+            venues={venues}
+            onClose={() => setShowStore(false)}
+            onVenueSelect={(venue) => {
+              setShowStore(false);
+              onVenueSelect(venue);
+            }}
+            userLocation={userLocation}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
