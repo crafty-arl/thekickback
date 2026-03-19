@@ -4,12 +4,14 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, PanInfo, useAnimationControls } from "framer-motion";
 import { Venue, getVibeHexColor, getVibeLabel, getOccupancyPercent } from "@/lib/venues";
 import { createClient } from "@/lib/supabase/client";
+import { VibeCard, MenuCard, EventsCard, ReserveCard } from "./tab-cards";
 
 interface Message {
   id: string;
   sender: "guest" | "ai";
   body: string;
   timestamp: number;
+  tab?: Tab;
 }
 
 interface VenueDrawerProps {
@@ -135,6 +137,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
           sender: "ai",
           body: data.reply || "Couldn't reach the venue right now. Try again.",
           timestamp: Date.now(),
+          tab: activeTab,
         },
       ]);
     } catch {
@@ -317,36 +320,63 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
               style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
             >
               <div className="flex flex-col gap-2.5">
-                {messages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 10, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                    className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${
-                        msg.sender === "guest" ? "rounded-br-sm" : "rounded-bl-sm"
-                      }`}
-                      style={
-                        msg.sender === "guest"
-                          ? {
-                              backgroundColor: vibeColor,
-                              color: "#000",
-                              boxShadow: `0 2px 12px ${vibeColor}33`,
-                            }
-                          : {
-                              backgroundColor: "rgba(255,255,255,0.07)",
-                              color: "rgba(255,255,255,0.8)",
-                              border: "1px solid rgba(255,255,255,0.05)",
-                            }
-                      }
+                {messages.map((msg) => {
+                  // Guest messages — standard bubble
+                  if (msg.sender === "guest") {
+                    return (
+                      <motion.div
+                        key={msg.id}
+                        initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        className="flex justify-end"
+                      >
+                        <div
+                          className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5"
+                          style={{ backgroundColor: vibeColor, color: "#000", boxShadow: `0 2px 12px ${vibeColor}33` }}
+                        >
+                          <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  }
+
+                  // AI messages with a tab — render custom card
+                  if (msg.tab && msg.tab !== "chat") {
+                    return (
+                      <motion.div
+                        key={msg.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        className="flex justify-start"
+                      >
+                        {msg.tab === "vibe" && <VibeCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "menu" && <MenuCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "events" && <EventsCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
+                        {msg.tab === "reserve" && <ReserveCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
+                      </motion.div>
+                    );
+                  }
+
+                  // Default AI chat bubble
+                  return (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                      className="flex justify-start"
                     >
-                      <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
-                    </div>
-                  </motion.div>
-                ))}
+                      <div
+                        className="max-w-[80%] rounded-2xl rounded-bl-sm px-3.5 py-2.5"
+                        style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}
+                      >
+                        <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
 
                 {loading && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
