@@ -22,6 +22,14 @@
   },
   "dynamicRoutes": [
     {
+      "page": "/checkin/[venueId]",
+      "regex": "^/checkin/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPvenueId": "nxtPvenueId"
+      },
+      "namedRegex": "^/checkin/(?<nxtPvenueId>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/[slug]",
       "regex": "^/([^/]+?)(?:/)?$",
       "routeKeys": {
@@ -50,10 +58,28 @@
       "namedRegex": "^/_not\\-found(?:/)?$"
     },
     {
+      "page": "/api/auth/otp",
+      "regex": "^/api/auth/otp(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/otp(?:/)?$"
+    },
+    {
+      "page": "/api/auth/verify",
+      "regex": "^/api/auth/verify(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/verify(?:/)?$"
+    },
+    {
       "page": "/api/book",
       "regex": "^/api/book(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/book(?:/)?$"
+    },
+    {
+      "page": "/api/book/test",
+      "regex": "^/api/book/test(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/book/test(?:/)?$"
     },
     {
       "page": "/api/chat",
@@ -66,6 +92,12 @@
       "regex": "^/api/chat/general(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/chat/general(?:/)?$"
+    },
+    {
+      "page": "/api/checkin",
+      "regex": "^/api/checkin(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/checkin(?:/)?$"
     },
     {
       "page": "/api/discover",
@@ -84,6 +116,12 @@
       "regex": "^/api/points(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/points(?:/)?$"
+    },
+    {
+      "page": "/api/receipt",
+      "regex": "^/api/receipt(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/receipt(?:/)?$"
     },
     {
       "page": "/health",

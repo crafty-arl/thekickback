@@ -35,13 +35,15 @@ export async function createCalBooking(
             body: JSON.stringify({
                 eventTypeId: data.eventTypeId,
                 start: data.start,
-                attendee: {
+                name: data.attendeeName,
+                email: data.attendeeEmail,
+                timeZone: data.attendeeTimezone,
+                language: "en",
+                metadata: data.metadata || {},
+                responses: {
                     name: data.attendeeName,
                     email: data.attendeeEmail,
-                    timeZone: data.attendeeTimezone,
-                    language: "en",
                 },
-                metadata: data.metadata || {},
             }),
         });
 
@@ -57,8 +59,8 @@ export async function createCalBooking(
             id: d.id,
             uid: d.uid,
             status: d.status,
-            start: d.start,
-            end: d.end,
+            start: d.startTime,
+            end: d.endTime,
         };
     } catch (err) {
         console.error("Cal.com create booking fetch error:", err);
