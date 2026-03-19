@@ -9,5 +9,6 @@
   "/login/page": "app/login/page.js",
   "/onboarding/page": "app/onboarding/page.js",
   "/page": "app/page.js",
+  "/root/page": "app/root/page.js",
   "/settings/page": "app/settings/page.js"
 }

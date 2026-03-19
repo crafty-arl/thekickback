@@ -45,6 +45,51 @@
       "filename": "dash-app/src/app/onboarding/actions.ts",
       "exportedName": "createVenue"
     },
+    "40e4ccc4903462c2965635cf45db38063b7eca55a1": {
+      "workers": {
+        "app/root/page": {
+          "moduleId": 59396,
+          "async": false,
+          "exportedName": "approveVenue",
+          "filename": "dash-app/src/app/root/actions.ts"
+        }
+      },
+      "layer": {
+        "app/root/page": "action-browser"
+      },
+      "filename": "dash-app/src/app/root/actions.ts",
+      "exportedName": "approveVenue"
+    },
+    "407950d519b8bf7d5ba0d085a24190b6ecd8e3601f": {
+      "workers": {
+        "app/root/page": {
+          "moduleId": 59396,
+          "async": false,
+          "exportedName": "rejectVenue",
+          "filename": "dash-app/src/app/root/actions.ts"
+        }
+      },
+      "layer": {
+        "app/root/page": "action-browser"
+      },
+      "filename": "dash-app/src/app/root/actions.ts",
+      "exportedName": "rejectVenue"
+    },
+    "4058a02f780f8e421488d869fa76350efe25b11cbc": {
+      "workers": {
+        "app/root/page": {
+          "moduleId": 59396,
+          "async": false,
+          "exportedName": "unpublishVenue",
+          "filename": "dash-app/src/app/root/actions.ts"
+        }
+      },
+      "layer": {
+        "app/root/page": "action-browser"
+      },
+      "filename": "dash-app/src/app/root/actions.ts",
+      "exportedName": "unpublishVenue"
+    },
     "60584734f16ef9783ec5aa4dfcb609007d8651bbb6": {
       "workers": {
         "app/settings/page": {

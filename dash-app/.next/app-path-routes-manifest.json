@@ -9,5 +9,6 @@
   "/login/page": "/login",
   "/onboarding/page": "/onboarding",
   "/page": "/",
+  "/root/page": "/root",
   "/settings/page": "/settings"
 }

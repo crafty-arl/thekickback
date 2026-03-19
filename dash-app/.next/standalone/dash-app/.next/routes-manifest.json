@@ -83,6 +83,12 @@
       "namedRegex": "^/onboarding(?:/)?$"
     },
     {
+      "page": "/root",
+      "regex": "^/root(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/root(?:/)?$"
+    },
+    {
       "page": "/settings",
       "regex": "^/settings(?:/)?$",
       "routeKeys": {},
