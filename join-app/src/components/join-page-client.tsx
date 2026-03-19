@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { type Venue } from "@/lib/venues";
 import { VenueDrawer } from "@/components/map/venue-drawer";
 import { MasterDrawer } from "@/components/map/master-drawer";
+import { TagRail, type Tag } from "@/components/map/tag-rail";
 import type { MapRef } from "react-map-gl";
 
 const MapView = dynamic(
@@ -22,7 +23,13 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     const [venues, setVenues] = useState<Venue[]>(serverVenues);
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+    const [activeTag, setActiveTag] = useState<Tag | null>(null);
     const mapRef = useRef<MapRef | null>(null);
+
+    // Filtered venues based on active tag
+    const filteredVenues = activeTag
+        ? venues.filter((v) => activeTag.venueIds.includes(v.id))
+        : venues;
 
     // Request geolocation and fetch local discovery venues
     useEffect(() => {
@@ -57,11 +64,13 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     }, [serverVenues]);
 
     const navigateVenue = useCallback((dir: -1 | 1) => {
-        if (!selectedVenue || venues.length === 0) return;
-        const idx = venues.findIndex((v) => v.id === selectedVenue.id);
-        const next = (idx + dir + venues.length) % venues.length;
-        setSelectedVenue(venues[next]);
-    }, [selectedVenue, venues]);
+        const navVenues = filteredVenues.length > 0 ? filteredVenues : venues;
+        if (!selectedVenue || navVenues.length === 0) return;
+        const idx = navVenues.findIndex((v) => v.id === selectedVenue.id);
+        const startIdx = idx === -1 ? 0 : idx;
+        const next = (startIdx + dir + navVenues.length) % navVenues.length;
+        setSelectedVenue(navVenues[next]);
+    }, [selectedVenue, venues, filteredVenues]);
 
     const handleRecenter = useCallback(() => {
         if (!userLocation || !mapRef.current) return;
@@ -72,6 +81,34 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
             duration: 1000,
         });
     }, [userLocation]);
+
+    const handleTagSelect = useCallback((tag: Tag | null) => {
+        setActiveTag(tag);
+        if (tag && tag.venueIds.length > 0) {
+            // Auto-select the first venue matching this tag
+            const firstMatch = venues.find((v) => tag.venueIds.includes(v.id));
+            if (firstMatch) {
+                setSelectedVenue(firstMatch);
+                mapRef.current?.flyTo({
+                    center: [firstMatch.longitude, firstMatch.latitude],
+                    zoom: 15.5,
+                    pitch: 50,
+                    duration: 800,
+                });
+            }
+        } else {
+            // Clear filter — deselect venue and zoom out
+            setSelectedVenue(null);
+            if (venues.length >= 2) {
+                const lngs = venues.map((v) => v.longitude);
+                const lats = venues.map((v) => v.latitude);
+                mapRef.current?.fitBounds(
+                    [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+                    { padding: { top: 100, bottom: 80, left: 40, right: 40 }, duration: 800 }
+                );
+            }
+        }
+    }, [venues]);
 
     return (
         <main className="relative h-dvh w-full overflow-hidden bg-black">
@@ -99,9 +136,20 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 </header>
             </div>
 
-            {/* Edge arrows — prev/next venue */}
+            {/* Tag rail — above the command bar */}
             <AnimatePresence>
-                {selectedVenue && (
+                {!selectedVenue && (
+                    <TagRail
+                        venues={venues}
+                        activeTag={activeTag?.id || null}
+                        onTagSelect={handleTagSelect}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* Edge arrows — prev/next venue (show when venue selected OR tag active) */}
+            <AnimatePresence>
+                {(selectedVenue || (activeTag && filteredVenues.length > 1)) && (
                     <>
                         {/* Left arrow */}
                         <motion.button
