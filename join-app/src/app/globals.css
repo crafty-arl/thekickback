@@ -53,19 +53,26 @@
 }
 
 html, body {
-  overflow: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Map pages need fixed viewport */
+html.map-mode, html.map-mode body {
+  overflow: hidden;
+}
+
+html.map-mode body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
 }
 
 body {
   font-family: var(--font-sans);
   background: #000000;
   color: #000000;
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100dvh;
 }
 
 :root {

@@ -53,16 +53,14 @@ jobs:
               -d '{"query":"ALTER TABLE venue_offerings ADD COLUMN IF NOT EXISTS cal_event_type_id integer; ALTER TABLE venues ADD COLUMN IF NOT EXISTS cal_api_key text;"}' \
               2>/dev/null || echo "Note: migration may need manual run via Supabase SQL Editor"
 
-            # Clean up orphan containers from previous failed deploys
-            docker compose down --remove-orphans 2>/dev/null || true
+            # Clean up only orphan containers (don't take down running services)
             docker container prune -f 2>/dev/null || true
 
-            # Rebuild all app services + restart Caddy
+            # Rebuild and restart only app services (Caddy stays up)
             docker compose build --no-cache landing-blue
             docker compose up -d --build landing-blue join-app dash-app
-            docker compose restart caddy
 
-            # Wait for all services to be healthy
+            # Wait for all app services to be healthy
             echo "Waiting for health checks..."
             for SERVICE in landing-blue join-app dash-app; do
               RETRIES=30
@@ -77,6 +75,11 @@ jobs:
               done
               echo "$SERVICE is healthy"
             done
+
+            # Reload Caddy config without restarting (zero-downtime)
+            docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null \
+              || docker compose restart caddy
+
             echo "Deploy verified: all services healthy"
 
       - name: Verify health
@@ -86,12 +89,26 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            # Wait for Caddy + Cloudflare to settle after deploy
+            sleep 10
+
             for URL in https://thekickback.net/health https://join.thekickback.net/health https://dash.thekickback.net/health; do
-              HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" "$URL")
-              if [ "$HTTP_CODE" != "200" ]; then
-                echo "DEPLOY VERIFICATION FAILED: $URL returned HTTP $HTTP_CODE"
+              RETRIES=5
+              SUCCESS=false
+              while [ $RETRIES -gt 0 ]; do
+                HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "$URL")
+                if [ "$HTTP_CODE" = "200" ]; then
+                  echo "$URL — HTTP 200"
+                  SUCCESS=true
+                  break
+                fi
+                echo "$URL returned HTTP $HTTP_CODE, retrying in 5s... ($RETRIES left)"
+                RETRIES=$((RETRIES - 1))
+                sleep 5
+              done
+              if [ "$SUCCESS" != "true" ]; then
+                echo "DEPLOY VERIFICATION FAILED: $URL returned HTTP $HTTP_CODE after retries"
                 exit 1
               fi
-              echo "$URL — HTTP 200"
             done
             echo "All services live"

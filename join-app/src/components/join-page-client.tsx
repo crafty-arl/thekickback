@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useLayoutEffect } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +30,12 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     const filteredVenues = activeTag
         ? venues.filter((v) => activeTag.venueIds.includes(v.id))
         : venues;
+
+    // Lock viewport for map mode
+    useLayoutEffect(() => {
+        document.documentElement.classList.add("map-mode");
+        return () => document.documentElement.classList.remove("map-mode");
+    }, []);
 
     // Request geolocation and fetch local discovery venues
     useEffect(() => {
