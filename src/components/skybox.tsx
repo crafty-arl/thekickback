@@ -1,4 +1,3 @@
-/* eslint-disable react-compiler/react-compiler */
 "use client";
 
 import { useRef, useMemo, useEffect, useState } from "react";
