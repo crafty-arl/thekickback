@@ -58,6 +58,14 @@ export default async function VenuePage({ params, searchParams }: Props) {
     .eq("venue_id", page.venues.id)
     .order("sort_order", { ascending: true });
 
+  // Fetch visible staff members
+  const { data: staff } = await serviceClient
+    .from("venue_staff")
+    .select("id, display_name, role_title, avatar_url, bio, specialties, schedule")
+    .eq("venue_id", page.venues.id)
+    .eq("visible", true)
+    .order("sort_order", { ascending: true });
+
   // Check if the current user is authenticated
   const supabase = await createClient();
   const {
@@ -73,6 +81,7 @@ export default async function VenuePage({ params, searchParams }: Props) {
       user={user ? { id: user.id, email: user.email ?? "" } : null}
       offerings={offerings || []}
       gallery={gallery || []}
+      staff={staff || []}
     />
   );
 }

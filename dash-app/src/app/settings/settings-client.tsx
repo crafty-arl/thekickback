@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate } from "./actions";
 import { uploadGalleryImage, deleteGalleryImage, updateHeroImage, removeHeroImage } from "../../app/edit/gallery-actions";
+import { addStaffMember, updateStaffMember, deleteStaffMember, uploadStaffAvatar, toggleStaffVisibility } from "./staff-actions";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -37,6 +38,7 @@ const SECTIONS = [
     { id: "photos", label: "Photos", icon: "📷" },
     { id: "hours", label: "Hours & Menu", icon: "◇" },
     { id: "rules", label: "Rules & Vibe", icon: "◆" },
+    { id: "staff", label: "Staff", icon: "👤" },
     { id: "offerings", label: "Offerings", icon: "💰" },
     { id: "xp", label: "XP Roadmap", icon: "⚡" },
     { id: "qr", label: "QR Codes", icon: "▣" },
@@ -265,11 +267,12 @@ interface Props {
     xpMilestones: XpMilestone[];
     customTemplates: { id: string; name: string; actions: unknown[]; milestones: unknown[] }[];
     gallery: { id: string; image_url: string; caption: string | null; sort_order: number }[];
+    staff: { id: string; display_name: string; role_title: string | null; avatar_url: string | null; bio: string | null; specialties: string[]; visible: boolean; sort_order: number; schedule: unknown[]; created_at: string }[];
 }
 
 // ─── Main Component ──────────────────────────────────────────────
 
-export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [] }: Props) {
+export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [] }: Props) {
     const [activeSection, setActiveSection] = useState("general");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
@@ -281,6 +284,16 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [uploadingGallery, setUploadingGallery] = useState(false);
     const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
     const [photoMsg, setPhotoMsg] = useState("");
+
+    // Staff state
+    const [staffList, setStaffList] = useState(initialStaff);
+    const [showAddStaff, setShowAddStaff] = useState(false);
+    const [newStaffName, setNewStaffName] = useState("");
+    const [newStaffTitle, setNewStaffTitle] = useState("");
+    const [newStaffBio, setNewStaffBio] = useState("");
+    const [newStaffSpecialties, setNewStaffSpecialties] = useState("");
+    const [addingStaff, setAddingStaff] = useState(false);
+    const [staffMsg, setStaffMsg] = useState("");
 
     // Venue fields
     const [name, setName] = useState(venue.name);
@@ -750,6 +763,171 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                             <Field label="House Rules" hint="One rule per line">
                                 <textarea value={rulesText} onChange={(e) => setRulesText(e.target.value)} rows={4} placeholder={"Quiet after 10 PM\nMembers get priority\n21+ only"} className="input resize-none" />
                             </Field>
+                        </Card>
+
+                        {/* ─── Staff ───────────────────────────────────────────── */}
+                        <Card id="staff" title="Staff" desc="Team members visible on your venue page. Guests can see who's working.">
+                            {/* Existing staff */}
+                            {staffList.length === 0 && !showAddStaff && (
+                                <p className="font-sans text-[13px] text-white/20">No staff added yet.</p>
+                            )}
+
+                            <div className="flex flex-col gap-3">
+                                {staffList.map((member) => (
+                                    <div
+                                        key={member.id}
+                                        className="group flex items-center gap-3 rounded-xl p-3"
+                                        style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                                    >
+                                        {/* Avatar */}
+                                        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                                            {member.avatar_url ? (
+                                                <img src={member.avatar_url} alt={member.display_name} className="h-full w-full object-cover" />
+                                            ) : (
+                                                <span className="font-sans text-[16px] font-bold" style={{ color: page?.theme_color || "#F97316" }}>
+                                                    {member.display_name.charAt(0).toUpperCase()}
+                                                </span>
+                                            )}
+                                            {/* Avatar upload overlay */}
+                                            <label className="absolute inset-0 flex cursor-pointer items-center justify-center opacity-0 transition group-hover:opacity-100" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                                                    <circle cx="12" cy="13" r="4" />
+                                                </svg>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (!file) return;
+                                                        const fd = new FormData();
+                                                        fd.append("file", file);
+                                                        const result = await uploadStaffAvatar(venue.id, member.id, fd);
+                                                        if (result.url) {
+                                                            setStaffList((prev) => prev.map((s) => s.id === member.id ? { ...s, avatar_url: result.url! } : s));
+                                                        }
+                                                    }}
+                                                />
+                                            </label>
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-sans text-[13px] font-medium text-white/80">{member.display_name}</p>
+                                            {member.role_title && <p className="font-sans text-[11px] text-white/30">{member.role_title}</p>}
+                                            {member.specialties && member.specialties.length > 0 && (
+                                                <div className="mt-1 flex flex-wrap gap-1">
+                                                    {member.specialties.map((tag) => (
+                                                        <span key={tag} className="rounded-full px-2 py-0.5 font-sans text-[9px]" style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.3)" }}>{tag}</span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center gap-1.5 opacity-0 transition group-hover:opacity-100">
+                                            {/* Visibility toggle */}
+                                            <button
+                                                onClick={async () => {
+                                                    const newVisible = !member.visible;
+                                                    await toggleStaffVisibility(venue.id, member.id, newVisible);
+                                                    setStaffList((prev) => prev.map((s) => s.id === member.id ? { ...s, visible: newVisible } : s));
+                                                }}
+                                                className="flex h-7 w-7 items-center justify-center rounded-lg"
+                                                style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                                                title={member.visible ? "Hide from page" : "Show on page"}
+                                            >
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={member.visible ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.15)"} strokeWidth="2" strokeLinecap="round">
+                                                    {member.visible ? (
+                                                        <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></>
+                                                    ) : (
+                                                        <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" /></>
+                                                    )}
+                                                </svg>
+                                            </button>
+
+                                            {/* Delete */}
+                                            <button
+                                                onClick={async () => {
+                                                    const result = await deleteStaffMember(venue.id, member.id);
+                                                    if (!result.error) {
+                                                        setStaffList((prev) => prev.filter((s) => s.id !== member.id));
+                                                    }
+                                                }}
+                                                className="flex h-7 w-7 items-center justify-center rounded-lg"
+                                                style={{ backgroundColor: "rgba(239,68,68,0.1)" }}
+                                            >
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round">
+                                                    <path d="M18 6 6 18M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Add staff form */}
+                            {showAddStaff ? (
+                                <div className="flex flex-col gap-3 rounded-xl p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                                    <input value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} placeholder="Name *" className="input" />
+                                    <input value={newStaffTitle} onChange={(e) => setNewStaffTitle(e.target.value)} placeholder="Role title (e.g. Lead Barista)" className="input" />
+                                    <textarea value={newStaffBio} onChange={(e) => setNewStaffBio(e.target.value)} placeholder="Short bio (optional)" className="input resize-none" rows={2} />
+                                    <input value={newStaffSpecialties} onChange={(e) => setNewStaffSpecialties(e.target.value)} placeholder="Specialties (comma-separated, e.g. Fade, Color)" className="input" />
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={async () => {
+                                                if (!newStaffName.trim()) return;
+                                                setAddingStaff(true);
+                                                const specialties = newStaffSpecialties.split(",").map((s) => s.trim()).filter(Boolean);
+                                                const result = await addStaffMember(venue.id, {
+                                                    display_name: newStaffName.trim(),
+                                                    role_title: newStaffTitle.trim() || undefined,
+                                                    bio: newStaffBio.trim() || undefined,
+                                                    specialties: specialties.length > 0 ? specialties : undefined,
+                                                });
+                                                if (result.staff) {
+                                                    setStaffList((prev) => [...prev, result.staff!]);
+                                                    setNewStaffName(""); setNewStaffTitle(""); setNewStaffBio(""); setNewStaffSpecialties("");
+                                                    setShowAddStaff(false);
+                                                    setStaffMsg("Staff added!"); setTimeout(() => setStaffMsg(""), 2000);
+                                                } else if (result.error) {
+                                                    setStaffMsg(result.error);
+                                                }
+                                                setAddingStaff(false);
+                                            }}
+                                            disabled={addingStaff || !newStaffName.trim()}
+                                            className="rounded-lg px-4 py-2 font-sans text-[12px] font-semibold text-white"
+                                            style={{ backgroundColor: page?.theme_color || "#F97316" }}
+                                        >
+                                            {addingStaff ? "Adding..." : "Add"}
+                                        </button>
+                                        <button
+                                            onClick={() => { setShowAddStaff(false); setNewStaffName(""); setNewStaffTitle(""); setNewStaffBio(""); setNewStaffSpecialties(""); }}
+                                            className="rounded-lg px-4 py-2 font-sans text-[12px] text-white/40"
+                                            style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setShowAddStaff(true)}
+                                    className="flex items-center gap-2 rounded-xl px-4 py-3 font-sans text-[12px] font-medium transition"
+                                    style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" }}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                        <line x1="12" y1="5" x2="12" y2="19" />
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                    Add team member
+                                </button>
+                            )}
+
+                            {staffMsg && (
+                                <p className="font-sans text-[13px] font-medium" style={{ color: staffMsg.includes("!") ? "#4ADE80" : "#EF4444" }}>{staffMsg}</p>
+                            )}
                         </Card>
 
                         {/* ─── Offerings ───────────────────────────────────────── */}
