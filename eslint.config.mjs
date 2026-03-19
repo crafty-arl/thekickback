@@ -21,6 +21,16 @@ const eslintConfig = defineConfig([
     "dash-app/**",
     "supabase/**",
   ]),
+  // React Three Fiber (R3F) components use imperative patterns (camera mutation,
+  // useFrame, Math.random in useMemo) that are incompatible with React compiler rules.
+  {
+    files: ["src/components/skybox.tsx"],
+    rules: {
+      "react-hooks/purity": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

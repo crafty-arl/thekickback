@@ -5,31 +5,21 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Stars } from "@react-three/drei";
 import * as THREE from "three";
 
-/* ── Seeded pseudo-random (avoids Math.random in render) ── */
-function seededRandom(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 16807) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
-}
-
 /* ── Venue orbs floating in 3D space ── */
 function VenueOrbs() {
   const ref = useRef<THREE.Group>(null);
   const orbs = useMemo(() => {
-    const rng = seededRandom(42);
     const colors = ["#f97316", "#4ade80", "#facc15", "#f87171", "#a78bfa"];
     return Array.from({ length: 40 }, (_, i) => ({
       position: [
-        (rng() - 0.5) * 60,
-        (rng() - 0.5) * 60,
-        (rng() - 0.5) * 40 - 10,
+        (Math.random() - 0.5) * 60,
+        (Math.random() - 0.5) * 60,
+        (Math.random() - 0.5) * 40 - 10,
       ] as [number, number, number],
       color: colors[i % colors.length],
-      size: rng() * 0.15 + 0.05,
-      speed: rng() * 0.3 + 0.1,
-      phase: rng() * Math.PI * 2,
+      size: Math.random() * 0.15 + 0.05,
+      speed: Math.random() * 0.3 + 0.1,
+      phase: Math.random() * Math.PI * 2,
     }));
   }, []);
 
@@ -77,19 +67,20 @@ function VenueOrbs() {
 /* ── Nebula clouds ── */
 function NebulaClouds() {
   const ref = useRef<THREE.Group>(null);
-  const clouds = useMemo(() => {
-    const rng = seededRandom(99);
-    return Array.from({ length: 8 }, (_, i) => ({
-      position: [
-        (rng() - 0.5) * 50,
-        (rng() - 0.5) * 40,
-        -20 - rng() * 20,
-      ] as [number, number, number],
-      scale: rng() * 8 + 4,
-      color: ["#f97316", "#a78bfa", "#4ade80", "#f87171"][i % 4],
-      rotation: rng() * Math.PI,
-    }));
-  }, []);
+  const clouds = useMemo(
+    () =>
+      Array.from({ length: 8 }, (_, i) => ({
+        position: [
+          (Math.random() - 0.5) * 50,
+          (Math.random() - 0.5) * 40,
+          -20 - Math.random() * 20,
+        ] as [number, number, number],
+        scale: Math.random() * 8 + 4,
+        color: ["#f97316", "#a78bfa", "#4ade80", "#f87171"][i % 4],
+        rotation: Math.random() * Math.PI,
+      })),
+    []
+  );
 
   useFrame(({ clock }) => {
     if (!ref.current) return;
@@ -134,8 +125,6 @@ function ScrollCamera() {
   const { camera } = useThree();
   const scrollRef = useRef(0);
   const targetRef = useRef(0);
-  const camRef = useRef(camera);
-  camRef.current = camera;
 
   useEffect(() => {
     function onScroll() {
@@ -152,10 +141,9 @@ function ScrollCamera() {
     const t = scrollRef.current;
 
     // Camera drifts through space as user scrolls
-    const c = camRef.current;
-    c.position.y = 2 - t * 8;
-    c.position.z = 20 - t * 15;
-    c.rotation.x = -t * 0.15;
+    camera.position.y = 2 - t * 8;
+    camera.position.z = 20 - t * 15;
+    camera.rotation.x = -t * 0.15;
   });
 
   return null;
@@ -177,19 +165,13 @@ function AmbientRotation({ children }: { children: React.ReactNode }) {
 
 /* ── Main Skybox Component ── */
 export function Skybox() {
-  const mountedRef = useRef(false);
-  const [, forceRender] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
-  if (!mountedRef.current) {
-    // Schedule a re-render after mount (via microtask to avoid sync setState in effect)
-    if (typeof window !== "undefined") {
-      Promise.resolve().then(() => {
-        mountedRef.current = true;
-        forceRender((n) => n + 1);
-      });
-    }
-    return null;
-  }
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   return (
     <div
