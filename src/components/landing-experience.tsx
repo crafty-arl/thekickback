@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 
@@ -32,60 +32,60 @@ const SCREENS: {
   label: string;
   icon: React.ReactNode;
 }[] = [
-  {
-    id: "home",
-    label: "Home",
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
-      </svg>
-    ),
-  },
-  {
-    id: "discover",
-    label: "Discover",
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-      </svg>
-    ),
-  },
-  {
-    id: "talk",
-    label: "Talk",
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-    ),
-  },
-  {
-    id: "actions",
-    label: "Actions",
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-        <line x1="3" y1="9" x2="21" y2="9" />
-        <line x1="9" y1="21" x2="9" y2="9" />
-      </svg>
-    ),
-  },
-  {
-    id: "network",
-    label: "Network",
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="5" r="3" />
-        <circle cx="5" cy="19" r="3" />
-        <circle cx="19" cy="19" r="3" />
-        <line x1="12" y1="8" x2="5" y2="16" />
-        <line x1="12" y1="8" x2="19" y2="16" />
-      </svg>
-    ),
-  },
-];
+    {
+      id: "home",
+      label: "Home",
+      icon: (
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+      ),
+    },
+    {
+      id: "discover",
+      label: "Discover",
+      icon: (
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+        </svg>
+      ),
+    },
+    {
+      id: "talk",
+      label: "Talk",
+      icon: (
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      ),
+    },
+    {
+      id: "actions",
+      label: "Actions",
+      icon: (
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+          <line x1="3" y1="9" x2="21" y2="9" />
+          <line x1="9" y1="21" x2="9" y2="9" />
+        </svg>
+      ),
+    },
+    {
+      id: "network",
+      label: "Network",
+      icon: (
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="5" r="3" />
+          <circle cx="5" cy="19" r="3" />
+          <circle cx="19" cy="19" r="3" />
+          <line x1="12" y1="8" x2="5" y2="16" />
+          <line x1="12" y1="8" x2="19" y2="16" />
+        </svg>
+      ),
+    },
+  ];
 
 /* ── Interactive screen content panels ── */
 function ScreenContent({ screen }: { screen: Screen }) {
@@ -236,11 +236,10 @@ function TalkVisual() {
             {["Chat", "Vibe", "Menu", "Events", "Reserve"].map((t, i) => (
               <div
                 key={t}
-                className={`rounded-md px-2 py-1 font-sans text-[9px] font-medium sm:text-[10px] ${
-                  i === 0
+                className={`rounded-md px-2 py-1 font-sans text-[9px] font-medium sm:text-[10px] ${i === 0
                     ? "border border-orange/30 bg-orange/10 text-orange"
                     : "border border-white/[0.04] bg-white/[0.04] text-white/30"
-                }`}
+                  }`}
               >
                 {t}
               </div>
@@ -383,11 +382,10 @@ export function LandingExperience() {
             <button
               key={s.id}
               onClick={() => setScreen(s.id)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-2 font-sans text-[10px] font-medium transition-all sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs ${
-                screen === s.id
+              className={`flex items-center gap-1.5 rounded-full px-3 py-2 font-sans text-[10px] font-medium transition-all sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs ${screen === s.id
                   ? "bg-orange text-black"
                   : "text-white/40 hover:bg-white/[0.06] hover:text-white/60"
-              }`}
+                }`}
             >
               <span className={screen === s.id ? "text-black" : "text-white/40"}>
                 {s.icon}

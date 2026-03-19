@@ -289,7 +289,7 @@ export default function Home() {
           </h2>
           <p className="mx-auto mt-6 max-w-lg font-sans text-base leading-[1.7] text-white/40">
             KickBack is free for guests — always. Join the waitlist and be the first to know
-            when venues near you go live. No spam. Just an invite when it's time.
+            when venues near you go live. No spam. Just an invite when it&apos;s time.
           </p>
           <form
             action="https://formspree.io/f/placeholder"
