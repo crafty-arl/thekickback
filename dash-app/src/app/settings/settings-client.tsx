@@ -5,6 +5,7 @@ import Link from "next/link";
 import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate } from "./actions";
 import { uploadGalleryImage, deleteGalleryImage, updateHeroImage, removeHeroImage } from "../../app/edit/gallery-actions";
 import { addStaffMember, updateStaffMember, deleteStaffMember, uploadStaffAvatar, toggleStaffVisibility } from "./staff-actions";
+import { linkStaffToOffering, unlinkStaffFromOffering } from "./staff-offering-actions";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -29,6 +30,119 @@ const OFFERING_TYPES = [
     { id: "event", label: "Event", icon: "🎟️", recurring: false, defaultPrice: 1500, defaultName: "Event Ticket", defaultDesc: "Entry to a special event" },
     { id: "package", label: "Package", icon: "📦", recurring: false, defaultPrice: 10000, defaultName: "Package", defaultDesc: "A bundle of services and access" },
     { id: "custom", label: "Custom", icon: "✦", recurring: false, defaultPrice: 0, defaultName: "", defaultDesc: "" },
+];
+
+// ─── Venue-Type Offering Templates ───────────────────────────────
+
+interface OfferingTemplate {
+    type: string;
+    name: string;
+    description: string;
+    price_cents: number;
+    recurring: boolean;
+    interval?: string;
+    perks?: string[];
+    duration_minutes?: number;
+    add_ons?: { name: string; price_cents: number }[];
+}
+
+interface VenueTemplate {
+    id: string;
+    label: string;
+    icon: string;
+    description: string;
+    offerings: OfferingTemplate[];
+}
+
+const VENUE_TEMPLATES: VenueTemplate[] = [
+    {
+        id: "cafe", label: "Cafe", icon: "☕", description: "Coffee shop, bakery, or tea house",
+        offerings: [
+            { type: "product", name: "Drip Coffee", description: "House blend, any size", price_cents: 400, recurring: false },
+            { type: "product", name: "Latte", description: "Espresso with steamed milk — any milk", price_cents: 550, recurring: false },
+            { type: "product", name: "Pastry Box", description: "Pick any 2 pastries", price_cents: 800, recurring: false },
+            { type: "reservation", name: "Power Outlet Spot", description: "Reserved desk near an outlet for 2 hours", price_cents: 500, recurring: false, duration_minutes: 120 },
+            { type: "membership", name: "Regular", description: "Free drip coffee daily, 10% off everything else", price_cents: 2500, recurring: true, interval: "month", perks: ["Free drip coffee daily", "10% off food & drinks", "Priority seating"] },
+            { type: "event", name: "Latte Art Class", description: "Learn to pour rosettas with our head barista", price_cents: 3500, recurring: false, duration_minutes: 60 },
+        ],
+    },
+    {
+        id: "bar", label: "Bar", icon: "🍸", description: "Cocktail bar, pub, or wine bar",
+        offerings: [
+            { type: "product", name: "House Cocktail", description: "Bartender's choice — changes weekly", price_cents: 1400, recurring: false },
+            { type: "product", name: "Beer Flight", description: "4 local taps, 5oz each", price_cents: 1200, recurring: false },
+            { type: "reservation", name: "Booth Reservation", description: "Reserved booth for your group, 2-hour hold", price_cents: 5000, recurring: false, duration_minutes: 120, add_ons: [{ name: "Bottle Service", price_cents: 12000 }, { name: "Champagne Add-On", price_cents: 8000 }] },
+            { type: "package", name: "VIP Table + Bottle", description: "Premium booth with a bottle of your choice", price_cents: 15000, recurring: false, perks: ["Reserved booth all night", "1 premium bottle", "Dedicated server", "Skip the line"] },
+            { type: "membership", name: "Bar Member", description: "Skip the line, tab priority, members-only happy hour", price_cents: 3000, recurring: true, interval: "month", perks: ["Skip the line", "Members-only happy hour (half off)", "Tab priority", "Birthday bottle on the house"] },
+            { type: "event", name: "Live Music Night", description: "Cover for tonight's live performance", price_cents: 1500, recurring: false },
+        ],
+    },
+    {
+        id: "restaurant", label: "Restaurant", icon: "🍽️", description: "Sit-down dining, fast casual, or bistro",
+        offerings: [
+            { type: "reservation", name: "Table for 2", description: "Indoor seating, 90-minute window", price_cents: 0, recurring: false, duration_minutes: 90 },
+            { type: "reservation", name: "Table for 4-6", description: "Group seating, 2-hour window", price_cents: 0, recurring: false, duration_minutes: 120 },
+            { type: "reservation", name: "Private Dining Room", description: "Enclosed space for up to 12 guests", price_cents: 10000, recurring: false, duration_minutes: 180 },
+            { type: "package", name: "Chef's Tasting Menu", description: "5-course seasonal tasting with wine pairing", price_cents: 8500, recurring: false, perks: ["5 courses", "Wine pairing", "Amuse-bouche", "Dessert & coffee"] },
+            { type: "membership", name: "Dining Club", description: "Priority reservations, complimentary appetizer, member events", price_cents: 5000, recurring: true, interval: "month", perks: ["Priority reservations", "Complimentary appetizer each visit", "Quarterly wine dinner invite", "15% off takeout"] },
+            { type: "event", name: "Wine Dinner", description: "Themed multi-course dinner with sommelier", price_cents: 12000, recurring: false, duration_minutes: 180 },
+        ],
+    },
+    {
+        id: "coworking", label: "Coworking", icon: "💻", description: "Shared workspace, study spot, or hot desk",
+        offerings: [
+            { type: "product", name: "Day Pass", description: "Full-day access to open desks and Wi-Fi", price_cents: 2500, recurring: false },
+            { type: "reservation", name: "Meeting Room (1hr)", description: "Private room with screen and whiteboard", price_cents: 3000, recurring: false, duration_minutes: 60 },
+            { type: "reservation", name: "Dedicated Desk", description: "Your own desk, locked storage, 24/7 access", price_cents: 0, recurring: false },
+            { type: "membership", name: "Flex Member", description: "10 days/month, any desk, all amenities", price_cents: 15000, recurring: true, interval: "month", perks: ["10 days per month", "Any open desk", "Meeting room credits (2hrs/mo)", "Printer access", "Community events"] },
+            { type: "membership", name: "Unlimited", description: "Daily access, dedicated desk, mail handling", price_cents: 30000, recurring: true, interval: "month", perks: ["Unlimited daily access", "Dedicated desk", "Mail handling", "5hrs meeting room/mo", "Guest passes (2/mo)"] },
+            { type: "event", name: "Networking Mixer", description: "Monthly community networking event", price_cents: 0, recurring: false, duration_minutes: 120 },
+        ],
+    },
+    {
+        id: "lounge", label: "Lounge", icon: "🛋️", description: "Hookah lounge, wine bar, or members club",
+        offerings: [
+            { type: "product", name: "Hookah Session", description: "Premium shisha, choice of flavor", price_cents: 2500, recurring: false, duration_minutes: 90 },
+            { type: "product", name: "Wine by the Glass", description: "House red, white, or rosé", price_cents: 1400, recurring: false },
+            { type: "reservation", name: "VIP Section", description: "Private corner with bottle service", price_cents: 8000, recurring: false, duration_minutes: 180, add_ons: [{ name: "Extra Hookah", price_cents: 2000 }, { name: "Fruit Plate", price_cents: 1500 }] },
+            { type: "membership", name: "Inner Circle", description: "Members-only access after 9 PM, priority everything", price_cents: 5000, recurring: true, interval: "month", perks: ["Access after 9 PM", "Priority seating", "10% off all orders", "Members-only events", "Birthday VIP package"] },
+            { type: "event", name: "Vinyl Night", description: "Guest DJ spinning records, no cover for members", price_cents: 1000, recurring: false },
+            { type: "package", name: "Date Night Package", description: "Reserved couch, bottle of wine, charcuterie board", price_cents: 7500, recurring: false, perks: ["Reserved couch for 2", "Bottle of wine (your pick)", "Charcuterie board", "Dessert"] },
+        ],
+    },
+    {
+        id: "club", label: "Club / Nightlife", icon: "🎧", description: "Nightclub, dance venue, or live music hall",
+        offerings: [
+            { type: "event", name: "General Admission", description: "Entry for tonight", price_cents: 2000, recurring: false },
+            { type: "event", name: "VIP Entry", description: "Skip the line, access to VIP area", price_cents: 5000, recurring: false },
+            { type: "reservation", name: "Table Service", description: "Reserved table with 1 bottle", price_cents: 25000, recurring: false, add_ons: [{ name: "Extra Bottle", price_cents: 15000 }, { name: "Sparkler Show", price_cents: 5000 }] },
+            { type: "package", name: "Birthday Package", description: "Table + 2 bottles + cake + sparklers", price_cents: 50000, recurring: false, perks: ["Reserved table all night", "2 premium bottles", "Custom cake", "Sparkler entrance", "Photographer"] },
+            { type: "membership", name: "Guest List", description: "Free entry every night, skip the line, plus-one included", price_cents: 5000, recurring: true, interval: "month", perks: ["Free entry every night", "Skip the line", "Plus-one included", "Early access to events", "Members-only pre-parties"] },
+            { type: "product", name: "Merch — Tour Tee", description: "Limited edition venue t-shirt", price_cents: 3500, recurring: false },
+        ],
+    },
+    {
+        id: "salon", label: "Salon / Barbershop", icon: "✂️", description: "Hair, nails, grooming, or spa",
+        offerings: [
+            { type: "service", name: "Haircut", description: "Cut, wash, and style", price_cents: 3500, recurring: false, duration_minutes: 45 },
+            { type: "service", name: "Beard Trim", description: "Shape, line, and hot towel", price_cents: 1500, recurring: false, duration_minutes: 20 },
+            { type: "service", name: "Color Treatment", description: "Full color or highlights — consultation included", price_cents: 8000, recurring: false, duration_minutes: 90 },
+            { type: "package", name: "The Works", description: "Cut + beard + hot towel + scalp massage", price_cents: 5500, recurring: false, duration_minutes: 60, perks: ["Haircut & style", "Beard trim", "Hot towel treatment", "Scalp massage"] },
+            { type: "membership", name: "Monthly Cut", description: "One haircut per month, priority booking", price_cents: 2500, recurring: true, interval: "month", perks: ["1 haircut/month", "Priority booking", "10% off products", "Free beard trim add-on"] },
+            { type: "product", name: "Pomade", description: "House-brand styling product", price_cents: 1800, recurring: false },
+        ],
+    },
+    {
+        id: "fitness", label: "Gym / Studio", icon: "🏋️", description: "Yoga, CrossFit, boxing, or fitness studio",
+        offerings: [
+            { type: "service", name: "Drop-In Class", description: "Single class — any on today's schedule", price_cents: 2500, recurring: false, duration_minutes: 60 },
+            { type: "package", name: "10-Class Pack", description: "10 classes, use anytime within 3 months", price_cents: 18000, recurring: false },
+            { type: "membership", name: "Unlimited Monthly", description: "Unlimited classes, open gym, member perks", price_cents: 12000, recurring: true, interval: "month", perks: ["Unlimited classes", "Open gym access", "Guest pass (1/mo)", "10% off retail", "Priority booking"] },
+            { type: "service", name: "Personal Training", description: "1-on-1 session with a certified trainer", price_cents: 7500, recurring: false, duration_minutes: 60 },
+            { type: "event", name: "Workshop", description: "Special technique or wellness workshop", price_cents: 4000, recurring: false, duration_minutes: 120 },
+            { type: "product", name: "Protein Shake", description: "Post-workout shake from the bar", price_cents: 800, recurring: false },
+        ],
+    },
 ];
 
 const SECTIONS = [
@@ -268,11 +382,12 @@ interface Props {
     customTemplates: { id: string; name: string; actions: unknown[]; milestones: unknown[] }[];
     gallery: { id: string; image_url: string; caption: string | null; sort_order: number }[];
     staff: { id: string; display_name: string; role_title: string | null; avatar_url: string | null; bio: string | null; specialties: string[]; visible: boolean; sort_order: number; schedule: unknown[]; created_at: string }[];
+    staffOfferingLinks: { staff_id: string; offering_id: string }[];
 }
 
 // ─── Main Component ──────────────────────────────────────────────
 
-export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [] }: Props) {
+export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [], staffOfferingLinks: initialLinks = [] }: Props) {
     const [activeSection, setActiveSection] = useState("general");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
@@ -294,6 +409,10 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [newStaffSpecialties, setNewStaffSpecialties] = useState("");
     const [addingStaff, setAddingStaff] = useState(false);
     const [staffMsg, setStaffMsg] = useState("");
+
+    // Staff-offering links
+    const [soLinks, setSoLinks] = useState(initialLinks);
+    const [expandedOfferingStaff, setExpandedOfferingStaff] = useState<string | null>(null);
 
     // Venue fields
     const [name, setName] = useState(venue.name);
@@ -323,6 +442,8 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
     // Offering fields
     const [showAddOffering, setShowAddOffering] = useState(false);
+    const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+    const [applyingTemplate, setApplyingTemplate] = useState(false);
     const [offeringType, setOfferingType] = useState("membership");
     const [offeringName, setOfferingName] = useState("");
     const [offeringDesc, setOfferingDesc] = useState("");
@@ -446,6 +567,29 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
         setTogglingOffering(id);
         await toggleOffering(id, active);
         setTogglingOffering(null);
+    }
+
+    async function handleApplyTemplate(template: VenueTemplate) {
+        setApplyingTemplate(true);
+        let added = 0;
+        for (const o of template.offerings) {
+            const result = await addOffering({
+                name: o.name,
+                type: o.type,
+                description: o.description,
+                price_cents: o.price_cents,
+                recurring: o.recurring,
+                interval: o.interval,
+                perks: o.perks,
+                duration_minutes: o.duration_minutes,
+                add_ons: o.add_ons,
+            });
+            if (!result.error) added++;
+        }
+        setApplyingTemplate(false);
+        setShowTemplatePicker(false);
+        setOfferingMsg(`Added ${added} offerings from "${template.label}" template`);
+        setTimeout(() => setOfferingMsg(""), 3000);
     }
 
     async function handleDeleteOffering(id: string) {
@@ -933,10 +1077,38 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         {/* ─── Offerings ───────────────────────────────────────── */}
                         <Card id="offerings" title="Offerings" desc="Memberships, booth holds, space rentals, and more. These appear on your venue page.">
                             {/* Existing offerings */}
-                            {offerings.length === 0 && !showAddOffering && (
+                            {offerings.length === 0 && !showAddOffering && !showTemplatePicker && (
                                 <div className="rounded-xl py-8 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
                                     <p className="font-sans text-[14px] text-white/40">No offerings configured yet.</p>
-                                    <p className="mt-1 font-sans text-[12px] text-white/20">Add a membership, booth hold, or space rental to start earning.</p>
+                                    <p className="mt-1 font-sans text-[12px] text-white/20">Start with a template or create your own.</p>
+                                </div>
+                            )}
+
+                            {/* Template Picker */}
+                            {showTemplatePicker && (
+                                <div className="rounded-xl border p-4" style={{ borderColor: "rgba(167,139,250,0.2)", backgroundColor: "rgba(167,139,250,0.04)" }}>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="font-sans text-[13px] font-semibold text-white/60">Choose a template for your venue type</p>
+                                        <button onClick={() => setShowTemplatePicker(false)} className="font-sans text-[12px] text-white/30">Cancel</button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                        {VENUE_TEMPLATES.map((t) => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => handleApplyTemplate(t)}
+                                                disabled={applyingTemplate}
+                                                className="flex flex-col items-center gap-2 rounded-xl px-3 py-4 text-center transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                                                style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                                            >
+                                                <span className="text-[24px]">{t.icon}</span>
+                                                <span className="font-sans text-[12px] font-semibold text-white/70">{t.label}</span>
+                                                <span className="font-sans text-[9px] text-white/25">{t.offerings.length} offerings</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {applyingTemplate && (
+                                        <p className="mt-3 text-center font-sans text-[12px] text-[#a78bfa]">Adding offerings...</p>
+                                    )}
                                 </div>
                             )}
                             {offerings.map((o) => {
@@ -966,6 +1138,59 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                                     <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold tracking-wider" style={{ backgroundColor: "rgba(74,222,128,0.15)", color: "#4ADE80" }}>STRIPE</span>
                                                 )}
                                             </div>
+
+                                            {/* Staff assigned to this offering */}
+                                            {staffList.length > 0 && ["service", "reservation", "event", "custom"].includes(o.type) && (
+                                                <div className="mt-2">
+                                                    <button
+                                                        onClick={() => setExpandedOfferingStaff(expandedOfferingStaff === o.id ? null : o.id)}
+                                                        className="flex items-center gap-1.5 font-sans text-[11px] transition"
+                                                        style={{ color: "rgba(255,255,255,0.3)" }}
+                                                    >
+                                                        {(() => {
+                                                            const linked = soLinks.filter((l) => l.offering_id === o.id);
+                                                            if (linked.length === 0) return "+ Assign staff";
+                                                            const names = linked.map((l) => staffList.find((s) => s.id === l.staff_id)?.display_name).filter(Boolean);
+                                                            return `👤 ${names.join(", ")}`;
+                                                        })()}
+                                                    </button>
+                                                    {expandedOfferingStaff === o.id && (
+                                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                                            {staffList.map((s) => {
+                                                                const isLinked = soLinks.some((l) => l.staff_id === s.id && l.offering_id === o.id);
+                                                                return (
+                                                                    <button
+                                                                        key={s.id}
+                                                                        onClick={async () => {
+                                                                            if (isLinked) {
+                                                                                await unlinkStaffFromOffering(venue.id, s.id, o.id);
+                                                                                setSoLinks((prev) => prev.filter((l) => !(l.staff_id === s.id && l.offering_id === o.id)));
+                                                                            } else {
+                                                                                await linkStaffToOffering(venue.id, s.id, o.id);
+                                                                                setSoLinks((prev) => [...prev, { staff_id: s.id, offering_id: o.id }]);
+                                                                            }
+                                                                        }}
+                                                                        className="flex items-center gap-1.5 rounded-full px-2.5 py-1 font-sans text-[10px] font-medium transition"
+                                                                        style={{
+                                                                            backgroundColor: isLinked ? `${page?.theme_color || "#F97316"}20` : "rgba(255,255,255,0.04)",
+                                                                            color: isLinked ? (page?.theme_color || "#F97316") : "rgba(255,255,255,0.3)",
+                                                                            border: `1px solid ${isLinked ? `${page?.theme_color || "#F97316"}40` : "rgba(255,255,255,0.08)"}`,
+                                                                        }}
+                                                                    >
+                                                                        {s.avatar_url ? (
+                                                                            <img src={s.avatar_url} alt="" className="h-4 w-4 rounded-full object-cover" />
+                                                                        ) : (
+                                                                            <span className="flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>{s.display_name.charAt(0)}</span>
+                                                                        )}
+                                                                        {s.display_name.split(" ")[0]}
+                                                                        {isLinked && " ✓"}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex shrink-0 items-center gap-2">
                                             <button
@@ -1047,13 +1272,22 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                     {offeringMsg && <p className="mt-2 font-sans text-[13px]" style={{ color: offeringMsg === "Added!" ? "#4ADE80" : "#EF4444" }}>{offeringMsg}</p>}
                                 </div>
                             ) : (
-                                <button
-                                    onClick={() => { setShowAddOffering(true); loadOfferingTemplate("membership"); }}
-                                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-3 font-sans text-[13px] font-medium transition hover:border-solid"
-                                    style={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.35)" }}
-                                >
-                                    + Add Offering
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setShowTemplatePicker(true)}
+                                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed py-3 font-sans text-[13px] font-medium transition hover:border-solid"
+                                        style={{ borderColor: "rgba(167,139,250,0.2)", color: "rgba(167,139,250,0.6)" }}
+                                    >
+                                        📋 Use Template
+                                    </button>
+                                    <button
+                                        onClick={() => { setShowAddOffering(true); loadOfferingTemplate("membership"); }}
+                                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed py-3 font-sans text-[13px] font-medium transition hover:border-solid"
+                                        style={{ borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.35)" }}
+                                    >
+                                        + Add Custom
+                                    </button>
+                                </div>
                             )}
 
                             {!offerings.some((o) => o.stripe_price_id) && offerings.length > 0 && (
