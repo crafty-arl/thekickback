@@ -306,6 +306,83 @@ export async function addXpMilestone(data: { name: string; threshold: number; co
     return { ok: true };
 }
 
+export async function applyXpTemplate(
+    actions: { action: string; label: string; points: number; description?: string; max_per_day?: number }[],
+    milestones: { name: string; threshold: number; color: string; reward?: string; perks?: string[] }[]
+) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    // Clear existing actions and milestones
+    await service.from("venue_xp_actions").delete().eq("venue_id", auth.venueId);
+    await service.from("venue_xp_milestones").delete().eq("venue_id", auth.venueId);
+
+    // Insert new actions
+    if (actions.length > 0) {
+        const actionRows = actions.map((a, i) => ({
+            venue_id: auth.venueId,
+            action: a.action,
+            label: a.label,
+            points: a.points,
+            description: a.description || null,
+            max_per_day: a.max_per_day || null,
+            sort_order: i,
+        }));
+        const { error: aErr } = await service.from("venue_xp_actions").insert(actionRows);
+        if (aErr) return { error: aErr.message };
+    }
+
+    // Insert new milestones
+    if (milestones.length > 0) {
+        const milestoneRows = milestones.map((m, i) => ({
+            venue_id: auth.venueId,
+            name: m.name,
+            threshold: m.threshold,
+            color: m.color,
+            reward: m.reward || null,
+            perks: m.perks || [],
+            sort_order: i,
+        }));
+        const { error: mErr } = await service.from("venue_xp_milestones").insert(milestoneRows);
+        if (mErr) return { error: mErr.message };
+    }
+
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function saveCustomTemplate(name: string, actions: unknown[], milestones: unknown[]) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service.from("venue_xp_templates").upsert({
+        venue_id: auth.venueId,
+        name,
+        actions,
+        milestones,
+        updated_at: new Date().toISOString(),
+    }, { onConflict: "venue_id,name" });
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function deleteCustomTemplate(id: string) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_xp_templates")
+        .delete()
+        .eq("id", id)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
 export async function deleteXpMilestone(id: string) {
     const auth = await getAuthVenue();
     if (!auth) return { error: "Not authenticated" };

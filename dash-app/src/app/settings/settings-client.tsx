@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone } from "./actions";
+import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate } from "./actions";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -108,6 +108,128 @@ const XP_ACTION_PRESETS = [
 
 const MILESTONE_COLORS = ["#4ade80", "#facc15", "#f97316", "#a78bfa", "#f87171", "#60a5fa", "#34d399", "#fb923c"];
 
+interface XpTemplate {
+    name: string;
+    venueType: string;
+    actions: { action: string; label: string; points: number; description: string; max_per_day?: number }[];
+    milestones: { name: string; threshold: number; color: string; reward: string; perks: string[] }[];
+}
+
+const XP_TEMPLATES: XpTemplate[] = [
+    {
+        name: "Coffee Shop",
+        venueType: "cafe",
+        actions: [
+            { action: "visit", label: "Visit", points: 30, description: "Earn XP every visit" },
+            { action: "first_visit", label: "First Visit", points: 100, description: "Welcome bonus" },
+            { action: "order", label: "Buy a Drink", points: 15, description: "Every drink counts", max_per_day: 5 },
+            { action: "referral", label: "Bring a Friend", points: 75, description: "Introduce someone new" },
+            { action: "review", label: "Leave a Review", points: 50, description: "Share your experience", max_per_day: 1 },
+        ],
+        milestones: [
+            { name: "Newcomer", threshold: 0, color: "#94a3b8", reward: "Welcome to the fam", perks: [] },
+            { name: "Regular", threshold: 200, color: "#4ade80", reward: "Free drip coffee", perks: ["Free drip coffee", "Birthday drink"] },
+            { name: "Loyal", threshold: 600, color: "#facc15", reward: "10% off all drinks", perks: ["10% off drinks", "Early access to new menu", "Name on the wall"] },
+            { name: "OG", threshold: 1500, color: "#f97316", reward: "Free specialty drink monthly", perks: ["Free specialty drink/month", "Priority seating", "Invite to tastings"] },
+        ],
+    },
+    {
+        name: "Bar / Lounge",
+        venueType: "bar",
+        actions: [
+            { action: "visit", label: "Pull Up", points: 50, description: "Show face, earn XP" },
+            { action: "first_visit", label: "First Night", points: 150, description: "Welcome to the spot" },
+            { action: "order", label: "Order a Round", points: 20, description: "Every tab counts", max_per_day: 3 },
+            { action: "event_attend", label: "Event Night", points: 100, description: "Show up to an event" },
+            { action: "referral", label: "Bring the Squad", points: 200, description: "Your crew = your points" },
+            { action: "membership", label: "Go Member", points: 500, description: "Lock in membership" },
+        ],
+        milestones: [
+            { name: "Guest", threshold: 0, color: "#94a3b8", reward: "You're in", perks: [] },
+            { name: "Regular", threshold: 300, color: "#4ade80", reward: "Skip the line", perks: ["Skip the line", "Happy hour pricing anytime"] },
+            { name: "VIP", threshold: 1000, color: "#f97316", reward: "Reserved booth priority", perks: ["Booth priority", "Comp drink on birthdays", "VIP area access"] },
+            { name: "Legend", threshold: 3000, color: "#a78bfa", reward: "You run this place", perks: ["Permanent reserved spot", "Guest list +2", "Bottle service discount", "Name on the wall"] },
+        ],
+    },
+    {
+        name: "Restaurant",
+        venueType: "restaurant",
+        actions: [
+            { action: "visit", label: "Dine In", points: 40, description: "Every meal matters" },
+            { action: "first_visit", label: "First Meal", points: 120, description: "Welcome bonus" },
+            { action: "order", label: "Order", points: 10, description: "Per menu item ordered", max_per_day: 10 },
+            { action: "referral", label: "Recommend Us", points: 150, description: "Send a friend our way" },
+            { action: "review", label: "Write a Review", points: 60, description: "Tell people about us", max_per_day: 1 },
+            { action: "event_attend", label: "Special Event", points: 80, description: "Wine dinner, tasting, etc." },
+        ],
+        milestones: [
+            { name: "Diner", threshold: 0, color: "#94a3b8", reward: "Welcome", perks: [] },
+            { name: "Foodie", threshold: 250, color: "#4ade80", reward: "Free appetizer", perks: ["Free appetizer", "Priority reservations"] },
+            { name: "Connoisseur", threshold: 800, color: "#facc15", reward: "Chef's table access", perks: ["Chef's table access", "15% off", "Secret menu items"] },
+            { name: "Family", threshold: 2000, color: "#f97316", reward: "You're part of the family", perks: ["Comp dessert every visit", "Private dining priority", "Annual dinner on us"] },
+        ],
+    },
+    {
+        name: "Coworking Space",
+        venueType: "coworking",
+        actions: [
+            { action: "visit", label: "Check In", points: 25, description: "Show up and grind" },
+            { action: "first_visit", label: "First Day", points: 100, description: "Welcome to the space" },
+            { action: "referral", label: "Invite a Coworker", points: 200, description: "Grow the community" },
+            { action: "event_attend", label: "Attend a Meetup", points: 75, description: "Networking events, workshops" },
+            { action: "membership", label: "Get a Desk", points: 300, description: "Lock in a membership" },
+            { action: "challenge", label: "Ship Something", points: 150, description: "Complete a build challenge" },
+        ],
+        milestones: [
+            { name: "Visitor", threshold: 0, color: "#94a3b8", reward: "Day pass access", perks: [] },
+            { name: "Regular", threshold: 200, color: "#4ade80", reward: "Free coffee forever", perks: ["Free coffee", "Locker access"] },
+            { name: "Builder", threshold: 700, color: "#60a5fa", reward: "Meeting room credits", perks: ["2hr meeting room/week", "Mail handling", "Community Slack"] },
+            { name: "Resident", threshold: 2000, color: "#a78bfa", reward: "24/7 access", perks: ["24/7 keycard", "Dedicated desk", "Event hosting rights", "Mentorship priority"] },
+        ],
+    },
+    {
+        name: "Club / Nightlife",
+        venueType: "club",
+        actions: [
+            { action: "visit", label: "Show Up", points: 60, description: "Every night counts" },
+            { action: "first_visit", label: "First Night Out", points: 200, description: "Welcome to the scene" },
+            { action: "order", label: "Order Bottles", points: 50, description: "Big spender energy", max_per_day: 3 },
+            { action: "referral", label: "Bring the Crew", points: 250, description: "Squad up" },
+            { action: "event_attend", label: "Headliner Night", points: 120, description: "Special events and shows" },
+        ],
+        milestones: [
+            { name: "Rookie", threshold: 0, color: "#94a3b8", reward: "General admission", perks: [] },
+            { name: "Regular", threshold: 400, color: "#4ade80", reward: "Skip the line", perks: ["Skip the line", "Cover charge waived"] },
+            { name: "VIP", threshold: 1200, color: "#f97316", reward: "Booth access", perks: ["VIP booth access", "Comp bottle on birthday", "Early entry"] },
+            { name: "Icon", threshold: 4000, color: "#a78bfa", reward: "You are the party", perks: ["Permanent VIP", "Guest list +4", "Green room access", "First picks on all events"] },
+        ],
+    },
+    {
+        name: "Lounge / Speakeasy",
+        venueType: "lounge",
+        actions: [
+            { action: "visit", label: "Visit", points: 40, description: "Low key, high value" },
+            { action: "first_visit", label: "Discovery", points: 120, description: "You found us" },
+            { action: "order", label: "Order a Cocktail", points: 20, description: "Every drink earns", max_per_day: 4 },
+            { action: "referral", label: "Whisper to a Friend", points: 150, description: "Keep it exclusive" },
+            { action: "review", label: "Rate the Vibe", points: 40, description: "Share the atmosphere" },
+        ],
+        milestones: [
+            { name: "Passerby", threshold: 0, color: "#94a3b8", reward: "You're in the know", perks: [] },
+            { name: "Insider", threshold: 300, color: "#4ade80", reward: "Signature drink on us", perks: ["Free signature drink", "Off-menu access"] },
+            { name: "Confidant", threshold: 900, color: "#facc15", reward: "Private room access", perks: ["Private room booking", "Bartender's choice", "Secret events invite"] },
+            { name: "Patron", threshold: 2500, color: "#a78bfa", reward: "Lifetime perks", perks: ["Permanent reserved seat", "Custom cocktail named after you", "Annual tasting dinner", "Key to the back door"] },
+        ],
+    },
+];
+
+// Get templates matching the venue type, plus all others
+function getTemplatesForType(venueType: string): { primary: XpTemplate[]; others: XpTemplate[] } {
+    const primary = XP_TEMPLATES.filter((t) => t.venueType === venueType);
+    const others = XP_TEMPLATES.filter((t) => t.venueType !== venueType);
+    return { primary, others };
+}
+
 interface Props {
     user: { id: string; email: string };
     role: string;
@@ -137,11 +259,12 @@ interface Props {
     offerings: Offering[];
     xpActions: XpAction[];
     xpMilestones: XpMilestone[];
+    customTemplates: { id: string; name: string; actions: unknown[]; milestones: unknown[] }[];
 }
 
 // ─── Main Component ──────────────────────────────────────────────
 
-export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones }: Props) {
+export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates }: Props) {
     const [activeSection, setActiveSection] = useState("general");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
@@ -598,6 +721,131 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
                         {/* ─── XP Roadmap ───────────────────────────────────────── */}
                         <Card id="xp" title="XP Roadmap" desc="Define how guests earn XP at your venue and what milestones they unlock.">
+                            {/* ── Templates ── */}
+                            {(() => {
+                                const { primary, others } = getTemplatesForType(venue.type);
+                                const allTemplates = [...primary, ...others];
+                                const hasRoadmap = xpActions.length > 0 || xpMilestones.length > 0;
+
+                                return (
+                                    <div className="mb-6">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="font-sans text-[13px] font-semibold text-white/60">
+                                                {hasRoadmap ? "Templates" : "Start with a template"}
+                                            </h3>
+                                            {hasRoadmap && (
+                                                <button
+                                                    onClick={async () => {
+                                                        const name = prompt("Name this template:");
+                                                        if (!name) return;
+                                                        setSaving(true);
+                                                        await saveCustomTemplate(
+                                                            name,
+                                                            xpActions.map((a) => ({ action: a.action, label: a.label, points: a.points, description: a.description, max_per_day: a.max_per_day })),
+                                                            xpMilestones.map((m) => ({ name: m.name, threshold: m.threshold, color: m.color, reward: m.reward, perks: m.perks }))
+                                                        );
+                                                        setSaving(false);
+                                                        setMsg("Template saved!");
+                                                        setTimeout(() => setMsg(""), 2000);
+                                                    }}
+                                                    disabled={saving}
+                                                    className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-semibold active:scale-95"
+                                                    style={{ backgroundColor: "rgba(167,139,250,0.1)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.2)" }}
+                                                >
+                                                    Save as Template
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Custom saved templates */}
+                                        {customTemplates.length > 0 && (
+                                            <div className="mb-3">
+                                                <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/20">YOUR TEMPLATES</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {customTemplates.map((t) => (
+                                                        <div key={t.id} className="flex items-center gap-1">
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (!confirm(`Apply "${t.name}"? This will replace your current roadmap.`)) return;
+                                                                    setSaving(true);
+                                                                    await applyXpTemplate(
+                                                                        t.actions as XpTemplate["actions"],
+                                                                        t.milestones as XpTemplate["milestones"]
+                                                                    );
+                                                                    setSaving(false);
+                                                                }}
+                                                                className="rounded-xl border px-3 py-2 font-sans text-[12px] font-medium transition active:scale-95"
+                                                                style={{ borderColor: "rgba(167,139,250,0.3)", backgroundColor: "rgba(167,139,250,0.06)", color: "#a78bfa" }}
+                                                            >
+                                                                ⚡ {t.name}
+                                                            </button>
+                                                            <button
+                                                                onClick={async () => { await deleteCustomTemplate(t.id); }}
+                                                                className="rounded p-1 opacity-30 hover:opacity-100"
+                                                            >
+                                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Built-in templates */}
+                                        <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/20">
+                                            {primary.length > 0 ? "RECOMMENDED FOR YOUR VENUE" : "ALL TEMPLATES"}
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                            {allTemplates.map((t) => {
+                                                const isRecommended = primary.includes(t);
+                                                return (
+                                                    <button
+                                                        key={t.name}
+                                                        onClick={async () => {
+                                                            if (hasRoadmap && !confirm(`Apply "${t.name}" template? This will replace your current roadmap.`)) return;
+                                                            setSaving(true);
+                                                            await applyXpTemplate(t.actions, t.milestones);
+                                                            setSaving(false);
+                                                        }}
+                                                        disabled={saving}
+                                                        className="flex flex-col items-start gap-1.5 rounded-xl border p-3 text-left transition active:scale-95 disabled:opacity-40"
+                                                        style={{
+                                                            borderColor: isRecommended ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.06)",
+                                                            backgroundColor: isRecommended ? "rgba(249,115,22,0.04)" : "rgba(255,255,255,0.02)",
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="font-sans text-[13px] font-semibold" style={{ color: isRecommended ? "#F97316" : "rgba(255,255,255,0.6)" }}>
+                                                                {t.name}
+                                                            </span>
+                                                            {isRecommended && (
+                                                                <span className="rounded px-1 py-0.5 font-sans text-[8px] font-bold" style={{ backgroundColor: "rgba(249,115,22,0.15)", color: "#F97316" }}>
+                                                                    MATCH
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex gap-1">
+                                                            <span className="rounded-md px-1.5 py-0.5 font-sans text-[9px] text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                                                                {t.actions.length} actions
+                                                            </span>
+                                                            <span className="rounded-md px-1.5 py-0.5 font-sans text-[9px] text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                                                                {t.milestones.length} tiers
+                                                            </span>
+                                                        </div>
+                                                        {/* Mini milestone preview */}
+                                                        <div className="flex gap-1">
+                                                            {t.milestones.map((m) => (
+                                                                <div key={m.name} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: m.color }} />
+                                                            ))}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                             {/* Actions section */}
                             <div className="mb-6">
                                 <div className="flex items-center justify-between mb-3">

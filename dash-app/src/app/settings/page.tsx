@@ -24,7 +24,7 @@ export default async function SettingsPage() {
   if (!ownership) redirect("/onboarding");
 
   // Parallel fetch all data
-  const [venueRes, pageRes, knowledgeRes, membersRes, memberCountRes, offeringsRes, xpActionsRes, xpMilestonesRes] = await Promise.all([
+  const [venueRes, pageRes, knowledgeRes, membersRes, memberCountRes, offeringsRes, xpActionsRes, xpMilestonesRes, xpTemplatesRes] = await Promise.all([
     service.from("venues").select("*").eq("id", ownership.venue_id).single(),
     service.from("venue_pages").select("*").eq("venue_id", ownership.venue_id).single(),
     service.from("venue_knowledge").select("id, content, category, created_at").eq("venue_id", ownership.venue_id).order("created_at", { ascending: false }),
@@ -33,6 +33,7 @@ export default async function SettingsPage() {
     service.from("venue_offerings").select("*").eq("venue_id", ownership.venue_id).order("sort_order", { ascending: true }),
     service.from("venue_xp_actions").select("*").eq("venue_id", ownership.venue_id).order("sort_order", { ascending: true }),
     service.from("venue_xp_milestones").select("*").eq("venue_id", ownership.venue_id).order("threshold", { ascending: true }),
+    service.from("venue_xp_templates").select("*").eq("venue_id", ownership.venue_id).order("created_at", { ascending: false }),
   ]);
 
   const venue = venueRes.data;
@@ -60,6 +61,7 @@ export default async function SettingsPage() {
       offerings={offeringsRes.data || []}
       xpActions={xpActionsRes.data || []}
       xpMilestones={xpMilestonesRes.data || []}
+      customTemplates={xpTemplatesRes.data || []}
     />
   );
 }

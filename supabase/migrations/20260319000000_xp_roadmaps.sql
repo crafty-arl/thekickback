@@ -54,6 +54,25 @@ create policy "public_read_xp_actions" on venue_xp_actions
 create policy "public_read_xp_milestones" on venue_xp_milestones
   for select using (true);
 
+-- Saved custom templates per venue
+create table if not exists venue_xp_templates (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid not null references venues(id) on delete cascade,
+  name text not null,
+  actions jsonb not null default '[]',
+  milestones jsonb not null default '[]',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (venue_id, name)
+);
+
+alter table venue_xp_templates enable row level security;
+
+create policy "owners_manage_xp_templates" on venue_xp_templates
+  for all using (
+    venue_id in (select venue_id from venue_owners where user_id = auth.uid())
+  );
+
 -- ─── Per-Venue User XP (each user has a separate XP profile at each venue) ───
 
 create table if not exists user_venue_xp (
