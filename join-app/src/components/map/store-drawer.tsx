@@ -1,451 +1,399 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    type Venue,
-    getVibeHexColor,
-    getVibeLabel,
-    getOccupancyPercent,
+  type Venue,
+  getVibeHexColor,
+  getVibeLabel,
+  getOccupancyPercent,
 } from "@/lib/venues";
+import { createClient } from "@/lib/supabase/client";
 
 interface StoreDrawerProps {
-    venues: Venue[];
-    onClose: () => void;
-    onVenueSelect: (venue: Venue) => void;
-    userLocation?: { latitude: number; longitude: number } | null;
+  venues: Venue[];
+  onClose: () => void;
+  onVenueSelect: (venue: Venue) => void;
+  userLocation?: { latitude: number; longitude: number } | null;
 }
 
-type FilterId = "all" | "nearby" | "trending" | "quiet" | "poppin" | "members";
-
-const FILTERS: { id: FilterId; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "nearby", label: "Nearby" },
-    { id: "trending", label: "Trending" },
-    { id: "quiet", label: "Quiet" },
-    { id: "poppin", label: "Poppin" },
-    { id: "members", label: "Members Only" },
-];
-
-const ACCENT = "#a78bfa";
-
-function getDistance(
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number
-): number {
-    const R = 3959; // miles
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+interface Perk {
+  id: string;
+  venue_id: string;
+  name: string;
+  point_cost: number;
+  category: string;
+  description: string | null;
 }
 
-export function StoreDrawer({
-    venues,
-    onClose,
-    onVenueSelect,
-    userLocation,
-}: StoreDrawerProps) {
-    const [filter, setFilter] = useState<FilterId>("all");
-    const [search, setSearch] = useState("");
-    const scrollRef = useRef<HTMLDivElement>(null);
+interface UserData {
+  balance: number;
+  perks: Perk[];
+  venueProfiles: { venue_id: string; xp: number; visits: number; venues?: { name: string } }[];
+}
 
-    const filteredVenues = useMemo(() => {
-        let result = [...venues];
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3959;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
-        // Search filter
-        if (search.trim()) {
-            const q = search.toLowerCase();
-            result = result.filter(
-                (v) =>
-                    v.name.toLowerCase().includes(q) ||
-                    v.neighborhood.toLowerCase().includes(q) ||
-                    v.category.toLowerCase().includes(q) ||
-                    v.tags.some((t) => t.toLowerCase().includes(q))
-            );
-        }
+const VIBE_ORDER: Record<string, number> = { lit: 4, packed: 4, busy: 3, moderate: 2, quiet: 1 };
+const PERK_EMOJI: Record<string, string> = { drink: "☕", food: "🍔", access: "🔑", experience: "✨", merch: "🎁", other: "🎯" };
 
-        // Category filter
-        switch (filter) {
-            case "nearby":
-                if (userLocation) {
-                    result = result
-                        .map((v) => ({
-                            venue: v,
-                            dist: getDistance(
-                                userLocation.latitude,
-                                userLocation.longitude,
-                                v.latitude,
-                                v.longitude
-                            ),
-                        }))
-                        .sort((a, b) => a.dist - b.dist)
-                        .map((x) => x.venue);
-                }
-                break;
-            case "trending":
-                result.sort(
-                    (a, b) => getOccupancyPercent(b) - getOccupancyPercent(a)
-                );
-                break;
-            case "quiet":
-                result = result.filter((v) => v.vibe === "quiet");
-                break;
-            case "poppin":
-                result = result.filter(
-                    (v) => v.vibe === "busy" || v.vibe === "lit" || v.vibe === "packed"
-                );
-                break;
-            case "members":
-                result = result.filter((v) => v.memberOnly);
-                break;
-        }
+// ─── Shelf component ─────────────────────────────────────────────
 
-        return result;
-    }, [venues, filter, search, userLocation]);
+function Shelf({ title, children, count }: { title: string; children: React.ReactNode; count?: number }) {
+  return (
+    <div className="mb-5">
+      <div className="flex items-center justify-between px-5 pb-2.5">
+        <span className="font-sans text-[10px] font-semibold tracking-[2px] text-white/25">
+          {title}
+        </span>
+        {count !== undefined && (
+          <span className="font-sans text-[10px] text-white/15">{count}</span>
+        )}
+      </div>
+      <div
+        className="flex gap-2.5 overflow-x-auto px-5 pb-1 no-scrollbar"
+        style={{ WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory" }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
-    return (
-        <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 32, stiffness: 300 }}
-            className="fixed inset-0 z-[70] flex flex-col"
-            style={{
-                background: "rgba(8, 8, 10, 0.97)",
-                backdropFilter: "blur(60px) saturate(1.5)",
-                WebkitBackdropFilter: "blur(60px) saturate(1.5)",
-            }}
+// ─── Venue Card (Netflix thumbnail) ──────────────────────────────
+
+function VenueCard({
+  venue, onClick, delay, distance, xp,
+}: {
+  venue: Venue; onClick: () => void; delay: number; distance?: number; xp?: number;
+}) {
+  const vibeColor = getVibeHexColor(venue.vibe);
+  const themeColor = venue.themeColor || vibeColor;
+  const pct = getOccupancyPercent(venue);
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", damping: 25, stiffness: 300, delay }}
+      whileTap={{ scale: 0.96 }}
+      onClick={onClick}
+      className="relative flex shrink-0 flex-col overflow-hidden rounded-2xl text-left"
+      style={{
+        width: 140,
+        height: 190,
+        scrollSnapAlign: "start",
+        background: `linear-gradient(160deg, ${themeColor}18 0%, rgba(255,255,255,0.02) 60%, ${themeColor}08 100%)`,
+        border: `1px solid ${themeColor}20`,
+      }}
+    >
+      {/* XP badge */}
+      {xp !== undefined && xp > 0 && (
+        <div className="absolute right-2 top-2 rounded-md px-1.5 py-0.5" style={{ backgroundColor: `${themeColor}25` }}>
+          <span className="font-mono text-[8px] font-bold" style={{ color: themeColor }}>⚡{xp}</span>
+        </div>
+      )}
+
+      {/* Vibe glow orb */}
+      <div className="flex flex-1 items-center justify-center">
+        <div
+          className="rounded-full"
+          style={{
+            width: 48,
+            height: 48,
+            background: `radial-gradient(circle, ${themeColor}30 0%, transparent 70%)`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1">
-                <div
-                    className="h-1 w-10 rounded-full"
-                    style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
-                />
-            </div>
+          <div
+            className="rounded-full"
+            style={{
+              width: 20,
+              height: 20,
+              backgroundColor: themeColor,
+              boxShadow: `0 0 20px ${themeColor}50`,
+            }}
+          />
+        </div>
+      </div>
 
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 pb-4">
-                <h1 className="font-sans text-[26px] font-bold text-white tracking-tight">
-                    Explore
-                </h1>
-                <motion.button
-                    onClick={onClose}
-                    whileTap={{ scale: 0.85 }}
-                    className="flex h-8 w-8 items-center justify-center rounded-full"
-                    style={{
-                        backgroundColor: "rgba(255,255,255,0.08)",
-                        border: "1px solid rgba(255,255,255,0.06)",
-                    }}
-                >
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        className="opacity-50"
-                    >
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                </motion.button>
-            </div>
+      {/* Info */}
+      <div className="px-3 pb-3">
+        <p className="truncate font-sans text-[13px] font-bold text-white/85">{venue.name}</p>
+        <div className="mt-1 flex items-center gap-1.5">
+          <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor }} />
+          <span className="font-sans text-[10px] font-medium" style={{ color: vibeColor }}>
+            {getVibeLabel(venue.vibe)}
+          </span>
+          <span className="font-sans text-[10px] text-white/20">·</span>
+          <span className="font-mono text-[10px] text-white/25">{venue.occupancy}</span>
+        </div>
+        {distance !== undefined && (
+          <span className="font-sans text-[9px] text-white/20">{distance.toFixed(1)} mi</span>
+        )}
+        {/* Mini occupancy bar */}
+        <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: vibeColor }} />
+        </div>
+      </div>
+    </motion.button>
+  );
+}
 
-            {/* Filter rail */}
-            <div
-                className="flex gap-2 overflow-x-auto px-5 pb-3"
-                style={{ WebkitOverflowScrolling: "touch" }}
-            >
-                {FILTERS.map((f) => (
-                    <motion.button
-                        key={f.id}
-                        onClick={() => setFilter(f.id)}
-                        whileTap={{ scale: 0.95 }}
-                        className="shrink-0 rounded-full px-3.5 py-1.5 font-sans text-[12px] font-semibold transition-colors"
-                        style={
-                            filter === f.id
-                                ? {
-                                    backgroundColor: ACCENT,
-                                    color: "#000",
-                                    boxShadow: `0 2px 12px ${ACCENT}40`,
-                                }
-                                : {
-                                    backgroundColor: "rgba(255,255,255,0.04)",
-                                    color: "rgba(255,255,255,0.45)",
-                                    border: "1px solid rgba(255,255,255,0.08)",
-                                }
-                        }
-                    >
-                        {f.label}
-                    </motion.button>
-                ))}
-            </div>
+// ─── Perk Card (compact square) ──────────────────────────────────
 
-            {/* Search bar */}
-            <div className="px-5 pb-3">
-                <div
-                    className="flex items-center gap-2.5 rounded-xl px-3.5"
-                    style={{
-                        height: 42,
-                        backgroundColor: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                    }}
-                >
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.3)"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    >
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search venues..."
-                        autoComplete="off"
-                        autoCorrect="off"
-                        className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
-                    />
-                    <AnimatePresence>
-                        {search && (
-                            <motion.button
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                                onClick={() => setSearch("")}
-                                className="flex h-5 w-5 items-center justify-center rounded-full"
-                                style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
-                            >
-                                <svg
-                                    width="10"
-                                    height="10"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="white"
-                                    strokeWidth="2.5"
-                                    strokeLinecap="round"
-                                >
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
-                            </motion.button>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </div>
+function PerkCard({
+  perk, venueName, canAfford, onClick, delay,
+}: {
+  perk: Perk; venueName: string; canAfford: boolean; onClick: () => void; delay: number;
+}) {
+  const emoji = PERK_EMOJI[perk.category] || "🎯";
 
-            {/* Venue count */}
-            <div className="px-5 pb-2">
-                <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/20">
-                    {filteredVenues.length} VENUE
-                    {filteredVenues.length !== 1 ? "S" : ""}
-                </span>
-            </div>
+  return (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: canAfford ? 1 : 0.4, scale: 1 }}
+      transition={{ type: "spring", damping: 25, stiffness: 300, delay }}
+      whileTap={{ scale: 0.96 }}
+      onClick={onClick}
+      className="flex shrink-0 flex-col justify-between overflow-hidden rounded-xl p-3 text-left"
+      style={{
+        width: 120,
+        height: 120,
+        scrollSnapAlign: "start",
+        backgroundColor: canAfford ? "rgba(249,115,22,0.06)" : "rgba(255,255,255,0.02)",
+        border: `1px solid ${canAfford ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.05)"}`,
+      }}
+    >
+      <span className="text-[20px]">{emoji}</span>
+      <div>
+        <p className="font-mono text-[12px] font-bold text-orange">{perk.point_cost} pts</p>
+        <p className="truncate font-sans text-[11px] font-semibold text-white/70">{perk.name}</p>
+        <p className="truncate font-sans text-[9px] text-white/25">{venueName}</p>
+      </div>
+    </motion.button>
+  );
+}
 
-            {/* Venue list */}
-            <div
-                ref={scrollRef}
-                className="flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(24px,env(safe-area-inset-bottom))]"
-                style={{ WebkitOverflowScrolling: "touch" }}
-            >
-                <div className="flex flex-col gap-2.5">
-                    <AnimatePresence mode="popLayout">
-                        {filteredVenues.map((venue, i) => {
-                            const vibeColor = getVibeHexColor(venue.vibe);
-                            const pct = getOccupancyPercent(venue);
-                            const themeColor = venue.themeColor || vibeColor;
+// ─── Main StoreDrawer ────────────────────────────────────────────
 
-                            return (
-                                <motion.button
-                                    key={venue.id}
-                                    layout
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{
-                                        type: "spring",
-                                        damping: 25,
-                                        stiffness: 300,
-                                        delay: Math.min(i * 0.04, 0.3),
-                                    }}
-                                    onClick={() => onVenueSelect(venue)}
-                                    className="flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-colors active:scale-[0.98]"
-                                    style={{
-                                        backgroundColor: "rgba(255,255,255,0.03)",
-                                        border: "1px solid rgba(255,255,255,0.06)",
-                                    }}
-                                >
-                                    {/* Avatar */}
-                                    <div
-                                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                                        style={{
-                                            background: `linear-gradient(135deg, ${themeColor}20, ${themeColor}08)`,
-                                            border: `1.5px solid ${themeColor}35`,
-                                        }}
-                                    >
-                                        <span
-                                            className="font-sans text-[15px] font-bold"
-                                            style={{ color: themeColor }}
-                                        >
-                                            {venue.name[0]}
-                                        </span>
-                                    </div>
+export function StoreDrawer({ venues, onClose, onVenueSelect, userLocation }: StoreDrawerProps) {
+  const [userData, setUserData] = useState<UserData | null>(null);
 
-                                    {/* Info */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="truncate font-sans text-[14px] font-semibold text-white/85">
-                                                {venue.name}
-                                            </p>
-                                            {venue.claimed && (
-                                                <svg
-                                                    width="12"
-                                                    height="12"
-                                                    viewBox="0 0 24 24"
-                                                    fill={ACCENT}
-                                                    className="shrink-0"
-                                                >
-                                                    <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <p className="truncate font-sans text-[11px] text-white/30">
-                                            {venue.neighborhood || venue.category}
-                                        </p>
-                                        {/* Tags */}
-                                        {venue.tags.length > 0 && (
-                                            <div className="mt-1 flex gap-1 overflow-hidden">
-                                                {venue.tags.slice(0, 3).map((tag) => (
-                                                    <span
-                                                        key={tag}
-                                                        className="shrink-0 rounded-md px-1.5 py-0.5 font-sans text-[9px] font-medium text-white/25"
-                                                        style={{
-                                                            backgroundColor: "rgba(255,255,255,0.04)",
-                                                            border: "1px solid rgba(255,255,255,0.06)",
-                                                        }}
-                                                    >
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+  // Load user data for personalized shelves
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      try {
+        const res = await fetch(`/api/points?userId=${user.id}`);
+        const data = await res.json();
+        setUserData({
+          balance: data.balance?.balance || 0,
+          perks: [],
+          venueProfiles: data.venueProfiles || [],
+        });
 
-                                    {/* Right side — vibe + occupancy */}
-                                    <div className="flex shrink-0 flex-col items-end gap-1.5">
-                                        <div className="flex items-center gap-1.5">
-                                            <div
-                                                className="h-2 w-2 rounded-full"
-                                                style={{
-                                                    backgroundColor: vibeColor,
-                                                    boxShadow: `0 0 6px ${vibeColor}50`,
-                                                }}
-                                            />
-                                            <span
-                                                className="font-sans text-[10px] font-medium"
-                                                style={{ color: vibeColor }}
-                                            >
-                                                {getVibeLabel(venue.vibe)}
-                                            </span>
-                                        </div>
-                                        <span className="font-mono text-[11px] font-medium text-white/25">
-                                            {venue.occupancy}/{venue.capacity}
-                                        </span>
-                                        {/* Tiny occupancy bar */}
-                                        <div
-                                            className="h-1 w-12 overflow-hidden rounded-full"
-                                            style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-                                        >
-                                            <div
-                                                className="h-full rounded-full transition-all"
-                                                style={{
-                                                    width: `${pct}%`,
-                                                    backgroundColor:
-                                                        pct >= 90
-                                                            ? "#f87171"
-                                                            : pct >= 65
-                                                                ? "#f97316"
-                                                                : pct >= 35
-                                                                    ? "#facc15"
-                                                                    : "#4ade80",
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
+        // Load perks from all venues
+        const allPerks: Perk[] = [];
+        for (const v of venues.filter((v) => v.claimed !== false).slice(0, 10)) {
+          try {
+            const pRes = await fetch(`/api/points?userId=${user.id}&venueId=${v.id}`);
+            const pData = await pRes.json();
+            if (pData.perks) allPerks.push(...pData.perks);
+          } catch { /* skip */ }
+        }
+        setUserData((prev) => prev ? { ...prev, perks: allPerks } : null);
+      } catch { /* skip */ }
+    });
+  }, [venues]);
 
-                                    {/* Chevron */}
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="rgba(255,255,255,0.15)"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        className="shrink-0"
-                                    >
-                                        <polyline points="9 18 15 12 9 6" />
-                                    </svg>
-                                </motion.button>
-                            );
-                        })}
-                    </AnimatePresence>
+  // ─── Build shelves ───────────────────────────────────────────
 
-                    {/* Empty state */}
-                    {filteredVenues.length === 0 && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="flex flex-col items-center justify-center py-16"
-                        >
-                            <svg
-                                width="40"
-                                height="40"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="rgba(255,255,255,0.1)"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <circle cx="11" cy="11" r="8" />
-                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                            <p className="mt-3 font-sans text-[13px] text-white/25">
-                                No venues match your search
-                            </p>
-                            <button
-                                onClick={() => {
-                                    setSearch("");
-                                    setFilter("all");
-                                }}
-                                className="mt-2 font-sans text-[12px] font-medium"
-                                style={{ color: ACCENT }}
-                            >
-                                Clear filters
-                            </button>
-                        </motion.div>
-                    )}
-                </div>
-            </div>
-        </motion.div>
-    );
+  const claimedVenues = useMemo(() => venues.filter((v) => v.claimed !== false), [venues]);
+
+  // Happening Now: sorted by energy (busiest first)
+  const happeningNow = useMemo(
+    () => [...claimedVenues].sort((a, b) => (VIBE_ORDER[b.vibe] || 0) - (VIBE_ORDER[a.vibe] || 0)).slice(0, 10),
+    [claimedVenues]
+  );
+
+  // Good for Focus: quiet venues
+  const quietSpots = useMemo(
+    () => claimedVenues.filter((v) => v.vibe === "quiet" || v.vibe === "moderate"),
+    [claimedVenues]
+  );
+
+  // Near You: sorted by distance
+  const nearYou = useMemo(() => {
+    if (!userLocation) return [];
+    return [...venues]
+      .map((v) => ({ venue: v, dist: getDistance(userLocation.latitude, userLocation.longitude, v.latitude, v.longitude) }))
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 10);
+  }, [venues, userLocation]);
+
+  // Your Spots: venues the user has XP at
+  const yourSpots = useMemo(() => {
+    if (!userData?.venueProfiles.length) return [];
+    return userData.venueProfiles
+      .map((vp) => {
+        const venue = venues.find((v) => v.id === vp.venue_id);
+        return venue ? { venue, xp: vp.xp } : null;
+      })
+      .filter(Boolean) as { venue: Venue; xp: number }[];
+  }, [venues, userData]);
+
+  // Perks the user can afford
+  const affordablePerks = useMemo(() => {
+    if (!userData?.perks.length) return [];
+    return userData.perks.sort((a, b) => a.point_cost - b.point_cost);
+  }, [userData]);
+
+  const venueNameMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const v of venues) m.set(v.id, v.name);
+    return m;
+  }, [venues]);
+
+  const findVenue = (venueId: string) => venues.find((v) => v.id === venueId);
+
+  return (
+    <motion.div
+      initial={{ y: "100%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "100%" }}
+      transition={{ type: "spring", damping: 32, stiffness: 300 }}
+      className="fixed inset-0 z-[70] flex flex-col"
+      style={{
+        background: "rgba(8, 8, 10, 0.97)",
+        backdropFilter: "blur(60px) saturate(1.5)",
+        WebkitBackdropFilter: "blur(60px) saturate(1.5)",
+      }}
+    >
+      {/* Drag handle */}
+      <div className="flex justify-center pt-3 pb-1">
+        <div className="h-1 w-10 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pb-4">
+        <h1 className="font-sans text-[26px] font-bold tracking-tight text-white">Explore</h1>
+        <motion.button
+          onClick={onClose}
+          whileTap={{ scale: 0.85 }}
+          className="flex h-8 w-8 items-center justify-center rounded-full"
+          style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-50">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </motion.button>
+      </div>
+
+      {/* Scrollable shelves */}
+      <div
+        className="flex-1 overflow-y-auto overscroll-contain pb-[max(24px,env(safe-area-inset-bottom))]"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        {/* ── Happening Now ── */}
+        {happeningNow.length > 0 && (
+          <Shelf title="HAPPENING NOW" count={happeningNow.length}>
+            {happeningNow.map((v, i) => (
+              <VenueCard
+                key={v.id}
+                venue={v}
+                onClick={() => onVenueSelect(v)}
+                delay={Math.min(i * 0.04, 0.2)}
+                xp={userData?.venueProfiles.find((vp) => vp.venue_id === v.id)?.xp}
+              />
+            ))}
+          </Shelf>
+        )}
+
+        {/* ── Your Spots ── */}
+        {yourSpots.length > 0 && (
+          <Shelf title="YOUR SPOTS">
+            {yourSpots.map(({ venue, xp }, i) => (
+              <VenueCard
+                key={venue.id}
+                venue={venue}
+                onClick={() => onVenueSelect(venue)}
+                delay={Math.min(i * 0.04, 0.2)}
+                xp={xp}
+              />
+            ))}
+          </Shelf>
+        )}
+
+        {/* ── Near You ── */}
+        {nearYou.length > 0 && (
+          <Shelf title="NEAR YOU">
+            {nearYou.map(({ venue, dist }, i) => (
+              <VenueCard
+                key={venue.id}
+                venue={venue}
+                onClick={() => onVenueSelect(venue)}
+                delay={Math.min(i * 0.04, 0.2)}
+                distance={dist}
+              />
+            ))}
+          </Shelf>
+        )}
+
+        {/* ── Good for Focus ── */}
+        {quietSpots.length > 0 && (
+          <Shelf title="GOOD FOR FOCUS">
+            {quietSpots.map((v, i) => (
+              <VenueCard
+                key={v.id}
+                venue={v}
+                onClick={() => onVenueSelect(v)}
+                delay={Math.min(i * 0.04, 0.2)}
+              />
+            ))}
+          </Shelf>
+        )}
+
+        {/* ── Your Perks ── */}
+        {affordablePerks.length > 0 && (
+          <Shelf title="YOUR PERKS" count={affordablePerks.length}>
+            {affordablePerks.map((perk, i) => (
+              <PerkCard
+                key={perk.id}
+                perk={perk}
+                venueName={venueNameMap.get(perk.venue_id) || "Venue"}
+                canAfford={(userData?.balance || 0) >= perk.point_cost}
+                onClick={() => {
+                  const venue = findVenue(perk.venue_id);
+                  if (venue) onVenueSelect(venue);
+                }}
+                delay={Math.min(i * 0.04, 0.2)}
+              />
+            ))}
+          </Shelf>
+        )}
+
+        {/* ── All Venues ── */}
+        <Shelf title="ALL VENUES" count={venues.length}>
+          {venues.map((v, i) => (
+            <VenueCard
+              key={v.id}
+              venue={v}
+              onClick={() => onVenueSelect(v)}
+              delay={Math.min(i * 0.04, 0.2)}
+            />
+          ))}
+        </Shelf>
+      </div>
+    </motion.div>
+  );
 }
