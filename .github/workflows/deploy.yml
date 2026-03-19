@@ -36,6 +36,7 @@ jobs:
           script: |
             set -e
             cd /opt/thekickback
+            git checkout -- . 2>/dev/null || true
             GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git pull origin main
 
             cd deploy
