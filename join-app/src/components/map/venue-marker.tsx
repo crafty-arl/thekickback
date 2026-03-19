@@ -10,7 +10,8 @@ interface VenueMarkerProps {
 }
 
 export function VenueMarker({ venue, selected, onClick }: VenueMarkerProps) {
-  const color = getVibeHexColor(venue.vibe);
+  const isClaimed = venue.claimed !== false;
+  const color = isClaimed ? getVibeHexColor(venue.vibe) : "#6b7280";
 
   return (
     <motion.button
@@ -27,17 +28,17 @@ export function VenueMarker({ venue, selected, onClick }: VenueMarkerProps) {
       <motion.div
         className="absolute rounded-full"
         style={{
-          width: 48,
-          height: 48,
+          width: isClaimed ? 48 : 36,
+          height: isClaimed ? 48 : 36,
           border: `1px solid ${color}`,
           opacity: 0.25,
         }}
         animate={
           selected
             ? { scale: [1, 1.8, 1], opacity: [0.3, 0, 0.3] }
-            : { scale: [1, 1.5, 1], opacity: [0.2, 0, 0.2] }
+            : { scale: [1, isClaimed ? 1.5 : 1.3, 1], opacity: [isClaimed ? 0.2 : 0.1, 0, isClaimed ? 0.2 : 0.1] }
         }
-        transition={{ duration: selected ? 1.5 : 2.5, repeat: Infinity, ease: "easeOut" }}
+        transition={{ duration: selected ? 1.5 : isClaimed ? 2.5 : 4, repeat: Infinity, ease: "easeOut" }}
       />
 
       {/* Second pulse ring (selected only) */}
@@ -54,27 +55,32 @@ export function VenueMarker({ venue, selected, onClick }: VenueMarkerProps) {
         />
       )}
 
-      {/* Outer hexagonal glow ring */}
-      <div
-        className="absolute"
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: "50%",
-          border: `1.5px solid ${color}40`,
-          boxShadow: `0 0 12px ${color}20`,
-        }}
-      />
+      {/* Outer glow ring — only for claimed */}
+      {isClaimed && (
+        <div
+          className="absolute"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: `1.5px solid ${color}40`,
+            boxShadow: `0 0 12px ${color}20`,
+          }}
+        />
+      )}
 
       {/* Inner node core */}
       <motion.div
         className="relative flex items-center justify-center"
         style={{
-          width: 20,
-          height: 20,
+          width: isClaimed ? 20 : 14,
+          height: isClaimed ? 20 : 14,
           borderRadius: "50%",
           backgroundColor: color,
-          boxShadow: `0 0 16px ${color}60, 0 0 4px ${color}`,
+          boxShadow: isClaimed
+            ? `0 0 16px ${color}60, 0 0 4px ${color}`
+            : `0 0 8px ${color}30`,
+          opacity: isClaimed ? 1 : 0.7,
         }}
         animate={
           selected
@@ -83,19 +89,21 @@ export function VenueMarker({ venue, selected, onClick }: VenueMarkerProps) {
         }
         transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
       >
-        {/* Center dot */}
-        <div
-          className="rounded-full"
-          style={{
-            width: 6,
-            height: 6,
-            backgroundColor: "rgba(0,0,0,0.4)",
-          }}
-        />
+        {/* Center dot — only for claimed */}
+        {isClaimed && (
+          <div
+            className="rounded-full"
+            style={{
+              width: 6,
+              height: 6,
+              backgroundColor: "rgba(0,0,0,0.4)",
+            }}
+          />
+        )}
       </motion.div>
 
-      {/* Connector lines — small ticks radiating out */}
-      {[0, 60, 120, 180, 240, 300].map((angle) => (
+      {/* Connector lines — claimed only */}
+      {isClaimed && [0, 60, 120, 180, 240, 300].map((angle) => (
         <div
           key={angle}
           className="absolute"
@@ -124,6 +132,9 @@ export function VenueMarker({ venue, selected, onClick }: VenueMarkerProps) {
           }}
         >
           {venue.name}
+          {!isClaimed && (
+            <span className="ml-1 text-[8px] font-normal text-white/30">· unclaimed</span>
+          )}
         </motion.div>
       )}
     </motion.button>

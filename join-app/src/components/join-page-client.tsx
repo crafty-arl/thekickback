@@ -27,27 +27,6 @@ export function JoinPageClient({ venues }: JoinPageClientProps) {
         setSelectedVenue(venues[next]);
     }, [selectedVenue, venues]);
 
-    if (venues.length === 0) {
-        return (
-            <main className="relative flex h-dvh w-full items-center justify-center overflow-hidden bg-black">
-                <div className="text-center px-6">
-                    <Image
-                        src="/logo.png"
-                        alt="theKickBack"
-                        width={400}
-                        height={200}
-                        className="mx-auto h-20 w-auto drop-shadow-2xl sm:h-24 mb-6"
-                        style={{ filter: "invert(1)" }}
-                        priority
-                    />
-                    <p className="font-sans text-[15px] text-white/40">
-                        No venues live yet. Check back soon.
-                    </p>
-                </div>
-            </main>
-        );
-    }
-
     return (
         <main className="relative h-dvh w-full overflow-hidden bg-black">
             {/* Full-screen map */}

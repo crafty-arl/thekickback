@@ -18,6 +18,7 @@ export interface Venue {
   latitude: number;
   longitude: number;
   themeColor?: string;
+  claimed?: boolean;
 }
 
 export const VENUE_CATEGORIES: { value: string; label: string }[] = [

@@ -62,6 +62,12 @@
       "namedRegex": "^/api/chat/general(?:/)?$"
     },
     {
+      "page": "/api/points",
+      "regex": "^/api/points(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/points(?:/)?$"
+    },
+    {
       "page": "/health",
       "regex": "^/health(?:/)?$",
       "routeKeys": {},

@@ -48,6 +48,92 @@ function TabIcon({ path, size = 16 }: { path: string; size?: number }) {
 
 export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
   const vibeColor = getVibeHexColor(venue.vibe);
+  const isClaimed = venue.claimed !== false;
+
+  // ── Unclaimed venue: simplified info card + claim CTA ──
+  if (!isClaimed) {
+    return (
+      <motion.div
+        initial={{ y: 140, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 140, opacity: 0 }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="fixed inset-x-0 bottom-0 z-50"
+        style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}
+      >
+        <div
+          className="relative mx-3 overflow-hidden rounded-3xl"
+          style={{
+            background: "rgba(15, 15, 18, 0.85)",
+            backdropFilter: "blur(40px) saturate(1.8)",
+            WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+            boxShadow: "0 0 0 1px rgba(255,255,255,0.1), 0 -4px 40px rgba(0,0,0,0.3)",
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 pt-4 pb-2">
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#6b7280" }} />
+              <span className="font-sans text-[15px] font-semibold text-white/90">{venue.name}</span>
+              <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-sans text-[9px] font-semibold tracking-wide text-white/25">
+                UNCLAIMED
+              </span>
+            </div>
+            <motion.button
+              onClick={onClose}
+              whileTap={{ scale: 0.85 }}
+              className="flex h-7 w-7 items-center justify-center rounded-full"
+              style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="opacity-40">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </motion.button>
+          </div>
+
+          {/* Info */}
+          <div className="px-4 pb-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {venue.category && (
+                <span className="rounded-md border border-white/[0.06] bg-white/[0.04] px-2 py-1 font-sans text-[11px] capitalize text-white/30">
+                  {venue.category}
+                </span>
+              )}
+              {venue.neighborhood && (
+                <span className="font-sans text-[11px] text-white/20">{venue.neighborhood}</span>
+              )}
+            </div>
+            {venue.description && (
+              <p className="mt-2 font-sans text-[12px] leading-[1.5] text-white/30">{venue.description}</p>
+            )}
+          </div>
+
+          {/* CTA */}
+          <div className="px-4 pb-4 pt-2">
+            <a
+              href="https://dash.thekickback.net"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center gap-2 rounded-xl py-3 font-sans text-[13px] font-bold text-black transition hover:opacity-90"
+              style={{ backgroundColor: "#F97316" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="9" y1="21" x2="9" y2="9" />
+              </svg>
+              Claim this venue on KickBack
+            </a>
+            <p className="mt-2 text-center font-sans text-[10px] text-white/15">
+              Own this spot? Set up your venue page, AI agent, and member system — free.
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // ── Claimed venue: full chat experience ──
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [dismissed, setDismissed] = useState(false);

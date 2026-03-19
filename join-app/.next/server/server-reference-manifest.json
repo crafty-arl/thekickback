@@ -1,5 +1,20 @@
 {
   "node": {
+    "00d16b21ed4b62efc7c9e7d5ff8a218bb5ad83c6a9": {
+      "workers": {
+        "app/page": {
+          "moduleId": 84565,
+          "async": false,
+          "exportedName": "fetchApprovedVenues",
+          "filename": "join-app/src/lib/fetch-venues.ts"
+        }
+      },
+      "layer": {
+        "app/page": "rsc"
+      },
+      "filename": "join-app/src/lib/fetch-venues.ts",
+      "exportedName": "fetchApprovedVenues"
+    },
     "4028ef59b8f24611be27303102d1baaf012d568001": {
       "workers": {
         "app/login/page": {
