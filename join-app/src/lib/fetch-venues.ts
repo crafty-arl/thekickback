@@ -45,6 +45,8 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
         type,
         address,
         neighborhood,
+        latitude,
+        longitude,
         lat,
         lng,
         occupancy,
@@ -69,7 +71,11 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
     return pages
         .filter((p: Record<string, unknown>) => {
             const v = p.venues as Record<string, unknown> | null;
-            return v && typeof v.lat === "number" && typeof v.lng === "number";
+            if (!v) return false;
+            // Support both column names: latitude/longitude (coordinates migration) and lat/lng (offerings migration)
+            const hasCoords = (typeof v.latitude === "number" && typeof v.longitude === "number")
+                || (typeof v.lat === "number" && typeof v.lng === "number");
+            return hasCoords;
         })
         .map((p: Record<string, unknown>) => {
             const v = p.venues as Record<string, unknown>;
@@ -79,7 +85,7 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
                 : "Hours vary";
 
             return {
-                id: p.slug as string,
+                id: v.id as string,
                 name: v.name as string,
                 slug: p.slug as string,
                 category: (v.type as string) || "venue",
@@ -92,8 +98,8 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
                 hours: hoursStr,
                 memberOnly: false,
                 textNumber: (v.twilio_number as string) || (v.phone as string) || "",
-                latitude: v.lat as number,
-                longitude: v.lng as number,
+                latitude: (v.latitude as number) || (v.lat as number),
+                longitude: (v.longitude as number) || (v.lng as number),
                 themeColor: (p.theme_color as string) || "#F97316",
             };
         });
