@@ -11,6 +11,8 @@ export interface Venue {
   occupancy: number;
   capacity: number;
   description: string;
+  tagline?: string;
+  address?: string;
   tags: string[];
   hours: string;
   memberOnly: boolean;

@@ -43,6 +43,17 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): nu
 const VIBE_ORDER: Record<string, number> = { lit: 4, packed: 4, busy: 3, moderate: 2, quiet: 1 };
 const PERK_EMOJI: Record<string, string> = { drink: "☕", food: "🍔", access: "🔑", experience: "✨", merch: "🎁", other: "🎯" };
 
+const CATEGORY_ICONS: Record<string, string> = {
+  rooftop: "M3 21h18M5 21V7l7-4 7 4v14",
+  cafe: "M17 8h1a4 4 0 110 8h-1M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8zM6 2v2M10 2v2M14 2v2",
+  bar: "M8 22h8M12 2v20M17 8H7l1-6h8l1 6z",
+  lounge: "M20 21V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16M2 21h20M12 7v6M8 10h8",
+  restaurant: "M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3",
+  club: "M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM21 16a3 3 0 11-6 0 3 3 0 016 0z",
+  coworking: "M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM12 11v4M8 11v4M16 11v4",
+  venue: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 7v3M12 14h.01",
+};
+
 // ─── Shelf component ─────────────────────────────────────────────
 
 function Shelf({ title, children, count }: { title: string; children: React.ReactNode; count?: number }) {
@@ -66,7 +77,7 @@ function Shelf({ title, children, count }: { title: string; children: React.Reac
   );
 }
 
-// ─── Venue Card (Netflix thumbnail) ──────────────────────────────
+// ─── Venue Card (Airbnb meets Netflix) ───────────────────────────
 
 function VenueCard({
   venue, onClick, delay, distance, xp,
@@ -76,79 +87,95 @@ function VenueCard({
   const vibeColor = getVibeHexColor(venue.vibe);
   const themeColor = venue.themeColor || vibeColor;
   const pct = getOccupancyPercent(venue);
+  const catIcon = CATEGORY_ICONS[venue.category] || CATEGORY_ICONS.venue;
+  const catLabel = venue.category === "coworking" ? "Cowork" : venue.category;
 
   return (
     <motion.button
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", damping: 25, stiffness: 300, delay }}
-      whileTap={{ scale: 0.96 }}
+      whileTap={{ scale: 0.97 }}
       onClick={onClick}
       className="relative flex shrink-0 flex-col overflow-hidden rounded-2xl text-left"
       style={{
-        width: 140,
-        height: 190,
+        width: 200,
         scrollSnapAlign: "start",
-        background: `linear-gradient(160deg, ${themeColor}18 0%, rgba(255,255,255,0.02) 60%, ${themeColor}08 100%)`,
-        border: `1px solid ${themeColor}20`,
+        backgroundColor: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      {/* XP badge */}
-      {xp !== undefined && xp > 0 && (
-        <div className="absolute right-2 top-2 rounded-md px-1.5 py-0.5" style={{ backgroundColor: `${themeColor}25` }}>
-          <span className="font-mono text-[8px] font-bold" style={{ color: themeColor }}>⚡{xp}</span>
-        </div>
-      )}
+      {/* Hero area — gradient with category icon */}
+      <div
+        className="relative flex items-center justify-center"
+        style={{
+          height: 110,
+          background: `linear-gradient(135deg, ${themeColor}20 0%, ${themeColor}08 50%, rgba(0,0,0,0.3) 100%)`,
+        }}
+      >
+        {/* Category icon */}
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={`${themeColor}40`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d={catIcon} />
+        </svg>
 
-      {/* Vibe glow orb */}
-      <div className="flex flex-1 items-center justify-center">
+        {/* Live vibe badge — top left */}
         <div
-          className="rounded-full"
-          style={{
-            width: 48,
-            height: 48,
-            background: `radial-gradient(circle, ${themeColor}30 0%, transparent 70%)`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          className="absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full px-2 py-1"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}
         >
-          <div
-            className="rounded-full"
-            style={{
-              width: 20,
-              height: 20,
-              backgroundColor: themeColor,
-              boxShadow: `0 0 20px ${themeColor}50`,
-            }}
-          />
+          <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor, boxShadow: `0 0 4px ${vibeColor}` }} />
+          <span className="font-sans text-[9px] font-semibold" style={{ color: vibeColor }}>
+            {getVibeLabel(venue.vibe)}
+          </span>
+        </div>
+
+        {/* XP badge — top right */}
+        {xp !== undefined && xp > 0 && (
+          <div className="absolute right-2.5 top-2.5 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+            <span className="font-mono text-[9px] font-bold" style={{ color: themeColor }}>⚡ {xp}</span>
+          </div>
+        )}
+
+        {/* Occupancy bar — bottom */}
+        <div className="absolute inset-x-3 bottom-2.5">
+          <div className="h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: vibeColor }} />
+          </div>
         </div>
       </div>
 
-      {/* Info */}
-      <div className="px-3 pb-3">
-        <p className="truncate font-sans text-[13px] font-bold text-white/85">{venue.name}</p>
-        <div className="mt-1 flex items-center gap-1.5">
-          <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor }} />
-          <span className="font-sans text-[10px] font-medium" style={{ color: vibeColor }}>
-            {getVibeLabel(venue.vibe)}
-          </span>
-          <span className="font-sans text-[10px] text-white/20">·</span>
-          <span className="font-mono text-[10px] text-white/25">{venue.occupancy}</span>
+      {/* Content */}
+      <div className="flex flex-1 flex-col px-3 py-2.5">
+        <div className="flex items-start justify-between gap-1">
+          <p className="truncate font-sans text-[13px] font-bold text-white/90">{venue.name}</p>
+          <span className="shrink-0 font-mono text-[10px] font-semibold text-white/25">{venue.occupancy}/{venue.capacity}</span>
         </div>
-        {distance !== undefined && (
-          <span className="font-sans text-[9px] text-white/20">{distance.toFixed(1)} mi</span>
-        )}
-        {/* Mini occupancy bar */}
-        <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: vibeColor }} />
+
+        {/* Tagline or description */}
+        {venue.tagline ? (
+          <p className="mt-0.5 line-clamp-2 font-sans text-[10px] leading-[1.4] text-white/35">{venue.tagline}</p>
+        ) : venue.description ? (
+          <p className="mt-0.5 line-clamp-2 font-sans text-[10px] leading-[1.4] text-white/35">{venue.description}</p>
+        ) : null}
+
+        {/* Bottom meta row */}
+        <div className="mt-auto flex items-center gap-1.5 pt-2">
+          <span className="rounded-md px-1.5 py-0.5 font-sans text-[8px] font-semibold capitalize text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            {catLabel}
+          </span>
+          {venue.neighborhood && (
+            <span className="truncate font-sans text-[9px] text-white/20">{venue.neighborhood}</span>
+          )}
+          {distance !== undefined && (
+            <span className="ml-auto shrink-0 font-sans text-[9px] font-medium text-white/25">{distance.toFixed(1)} mi</span>
+          )}
         </div>
       </div>
     </motion.button>
   );
 }
 
-// ─── Perk Card (compact square) ──────────────────────────────────
+// ─── Perk Card (DoorDash reward style) ───────────────────────────
 
 function PerkCard({
   perk, venueName, canAfford, onClick, delay,
@@ -159,26 +186,50 @@ function PerkCard({
 
   return (
     <motion.button
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: canAfford ? 1 : 0.4, scale: 1 }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: canAfford ? 1 : 0.45, y: 0 }}
       transition={{ type: "spring", damping: 25, stiffness: 300, delay }}
-      whileTap={{ scale: 0.96 }}
+      whileTap={{ scale: 0.97 }}
       onClick={onClick}
-      className="flex shrink-0 flex-col justify-between overflow-hidden rounded-xl p-3 text-left"
+      className="flex shrink-0 flex-col overflow-hidden rounded-2xl text-left"
       style={{
-        width: 120,
-        height: 120,
+        width: 155,
         scrollSnapAlign: "start",
-        backgroundColor: canAfford ? "rgba(249,115,22,0.06)" : "rgba(255,255,255,0.02)",
-        border: `1px solid ${canAfford ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.05)"}`,
+        backgroundColor: canAfford ? "rgba(249,115,22,0.05)" : "rgba(255,255,255,0.02)",
+        border: `1px solid ${canAfford ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.05)"}`,
       }}
     >
-      <span className="text-[20px]">{emoji}</span>
-      <div>
-        <p className="font-mono text-[12px] font-bold text-orange">{perk.point_cost} pts</p>
-        <p className="truncate font-sans text-[11px] font-semibold text-white/70">{perk.name}</p>
-        <p className="truncate font-sans text-[9px] text-white/25">{venueName}</p>
+      {/* Emoji hero */}
+      <div
+        className="flex items-center justify-center"
+        style={{
+          height: 64,
+          background: canAfford
+            ? "linear-gradient(135deg, rgba(249,115,22,0.1) 0%, rgba(249,115,22,0.03) 100%)"
+            : "rgba(255,255,255,0.02)",
+        }}
+      >
+        <span className="text-[28px]">{emoji}</span>
       </div>
+
+      {/* Content */}
+      <div className="flex flex-1 flex-col px-3 py-2">
+        <p className="truncate font-sans text-[12px] font-bold text-white/80">{perk.name}</p>
+        {perk.description && (
+          <p className="mt-0.5 line-clamp-1 font-sans text-[9px] text-white/25">{perk.description}</p>
+        )}
+        <div className="mt-auto flex items-center justify-between pt-1.5">
+          <span className="font-mono text-[11px] font-bold text-orange">{perk.point_cost} pts</span>
+          <span className="truncate font-sans text-[9px] text-white/20">{venueName}</span>
+        </div>
+      </div>
+
+      {/* Redeem hint */}
+      {canAfford && (
+        <div className="border-t px-3 py-1.5 text-center" style={{ borderColor: "rgba(249,115,22,0.1)", backgroundColor: "rgba(249,115,22,0.04)" }}>
+          <span className="font-sans text-[9px] font-semibold text-orange/70">Tap to redeem</span>
+        </div>
+      )}
     </motion.button>
   );
 }

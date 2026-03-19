@@ -94,6 +94,8 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
                 occupancy: (v.occupancy as number) || 0,
                 capacity: (v.max_occupancy as number) || 100,
                 description: (p.description as string) || (p.tagline as string) || "",
+                tagline: (p.tagline as string) || "",
+                address: (v.address as string) || "",
                 tags: [],
                 hours: hoursStr,
                 memberOnly: false,
