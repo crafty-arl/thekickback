@@ -168,7 +168,7 @@ export function Skybox() {
   return (
     <div
       className="fixed inset-0 z-0"
-      style={{ pointerEvents: "none" }}
+      style={{ pointerEvents: "none", opacity: 0.4 }}
     >
       <Canvas
         camera={{ position: [0, 2, 20], fov: 60, near: 0.1, far: 200 }}

@@ -12,7 +12,7 @@ function CheckIcon() {
 
 export default function Home() {
   return (
-    <main className="relative min-h-dvh overflow-x-hidden" style={{ background: "transparent" }}>
+    <main className="relative min-h-dvh overflow-x-hidden bg-black">
       {/* ═══ 3D SKYBOX: persistent space environment ═══ */}
       <Skybox />
 
@@ -28,7 +28,7 @@ export default function Home() {
       </section>
 
       {/* ═══ VENUE OWNERS: The pitch ═══ */}
-      <section className="relative z-10 px-5 pt-24 pb-20 sm:px-8 md:px-12">
+      <section className="relative z-10 bg-black px-5 pt-24 pb-20 sm:px-8 md:px-12">
         <div className="mx-auto max-w-4xl">
           <span className="font-sans text-[10px] font-semibold tracking-[2.5px] text-orange uppercase sm:text-xs">
             FOR VENUE OWNERS
@@ -79,7 +79,7 @@ export default function Home() {
             ].map((feature) => (
               <div
                 key={feature.title}
-                className="rounded-2xl border border-white/[0.06] p-5 backdrop-blur-md sm:p-6" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                className="rounded-2xl border border-white/[0.06] bg-[#111] p-5 sm:p-6"
               >
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-orange/10">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -95,7 +95,7 @@ export default function Home() {
       </section>
 
       {/* ═══ DASHBOARD PREVIEW ═══ */}
-      <section className="relative z-10 px-5 py-20 sm:px-8 md:px-12">
+      <section className="relative z-10 bg-black px-5 py-20 sm:px-8 md:px-12">
         <div className="mx-auto max-w-4xl">
           <span className="font-sans text-[10px] font-semibold tracking-[2.5px] text-white/25 uppercase sm:text-xs">
             THE DASHBOARD
@@ -110,7 +110,7 @@ export default function Home() {
           </p>
 
           {/* Dashboard mockup */}
-          <div className="mt-10 overflow-hidden rounded-2xl border border-white/[0.08] backdrop-blur-xl" style={{ backgroundColor: "rgba(13,13,15,0.7)" }}>
+          <div className="mt-10 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0D0D0F]">
             {/* Title bar */}
             <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
               <div className="flex gap-1.5">
@@ -162,7 +162,7 @@ export default function Home() {
       </section>
 
       {/* ═══ PRICING ═══ */}
-      <section className="relative z-10 px-5 py-20 sm:px-8 md:px-12">
+      <section className="relative z-10 bg-black px-5 py-20 sm:px-8 md:px-12">
         <div className="mx-auto max-w-4xl text-center">
           <span className="font-sans text-[10px] font-semibold tracking-[2.5px] text-white/25 uppercase sm:text-xs">
             PRICING
@@ -176,7 +176,7 @@ export default function Home() {
 
           <div className="mt-12 grid gap-5 sm:grid-cols-3">
             {/* Free */}
-            <div className="flex flex-col rounded-2xl border border-white/[0.08] p-6 text-left backdrop-blur-md" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <div className="flex flex-col rounded-2xl border border-white/[0.08] bg-[#111] p-6 text-left">
               <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">FREE</span>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="font-display text-4xl font-bold text-white">$0</span>
@@ -204,7 +204,7 @@ export default function Home() {
             </div>
 
             {/* Pro */}
-            <div className="flex flex-col rounded-2xl border-2 border-orange/40 p-6 text-left backdrop-blur-md" style={{ backgroundColor: "rgba(249,115,22,0.06)" }}>
+            <div className="flex flex-col rounded-2xl border-2 border-orange/40 bg-[#111] p-6 text-left">
               <div className="flex items-center gap-2">
                 <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-orange">PRO</span>
                 <span className="rounded-full bg-orange/15 px-2 py-0.5 font-sans text-[9px] font-bold text-orange">POPULAR</span>
@@ -243,7 +243,7 @@ export default function Home() {
             </div>
 
             {/* Network */}
-            <div className="flex flex-col rounded-2xl border border-white/[0.08] p-6 text-left backdrop-blur-md" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <div className="flex flex-col rounded-2xl border border-white/[0.08] bg-[#111] p-6 text-left">
               <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">NETWORK</span>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="font-display text-4xl font-bold text-white">$99</span>
@@ -282,7 +282,7 @@ export default function Home() {
       </section>
 
       {/* ═══ GUESTS: Waitlist ═══ */}
-      <section className="relative z-10 px-5 py-20 sm:px-8 md:px-12">
+      <section className="relative z-10 bg-black px-5 py-20 sm:px-8 md:px-12">
         <div className="mx-auto max-w-2xl text-center">
           <span className="font-sans text-[10px] font-semibold tracking-[2.5px] text-white/25 uppercase sm:text-xs">
             FOR EVERYONE
@@ -318,10 +318,10 @@ export default function Home() {
       </section>
 
       {/* ═══ DUAL CTA ═══ */}
-      <section className="relative z-10 px-5 py-20 sm:px-8 md:px-12">
+      <section className="relative z-10 bg-black px-5 py-20 sm:px-8 md:px-12">
         <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
           {/* Venue owners */}
-          <div className="flex flex-col items-center gap-4 rounded-2xl border border-orange/20 p-8 text-center backdrop-blur-md" style={{ backgroundColor: "rgba(249,115,22,0.06)" }}>
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-orange/20 bg-[#111] p-8 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange/15">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
@@ -342,7 +342,7 @@ export default function Home() {
           </div>
 
           {/* Guests */}
-          <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/[0.08] p-8 text-center backdrop-blur-md" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/[0.08] bg-[#111] p-8 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06]">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -366,7 +366,7 @@ export default function Home() {
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer className="relative z-10 border-t border-white/[0.06] px-5 py-10 sm:px-8">
+      <footer className="relative z-10 bg-black border-t border-white/[0.06] px-5 py-10 sm:px-8">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
           <div className="flex items-center gap-3">
             <Image
