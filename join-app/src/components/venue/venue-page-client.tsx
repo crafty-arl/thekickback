@@ -62,6 +62,7 @@ interface Props {
   offerings: OfferingData[];
   gallery?: GalleryImage[];
   staff?: StaffMember[];
+  staffByOffering?: Record<string, { name: string; avatar_url: string | null }[]>;
 }
 
 type Tab = "chat" | "vibe" | "menu" | "events" | "reserve" | "shop" | "subscribe" | "join";
@@ -150,7 +151,7 @@ function toCardVenue(venue: Venue) {
    VENUE PAGE CLIENT — Immersive single-screen design
    ═══════════════════════════════════════════════════ */
 
-export function VenuePageClient({ page, venue, table, user, offerings, gallery = [], staff = [] }: Props) {
+export function VenuePageClient({ page, venue, table, user, offerings, gallery = [], staff = [], staffByOffering = {} }: Props) {
   const color = vibeColor(venue.vibe);
   const theme = page.theme_color;
   const pct = Math.round((venue.occupancy / venue.max_occupancy) * 100);
@@ -449,12 +450,30 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
                 {/* Staff */}
                 {staff.length > 0 && (
-                  <VenueStaff staff={staff} themeColor={theme} />
+                  <VenueStaff
+                    staff={staff}
+                    themeColor={theme}
+                    offeringsByStaff={(() => {
+                      const map: Record<string, string[]> = {};
+                      for (const [offeringId, staffMembers] of Object.entries(staffByOffering)) {
+                        const offering = offerings.find((o) => o.id === offeringId);
+                        if (!offering) continue;
+                        for (const s of staffMembers) {
+                          const staffMember = staff.find((st) => st.display_name === s.name);
+                          if (staffMember) {
+                            if (!map[staffMember.id]) map[staffMember.id] = [];
+                            map[staffMember.id].push(offering.name);
+                          }
+                        }
+                      }
+                      return map;
+                    })()}
+                  />
                 )}
 
                 {/* Offerings */}
                 {offerings.length > 0 && (
-                  <VenueOfferings offerings={offerings} themeColor={theme} venueName={venue.name} />
+                  <VenueOfferings offerings={offerings} themeColor={theme} venueName={venue.name} staffByOffering={staffByOffering} />
                 )}
 
                 {/* Address */}

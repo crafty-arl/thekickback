@@ -51,6 +51,17 @@ export default async function SettingsPage() {
     profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
   }));
 
+  // Fetch staff-offering links
+  const staffIds = (staffRes.data || []).map((s: { id: string }) => s.id);
+  let staffOfferingLinks: { staff_id: string; offering_id: string }[] = [];
+  if (staffIds.length > 0) {
+    const { data: links } = await service
+      .from("staff_offerings")
+      .select("staff_id, offering_id")
+      .in("staff_id", staffIds);
+    staffOfferingLinks = links || [];
+  }
+
   return (
     <SettingsClient
       user={{ id: user.id, email: user.email || "" }}
@@ -66,6 +77,7 @@ export default async function SettingsPage() {
       customTemplates={xpTemplatesRes.data || []}
       gallery={galleryRes.data || []}
       staff={staffRes.data || []}
+      staffOfferingLinks={staffOfferingLinks}
     />
   );
 }

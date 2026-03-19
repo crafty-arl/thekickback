@@ -18,6 +18,7 @@ interface Props {
     offerings: Offering[];
     themeColor: string;
     venueName: string;
+    staffByOffering?: Record<string, { name: string; avatar_url: string | null }[]>;
 }
 
 const TYPE_ICONS: Record<string, string> = {
@@ -34,7 +35,7 @@ function formatPrice(cents: number, recurring: boolean, interval: string | null)
     return `$${dollars}`;
 }
 
-export function VenueOfferings({ offerings, themeColor, venueName }: Props) {
+export function VenueOfferings({ offerings, themeColor, venueName, staffByOffering = {} }: Props) {
     const active = offerings.filter((o) => o.active);
     if (active.length === 0) return null;
 
@@ -114,6 +115,23 @@ export function VenueOfferings({ offerings, themeColor, venueName }: Props) {
                                 </div>
                                 {o.description && (
                                     <p className="mt-1 font-sans text-[11px] text-white/30">{o.description}</p>
+                                )}
+                                {/* Staff assigned to this offering */}
+                                {staffByOffering[o.id] && staffByOffering[o.id].length > 0 && (
+                                    <div className="mt-1.5 flex items-center gap-1">
+                                        {staffByOffering[o.id].slice(0, 2).map((s, i) => (
+                                            <span key={i} className="flex h-4 w-4 items-center justify-center overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                                                {s.avatar_url ? (
+                                                    <img src={s.avatar_url} alt="" className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <span className="text-[7px] font-bold text-white/50">{s.name.charAt(0)}</span>
+                                                )}
+                                            </span>
+                                        ))}
+                                        <span className="font-sans text-[9px] text-white/25">
+                                            with {staffByOffering[o.id].map((s) => s.name.split(" ")[0]).join(", ")}
+                                        </span>
+                                    </div>
                                 )}
                             </div>
                             <button

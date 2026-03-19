@@ -404,6 +404,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [staffList, setStaffList] = useState(initialStaff);
     const [showAddStaff, setShowAddStaff] = useState(false);
     const [newStaffName, setNewStaffName] = useState("");
+    const [newStaffEmail, setNewStaffEmail] = useState("");
     const [newStaffTitle, setNewStaffTitle] = useState("");
     const [newStaffBio, setNewStaffBio] = useState("");
     const [newStaffSpecialties, setNewStaffSpecialties] = useState("");
@@ -958,7 +959,15 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
                                         {/* Info */}
                                         <div className="min-w-0 flex-1">
-                                            <p className="font-sans text-[13px] font-medium text-white/80">{member.display_name}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-sans text-[13px] font-medium text-white/80">{member.display_name}</p>
+                                                {(member as Record<string, unknown>).invite_status === "pending" ? (
+                                                    <span className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-bold tracking-wider" style={{ backgroundColor: "rgba(250,204,21,0.15)", color: "#FACC15" }}>PENDING</span>
+                                                ) : (member as Record<string, unknown>).invite_status === "accepted" ? (
+                                                    <span className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-bold tracking-wider" style={{ backgroundColor: "rgba(74,222,128,0.15)", color: "#4ADE80" }}>LINKED</span>
+                                                ) : null}
+                                            </div>
+                                            {(() => { const e = (member as Record<string, unknown>).email; return e ? <p className="font-sans text-[10px] text-white/20">{String(e)}</p> : null; })()}
                                             {member.role_title && <p className="font-sans text-[11px] text-white/30">{member.role_title}</p>}
                                             {member.specialties && member.specialties.length > 0 && (
                                                 <div className="mt-1 flex flex-wrap gap-1">
@@ -1014,25 +1023,22 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                             {/* Add staff form */}
                             {showAddStaff ? (
                                 <div className="flex flex-col gap-3 rounded-xl p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                                    <input value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} placeholder="Name *" className="input" />
+                                    <input value={newStaffEmail} onChange={(e) => setNewStaffEmail(e.target.value)} placeholder="Email *" type="email" className="input" />
+                                    <input value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} placeholder="Display name (optional — auto-syncs from their profile)" className="input" />
                                     <input value={newStaffTitle} onChange={(e) => setNewStaffTitle(e.target.value)} placeholder="Role title (e.g. Lead Barista)" className="input" />
-                                    <textarea value={newStaffBio} onChange={(e) => setNewStaffBio(e.target.value)} placeholder="Short bio (optional)" className="input resize-none" rows={2} />
-                                    <input value={newStaffSpecialties} onChange={(e) => setNewStaffSpecialties(e.target.value)} placeholder="Specialties (comma-separated, e.g. Fade, Color)" className="input" />
                                     <div className="flex gap-2">
                                         <button
                                             onClick={async () => {
-                                                if (!newStaffName.trim()) return;
+                                                if (!newStaffEmail.trim() || !newStaffEmail.includes("@")) return;
                                                 setAddingStaff(true);
-                                                const specialties = newStaffSpecialties.split(",").map((s) => s.trim()).filter(Boolean);
                                                 const result = await addStaffMember(venue.id, {
-                                                    display_name: newStaffName.trim(),
+                                                    email: newStaffEmail.trim(),
+                                                    display_name: newStaffName.trim() || undefined,
                                                     role_title: newStaffTitle.trim() || undefined,
-                                                    bio: newStaffBio.trim() || undefined,
-                                                    specialties: specialties.length > 0 ? specialties : undefined,
                                                 });
                                                 if (result.staff) {
                                                     setStaffList((prev) => [...prev, result.staff!]);
-                                                    setNewStaffName(""); setNewStaffTitle(""); setNewStaffBio(""); setNewStaffSpecialties("");
+                                                    setNewStaffEmail(""); setNewStaffName(""); setNewStaffTitle(""); setNewStaffBio(""); setNewStaffSpecialties("");
                                                     setShowAddStaff(false);
                                                     setStaffMsg("Staff added!"); setTimeout(() => setStaffMsg(""), 2000);
                                                 } else if (result.error) {
@@ -1040,14 +1046,14 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                                 }
                                                 setAddingStaff(false);
                                             }}
-                                            disabled={addingStaff || !newStaffName.trim()}
+                                            disabled={addingStaff || !newStaffEmail.trim() || !newStaffEmail.includes("@")}
                                             className="rounded-lg px-4 py-2 font-sans text-[12px] font-semibold text-white"
                                             style={{ backgroundColor: page?.theme_color || "#F97316" }}
                                         >
                                             {addingStaff ? "Adding..." : "Add"}
                                         </button>
                                         <button
-                                            onClick={() => { setShowAddStaff(false); setNewStaffName(""); setNewStaffTitle(""); setNewStaffBio(""); setNewStaffSpecialties(""); }}
+                                            onClick={() => { setShowAddStaff(false); setNewStaffEmail(""); setNewStaffName(""); setNewStaffTitle(""); setNewStaffBio(""); setNewStaffSpecialties(""); }}
                                             className="rounded-lg px-4 py-2 font-sans text-[12px] text-white/40"
                                             style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
                                         >

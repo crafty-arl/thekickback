@@ -17,9 +17,10 @@ export interface StaffMember {
 interface Props {
     staff: StaffMember[];
     themeColor?: string;
+    offeringsByStaff?: Record<string, string[]>;
 }
 
-export function VenueStaff({ staff, themeColor = "#F97316" }: Props) {
+export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {} }: Props) {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const selected = staff.find((s) => s.id === selectedId);
 
@@ -202,6 +203,30 @@ export function VenueStaff({ staff, themeColor = "#F97316" }: Props) {
                                                 style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
                                             >
                                                 {slot.day} {slot.start}–{slot.end}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Services this staff member provides */}
+                            {offeringsByStaff[selected.id] && offeringsByStaff[selected.id].length > 0 && (
+                                <div className="mt-3">
+                                    <p className="mb-1.5 font-sans text-[10px] font-semibold tracking-[1px] text-white/20">
+                                        SERVICES
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {offeringsByStaff[selected.id].map((name) => (
+                                            <span
+                                                key={name}
+                                                className="rounded-lg px-2 py-1 font-sans text-[10px] font-medium"
+                                                style={{
+                                                    backgroundColor: `${themeColor}10`,
+                                                    color: `${themeColor}`,
+                                                    border: `1px solid ${themeColor}25`,
+                                                }}
+                                            >
+                                                {name}
                                             </span>
                                         ))}
                                     </div>

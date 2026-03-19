@@ -35,6 +35,11 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
+  // Staff role → redirect to staff portal
+  if (ownership.role === "staff") {
+    redirect("/staff");
+  }
+
   const venue = ownership.venues as unknown as {
     id: string;
     name: string;

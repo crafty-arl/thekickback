@@ -42,6 +42,40 @@ export async function verifyOtp(email: string, token: string) {
       },
       { onConflict: "id" }
     );
+
+    // Auto-link any pending staff invites for this email
+    if (data.user.email) {
+      const { createClient: createServiceClient } = await import("@supabase/supabase-js");
+      const service = createServiceClient(
+        process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_KEY!,
+      );
+
+      // Find pending staff records with this email
+      const { data: pendingStaff } = await service
+        .from("venue_staff")
+        .select("id, venue_id, display_name")
+        .eq("email", data.user.email.toLowerCase())
+        .eq("invite_status", "pending");
+
+      if (pendingStaff && pendingStaff.length > 0) {
+        for (const staff of pendingStaff) {
+          // Link user_id and mark as accepted
+          await service.from("venue_staff").update({
+            user_id: data.user.id,
+            invite_status: "accepted",
+            updated_at: new Date().toISOString(),
+          }).eq("id", staff.id);
+
+          // Create venue_owners row so dash-app recognizes them
+          await service.from("venue_owners").upsert({
+            user_id: data.user.id,
+            venue_id: staff.venue_id,
+            role: "staff",
+          }, { onConflict: "user_id,venue_id" });
+        }
+      }
+    }
   }
 
   redirect("/");

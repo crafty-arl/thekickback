@@ -66,6 +66,27 @@ export default async function VenuePage({ params, searchParams }: Props) {
     .eq("visible", true)
     .order("sort_order", { ascending: true });
 
+  // Fetch staff-offering links (which staff provide which services)
+  const staffIds = (staff || []).map((s: { id: string }) => s.id);
+  let staffOfferingLinks: { staff_id: string; offering_id: string }[] = [];
+  if (staffIds.length > 0) {
+    const { data: links } = await serviceClient
+      .from("staff_offerings")
+      .select("staff_id, offering_id")
+      .in("staff_id", staffIds);
+    staffOfferingLinks = links || [];
+  }
+
+  // Build staffByOffering map: offeringId → staff names/avatars
+  const staffByOffering: Record<string, { name: string; avatar_url: string | null }[]> = {};
+  for (const link of staffOfferingLinks) {
+    const member = (staff || []).find((s: { id: string }) => s.id === link.staff_id);
+    if (member) {
+      if (!staffByOffering[link.offering_id]) staffByOffering[link.offering_id] = [];
+      staffByOffering[link.offering_id].push({ name: member.display_name, avatar_url: member.avatar_url });
+    }
+  }
+
   // Check if the current user is authenticated
   const supabase = await createClient();
   const {
@@ -82,6 +103,7 @@ export default async function VenuePage({ params, searchParams }: Props) {
       offerings={offerings || []}
       gallery={gallery || []}
       staff={staff || []}
+      staffByOffering={staffByOffering}
     />
   );
 }

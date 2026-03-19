@@ -29,7 +29,7 @@ async function verifyOwnership(venueId: string) {
 export async function getStaffMembers(venueId: string) {
     const { data, error } = await service
         .from("venue_staff")
-        .select("id, display_name, role_title, avatar_url, bio, specialties, visible, sort_order, schedule, created_at")
+        .select("id, display_name, role_title, avatar_url, bio, specialties, visible, sort_order, schedule, email, invite_status, user_id, created_at")
         .eq("venue_id", venueId)
         .order("sort_order", { ascending: true });
 
@@ -40,7 +40,8 @@ export async function getStaffMembers(venueId: string) {
 export async function addStaffMember(
     venueId: string,
     data: {
-        display_name: string;
+        email: string;
+        display_name?: string;
         role_title?: string;
         bio?: string;
         specialties?: string[];
@@ -49,30 +50,67 @@ export async function addStaffMember(
     const user = await verifyOwnership(venueId);
     if (!user) return { error: "Not authorized" };
 
-    // Get next sort order
+    if (!data.email || !data.email.includes("@")) return { error: "Valid email required" };
+
+    const email = data.email.trim().toLowerCase();
+
+    // Check if this email is already staff at this venue
     const { data: existing } = await service
+        .from("venue_staff")
+        .select("id")
+        .eq("venue_id", venueId)
+        .eq("email", email)
+        .limit(1);
+
+    if (existing && existing.length > 0) return { error: "This email is already on your team" };
+
+    // Check if a KickBack profile exists with this email
+    const { data: profile } = await service
+        .from("profiles")
+        .select("id, display_name, email")
+        .eq("email", email)
+        .single();
+
+    // Get next sort order
+    const { data: existingStaff } = await service
         .from("venue_staff")
         .select("sort_order")
         .eq("venue_id", venueId)
         .order("sort_order", { ascending: false })
         .limit(1);
 
-    const nextOrder = existing && existing.length > 0 ? (existing[0].sort_order || 0) + 1 : 0;
+    const nextOrder = existingStaff && existingStaff.length > 0 ? (existingStaff[0].sort_order || 0) + 1 : 0;
+
+    // If profile exists → auto-link, accepted
+    // If not → pending invite
+    const staffData: Record<string, unknown> = {
+        venue_id: venueId,
+        email: email,
+        display_name: data.display_name?.trim() || (profile?.display_name) || email.split("@")[0],
+        role_title: data.role_title || null,
+        bio: data.bio || null,
+        specialties: data.specialties || [],
+        sort_order: nextOrder,
+        user_id: profile?.id || null,
+        invite_status: profile ? "accepted" : "pending",
+    };
 
     const { data: newStaff, error } = await service
         .from("venue_staff")
-        .insert({
-            venue_id: venueId,
-            display_name: data.display_name,
-            role_title: data.role_title || null,
-            bio: data.bio || null,
-            specialties: data.specialties || [],
-            sort_order: nextOrder,
-        })
-        .select("id, display_name, role_title, avatar_url, bio, specialties, visible, sort_order, schedule, created_at")
+        .insert(staffData)
+        .select("id, display_name, role_title, avatar_url, bio, specialties, visible, sort_order, schedule, email, invite_status, user_id, created_at")
         .single();
 
     if (error) return { error: error.message };
+
+    // If profile exists, also add them to venue_owners with role=staff
+    if (profile) {
+        await service.from("venue_owners").upsert({
+            user_id: profile.id,
+            venue_id: venueId,
+            role: "staff",
+        }, { onConflict: "user_id,venue_id" });
+    }
 
     revalidatePath("/settings");
     return { ok: true, staff: newStaff };
@@ -115,6 +153,14 @@ export async function deleteStaffMember(venueId: string, staffId: string) {
     const user = await verifyOwnership(venueId);
     if (!user) return { error: "Not authorized" };
 
+    // Get the staff record to clean up venue_owners
+    const { data: staff } = await service
+        .from("venue_staff")
+        .select("user_id")
+        .eq("id", staffId)
+        .eq("venue_id", venueId)
+        .single();
+
     const { error } = await service
         .from("venue_staff")
         .delete()
@@ -122,6 +168,16 @@ export async function deleteStaffMember(venueId: string, staffId: string) {
         .eq("venue_id", venueId);
 
     if (error) return { error: error.message };
+
+    // Also remove from venue_owners if they were linked
+    if (staff?.user_id) {
+        await service
+            .from("venue_owners")
+            .delete()
+            .eq("user_id", staff.user_id)
+            .eq("venue_id", venueId)
+            .eq("role", "staff");
+    }
 
     revalidatePath("/settings");
     return { ok: true };
