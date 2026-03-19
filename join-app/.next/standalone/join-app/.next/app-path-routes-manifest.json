@@ -5,6 +5,7 @@
   "/api/chat/general/route": "/api/chat/general",
   "/api/chat/route": "/api/chat",
   "/api/discover/route": "/api/discover",
+  "/api/orders/route": "/api/orders",
   "/api/points/route": "/api/points",
   "/health/route": "/health",
   "/login/page": "/login",

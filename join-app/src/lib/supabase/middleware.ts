@@ -32,8 +32,8 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Allow /login and API routes without auth
-  const isPublic = pathname === "/login" || pathname.startsWith("/api/");
+  // Allow /login, /health, and API routes without auth
+  const isPublic = pathname === "/login" || pathname === "/health" || pathname.startsWith("/api/");
 
   // Redirect authenticated users away from /login
   if (user && pathname === "/login") {

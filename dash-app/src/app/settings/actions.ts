@@ -162,6 +162,8 @@ export async function addOffering(data: {
     recurring?: boolean;
     interval?: string;
     perks?: string[];
+    duration_minutes?: number;
+    add_ons?: { name: string; price_cents: number }[];
 }) {
     const auth = await getAuthVenue();
     if (!auth) return { error: "Not authenticated" };
@@ -176,6 +178,8 @@ export async function addOffering(data: {
         recurring: data.recurring || false,
         interval: data.recurring ? (data.interval || "month") : null,
         perks: data.perks || [],
+        duration_minutes: data.duration_minutes || null,
+        add_ons: data.add_ons || [],
     });
 
     if (error) return { error: error.message };

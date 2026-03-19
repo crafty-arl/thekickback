@@ -222,6 +222,19 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
         setSavingOffering(true);
         setOfferingMsg("");
         const template = OFFERING_TYPES.find((o) => o.id === offeringType);
+        // Parse add-ons from "Name - Price" format
+        const parsedAddOns = offeringAddOns
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .map((line) => {
+                const parts = line.split("-").map((s) => s.trim());
+                const name = parts[0] || line;
+                const price = parts[1] ? Math.round(parseFloat(parts[1]) * 100) : 0;
+                return { name, price_cents: price };
+            })
+            .filter((a) => a.name);
+
         const result = await addOffering({
             name: offeringName.trim(),
             type: offeringType,
@@ -230,12 +243,14 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
             recurring: template?.recurring || false,
             interval: template?.recurring ? "month" : undefined,
             perks: offeringPerks.split("\n").map((p) => p.trim()).filter(Boolean),
+            duration_minutes: offeringDuration ? parseInt(offeringDuration) : undefined,
+            add_ons: parsedAddOns.length > 0 ? parsedAddOns : undefined,
         });
         if (result.error) { setOfferingMsg(result.error); }
         else {
             setOfferingMsg("Added!");
             setShowAddOffering(false);
-            setOfferingName(""); setOfferingDesc(""); setOfferingPrice(""); setOfferingPerks("");
+            setOfferingName(""); setOfferingDesc(""); setOfferingPrice(""); setOfferingPerks(""); setOfferingDuration(""); setOfferingAddOns("");
             setTimeout(() => setOfferingMsg(""), 2000);
         }
         setSavingOffering(false);

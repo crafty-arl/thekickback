@@ -68,6 +68,12 @@
       "namedRegex": "^/api/discover(?:/)?$"
     },
     {
+      "page": "/api/orders",
+      "regex": "^/api/orders(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/orders(?:/)?$"
+    },
+    {
       "page": "/api/points",
       "regex": "^/api/points(?:/)?$",
       "routeKeys": {},
