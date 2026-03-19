@@ -317,10 +317,15 @@ async function sendEmail(
   return true;
 }
 
+// ─── Cloudflare Worker types (inlined to avoid root tsconfig conflicts) ──
+
+interface ScheduledEvent { cron: string; scheduledTime: number; }
+interface ExecutionContext { waitUntil(promise: Promise<unknown>): void; passThroughOnException(): void; }
+
 // ─── Main handler ────────────────────────────────────────────────
 
 export default {
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+  async scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
     const isMonday = new Date().getUTCDay() === 1;
     const isWeekly = isMonday && event.cron === "0 14 * * 1";
 
