@@ -1,0 +1,35 @@
+{
+  "node": {
+    "60e69ab97f82dfdc8c07b6e4e23a2438ac75553963": {
+      "workers": {
+        "app/agent/page": {
+          "moduleId": 1612,
+          "async": false,
+          "exportedName": "addKnowledge",
+          "filename": "dash-app/src/app/agent/actions.ts"
+        }
+      },
+      "layer": {
+        "app/agent/page": "action-browser"
+      },
+      "exportedName": "addKnowledge",
+      "filename": "dash-app/src/app/agent/actions.ts"
+    },
+    "40cd8f9a0fd5c167b28ef05cf86f150f32df0a3862": {
+      "workers": {
+        "app/agent/page": {
+          "moduleId": 1612,
+          "async": false,
+          "exportedName": "deleteKnowledge",
+          "filename": "dash-app/src/app/agent/actions.ts"
+        }
+      },
+      "layer": {
+        "app/agent/page": "action-browser"
+      },
+      "exportedName": "deleteKnowledge",
+      "filename": "dash-app/src/app/agent/actions.ts"
+    }
+  },
+  "edge": {}
+}

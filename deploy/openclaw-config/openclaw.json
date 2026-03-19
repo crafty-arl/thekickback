@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "foursquare-places": {
+      "url": "http://foursquare-mcp:8080/sse"
+    }
+  }
+}

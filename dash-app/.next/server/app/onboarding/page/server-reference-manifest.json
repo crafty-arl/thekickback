@@ -1,0 +1,20 @@
+{
+  "node": {
+    "40160a1e12f4bfa6be7cc787ed6dbb5a098ca2ec00": {
+      "workers": {
+        "app/onboarding/page": {
+          "moduleId": 98742,
+          "async": false,
+          "exportedName": "createVenue",
+          "filename": "dash-app/src/app/onboarding/actions.ts"
+        }
+      },
+      "layer": {
+        "app/onboarding/page": "action-browser"
+      },
+      "exportedName": "createVenue",
+      "filename": "dash-app/src/app/onboarding/actions.ts"
+    }
+  },
+  "edge": {}
+}

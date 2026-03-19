@@ -135,6 +135,25 @@ services:
     profiles:
       - deploy
 
+  foursquare-mcp:
+    build:
+      context: ../foursquare-mcp
+      dockerfile: Dockerfile
+    container_name: foursquare-mcp
+    environment:
+      - FOURSQUARE_SERVICE_TOKEN=${FOURSQUARE_SERVICE_TOKEN}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/sse')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - kickback
+
   claw:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: claw
@@ -150,11 +169,16 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - FOURSQUARE_SERVICE_TOKEN=${FOURSQUARE_SERVICE_TOKEN}
     volumes:
       - claw_config:/home/node/.openclaw
       - claw_workspace:/home/node/.openclaw/workspace
+      - ./openclaw-config/openclaw.json:/home/node/.openclaw/openclaw.json:ro
     expose:
       - "18789"
+    depends_on:
+      foursquare-mcp:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:18789/healthz"]
       interval: 30s
