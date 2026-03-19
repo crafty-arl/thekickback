@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, useAnimationControls } from "framer-motion";
+import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { type Venue } from "@/lib/venues";
+import { createClient } from "@/lib/supabase/client";
 
 interface Message {
   id: string;
@@ -106,9 +107,58 @@ function parseVenueChips(
   });
 }
 
+const TIER_CONFIG: Record<string, { color: string; label: string; next: string; threshold: number }> = {
+  explorer: { color: "#94a3b8", label: "Explorer", next: "Regular", threshold: 500 },
+  regular: { color: "#4ade80", label: "Regular", next: "Member", threshold: 1500 },
+  member: { color: "#f97316", label: "Member", next: "VIP", threshold: 5000 },
+  vip: { color: "#a78bfa", label: "VIP", next: "", threshold: Infinity },
+};
+
+interface UserProfile {
+  email: string;
+  points: number;
+  totalEarned: number;
+  tier: string;
+  streak: number;
+  venuesVisited: number;
+}
+
 export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }: MasterDrawerProps) {
   const [expanded, setExpanded] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const controls = useAnimationControls();
+
+  // Load user profile
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
+      if (!authUser?.email) return;
+
+      // Try to get points balance
+      try {
+        const res = await fetch(`/api/points?userId=${authUser.id}`);
+        const data = await res.json();
+        setUser({
+          email: authUser.email,
+          points: data.balance?.balance || 0,
+          totalEarned: data.balance?.total_earned || 0,
+          tier: data.balance?.tier || "explorer",
+          streak: data.balance?.current_streak || 0,
+          venuesVisited: data.balance?.venues_visited || 0,
+        });
+      } catch {
+        setUser({
+          email: authUser.email,
+          points: 0,
+          totalEarned: 0,
+          tier: "explorer",
+          streak: 0,
+          venuesVisited: 0,
+        });
+      }
+    });
+  }, []);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -257,7 +307,7 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
           touchAction: "none",
         }}
       >
-        {/* === COLLAPSED: KickBack branding + input === */}
+        {/* === COLLAPSED: KickBack branding + profile + input === */}
         {!expanded && (
           <div className="flex h-full items-center gap-2 px-3">
             <button
@@ -277,6 +327,22 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                 KickBack
               </span>
             </button>
+
+            {/* Profile avatar — tap to expand and show profile */}
+            {user && (
+              <button
+                onClick={() => { setExpanded(true); setShowProfile(true); }}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                style={{
+                  backgroundColor: `${TIER_CONFIG[user.tier]?.color || TIER_CONFIG.explorer.color}20`,
+                  border: `1.5px solid ${TIER_CONFIG[user.tier]?.color || TIER_CONFIG.explorer.color}40`,
+                }}
+              >
+                <span className="font-sans text-[10px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || TIER_CONFIG.explorer.color }}>
+                  {user.email[0].toUpperCase()}
+                </span>
+              </button>
+            )}
 
             <input
               type="text"
@@ -333,6 +399,29 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                   Concierge
                 </span>
               </div>
+              <div className="flex items-center gap-2">
+                {/* Profile toggle */}
+                {user && (
+                  <button
+                    onClick={() => setShowProfile(!showProfile)}
+                    className="flex h-7 w-7 items-center justify-center rounded-full transition-all"
+                    style={{
+                      backgroundColor: showProfile
+                        ? `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}20`
+                        : "rgba(255,255,255,0.06)",
+                      border: showProfile
+                        ? `1.5px solid ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}40`
+                        : "1.5px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <span
+                      className="font-sans text-[10px] font-bold"
+                      style={{ color: showProfile ? (TIER_CONFIG[user.tier]?.color || "#94a3b8") : "rgba(255,255,255,0.4)" }}
+                    >
+                      {user.email[0].toUpperCase()}
+                    </span>
+                  </button>
+                )}
               <motion.button
                 onClick={() => setExpanded(false)}
                 whileTap={{ scale: 0.85 }}
@@ -352,7 +441,109 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation }:
                   <polyline points="18 15 12 9 6 15" />
                 </svg>
               </motion.button>
+              </div>
             </div>
+
+            {/* Profile panel */}
+            <AnimatePresence>
+              {showProfile && user && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-3">
+                    {/* User info */}
+                    <div className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                        style={{
+                          backgroundColor: `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}18`,
+                          border: `2px solid ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}40`,
+                        }}
+                      >
+                        <span className="font-sans text-[16px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || "#94a3b8" }}>
+                          {user.email[0].toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-sans text-[13px] font-semibold text-white/80">{user.email}</p>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span
+                            className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider"
+                            style={{
+                              backgroundColor: `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}18`,
+                              color: TIER_CONFIG[user.tier]?.color || "#94a3b8",
+                            }}
+                          >
+                            {TIER_CONFIG[user.tier]?.label || "Explorer"}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowProfile(false)}
+                        className="flex h-6 w-6 items-center justify-center rounded-full"
+                        style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-40">
+                          <polyline points="18 15 12 9 6 15" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      <div className="rounded-xl px-3 py-2.5 text-center" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                        <p className="font-mono text-[16px] font-bold" style={{ color: ACCENT }}>{user.points.toLocaleString()}</p>
+                        <p className="font-sans text-[9px] font-medium tracking-wide text-white/25">POINTS</p>
+                      </div>
+                      <div className="rounded-xl px-3 py-2.5 text-center" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                        <p className="font-mono text-[16px] font-bold text-white/70">{user.venuesVisited}</p>
+                        <p className="font-sans text-[9px] font-medium tracking-wide text-white/25">VENUES</p>
+                      </div>
+                      <div className="rounded-xl px-3 py-2.5 text-center" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                        <p className="font-mono text-[16px] font-bold text-white/70">{user.streak > 0 ? `${user.streak}wk` : "—"}</p>
+                        <p className="font-sans text-[9px] font-medium tracking-wide text-white/25">STREAK</p>
+                      </div>
+                    </div>
+
+                    {/* Tier progress */}
+                    {TIER_CONFIG[user.tier]?.next && (
+                      <div className="mt-2">
+                        <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.min((user.totalEarned / TIER_CONFIG[user.tier].threshold) * 100, 100)}%`,
+                              backgroundColor: TIER_CONFIG[user.tier].color,
+                            }}
+                          />
+                        </div>
+                        <div className="mt-1 flex justify-between">
+                          <span className="font-sans text-[9px] text-white/20">{user.totalEarned.toLocaleString()} earned</span>
+                          <span className="font-sans text-[9px] text-white/20">{TIER_CONFIG[user.tier].threshold.toLocaleString()} for {TIER_CONFIG[user.tier].next}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sign out */}
+                    <button
+                      onClick={async () => {
+                        const supabase = createClient();
+                        await supabase.auth.signOut();
+                        window.location.reload();
+                      }}
+                      className="mt-3 w-full rounded-xl py-2 font-sans text-[12px] font-medium text-white/30 transition hover:bg-white/[0.04]"
+                      style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Quick suggestions — only show if no user messages yet */}
             {messages.length <= 1 && (
