@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient as createAuthClient } from "@/lib/supabase/server";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!;
@@ -14,12 +15,15 @@ async function supabaseGet(path: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  const venueId = req.nextUrl.searchParams.get("venueId");
-
-  if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
+  // Verify authenticated user from session cookie
+  const supabase = await createAuthClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+
+  const userId = user.id;
+  const venueId = req.nextUrl.searchParams.get("venueId");
 
   const queries: Promise<unknown>[] = [
     // KickBack score (aggregate)

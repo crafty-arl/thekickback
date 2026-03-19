@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -6,10 +7,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 );
 
-// GET — fetch all preferences for a user
+async function getAuthUserId(): Promise<string | null> {
+  const authClient = await createAuthClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  return user?.id || null;
+}
+
+// GET — fetch all preferences for the authenticated user
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const { data, error } = await supabase
     .from("user_preferences")
@@ -33,8 +40,11 @@ export async function GET(req: NextRequest) {
 
 // DELETE — remove a single preference
 export async function DELETE(req: NextRequest) {
-  const { id, userId } = await req.json();
-  if (!id || !userId) return NextResponse.json({ error: "id and userId required" }, { status: 400 });
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const { id } = await req.json();
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const { error } = await supabase
     .from("user_preferences")
@@ -48,8 +58,11 @@ export async function DELETE(req: NextRequest) {
 
 // PUT — confirm or update a preference
 export async function PUT(req: NextRequest) {
-  const { id, userId, value, confirmed } = await req.json();
-  if (!id || !userId) return NextResponse.json({ error: "id and userId required" }, { status: 400 });
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const { id, value, confirmed } = await req.json();
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (value !== undefined) updates.value = value;

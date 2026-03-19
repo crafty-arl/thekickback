@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { extractPreferences, getPreferencesContext } from "@/lib/personalization";
 
 const supabase = createClient(
@@ -49,7 +50,12 @@ function resolveVenueTags(text: string, venues: VenueRow[]): string {
 }
 
 export async function POST(request: Request) {
-  const { message, userId } = await request.json();
+  // Verify authenticated user from session cookie
+  const authClient = await createAuthClient();
+  const { data: { user: authUser } } = await authClient.auth.getUser();
+  const userId = authUser?.id || null;
+
+  const { message } = await request.json();
 
   if (!message) {
     return Response.json({ reply: "Missing message." }, { status: 400 });

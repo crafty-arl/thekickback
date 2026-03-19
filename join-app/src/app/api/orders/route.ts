@@ -1,3 +1,4 @@
+import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -6,7 +7,15 @@ const supabase = createClient(
 );
 
 export async function POST(request: Request) {
-  const { userId, venueId, items, addOns, pointsToSpend, notes } = await request.json();
+  // Verify authenticated user from session cookie
+  const authClient = await createAuthClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) {
+    return Response.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const userId = user.id;
+  const { venueId, items, addOns, pointsToSpend, notes } = await request.json();
 
   if (!venueId || !items || items.length === 0) {
     return Response.json({ error: "Missing venue or items" }, { status: 400 });
@@ -28,7 +37,7 @@ export async function POST(request: Request) {
 
   try {
     const { data, error } = await supabase.rpc("create_order", {
-      p_user_id: userId || null,
+      p_user_id: userId,
       p_venue_id: venueId,
       p_items: allItems,
       p_points_to_spend: pointsToSpend || 0,
@@ -41,23 +50,21 @@ export async function POST(request: Request) {
     }
 
     // Grant purchase bonus points (10 pts per dollar spent)
-    if (userId) {
-      const totalCents = allItems.reduce(
-        (sum: number, i: { unit_price_cents: number; quantity: number }) =>
-          sum + i.unit_price_cents * (i.quantity || 1),
-        0
-      );
-      const bonusPoints = Math.floor(totalCents / 10); // 10 pts per dollar
+    const totalCents = allItems.reduce(
+      (sum: number, i: { unit_price_cents: number; quantity: number }) =>
+        sum + i.unit_price_cents * (i.quantity || 1),
+      0
+    );
+    const bonusPoints = Math.floor(totalCents / 10); // 10 pts per dollar
 
-      if (bonusPoints > 0) {
-        await supabase.rpc("grant_points", {
-          p_user_id: userId,
-          p_venue_id: venueId,
-          p_amount: bonusPoints,
-          p_reason: "purchase_bonus",
-          p_reference_id: data,
-        });
-      }
+    if (bonusPoints > 0) {
+      await supabase.rpc("grant_points", {
+        p_user_id: userId,
+        p_venue_id: venueId,
+        p_amount: bonusPoints,
+        p_reason: "purchase_bonus",
+        p_reference_id: data,
+      });
     }
 
     return Response.json({ orderId: data });

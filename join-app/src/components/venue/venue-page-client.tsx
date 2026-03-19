@@ -690,7 +690,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                           {msg.tab === "reserve" && <ReserveCard body={msg.body} venue={cardVenue} vibeColor={color} />}
                           {msg.tab === "shop" && <ShopCard body={msg.body} venue={cardVenue} vibeColor={color} />}
                           {msg.tab === "subscribe" && <SubscribeCard body={msg.body} venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "join" && <JoinCard body={msg.body} venue={cardVenue} vibeColor={color} userId={null} />}
+                          {msg.tab === "join" && <JoinCard body={msg.body} venue={cardVenue} vibeColor={color} />}
                         </motion.div>
                       );
                     }

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { type Venue } from "@/lib/venues";
 import { VenueDrawer } from "@/components/map/venue-drawer";
 import { MasterDrawer } from "@/components/map/master-drawer";
-import { TagRail, type Tag } from "@/components/map/tag-rail";
+import { ExploreSheet, type Tag } from "@/components/map/explore-sheet";
 import type { MapRef } from "react-map-gl";
 
 const MapView = dynamic(
@@ -24,6 +24,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
     const [activeTag, setActiveTag] = useState<Tag | null>(null);
+    const [masterExpanded, setMasterExpanded] = useState(false);
     const mapRef = useRef<MapRef | null>(null);
 
     // Filtered venues based on active tag
@@ -51,7 +52,6 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                     if (!res.ok) return;
                     const localVenues: Venue[] = await res.json();
 
-                    // Merge: keep claimed (Supabase) venues, replace discovery with local ones
                     const claimed = serverVenues.filter((v) => v.claimed !== false);
                     const claimedNames = new Set(claimed.map((v) => v.name.toLowerCase()));
                     const uniqueLocal = localVenues.filter(
@@ -63,7 +63,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 }
             },
             () => {
-                // Geolocation denied or unavailable — keep server defaults
+                // Geolocation denied or unavailable
             },
             { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
         );
@@ -91,7 +91,6 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     const handleTagSelect = useCallback((tag: Tag | null) => {
         setActiveTag(tag);
         if (tag && tag.venueIds.length > 0) {
-            // Auto-select the first venue matching this tag
             const firstMatch = venues.find((v) => tag.venueIds.includes(v.id));
             if (firstMatch) {
                 setSelectedVenue(firstMatch);
@@ -103,7 +102,6 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 });
             }
         } else {
-            // Clear filter — deselect venue and zoom out
             setSelectedVenue(null);
             if (venues.length >= 2) {
                 const lngs = venues.map((v) => v.longitude);
@@ -142,12 +140,19 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 </header>
             </div>
 
-            {/* Tag rail — always visible */}
-            <TagRail
-                venues={venues}
-                activeTag={activeTag?.id || null}
-                onTagSelect={handleTagSelect}
-            />
+            {/* ExploreSheet — hidden when venue is selected */}
+            <AnimatePresence>
+                {!selectedVenue && (
+                    <ExploreSheet
+                        venues={venues}
+                        onVenueSelect={setSelectedVenue}
+                        onTagSelect={handleTagSelect}
+                        activeTag={activeTag}
+                        userLocation={userLocation}
+                        masterExpanded={masterExpanded}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Edge arrows — prev/next venue (show when venue selected OR tag active) */}
             <AnimatePresence>
@@ -160,7 +165,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                             exit={{ opacity: 0, x: -20 }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
                             onClick={() => navigateVenue(-1)}
-                            className="fixed left-0 top-1/2 z-[60] flex h-12 w-8 -translate-y-1/2 items-center justify-center rounded-r-xl"
+                            className="fixed left-0 top-1/2 z-[55] flex h-12 w-8 -translate-y-1/2 items-center justify-center rounded-r-xl"
                             style={{
                                 backgroundColor: "rgba(15, 15, 18, 0.6)",
                                 backdropFilter: "blur(20px)",
@@ -181,7 +186,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                             exit={{ opacity: 0, x: 20 }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
                             onClick={() => navigateVenue(1)}
-                            className="fixed right-0 top-1/2 z-[60] flex h-12 w-8 -translate-y-1/2 items-center justify-center rounded-l-xl"
+                            className="fixed right-0 top-1/2 z-[55] flex h-12 w-8 -translate-y-1/2 items-center justify-center rounded-l-xl"
                             style={{
                                 backgroundColor: "rgba(15, 15, 18, 0.6)",
                                 backdropFilter: "blur(20px)",
@@ -214,6 +219,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                         onRecenter={handleRecenter}
                         hasLocation={!!userLocation}
                         userLocation={userLocation}
+                        onExpandedChange={setMasterExpanded}
                     />
                 )}
             </AnimatePresence>

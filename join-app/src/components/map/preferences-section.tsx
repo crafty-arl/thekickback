@@ -13,47 +13,34 @@ interface Preference {
   venue_id: string | null;
 }
 
-interface PreferencesSectionProps {
-  userId: string;
-}
-
 const CATEGORY_EMOJI: Record<string, string> = {
-  dietary: "🥬",
-  vibe: "✨",
-  venue_type: "📍",
-  group_size: "👥",
-  time: "🕐",
-  order: "☕",
-  neighborhood: "🏘️",
-  interest: "🎵",
-  general: "💬",
+  dietary: "\ud83e\udd6c",
+  vibe: "\u2728",
+  venue_type: "\ud83d\udccd",
+  group_size: "\ud83d\udc65",
+  time: "\ud83d\udd50",
+  order: "\u2615",
+  neighborhood: "\ud83c\udfe0\ufe0f",
+  interest: "\ud83c\udfb5",
+  general: "\ud83d\udcac",
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  dietary: "Diet",
-  vibe: "Vibe",
-  venue_type: "Venues",
-  group_size: "Group",
-  time: "Time",
-  order: "Orders",
-  neighborhood: "Area",
-  interest: "Interests",
-  general: "Notes",
-};
-
-export function PreferencesSection({ userId }: PreferencesSectionProps) {
+export function PreferencesSection() {
   const [prefs, setPrefs] = useState<Preference[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
-    fetch(`/api/preferences?userId=${userId}`)
-      .then((r) => r.json())
+    fetch("/api/preferences")
+      .then((r) => {
+        if (!r.ok) throw new Error("Not authenticated");
+        return r.json();
+      })
       .then((data) => {
         setPrefs(data.preferences || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [userId]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -62,7 +49,7 @@ export function PreferencesSection({ userId }: PreferencesSectionProps) {
     await fetch("/api/preferences", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, userId }),
+      body: JSON.stringify({ id }),
     });
   };
 
@@ -73,7 +60,7 @@ export function PreferencesSection({ userId }: PreferencesSectionProps) {
     await fetch("/api/preferences", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, userId, confirmed: true }),
+      body: JSON.stringify({ id, confirmed: true }),
     });
   };
 
@@ -100,7 +87,7 @@ export function PreferencesSection({ userId }: PreferencesSectionProps) {
       <div className="flex flex-wrap gap-1.5">
         <AnimatePresence>
           {prefs.map((pref) => {
-            const emoji = CATEGORY_EMOJI[pref.category] || "💬";
+            const emoji = CATEGORY_EMOJI[pref.category] || "\ud83d\udcac";
             const isConfirmed = pref.source === "user" || pref.confidence >= 0.9;
             return (
               <motion.div
@@ -118,7 +105,6 @@ export function PreferencesSection({ userId }: PreferencesSectionProps) {
                 <span className="font-sans text-[10px] font-medium text-white/50">
                   {pref.value}
                 </span>
-                {/* Confirm button (for AI-extracted, not yet confirmed) */}
                 {!isConfirmed && (
                   <button
                     onClick={() => handleConfirm(pref.id)}
@@ -130,7 +116,6 @@ export function PreferencesSection({ userId }: PreferencesSectionProps) {
                     </svg>
                   </button>
                 )}
-                {/* Delete button */}
                 <button
                   onClick={() => handleDelete(pref.id)}
                   className="ml-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100"

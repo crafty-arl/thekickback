@@ -145,16 +145,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [dismissed, setDismissed] = useState(false);
-  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const controls = useAnimationControls();
-
-  // Resolve authenticated user for personalization
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setAuthUserId(user.id);
-    });
-  }, []);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -229,7 +220,6 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
           venueName: venue.name,
           vibe: venue.vibe,
           occupancy: venue.occupancy,
-          userId: authUserId,
         }),
       });
 
@@ -338,7 +328,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
               </span>
             </button>
 
-            <PointsBadge userId={null} venueId={venue.id} vibeColor={vibeColor} expanded={false} />
+            <PointsBadge venueId={venue.id} vibeColor={vibeColor} expanded={false} />
 
             <input
               type="text"
@@ -454,8 +444,8 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="flex gap-1 overflow-x-auto px-3 pb-2 no-scrollbar"
-              style={{ WebkitOverflowScrolling: "touch" }}
+              className="flex w-full gap-1 px-3 pb-2 no-scrollbar"
+              style={{ WebkitOverflowScrolling: "touch", overflowX: "scroll", overflowY: "hidden", scrollSnapType: "x mandatory" }}
             >
               {TABS.map((tab) => {
                 const isActive = activeTab === tab.id;
@@ -464,11 +454,12 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
                     key={tab.id}
                     onClick={() => handleTabTap(tab.id)}
                     whileTap={{ scale: 0.92 }}
-                    className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium transition-colors"
+                    className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 font-sans text-[11px] font-medium transition-colors"
                     style={{
                       backgroundColor: isActive ? `${vibeColor}20` : "rgba(255,255,255,0.04)",
                       color: isActive ? vibeColor : "rgba(255,255,255,0.35)",
                       border: `1px solid ${isActive ? `${vibeColor}30` : "rgba(255,255,255,0.06)"}`,
+                      scrollSnapAlign: "start",
                     }}
                   >
                     <TabIcon path={tab.icon} size={12} />
@@ -479,7 +470,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
             </motion.div>
 
             {/* Points */}
-            <PointsBadge userId={null} venueId={venue.id} vibeColor={vibeColor} expanded={true} />
+            <PointsBadge venueId={venue.id} vibeColor={vibeColor} expanded={true} />
 
             {/* Divider */}
             <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
@@ -528,7 +519,7 @@ export function VenueDrawer({ venue, onClose }: VenueDrawerProps) {
                         {msg.tab === "reserve" && <ReserveCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
                         {msg.tab === "shop" && <ShopCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
                         {msg.tab === "subscribe" && <SubscribeCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
-                        {msg.tab === "join" && <JoinCard body={msg.body} venue={venue} vibeColor={vibeColor} userId={authUserId} />}
+                        {msg.tab === "join" && <JoinCard body={msg.body} venue={venue} vibeColor={vibeColor} />}
                       </motion.div>
                     );
                   }

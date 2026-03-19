@@ -3,9 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { type Venue } from "@/lib/venues";
-import { createClient } from "@/lib/supabase/client";
-import { PreferencesSection } from "./preferences-section";
-import { StoreDrawer } from "./store-drawer";
+
 
 interface Message {
   id: string;
@@ -20,9 +18,10 @@ interface MasterDrawerProps {
   onRecenter?: () => void;
   hasLocation?: boolean;
   userLocation?: { latitude: number; longitude: number } | null;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
-const ACCENT = "#a78bfa"; // soft purple for the master agent
+const ACCENT = "#a78bfa";
 
 interface ApiVenue {
   id: string;
@@ -68,7 +67,6 @@ function parseVenueChips(
       const venueId = match[1];
       const venueName = match[2];
 
-      // Try local venues first, then API venues
       let venue = venues.find((v) => v.id === venueId);
       if (!venue && apiVenues[venueId]) {
         venue = buildVenueFromApi(apiVenues[venueId]);
@@ -110,76 +108,38 @@ function parseVenueChips(
   });
 }
 
-const TIER_CONFIG: Record<string, { color: string; label: string; next: string; threshold: number }> = {
-  explorer: { color: "#94a3b8", label: "Explorer", next: "Regular", threshold: 500 },
-  regular: { color: "#4ade80", label: "Regular", next: "Member", threshold: 1500 },
-  member: { color: "#f97316", label: "Member", next: "VIP", threshold: 5000 },
-  vip: { color: "#a78bfa", label: "VIP", next: "", threshold: Infinity },
+const TIER_CONFIG: Record<string, { color: string; label: string }> = {
+  explorer: { color: "#94a3b8", label: "Explorer" },
+  regular: { color: "#4ade80", label: "Regular" },
+  member: { color: "#f97316", label: "Member" },
+  vip: { color: "#a78bfa", label: "VIP" },
 };
 
-interface VenueXpProfile {
-  venue_id: string;
-  xp: number;
-  visits: number;
-  venues?: { id: string; name: string; vibe: string };
-  venue_xp_milestones?: { name: string; color: string; threshold: number } | null;
-}
-
-interface UserProfile {
-  authId: string;
-  email: string;
-  kickbackScore: number;
-  totalEarned: number;
-  tier: string;
-  streak: number;
-  venueProfiles: VenueXpProfile[];
-}
-
-export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, userLocation }: MasterDrawerProps) {
+export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, userLocation, onExpandedChange }: MasterDrawerProps) {
   const [expanded, setExpanded] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showStore, setShowStore] = useState(false);
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [streak, setStreak] = useState(0);
   const controls = useAnimationControls();
 
-  // Load user profile
+  // Notify parent of expanded state changes
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
-      if (!authUser?.email) return;
+    onExpandedChange?.(expanded);
+  }, [expanded, onExpandedChange]);
 
-      // Try to get points balance
-      try {
-        const res = await fetch(`/api/points?userId=${authUser.id}`);
-        const data = await res.json();
-        setUser({
-          authId: authUser.id,
-          email: authUser.email,
-          kickbackScore: data.balance?.kickback_score || data.balance?.total_earned || 0,
-          totalEarned: data.balance?.total_earned || 0,
-          tier: data.balance?.tier || "explorer",
-          streak: data.balance?.current_streak || 0,
-          venueProfiles: data.venueProfiles || [],
-        });
-      } catch {
-        setUser({
-          authId: authUser.id,
-          email: authUser.email,
-          kickbackScore: 0,
-          totalEarned: 0,
-          tier: "explorer",
-          streak: 0,
-          venueProfiles: [],
-        });
-      }
-    });
+  // Load minimal user data (streak for command bar)
+  useEffect(() => {
+    fetch("/api/points")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.balance?.current_streak) setStreak(data.balance.current_streak);
+      })
+      .catch(() => {});
   }, []);
 
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       sender: "ai",
-      body: "Hey. I'm KickBack. Ask me anything — what's happening tonight, where to go, or vibe check a spot.",
+      body: "Hey. I'm KickBack. Ask me anything \u2014 what's happening tonight, where to go, or vibe check a spot.",
       timestamp: Date.now(),
     },
   ]);
@@ -187,8 +147,7 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, u
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // Venues returned by the API that may not be on the map
-  const [apiVenues, setApiVenues] = useState<Record<string, { id: string; name: string; vibe: string; occupancy: number; capacity: number; latitude: number | null; longitude: number | null; neighborhood: string | null }>>({});
+  const [apiVenues, setApiVenues] = useState<Record<string, ApiVenue>>({});
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -239,12 +198,11 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, u
         const res = await fetch("/api/chat/general", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: msg, userId: user?.authId }),
+          body: JSON.stringify({ message: msg }),
         });
 
         const data = await res.json();
 
-        // Store venue metadata from API for chip navigation
         if (data.venues?.length) {
           setApiVenues((prev) => {
             const next = { ...prev };
@@ -322,31 +280,11 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, u
           touchAction: "none",
         }}
       >
-        {/* === COLLAPSED: [avatar+location] [dot KickBack] [input] [streak] === */}
+        {/* === COLLAPSED: [location] [dot KickBack] [input] [streak] === */}
         {!expanded && (
           <div className="flex h-full items-center gap-1.5 px-2">
-            {/* Left cluster: profile + location */}
+            {/* Left cluster: location */}
             <div className="flex shrink-0 items-center gap-1">
-              {/* Profile avatar */}
-              <button
-                onClick={() => { setExpanded(true); setShowProfile(true); }}
-                className="flex h-8 w-8 items-center justify-center rounded-full transition-transform active:scale-90"
-                style={{
-                  backgroundColor: user ? `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}15` : "rgba(255,255,255,0.06)",
-                  border: `1.5px solid ${user ? `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}30` : "rgba(255,255,255,0.08)"}`,
-                }}
-              >
-                {user ? (
-                  <span className="font-sans text-[11px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || "#94a3b8" }}>
-                    {user.email[0].toUpperCase()}
-                  </span>
-                ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                  </svg>
-                )}
-              </button>
-
               {/* Location */}
               {hasLocation && onRecenter && (
                 <button
@@ -361,21 +299,6 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, u
                   </svg>
                 </button>
               )}
-
-              {/* Store */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowStore(true); }}
-                className="flex h-8 w-8 items-center justify-center rounded-full transition-transform active:scale-90"
-                style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-                aria-label="Explore venues"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" rx="1" />
-                  <rect x="14" y="3" width="7" height="7" rx="1" />
-                  <rect x="3" y="14" width="7" height="7" rx="1" />
-                  <rect x="14" y="14" width="7" height="7" rx="1" />
-                </svg>
-              </button>
             </div>
 
             {/* Center: KickBack brand + input */}
@@ -408,10 +331,10 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, u
             />
 
             {/* Right: streak indicator */}
-            {user && user.streak > 0 && (
+            {streak > 0 && (
               <div className="flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(249,115,22,0.08)" }}>
-                <span className="text-[10px]">🔥</span>
-                <span className="font-mono text-[10px] font-bold text-orange">{user.streak}</span>
+                <span className="text-[10px]">&#x1f525;</span>
+                <span className="font-mono text-[10px] font-bold text-orange">{streak}</span>
               </div>
             )}
           </div>
@@ -452,44 +375,9 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, u
                     </svg>
                   </button>
                 )}
-                {/* Store */}
-                <button
-                  onClick={() => { setShowStore(true); setExpanded(false); setShowProfile(false); }}
-                  className="flex h-7 w-7 items-center justify-center rounded-full transition-transform active:scale-90"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-                  aria-label="Explore venues"
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="7" height="7" rx="1" />
-                    <rect x="14" y="3" width="7" height="7" rx="1" />
-                    <rect x="3" y="14" width="7" height="7" rx="1" />
-                    <rect x="14" y="14" width="7" height="7" rx="1" />
-                  </svg>
-                </button>
-                {/* Profile */}
-                <button
-                  onClick={() => setShowProfile(!showProfile)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full transition-all"
-                  style={{
-                    backgroundColor: showProfile
-                      ? `${TIER_CONFIG[user?.tier || "explorer"]?.color || "#94a3b8"}20`
-                      : "rgba(255,255,255,0.06)",
-                    border: `1.5px solid ${showProfile ? `${TIER_CONFIG[user?.tier || "explorer"]?.color || "#94a3b8"}40` : "rgba(255,255,255,0.08)"}`,
-                  }}
-                >
-                  {user ? (
-                    <span className="font-sans text-[10px] font-bold" style={{ color: showProfile ? (TIER_CONFIG[user.tier]?.color || "#94a3b8") : "rgba(255,255,255,0.4)" }}>
-                      {user.email[0].toUpperCase()}
-                    </span>
-                  ) : (
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                    </svg>
-                  )}
-                </button>
                 {/* Collapse */}
                 <motion.button
-                  onClick={() => { setExpanded(false); setShowProfile(false); }}
+                  onClick={() => setExpanded(false)}
                   whileTap={{ scale: 0.85 }}
                   className="flex h-7 w-7 items-center justify-center rounded-full"
                   style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
@@ -500,154 +388,6 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, u
                 </motion.button>
               </div>
             </div>
-
-            {/* Profile panel */}
-            <AnimatePresence>
-              {showProfile && user && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                  className="overflow-hidden"
-                >
-                  <div className="px-4 pb-3">
-                    {/* Identity row */}
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-                        style={{
-                          background: `linear-gradient(135deg, ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}30, ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}10)`,
-                          border: `2px solid ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}40`,
-                        }}
-                      >
-                        <span className="font-sans text-[18px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || "#94a3b8" }}>
-                          {user.email[0].toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-sans text-[13px] font-semibold text-white/80">{user.email}</p>
-                        <div className="mt-0.5 flex items-center gap-2">
-                          <span
-                            className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider"
-                            style={{
-                              backgroundColor: `${TIER_CONFIG[user.tier]?.color || "#94a3b8"}15`,
-                              color: TIER_CONFIG[user.tier]?.color || "#94a3b8",
-                            }}
-                          >
-                            {TIER_CONFIG[user.tier]?.label || "Explorer"}
-                          </span>
-                          {user.streak > 0 && (
-                            <span className="flex items-center gap-1 font-sans text-[10px] font-semibold text-orange">
-                              🔥 {user.streak}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* KickBack Score — XP meter (aggregate of all venue XP) */}
-                    <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">KICKBACK SCORE</span>
-                        <span className="font-mono text-[13px] font-bold" style={{ color: TIER_CONFIG[user.tier]?.color || "#94a3b8" }}>
-                          {user.kickbackScore.toLocaleString()}
-                          {TIER_CONFIG[user.tier]?.next && (
-                            <span className="text-white/20 font-normal"> / {TIER_CONFIG[user.tier].threshold.toLocaleString()}</span>
-                          )}
-                        </span>
-                      </div>
-                      <div className="relative h-2.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${TIER_CONFIG[user.tier]?.next ? Math.min((user.kickbackScore / TIER_CONFIG[user.tier].threshold) * 100, 100) : 100}%` }}
-                          transition={{ duration: 0.8, ease: "easeOut" }}
-                          className="h-full rounded-full"
-                          style={{
-                            background: `linear-gradient(90deg, ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}, ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}cc)`,
-                            boxShadow: `0 0 10px ${TIER_CONFIG[user.tier]?.color || "#94a3b8"}40`,
-                          }}
-                        />
-                      </div>
-                      {TIER_CONFIG[user.tier]?.next && (
-                        <p className="mt-1.5 font-sans text-[9px] text-white/20">
-                          {(TIER_CONFIG[user.tier].threshold - user.kickbackScore).toLocaleString()} XP to {TIER_CONFIG[user.tier].next}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Venue Badges — real per-venue XP profiles */}
-                    <div className="mt-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">VENUES</span>
-                        <span className="font-mono text-[11px] font-bold text-white/40">{user.venueProfiles.length}</span>
-                      </div>
-                      {user.venueProfiles.length > 0 ? (
-                        <div className="flex flex-col gap-1.5">
-                          {user.venueProfiles.slice(0, 6).map((vp) => {
-                            const milestoneColor = vp.venue_xp_milestones?.color || "#94a3b8";
-                            const milestoneName = vp.venue_xp_milestones?.name;
-                            const venueName = vp.venues?.name || "Venue";
-                            return (
-                              <div
-                                key={vp.venue_id}
-                                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2"
-                                style={{ backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}
-                              >
-                                {/* Badge dot */}
-                                <div
-                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                                  style={{ backgroundColor: `${milestoneColor}15`, border: `1.5px solid ${milestoneColor}30` }}
-                                >
-                                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: milestoneColor, boxShadow: `0 0 6px ${milestoneColor}50` }} />
-                                </div>
-                                {/* Venue name + milestone */}
-                                <div className="flex-1 min-w-0">
-                                  <p className="truncate font-sans text-[11px] font-semibold text-white/70">{venueName}</p>
-                                  <p className="font-sans text-[9px] text-white/25">
-                                    {milestoneName || "New"} · {vp.visits} visit{vp.visits !== 1 ? "s" : ""}
-                                  </p>
-                                </div>
-                                {/* XP at this venue */}
-                                <span className="font-mono text-[11px] font-bold" style={{ color: milestoneColor }}>
-                                  {vp.xp.toLocaleString()}
-                                </span>
-                              </div>
-                            );
-                          })}
-                          {user.venueProfiles.length > 6 && (
-                            <p className="text-center font-sans text-[9px] text-white/20">
-                              +{user.venueProfiles.length - 6} more venues
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="font-sans text-[11px] text-white/20">Visit venues to start earning XP</p>
-                      )}
-                    </div>
-
-                    {/* What I know about you */}
-                    <PreferencesSection userId={user.authId} />
-
-                    {/* Sign out */}
-                    <button
-                      onClick={async () => {
-                        const supabase = createClient();
-                        await supabase.auth.signOut();
-                        window.location.reload();
-                      }}
-                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
-                      style={{ border: "1px solid rgba(255,255,255,0.05)" }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-                      </svg>
-                      Sign Out
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {/* Quick suggestions — only show if no user messages yet */}
             {messages.length <= 1 && (
@@ -831,21 +571,6 @@ export function MasterDrawer({ venues, onVenueSelect, onRecenter, hasLocation, u
           </>
         )}
       </motion.div>
-
-      {/* Store drawer overlay */}
-      <AnimatePresence>
-        {showStore && (
-          <StoreDrawer
-            venues={venues}
-            onClose={() => setShowStore(false)}
-            onVenueSelect={(venue) => {
-              setShowStore(false);
-              onVenueSelect(venue);
-            }}
-            userLocation={userLocation}
-          />
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }

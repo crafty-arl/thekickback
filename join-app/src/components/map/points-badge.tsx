@@ -33,34 +33,35 @@ const TIER_CONFIG: Record<string, { color: string; next: string; threshold: numb
 };
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  drink: "☕",
-  food: "🍔",
-  access: "🔑",
-  experience: "✨",
-  merch: "🎁",
-  other: "🎯",
+  drink: "\u2615",
+  food: "\ud83c\udf54",
+  access: "\ud83d\udd11",
+  experience: "\u2728",
+  merch: "\ud83c\udf81",
+  other: "\ud83c\udfaf",
 };
 
 interface PointsBadgeProps {
-  userId: string | null;
   venueId: string;
   vibeColor: string;
   expanded: boolean;
 }
 
-export function PointsBadge({ userId, venueId, vibeColor, expanded }: PointsBadgeProps) {
+export function PointsBadge({ venueId, vibeColor, expanded }: PointsBadgeProps) {
   const [data, setData] = useState<PointsData | null>(null);
   const [showPerks, setShowPerks] = useState(false);
 
   useEffect(() => {
-    if (!userId) return;
-    fetch(`/api/points?userId=${userId}&venueId=${venueId}`)
-      .then((r) => r.json())
-      .then(setData)
+    fetch(`/api/points?venueId=${venueId}`)
+      .then((r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then((d) => { if (d) setData(d); })
       .catch(() => {});
-  }, [userId, venueId]);
+  }, [venueId]);
 
-  if (!data || !userId) return null;
+  if (!data) return null;
 
   const { balance, perks, challenges } = data;
   const tier = TIER_CONFIG[balance.tier] || TIER_CONFIG.explorer;
@@ -199,7 +200,7 @@ export function PointsBadge({ userId, venueId, vibeColor, expanded }: PointsBadg
                 color: "rgba(255,255,255,0.35)",
               }}
             >
-              🔥 {balance.current_streak}wk streak
+              &#x1f525; {balance.current_streak}wk streak
             </span>
           )}
           {balance.venues_visited > 0 && (
@@ -212,7 +213,7 @@ export function PointsBadge({ userId, venueId, vibeColor, expanded }: PointsBadg
                 color: "rgba(255,255,255,0.35)",
               }}
             >
-              📍 {balance.venues_visited} venues
+              &#x1f4cd; {balance.venues_visited} venues
             </span>
           )}
         </div>
@@ -247,7 +248,7 @@ export function PointsBadge({ userId, venueId, vibeColor, expanded }: PointsBadg
                 }}
               >
                 <span style={{ fontSize: 14 }}>
-                  {CATEGORY_EMOJI[perk.category] || "🎯"}
+                  {CATEGORY_EMOJI[perk.category] || "\ud83c\udfaf"}
                 </span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: "#fff" }}>
@@ -291,7 +292,7 @@ export function PointsBadge({ userId, venueId, vibeColor, expanded }: PointsBadg
                 border: "1px solid rgba(249,115,22,0.1)",
               }}
             >
-              <span style={{ fontSize: 12 }}>🎯</span>
+              <span style={{ fontSize: 12 }}>&#x1f3af;</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: "#f97316" }}>{c.title}</div>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{c.description}</div>

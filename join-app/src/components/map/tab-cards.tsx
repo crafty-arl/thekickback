@@ -451,11 +451,7 @@ export function SubscribeCard({ body, venue, vibeColor }: TabCardProps) {
 /* ═══════════════════════════════════════════════════
    JOIN — Membership tiers with perks
    ═══════════════════════════════════════════════════ */
-interface JoinCardProps extends TabCardProps {
-  userId: string | null;
-}
-
-export function JoinCard({ body, venue, vibeColor, userId }: JoinCardProps) {
+export function JoinCard({ body, venue, vibeColor }: TabCardProps) {
   const [memberships, setMemberships] = useState<{ id: string; name: string; description: string | null; price_cents: number; interval: string | null; perks: string[] }[]>([]);
   const [xp, setXp] = useState(0);
   const [milestones, setMilestones] = useState<{ name: string; threshold: number; color: string; reward: string | null }[]>([]);
@@ -469,9 +465,8 @@ export function JoinCard({ body, venue, vibeColor, userId }: JoinCardProps) {
       })
       .catch(() => {});
 
-    // Fetch XP and milestones
-    const params = userId ? `userId=${userId}&venueId=${venue.id}` : `userId=anon&venueId=${venue.id}`;
-    fetch(`/api/points?${params}`)
+    // Fetch XP and milestones (auth handled by session cookie)
+    fetch(`/api/points?venueId=${venue.id}`)
       .then((r) => r.ok ? r.json() : null)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((d: any) => {
@@ -480,7 +475,7 @@ export function JoinCard({ body, venue, vibeColor, userId }: JoinCardProps) {
         setMilestones(d.venueMilestones || []);
       })
       .catch(() => {});
-  }, [venue.id, userId]);
+  }, [venue.id]);
 
   const currentMilestone = [...milestones].reverse().find((m) => xp >= m.threshold);
   const nextMilestone = milestones.find((m) => m.threshold > xp);
