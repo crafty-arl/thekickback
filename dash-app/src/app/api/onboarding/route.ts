@@ -211,5 +211,110 @@ async function createVenueFromAI(data: {
     });
   }
 
+  // Auto-generate offerings, XP, milestones, perks via AI
+  try {
+    const setupRes = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${CF_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+          messages: [
+            {
+              role: "system",
+              content: `Generate venue setup JSON for theKickBack. Return ONLY valid JSON:
+{"offerings":[{"type":"product|membership|reservation|service|event|package","name":"...","description":"...","price_cents":500,"recurring":false,"interval":null,"duration_minutes":null,"perks":[],"add_ons":[]}],
+"xp_actions":[{"action":"visit|first_visit|order|referral|event_attend|review","label":"...","points":50,"description":"...","max_per_day":null}],
+"xp_milestones":[{"name":"...","threshold":100,"color":"#hex","reward":"...","perks":["..."]}],
+"perks":[{"name":"...","description":"...","point_cost":100,"category":"drink|food|access|experience"}]}
+Rules: 6-8 offerings matching venue type/menu. Reservations need duration_minutes. Memberships need recurring:true, interval:"month". Realistic prices in cents. 5 XP actions. 4 milestones (100,300,750,1500). 4-5 perks (80-1000 points). Make everything specific to this venue.`
+            },
+            {
+              role: "user",
+              content: `Venue: ${data.name}\nType: ${data.type}\nAddress: ${data.address}\nMenu: ${data.menu}\nTagline: ${data.tagline}\nDescription: ${data.description}\nRules: ${JSON.stringify(data.rules)}\nCapacity: ${data.maxOccupancy}`
+            },
+          ],
+        }),
+      }
+    );
+
+    if (setupRes.ok) {
+      const setupData = await setupRes.json() as { choices: { message: { content: string } }[] };
+      const raw = setupData.choices?.[0]?.message?.content || "";
+      const jsonStr = raw.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
+
+      try {
+        const setup = JSON.parse(jsonStr);
+
+        // Insert offerings
+        for (let i = 0; i < (setup.offerings || []).length; i++) {
+          const o = setup.offerings[i];
+          await fetch(`${SUPABASE_URL}/rest/v1/venue_offerings`, {
+            method: "POST",
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              venue_id: venueId, type: o.type || "product", name: o.name, description: o.description || null,
+              price_cents: o.price_cents || 0, recurring: o.recurring || false, interval: o.interval || null,
+              duration_minutes: o.duration_minutes || null, perks: o.perks || [], add_ons: o.add_ons || [],
+              active: true, sort_order: i,
+            }),
+          });
+        }
+
+        // Insert XP actions
+        for (let i = 0; i < (setup.xp_actions || []).length; i++) {
+          const a = setup.xp_actions[i];
+          await fetch(`${SUPABASE_URL}/rest/v1/venue_xp_actions`, {
+            method: "POST",
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              venue_id: venueId, action: a.action || "custom", label: a.label,
+              points: a.points || 10, description: a.description || null,
+              max_per_day: a.max_per_day || null, sort_order: i,
+            }),
+          });
+        }
+
+        // Insert milestones
+        for (let i = 0; i < (setup.xp_milestones || []).length; i++) {
+          const m = setup.xp_milestones[i];
+          await fetch(`${SUPABASE_URL}/rest/v1/venue_xp_milestones`, {
+            method: "POST",
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              venue_id: venueId, name: m.name, threshold: m.threshold || 100,
+              color: m.color || "#4ade80", reward: m.reward || null, perks: m.perks || [],
+              sort_order: i,
+            }),
+          });
+        }
+
+        // Insert perks
+        for (let i = 0; i < (setup.perks || []).length; i++) {
+          const p = setup.perks[i];
+          await fetch(`${SUPABASE_URL}/rest/v1/venue_perks`, {
+            method: "POST",
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              venue_id: venueId, name: p.name, description: p.description || null,
+              point_cost: p.point_cost || 100, category: p.category || "other",
+              sort_order: i,
+            }),
+          });
+        }
+
+        console.log(`AI setup complete for ${data.name}: ${setup.offerings?.length || 0} offerings, ${setup.xp_actions?.length || 0} XP actions, ${setup.xp_milestones?.length || 0} milestones, ${setup.perks?.length || 0} perks`);
+      } catch (parseErr) {
+        console.error("AI setup parse error:", parseErr);
+      }
+    }
+  } catch (setupErr) {
+    console.error("AI setup error:", setupErr);
+  }
+
   console.log(`Venue created: ${data.name} (${venueId}) — owner: ${userId || "anonymous"} — pending review`);
 }
