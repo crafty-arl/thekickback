@@ -6,11 +6,11 @@ const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://wofvgfhejrvudvfxdytc.supabase.co";
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || "";
 
-const SYSTEM_PROMPT = `You are the theKickBack venue onboarding assistant. Get a venue set up in 3-4 messages MAX. Be fast, casual, extract as much as possible from each response. Never sound like a form.
+const SYSTEM_PROMPT = `You are the theKickBack hub setup assistant. Get a hub set up in 3-4 messages MAX. Be fast, casual, extract as much as possible from each response. Never sound like a form.
 
 Flow (3 exchanges then done):
 
-EXCHANGE 1: "Tell me about your spot — name, what kind of place, and where it is."
+EXCHANGE 1: "Tell me about your hub — what's it called, what kind of place, and where is it?"
 → Extract: name, type, address. If they give more (hours, capacity) take it all.
 
 EXCHANGE 2: "Nice! A few quick details — hours, capacity, and what you serve?"
@@ -21,7 +21,11 @@ EXCHANGE 3: "Last one — describe the vibe in a sentence."
 
 Then IMMEDIATELY show a quick summary and ask "Look good?" Do NOT ask extra questions. Fill in sensible defaults for anything missing.
 
-When they confirm, output EXACTLY this on a new line:
+IMPORTANT — after EVERY response (including exchange 1, 2, 3, and the summary), append a partial data block on a new line with all fields extracted so far. Use this exact format:
+<<<HUB_PARTIAL>>>{"name":"...","type":"...","address":"...","tagline":"...","description":"...","themeColor":"#...","hours":"...","maxOccupancy":N,"menu":"...","rules":[],"slug":"...","offerings":[]}<<<END_PARTIAL>>>
+Only include fields you have extracted so far. For slug, auto-generate from the name (lowercase, hyphens). For themeColor, pick based on type (bar/club=#F97316, cafe/cowork=#4ADE80, restaurant=#EF4444, lounge=#8B5CF6, barbershop=#F59E0B, nail_salon=#EC4899). Leave unknown fields as empty strings, 0, or [].
+
+When they confirm the summary, output EXACTLY this on a new line (IN ADDITION to the partial block):
 <<<VENUE_DATA>>>{"name":"...","address":"...","type":"...","maxOccupancy":N,"hours":"...","menu":"...","rules":["..."],"tagline":"...","description":"...","themeColor":"#..."}<<<END_DATA>>>
 
 Rules:
@@ -30,7 +34,8 @@ Rules:
 - If they dump everything in one message, go straight to summary
 - Keep every response under 3 sentences
 - If something is missing, pick a reasonable default rather than asking
-- Only output <<<VENUE_DATA>>> after they confirm the summary`;
+- Only output <<<VENUE_DATA>>> after they confirm the summary
+- ALWAYS output <<<HUB_PARTIAL>>> after every response`;
 
 interface Message {
   role: "system" | "user" | "assistant";
@@ -92,10 +97,24 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Clean the reply — remove the data block from what the user sees
-  const cleanReply = reply.replace(/<<<VENUE_DATA>>>[\s\S]*?<<<END_DATA>>>/, "").trim();
+  // Extract partial hub data for live preview
+  let hubData = null;
+  const partialMatch = reply.match(/<<<HUB_PARTIAL>>>([\s\S]*?)<<<END_PARTIAL>>>/);
+  if (partialMatch) {
+    try {
+      hubData = JSON.parse(partialMatch[1]);
+    } catch (err) {
+      console.error("Failed to parse hub partial:", err);
+    }
+  }
 
-  return NextResponse.json({ reply: cleanReply, venueCreated });
+  // Clean the reply — remove data blocks from what the user sees
+  const cleanReply = reply
+    .replace(/<<<VENUE_DATA>>>[\s\S]*?<<<END_DATA>>>/g, "")
+    .replace(/<<<HUB_PARTIAL>>>[\s\S]*?<<<END_PARTIAL>>>/g, "")
+    .trim();
+
+  return NextResponse.json({ reply: cleanReply, venueCreated, hubData });
 }
 
 async function createVenueFromAI(data: {
