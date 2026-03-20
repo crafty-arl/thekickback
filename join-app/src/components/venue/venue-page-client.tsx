@@ -7,7 +7,7 @@ import { VenueOfferings } from "./venue-offerings";
 import { VenueGallery } from "./venue-gallery";
 import { VenueStaff } from "./venue-staff";
 import type { StaffMember } from "./venue-staff";
-import { VibeCard, MenuCard, EventsCard, ReserveCard, ShopCard, SubscribeCard, JoinCard } from "../map/tab-cards";
+// Offering links are rendered inline as tappable chips — no big card imports needed
 
 /* ── Types ── */
 
@@ -137,6 +137,53 @@ function toCardVenue(venue: Venue) {
   };
 }
 
+/* ── AI message body — parses [[OFFER:id:name:price]] into tappable chips ── */
+
+function AiMessageBody({ body, theme, onAddToCart }: { body: string; theme: string; onAddToCart: (name: string) => void }) {
+  // Split on [[OFFER:id:name:price_cents]] tags
+  const parts = body.split(/(\[\[OFFER:[^\]]+\]\])/g);
+
+  if (parts.length === 1) {
+    // No offering links — plain text
+    return <p className="font-sans text-[14px] leading-[1.6]">{body}</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="font-sans text-[14px] leading-[1.6]">
+        {parts.map((part, i) => {
+          const match = part.match(/\[\[OFFER:([^:]+):([^:]+):(\d+)\]\]/);
+          if (!match) return <span key={i}>{part}</span>;
+          return null; // offerings rendered below
+        })}
+      </p>
+      {/* Render offering chips */}
+      <div className="flex flex-wrap gap-1.5 mt-1">
+        {parts.map((part, i) => {
+          const match = part.match(/\[\[OFFER:([^:]+):([^:]+):(\d+)\]\]/);
+          if (!match) return null;
+          const [, , name, priceStr] = match;
+          const price = parseInt(priceStr) / 100;
+          return (
+            <button
+              key={i}
+              onClick={() => onAddToCart(name)}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 font-sans text-[12px] font-medium active:scale-95 transition"
+              style={{ backgroundColor: `${theme}15`, border: `1px solid ${theme}30`, color: theme }}
+            >
+              <span className="text-white/80">{name}</span>
+              <span className="font-mono font-bold">${price % 1 === 0 ? price : price.toFixed(2)}</span>
+              <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ backgroundColor: theme, color: "#000" }}>
+                ADD
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════
    VENUE PAGE — Profile + Chat Dock
    ═══════════════════════════════════════════════════ */
@@ -145,20 +192,36 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const color = vc(venue.vibe);
   const theme = page.theme_color;
   const pct = Math.round((venue.occupancy / venue.max_occupancy) * 100);
-  const cardVenue = toCardVenue(venue);
-
   /* ── Chat state ── */
   const [chatOpen, setChatOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const controls = useAnimationControls();
-  const [messages, setMessages] = useState<Message[]>([
-    { id: "welcome", sender: "ai", body: `Hey! ${vl(venue.vibe)} vibes right now, ${venue.occupancy} people in. Ask me anything about ${venue.name}.`, timestamp: Date.now() },
-  ]);
+  const welcomeMsg: Message = { id: "welcome", sender: "ai", body: `Hey! ${vl(venue.vibe)} vibes right now, ${venue.occupancy} people in. Ask me anything about ${venue.name}.`, timestamp: Date.now() };
+  const [messages, setMessages] = useState<Message[]>([welcomeMsg]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasSentTabCommand = useRef<Set<Tab>>(new Set(["chat"]));
+
+  // Load persisted thread history on mount
+  useEffect(() => {
+    fetch(`/api/threads?venueId=${venue.id}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.messages?.length) {
+          setMessages(
+            data.messages.map((m: { id: string; sender_type: string; body: string; created_at: string }) => ({
+              id: m.id,
+              sender: m.sender_type as "guest" | "ai",
+              body: m.body,
+              timestamp: new Date(m.created_at).getTime(),
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, [venue.id]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -447,23 +510,10 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                         </motion.div>
                       );
                     }
-                    if (msg.tab && msg.tab !== "chat") {
-                      return (
-                        <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                          {msg.tab === "vibe" && <VibeCard body="" venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "menu" && <MenuCard body="" venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "events" && <EventsCard body="" venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "reserve" && <ReserveCard body="" venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "shop" && <ShopCard body="" venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "subscribe" && <SubscribeCard body="" venue={cardVenue} vibeColor={color} />}
-                          {msg.tab === "join" && <JoinCard body="" venue={cardVenue} vibeColor={color} />}
-                        </motion.div>
-                      );
-                    }
                     return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                        <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                          <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
+                        <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                          <AiMessageBody body={msg.body} theme={theme} onAddToCart={(name) => send(`I want ${name}`)} />
                         </div>
                       </motion.div>
                     );

@@ -31,7 +31,7 @@ export async function POST() {
   const auth = await getAuthVenue();
   if (!auth) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-04-30.basil" });
   const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
   try {
@@ -76,7 +76,7 @@ export async function GET() {
   const auth = await getAuthVenue();
   if (!auth) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-04-30.basil" });
   const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
   const { data: venue } = await service.from("venues").select("stripe_account_id").eq("id", auth.venueId).single();

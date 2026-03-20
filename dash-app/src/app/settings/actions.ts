@@ -498,3 +498,75 @@ export async function getAiUsageStats() {
 
     return { todayMessages, todayGuests, weekMessages };
 }
+
+// ─── Menu Items ─────────────────────────────────────────────────
+
+export async function addMenuItem(data: {
+    category: string;
+    name: string;
+    description?: string;
+    price_cents: number;
+    inventory_count?: number;
+}) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service.from("venue_menu_items").insert({
+        venue_id: auth.venueId,
+        category: data.category || "General",
+        name: data.name.trim(),
+        description: data.description?.trim() || null,
+        price_cents: data.price_cents,
+        inventory_count: data.inventory_count ?? null,
+        in_stock: true,
+    });
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function toggleMenuItemStock(id: string, inStock: boolean) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_menu_items")
+        .update({ in_stock: inStock })
+        .eq("id", id)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function updateMenuItemInventory(id: string, count: number | null) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_menu_items")
+        .update({ inventory_count: count })
+        .eq("id", id)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function deleteMenuItem(id: string) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("venue_menu_items")
+        .delete()
+        .eq("id", id)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}

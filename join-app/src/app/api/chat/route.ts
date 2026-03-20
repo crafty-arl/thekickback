@@ -162,15 +162,12 @@ export async function POST(request: Request) {
     table ? `Guest is at Table ${table}.` : "",
     "Keep it under 280 chars. No emojis. Be direct and helpful.",
     "",
-    "CARD INSTRUCTIONS:",
-    "Based on what the guest is asking about, include a card type tag at the END of your response:",
-    "[[CARD:vibe]] — if they ask about the vibe, energy, crowd, atmosphere, how busy it is",
-    "[[CARD:menu]] — if they ask about food, drinks, menu, what you serve",
-    "[[CARD:events]] — if they ask about events, shows, what's happening, tonight, this week",
-    "[[CARD:reserve]] — if they ask about reserving, booking a table/booth/spot",
-    "[[CARD:shop]] — if they ask about buying, ordering, products, prices, what's available",
-    "[[CARD:join]] — if they ask about membership, joining, the venue itself, perks, XP",
-    "Only include ONE card tag. If the message is general chat, do NOT include any card tag.",
+    "OFFERING LINK INSTRUCTIONS:",
+    "When mentioning a specific offering, link it inline using: [[OFFER:id:name:price_cents]]",
+    "Use the exact id, name, and price_cents from the offerings list above.",
+    "Example: 'We have [[OFFER:abc-123:House Cocktail:1400]] and [[OFFER:def-456:Beer Flight:1200]].'",
+    "This lets guests tap to view and add to cart. You can mention multiple offerings in one response.",
+    "Only link offerings that are relevant to what the guest asked. Don't dump the whole list.",
     "",
     offerings ? [
       "CHECKOUT INSTRUCTIONS:",
@@ -207,7 +204,6 @@ export async function POST(request: Request) {
   let reply = "Couldn't reach the venue right now. Try again in a moment.";
   let checkout = null;
   let booking: Record<string, unknown> | null = null;
-  let card: string | null = null;
 
   try {
     const res = await fetch(`${process.env.OPENCLAW_GATEWAY_URL}/v1/responses`, {
@@ -234,14 +230,7 @@ export async function POST(request: Request) {
         checkout = parsedCheckout.checkout;
         booking = parsedBooking.booking;
 
-        // Parse [[CARD:type]] tag
-        const cardMatch = reply.match(/\[\[CARD:(\w+)\]\]/);
-        if (cardMatch) {
-          card = cardMatch[1];
-          reply = reply.replace(/\[\[CARD:\w+\]\]/, "").trim();
-        }
-
-        if (reply.length > 320) reply = reply.slice(0, 317) + "...";
+        if (reply.length > 400) reply = reply.slice(0, 397) + "...";
       }
     } else {
       console.error("Claw error:", res.status, await res.text());
@@ -293,5 +282,5 @@ export async function POST(request: Request) {
     extractPreferences(userId, message, reply, venueId, venueName).catch(() => {});
   }
 
-  return Response.json({ reply, checkout, booking: bookingResult, card });
+  return Response.json({ reply, checkout, booking: bookingResult });
 }
