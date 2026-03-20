@@ -11,7 +11,7 @@ import { SignOutButton } from "@/components/dashboard/sign-out-button";
 
 // ─── Constants ───────────────────────────────────────────────────
 
-const TYPES = ["bar", "restaurant", "lounge", "club", "cafe", "coworking", "other"];
+const TYPES = ["bar", "restaurant", "lounge", "club", "cafe", "coworking", "barbershop", "nail_salon", "group", "community", "league", "org", "other"];
 const VIBES = ["quiet", "moderate", "busy", "packed"];
 
 const KNOWLEDGE_CATEGORIES = [
@@ -142,6 +142,60 @@ const VENUE_TEMPLATES: VenueTemplate[] = [
             { type: "service", name: "Personal Training", description: "1-on-1 session with a certified trainer", price_cents: 7500, recurring: false, duration_minutes: 60 },
             { type: "event", name: "Workshop", description: "Special technique or wellness workshop", price_cents: 4000, recurring: false, duration_minutes: 120 },
             { type: "product", name: "Protein Shake", description: "Post-workout shake from the bar", price_cents: 800, recurring: false },
+        ],
+    },
+    {
+        id: "running_club", label: "Running Club", icon: "🏃", description: "Running group, cycling club, or outdoor fitness",
+        offerings: [
+            { type: "event", name: "Weekly Group Run", description: "Show up, warm up, run together", price_cents: 0, recurring: false, duration_minutes: 60 },
+            { type: "event", name: "Saturday Long Run", description: "8+ miles, all paces welcome", price_cents: 0, recurring: false, duration_minutes: 120 },
+            { type: "membership", name: "Club Member", description: "Access to all runs, group chat, merch discounts", price_cents: 1000, recurring: true, interval: "month", perks: ["All group runs", "Members-only Strava group", "20% off merch", "Race entry discounts"] },
+            { type: "product", name: "Club Tee", description: "Dri-fit crew shirt with logo", price_cents: 2800, recurring: false },
+            { type: "event", name: "Race Entry", description: "Club-organized 5K/10K/half", price_cents: 3500, recurring: false },
+            { type: "package", name: "Season Pass", description: "3-month all-access + race entry + tee", price_cents: 6000, recurring: false, perks: ["3 months membership", "One race entry", "Club tee", "Training plan"] },
+        ],
+    },
+    {
+        id: "book_club", label: "Book Club", icon: "📚", description: "Book club, reading group, or literary society",
+        offerings: [
+            { type: "event", name: "Monthly Meeting", description: "Discuss this month's pick over drinks", price_cents: 0, recurring: false, duration_minutes: 120 },
+            { type: "membership", name: "Member", description: "Vote on picks, attend all meetings, early access to author events", price_cents: 500, recurring: true, interval: "month", perks: ["Vote on monthly picks", "All meetings", "Author event access", "Reading list archive"] },
+            { type: "event", name: "Author Talk", description: "Live Q&A with a visiting author", price_cents: 1500, recurring: false, duration_minutes: 90 },
+            { type: "product", name: "Book of the Month", description: "Pre-ordered copy of this month's pick", price_cents: 1600, recurring: false },
+            { type: "package", name: "Annual Bundle", description: "12 months + all 12 books shipped", price_cents: 18000, recurring: false, perks: ["12 months membership", "All 12 books", "Priority seating at events", "Tote bag"] },
+        ],
+    },
+    {
+        id: "tech_meetup", label: "Tech Meetup", icon: "💻", description: "Tech meetup, hackathon, or developer community",
+        offerings: [
+            { type: "event", name: "Monthly Meetup", description: "Talks, demos, networking, pizza", price_cents: 0, recurring: false, duration_minutes: 150 },
+            { type: "event", name: "Workshop", description: "Hands-on technical workshop, limited seats", price_cents: 2500, recurring: false, duration_minutes: 180 },
+            { type: "event", name: "Hackathon", description: "24-hour build sprint with prizes", price_cents: 5000, recurring: false },
+            { type: "membership", name: "Community Member", description: "Slack access, job board, speaker priority", price_cents: 0, recurring: false, perks: ["Slack community", "Job board access", "Speaker submissions", "Early event access"] },
+            { type: "reservation", name: "Sponsor Table", description: "Branded table at next meetup — recruit, demo, network", price_cents: 25000, recurring: false },
+            { type: "product", name: "Conference Tee", description: "Limited edition event shirt", price_cents: 2500, recurring: false },
+        ],
+    },
+    {
+        id: "sports_league", label: "Sports League", icon: "⚽", description: "Recreational league, pickup games, or team sports",
+        offerings: [
+            { type: "membership", name: "Season Registration", description: "Full season — games, jersey, playoffs", price_cents: 8000, recurring: false, perks: ["8-game season", "Team jersey", "Playoffs eligible", "End-of-season party"] },
+            { type: "event", name: "Pickup Game", description: "Drop-in game, all skill levels", price_cents: 1000, recurring: false, duration_minutes: 90 },
+            { type: "event", name: "Tournament", description: "Single-day tournament with brackets", price_cents: 5000, recurring: false },
+            { type: "product", name: "League Jersey", description: "Custom team jersey", price_cents: 3500, recurring: false },
+            { type: "package", name: "Team Registration", description: "Register a full team (8-10 players)", price_cents: 50000, recurring: false, perks: ["8-10 player spots", "Team jerseys", "Guaranteed season spot", "Team photo"] },
+            { type: "reservation", name: "Field Rental", description: "Private field for 2 hours", price_cents: 15000, recurring: false, duration_minutes: 120 },
+        ],
+    },
+    {
+        id: "community_org", label: "Community Org", icon: "🏘️", description: "Neighborhood group, nonprofit, or community org",
+        offerings: [
+            { type: "membership", name: "Annual Membership", description: "Support the community, get a voice", price_cents: 2500, recurring: true, interval: "year", perks: ["Voting rights", "Newsletter", "Event discounts", "Member directory"] },
+            { type: "event", name: "Community Meeting", description: "Monthly town hall — everyone welcome", price_cents: 0, recurring: false, duration_minutes: 90 },
+            { type: "event", name: "Fundraiser", description: "Annual fundraising event", price_cents: 5000, recurring: false },
+            { type: "event", name: "Volunteer Day", description: "Community cleanup / build day", price_cents: 0, recurring: false, duration_minutes: 240 },
+            { type: "reservation", name: "Community Space", description: "Reserve the space for your event (members only)", price_cents: 5000, recurring: false, duration_minutes: 180 },
+            { type: "product", name: "Donation", description: "One-time contribution to the community fund", price_cents: 1000, recurring: false },
         ],
     },
 ];

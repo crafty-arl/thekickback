@@ -35,6 +35,10 @@ export const VENUE_CATEGORIES: { value: string; label: string }[] = [
   { value: "club", label: "Clubs" },
   { value: "barbershop", label: "Barbershops" },
   { value: "nail_salon", label: "Nail Salons" },
+  { value: "group", label: "Groups" },
+  { value: "community", label: "Communities" },
+  { value: "league", label: "Leagues" },
+  { value: "org", label: "Orgs" },
   { value: "venue", label: "Venues" },
 ];
 
