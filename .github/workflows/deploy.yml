@@ -102,46 +102,46 @@ jobs:
 
       - name: Run database migrations
         uses: appleboy/ssh-action@v1
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 2m
+          envs: SUPABASE_DB_PASSWORD
+          command_timeout: 3m
           script: |
             cd /opt/thekickback/deploy
             source .env
 
             echo "Running pending migrations..."
+
+            # Extract project ref from SUPABASE_URL
+            PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||' | sed 's|\.supabase\.co.*||')
+            DB_HOST="db.${PROJECT_REF}.supabase.co"
+
+            APPLIED="/opt/thekickback/deploy/.migrations_applied"
+            touch "$APPLIED"
+
             for F in /opt/thekickback/supabase/migrations/*.sql; do
+              [ -f "$F" ] || continue
               NAME=$(basename "$F")
-              # Track applied migrations in a simple file
-              APPLIED="/opt/thekickback/deploy/.migrations_applied"
-              touch "$APPLIED"
               if grep -qF "$NAME" "$APPLIED" 2>/dev/null; then
                 echo "  skip $NAME (already applied)"
                 continue
               fi
               echo "  applying $NAME..."
-              STATUS=$(curl -s -o /tmp/migration_out.txt -w "%{http_code}" \
-                "${SUPABASE_URL}/rest/v1/rpc/exec_sql" \
-                -X POST \
-                -H "apikey: ${SUPABASE_SERVICE_KEY}" \
-                -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
-                -H "Content-Type: application/json" \
-                -d "{\"query\": $(python3 -c "import json,sys; print(json.dumps(open(sys.argv[1]).read()))" "$F")}" 2>/dev/null)
 
-              if [ "$STATUS" = "200" ] || [ "$STATUS" = "204" ]; then
+              # Run via ephemeral postgres container with psql
+              if docker run --rm -i \
+                -e PGPASSWORD="${SUPABASE_DB_PASSWORD}" \
+                -v "$F:/migration.sql:ro" \
+                postgres:16-alpine \
+                psql -h "$DB_HOST" -p 5432 -U "postgres.${PROJECT_REF}" -d postgres -f /migration.sql 2>&1; then
                 echo "$NAME" >> "$APPLIED"
                 echo "  ✓ $NAME applied"
               else
-                # exec_sql may not exist — try direct column check instead
-                echo "  ⚠ RPC not available (HTTP $STATUS) — trying direct ALTER via docker..."
-                docker exec -i $(docker ps -q -f name=dash-app) node -e "
-                  const { createClient } = require('@supabase/supabase-js');
-                  const fs = require('fs');
-                  // Can't run DDL via REST — will need manual migration
-                " 2>/dev/null || true
-                echo "  ⚠ Migration $NAME needs manual apply via Supabase dashboard SQL editor"
+                echo "  ⚠ $NAME failed — apply manually via Supabase SQL editor"
               fi
             done
             echo "Migrations done"
@@ -320,25 +320,21 @@ jobs:
             echo ""
             echo "═══ DATABASE — MODE COLUMN CHECK ═══"
             # Verify the mode column exists on financial tables
+            # Use a filter on mode column (mode=eq.live) — if column exists we get 200, if missing we get 400
             for TBL in user_wallets wallet_transactions orders order_items venue_bookings perk_redemptions; do
-              RESP=$(curl -sf --max-time 5 \
-                "${SUPABASE_URL}/rest/v1/${TBL}?select=mode&limit=0" \
+              HTTP=$(curl -so /dev/null -w "%{http_code}" --max-time 5 \
+                "${SUPABASE_URL}/rest/v1/${TBL}?mode=eq.live&select=id&limit=0" \
                 -H "apikey: ${SUPABASE_SERVICE_KEY}" \
                 -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" 2>/dev/null)
-              CODE=$?
-              if [ $CODE -eq 0 ]; then
-                ok "$TBL.mode column exists"
-              else
-                fail "$TBL.mode column missing"
-              fi
+              [ "$HTTP" = "200" ] && ok "$TBL.mode column exists" || fail "$TBL.mode column missing (HTTP $HTTP)"
             done
 
             # Verify stripe_test_account_id on venues
-            RESP=$(curl -sf --max-time 5 \
+            HTTP=$(curl -so /dev/null -w "%{http_code}" --max-time 5 \
               "${SUPABASE_URL}/rest/v1/venues?select=stripe_test_account_id&limit=0" \
               -H "apikey: ${SUPABASE_SERVICE_KEY}" \
               -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" 2>/dev/null)
-            [ $? -eq 0 ] && ok "venues.stripe_test_account_id exists" || fail "venues.stripe_test_account_id missing"
+            [ "$HTTP" = "200" ] && ok "venues.stripe_test_account_id exists" || fail "venues.stripe_test_account_id missing (HTTP $HTTP)"
 
             echo ""
             echo "═══ SANDBOX RESULTS: $PASS passed, $FAIL failed, $WARN warnings ═══"
