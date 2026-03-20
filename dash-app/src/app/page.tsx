@@ -275,6 +275,9 @@ export default async function DashboardPage() {
 
         {/* Tabbed Dashboard */}
         <DashboardTabs
+          sessionCount={sessions.length}
+          pendingRequestCount={requests.filter((r) => r.status === "pending").length}
+          conversationCount={messages.filter((m) => m.sender_type === "guest").length}
           overviewContent={
             <>
               {/* Stats grid */}
@@ -286,21 +289,25 @@ export default async function DashboardPage() {
               </section>
 
               {/* Occupancy */}
-              <section className="pb-6">
+              <section className="pb-8">
                 <OccupancyBar stats={stats} />
               </section>
-
-              {/* Main content: two columns */}
-              <section className="flex flex-col gap-6 pb-8 lg:flex-row">
-                <div className="flex flex-1 flex-col gap-6">
-                  <GuestTable sessions={sessions} />
-                  <RequestFeed requests={requests} />
-                </div>
-                <div className="w-full lg:w-[400px]">
-                  <TextLog messages={messages} />
-                </div>
-              </section>
             </>
+          }
+          sessionsContent={
+            <section className="pb-8">
+              <GuestTable sessions={sessions} />
+            </section>
+          }
+          requestsContent={
+            <section className="pb-8">
+              <RequestFeed requests={requests} />
+            </section>
+          }
+          conversationsContent={
+            <section className="pb-8">
+              <TextLog messages={messages} />
+            </section>
           }
           pointsContent={
             <section className="pb-8">
