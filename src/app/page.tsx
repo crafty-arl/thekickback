@@ -236,18 +236,18 @@ export default function Home() {
 
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: "#0a0a0a" }}>
-      {/* ── FULL-SCREEN MAP (left side) ── */}
-      <div className="absolute inset-0 lg:right-[420px]">
+      {/* ── FULL-SCREEN MAP (left side, desktop only) ── */}
+      <div className="absolute inset-0 lg:right-[420px] hidden lg:block">
         <MapBackdrop ref={mapRef} />
       </div>
 
-      {/* ── LOGO (top-left) ── */}
-      <div className="absolute top-5 left-4 z-50">
+      {/* ── LOGO (top-left, desktop only) ── */}
+      <div className="absolute top-5 left-4 z-50 hidden lg:block">
         <Image src="/logo.png" alt="theKickBack" width={180} height={60} priority style={{ height: "auto", filter: "brightness(0) invert(1)" }} />
       </div>
 
-      {/* ── NAV (top-right, above chat) ── */}
-      <div className="absolute top-5 right-4 z-50 flex items-center gap-2">
+      {/* ── NAV (top-right, desktop only) ── */}
+      <div className="absolute top-5 right-4 z-50 hidden lg:flex items-center gap-2">
         <a href="https://join.thekickback.net"
           className="flex items-center rounded-full px-3 py-1.5 text-[11px] font-medium text-white/60 transition hover:text-white/90"
           style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
@@ -506,12 +506,30 @@ export default function Home() {
       >
         {/* Chat header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-          <motion.div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ORANGE }}
-            animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
-            transition={{ duration: 3, repeat: Infinity }}
-          />
-          <span className="font-sans text-[15px] font-semibold text-white/90">KickBack</span>
-          <span className="font-sans text-[11px] text-white/30">Ask me anything</span>
+          {/* Mobile: show logo */}
+          <div className="lg:hidden mr-1">
+            <Image src="/logo.png" alt="theKickBack" width={100} height={32} priority style={{ height: "auto", filter: "brightness(0) invert(1)" }} />
+          </div>
+          {/* Desktop: show pulsing dot + KickBack text */}
+          <div className="hidden lg:flex items-center gap-3">
+            <motion.div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ORANGE }}
+              animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            />
+            <span className="font-sans text-[15px] font-semibold text-white/90">KickBack</span>
+            <span className="font-sans text-[11px] text-white/30">Ask me anything</span>
+          </div>
+          {/* Mobile nav links */}
+          <div className="ml-auto flex items-center gap-2 lg:hidden">
+            <a href="https://join.thekickback.net"
+              className="flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium text-white/60"
+              style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >Explore</a>
+            <a href="https://dash.thekickback.net"
+              className="flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold"
+              style={{ backgroundColor: ORANGE, color: "#fff" }}
+            >Dashboard</a>
+          </div>
         </div>
 
         {/* Messages */}
