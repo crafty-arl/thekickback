@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     p_venue_id: venueId,
     p_order_id: orderId || null,
     p_description: description || null,
+    p_mode: mode,
   });
 
   if (!result?.ok) {
