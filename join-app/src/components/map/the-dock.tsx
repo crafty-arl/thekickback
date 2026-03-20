@@ -2050,22 +2050,6 @@ export function TheDock({
               </div>
             </div>
 
-            {/* Quick suggestions */}
-            {conciergeMessages.length <= 1 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex gap-2 overflow-x-auto px-4 pb-2" style={{ WebkitOverflowScrolling: "touch" }}>
-                {["What's open right now?", "Somewhere quiet to work", "Best spot for a date", "Where's the party?"].map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => send(q)}
-                    className="shrink-0 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
-                    style={{ backgroundColor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
-                  >
-                    {q}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-
             <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
 
             {/* Messages */}
@@ -2101,6 +2085,22 @@ export function TheDock({
                 {loading && <LoadingDots />}
               </div>
             </div>
+
+            {/* Quick replies */}
+            {conciergeMessages.length <= 1 && (
+              <div className="flex gap-1.5 overflow-x-auto px-3 pb-1.5 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                {["What's open right now?", "Somewhere quiet to work", "Best spot for a date", "Where's the party?"].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => send(q)}
+                    className="shrink-0 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                    style={{ backgroundColor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Input bar */}
             <div className="flex items-center gap-2 px-3 pb-2 pt-1">
@@ -2296,7 +2296,7 @@ export function TheDock({
             >
               {/* Venue splash cards — the storefront lives at the top of the chat */}
               {selectedVenue.claimed !== false && (
-                <VenueProfileCards venue={selectedVenue} />
+                <VenueProfileCards venue={selectedVenue} onAction={(cmd) => send(cmd)} />
               )}
 
               <div className="flex flex-col gap-2.5">
