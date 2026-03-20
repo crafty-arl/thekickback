@@ -103,7 +103,8 @@ services:
       - FOURSQUARE_SERVICE_TOKEN=${FOURSQUARE_SERVICE_TOKEN}
       - OPENCLAW_GATEWAY_URL=https://claw.thekickback.net
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
-      - RESEND_API_KEY=${RESEND_API_KEY}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
     restart: always
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
@@ -124,6 +125,8 @@ services:
     expose:
       - "3000"
     environment:
+      - SUPABASE_URL=https://wofvgfhejrvudvfxdytc.supabase.co
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
       - OPENCLAW_GATEWAY_URL=https://claw.thekickback.net
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
       - OPENCLAW_HOOKS_TOKEN=${OPENCLAW_HOOKS_TOKEN}
@@ -147,6 +150,8 @@ services:
     expose:
       - "3000"
     environment:
+      - SUPABASE_URL=https://wofvgfhejrvudvfxdytc.supabase.co
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
       - OPENCLAW_GATEWAY_URL=https://claw.thekickback.net
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
       - OPENCLAW_HOOKS_TOKEN=${OPENCLAW_HOOKS_TOKEN}
