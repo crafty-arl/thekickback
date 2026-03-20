@@ -70,7 +70,7 @@ jobs:
 
             # ── Start everything at once ──
             echo "Starting services..."
-            docker compose up -d landing-blue join-app dash-app wallet-service claw
+            docker compose up -d --force-recreate landing-blue join-app dash-app wallet-service claw
 
             # ── Wait for health — all in parallel ──
             echo "Waiting for health..."
