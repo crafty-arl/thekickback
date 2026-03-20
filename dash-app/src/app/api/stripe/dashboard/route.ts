@@ -3,19 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 
-function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: "2026-02-25.clover",
-  });
-}
+export const dynamic = "force-dynamic";
 
-const service = createServiceClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
-
-// GET /api/stripe/dashboard — get a Stripe dashboard login link for the venue
+// GET /api/stripe/dashboard — get a Stripe dashboard login link
 export async function GET() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -29,18 +24,16 @@ export async function GET() {
 
   if (!ownership) return NextResponse.json({ error: "No venue" }, { status: 404 });
 
-  const { data: venue } = await service
-    .from("venues")
-    .select("stripe_account_id")
-    .eq("id", ownership.venue_id)
-    .single();
+  const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
+  const { data: venue } = await service.from("venues").select("stripe_account_id").eq("id", ownership.venue_id).single();
 
   if (!venue?.stripe_account_id) {
     return NextResponse.json({ error: "Stripe not connected" }, { status: 400 });
   }
 
   try {
-    const loginLink = await getStripe().accounts.createLoginLink(venue.stripe_account_id);
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+    const loginLink = await stripe.accounts.createLoginLink(venue.stripe_account_id);
     return NextResponse.json({ url: loginLink.url });
   } catch (err) {
     console.error("Stripe dashboard link error:", err);
