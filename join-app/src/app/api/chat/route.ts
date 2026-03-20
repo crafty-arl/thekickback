@@ -159,9 +159,19 @@ export async function POST(request: Request) {
   const offerings = formatOfferingsForPrompt(offeringsRaw);
 
   // Build offerings lookup for the client (id → metadata)
-  const offeringsMap: Record<string, { name: string; description: string | null; price_cents: number; image_url: string | null; type: string }> = {};
+  const offeringsMap: Record<string, {
+    name: string; description: string | null; price_cents: number;
+    image_url: string | null; type: string; recurring: boolean;
+    interval: string | null; duration_minutes: number | null;
+    add_ons: { name: string; price_cents: number }[] | null;
+  }> = {};
   for (const o of offeringsRaw) {
-    offeringsMap[o.id] = { name: o.name, description: o.description, price_cents: o.price_cents, image_url: o.image_url, type: o.type };
+    offeringsMap[o.id] = {
+      name: o.name, description: o.description, price_cents: o.price_cents,
+      image_url: o.image_url, type: o.type, recurring: o.recurring,
+      interval: o.interval, duration_minutes: o.duration_minutes,
+      add_ons: o.add_ons,
+    };
   }
 
   // Build context for claw
@@ -179,8 +189,14 @@ export async function POST(request: Request) {
     "When mentioning a specific offering, link it inline using: [[OFFER:id:name:price_cents]]",
     "Use the exact id, name, and price_cents from the offerings list above.",
     "Example: 'We have [[OFFER:abc-123:House Cocktail:1400]] and [[OFFER:def-456:Beer Flight:1200]].'",
-    "This lets guests tap to view and add to cart. You can mention multiple offerings in one response.",
+    "This lets guests tap to view details and add to cart. You can mention multiple offerings in one response.",
     "Only link offerings that are relevant to what the guest asked. Don't dump the whole list.",
+    "",
+    "SMART SUGGESTIONS:",
+    "- If the guest seems like they'd benefit from a membership (ordering often, asking about perks, multiple visits), suggest the membership offering with its link.",
+    "- If the guest asks for multiple items or a 'package deal', group them: 'Here's what I'd put together for you:' then list each offering link.",
+    "- If the guest says 'add to cart', 'I want all of those', or similar, list all relevant items with their [[OFFER:...]] links so they can add each one.",
+    "- Act like a knowledgeable server or concierge — recommend pairings, upsell naturally, suggest add-ons.",
     "",
     offerings ? [
       "CHECKOUT INSTRUCTIONS:",

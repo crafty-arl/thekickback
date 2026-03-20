@@ -81,6 +81,17 @@ interface OfferingMeta {
   price_cents: number;
   image_url: string | null;
   type: string;
+  recurring?: boolean;
+  interval?: string | null;
+  duration_minutes?: number | null;
+  add_ons?: { name: string; price_cents: number }[] | null;
+}
+
+interface CartItem {
+  id: string;
+  name: string;
+  price_cents: number;
+  quantity: number;
 }
 
 /* ── Helpers ── */
@@ -145,22 +156,26 @@ function toCardVenue(venue: Venue) {
   };
 }
 
-/* ── AI message body — parses [[OFFER:id:name:price]] into tappable chips with images ── */
+/* ── Type icons ── */
+const TYPE_EMOJI: Record<string, string> = {
+  membership: "👑", reservation: "🪑", service: "✂️", product: "☕",
+  event: "🎟️", package: "📦", custom: "✦",
+};
 
-function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
+/* ── AI message body — tappable offering chips that open product drawer ── */
+
+function AiMessageBody({ body, theme, onTapOffer, onAddToCart, offeringsMap }: {
   body: string; theme: string;
-  onAddToCart: (name: string) => void;
+  onTapOffer: (id: string) => void;
+  onAddToCart: (id: string, name: string, price: number) => void;
   offeringsMap: Record<string, OfferingMeta>;
 }) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
   const parts = body.split(/(\[\[OFFER:[^\]]+\]\])/g);
 
   if (parts.length === 1) {
     return <p className="font-sans text-[14px] leading-[1.6]">{body}</p>;
   }
 
-  // Collect text parts and offering parts
   const textParts: string[] = [];
   const offerParts: { id: string; name: string; price: number }[] = [];
 
@@ -181,51 +196,154 @@ function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
       <div className="flex flex-col gap-1.5 mt-1">
         {offerParts.map((offer) => {
           const meta = offeringsMap[offer.id];
-          const isExpanded = expandedId === offer.id;
-          const hasImage = meta?.image_url;
-          const hasDesc = meta?.description;
+          const emoji = TYPE_EMOJI[meta?.type || "custom"] || "✦";
 
           return (
-            <div key={offer.id} className="rounded-xl overflow-hidden transition" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}>
-              {/* Expanded: show image + description */}
-              {isExpanded && hasImage && (
-                <div className="relative" style={{ height: 120 }}>
-                  <img src={meta.image_url!} alt={offer.name} className="h-full w-full object-cover" />
-                  <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.6) 100%)" }} />
-                </div>
-              )}
-
-              {/* Main row */}
+            <div key={offer.id} className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ backgroundColor: `${theme}08`, border: `1px solid ${theme}20` }}>
+              {/* Tap to open detail drawer */}
               <button
-                onClick={() => setExpandedId(isExpanded ? null : offer.id)}
-                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left active:opacity-80"
+                onClick={() => onTapOffer(offer.id)}
+                className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-left active:opacity-70"
               >
-                {/* Thumbnail (collapsed) */}
-                {!isExpanded && hasImage && (
-                  <img src={meta.image_url!} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                {meta?.image_url ? (
+                  <img src={meta.image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[16px]" style={{ backgroundColor: `${theme}15` }}>{emoji}</div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <span className="font-sans text-[13px] font-medium text-white/85">{offer.name}</span>
-                  {isExpanded && hasDesc && (
-                    <p className="mt-0.5 font-sans text-[11px] leading-[1.4] text-white/40">{meta.description}</p>
-                  )}
+                  <p className="font-sans text-[13px] font-medium text-white/85 truncate">{offer.name}</p>
+                  <p className="font-sans text-[11px] text-white/30">{meta?.type || "item"}{meta?.duration_minutes ? ` · ${meta.duration_minutes} min` : ""}</p>
                 </div>
-                <span className="shrink-0 font-mono text-[13px] font-bold" style={{ color: theme }}>
+                <span className="shrink-0 font-mono text-[14px] font-bold" style={{ color: theme }}>
                   ${offer.price % 1 === 0 ? offer.price : offer.price.toFixed(2)}
+                  {meta?.recurring && <span className="text-[10px] font-normal text-white/30">/{meta.interval || "mo"}</span>}
                 </span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAddToCart(offer.name); }}
-                  className="shrink-0 rounded-full px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
-                  style={{ backgroundColor: theme, color: "#000" }}
-                >
-                  ADD
-                </button>
+              </button>
+              {/* Add button */}
+              <button
+                onClick={() => onAddToCart(offer.id, offer.name, offer.price * 100)}
+                className="flex h-full shrink-0 items-center px-3 font-sans text-[11px] font-bold active:scale-90"
+                style={{ color: theme }}
+              >
+                + Add
               </button>
             </div>
           );
         })}
       </div>
     </div>
+  );
+}
+
+/* ── Product Detail Drawer — slides in from left ── */
+
+function ProductDrawer({ offer, meta, theme, onClose, onAdd }: {
+  offer: { id: string; name: string; price: number } | null;
+  meta: OfferingMeta | null;
+  theme: string;
+  onClose: () => void;
+  onAdd: () => void;
+}) {
+  if (!offer) return null;
+  const price = offer.price / 100;
+  const emoji = TYPE_EMOJI[meta?.type || "custom"] || "✦";
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-[80]"
+        style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+      />
+      <motion.div
+        initial={{ x: "-100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "-100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="fixed inset-y-0 left-0 z-[85] w-[85vw] max-w-sm flex flex-col overflow-y-auto"
+        style={{
+          backgroundColor: "rgba(12,12,15,0.97)",
+          backdropFilter: "blur(40px)",
+          WebkitBackdropFilter: "blur(40px)",
+          borderRight: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        {/* Image or gradient hero */}
+        <div className="relative shrink-0" style={{ height: meta?.image_url ? 220 : 140 }}>
+          {meta?.image_url ? (
+            <img src={meta.image_url} alt={offer.name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center" style={{ background: `linear-gradient(135deg, ${theme}30 0%, ${theme}08 100%)` }}>
+              <span className="text-[48px]">{emoji}</span>
+            </div>
+          )}
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 40%, rgba(12,12,15,0.97) 100%)" }} />
+          <button onClick={onClose} className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+          {/* Type badge */}
+          <div className="absolute bottom-4 left-4">
+            <span className="rounded-full px-2.5 py-1 font-sans text-[10px] font-bold tracking-wider" style={{ backgroundColor: `${theme}20`, color: theme, border: `1px solid ${theme}30` }}>
+              {(meta?.type || "item").toUpperCase()}
+            </span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex flex-1 flex-col px-5 pt-4 pb-6">
+          <h2 className="font-sans text-[22px] font-bold text-white">{offer.name}</h2>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="font-mono text-[24px] font-bold" style={{ color: theme }}>
+              ${price % 1 === 0 ? price : price.toFixed(2)}
+            </span>
+            {meta?.recurring && (
+              <span className="font-sans text-[14px] text-white/30">/{meta.interval || "month"}</span>
+            )}
+          </div>
+
+          {meta?.duration_minutes && (
+            <div className="mt-3 flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+              <span className="font-sans text-[13px] text-white/40">{meta.duration_minutes} minutes</span>
+            </div>
+          )}
+
+          {meta?.description && (
+            <p className="mt-4 font-sans text-[14px] leading-[1.7] text-white/50">{meta.description}</p>
+          )}
+
+          {/* Add-ons */}
+          {meta?.add_ons && meta.add_ons.length > 0 && (
+            <div className="mt-5">
+              <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">ADD-ONS</p>
+              <div className="flex flex-col gap-1.5">
+                {meta.add_ons.map((addon) => (
+                  <div key={addon.name} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <span className="font-sans text-[13px] text-white/60">{addon.name}</span>
+                    <span className="font-mono text-[13px] font-semibold" style={{ color: theme }}>+${(addon.price_cents / 100).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Add to cart button */}
+          <button
+            onClick={onAdd}
+            className="mt-6 w-full rounded-2xl py-4 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+            style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+          >
+            Add to cart — ${price % 1 === 0 ? price : price.toFixed(2)}
+          </button>
+        </div>
+      </motion.div>
+    </>
   );
 }
 
@@ -246,6 +364,8 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [offeringsMap, setOfferingsMap] = useState<Record<string, OfferingMeta>>({});
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [drawerOfferId, setDrawerOfferId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasSentTabCommand = useRef<Set<Tab>>(new Set(["chat"]));
@@ -320,6 +440,21 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
       send(cmd);
     }
   }
+
+  function addToCart(id: string, name: string, priceCents: number) {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.id === id);
+      if (existing) return prev.map((item) => item.id === id ? { ...item, quantity: item.quantity + 1 } : item);
+      return [...prev, { id, name, price_cents: priceCents, quantity: 1 }];
+    });
+  }
+
+  const cartTotal = cart.reduce((sum, item) => sum + item.price_cents * item.quantity, 0);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Drawer data
+  const drawerMeta = drawerOfferId ? offeringsMap[drawerOfferId] : null;
+  const drawerOffer = drawerOfferId && drawerMeta ? { id: drawerOfferId, name: drawerMeta.name, price: drawerMeta.price_cents } : null;
 
   return (
     <main className="relative min-h-dvh w-full text-white" style={{ backgroundColor: "#000" }}>
@@ -491,6 +626,46 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         )}
       </div>
 
+      {/* ═══ PRODUCT DRAWER — slides from left ═══ */}
+      <AnimatePresence>
+        {drawerOfferId && (
+          <ProductDrawer
+            offer={drawerOffer}
+            meta={drawerMeta || null}
+            theme={theme}
+            onClose={() => setDrawerOfferId(null)}
+            onAdd={() => {
+              if (drawerOffer) addToCart(drawerOffer.id, drawerOffer.name, drawerOffer.price);
+              setDrawerOfferId(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ═══ CART INDICATOR — floats above dock when items in cart ═══ */}
+      <AnimatePresence>
+        {cartCount > 0 && !chatOpen && (
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            onClick={() => {
+              setChatOpen(true);
+              send(`I'd like to check out. I have ${cartCount} item${cartCount > 1 ? "s" : ""} in my cart.`);
+            }}
+            className="fixed z-[35] left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full px-5 py-3 font-sans text-[14px] font-bold text-black active:scale-95"
+            style={{
+              bottom: "max(72px, calc(env(safe-area-inset-bottom) + 72px))",
+              backgroundColor: theme,
+              boxShadow: `0 4px 20px ${theme}50`,
+            }}
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/20 font-mono text-[12px] text-black/80">{cartCount}</span>
+            View Cart — ${(cartTotal / 100).toFixed(2)}
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* ═══ CHAT DOCK — fixed bottom ═══ */}
       <div className="fixed inset-x-0 bottom-0 z-30" style={{ paddingBottom: "max(4px, env(safe-area-inset-bottom, 4px))" }}>
 
@@ -560,7 +735,11 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                     return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
                         <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                          <AiMessageBody body={msg.body} theme={theme} onAddToCart={(name) => send(`I want ${name}`)} offeringsMap={offeringsMap} />
+                          <AiMessageBody
+                            body={msg.body} theme={theme} offeringsMap={offeringsMap}
+                            onTapOffer={(id) => setDrawerOfferId(id)}
+                            onAddToCart={(id, name, price) => { addToCart(id, name, price); }}
+                          />
                         </div>
                       </motion.div>
                     );
