@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getAiConfig } from "@/lib/ai-config";
 
 const CF_ACCOUNT_ID = "6c235bb622d4bca66876392df398234b";
 const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || "";
@@ -55,6 +56,9 @@ export async function POST(request: NextRequest) {
     ...body.messages,
   ];
 
+  // Fetch configured model
+  const aiModelConfig = await getAiConfig();
+
   // Call Workers AI
   const aiRes = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`,
@@ -65,7 +69,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        model: aiModelConfig.onboarding_model,
         messages,
       }),
     }

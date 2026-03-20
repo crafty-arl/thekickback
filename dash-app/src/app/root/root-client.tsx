@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { rootSendOtp, rootVerifyOtp, approveVenue, rejectVenue, unpublishVenue } from "./actions";
+import { rootSendOtp, rootVerifyOtp, approveVenue, rejectVenue, unpublishVenue, updateAiConfig } from "./actions";
 
 interface VenuePage {
     id: string;
@@ -50,18 +50,30 @@ interface Stats {
     totalOfferings: number;
 }
 
+interface AiConfig {
+    chat_model: string;
+    chat_model_label: string;
+    onboarding_model: string;
+    onboarding_model_label: string;
+    fallback_model: string;
+    fallback_model_label: string;
+    available_chat_models: { id: string; label: string; provider: string }[];
+    available_onboarding_models: { id: string; label: string; provider: string }[];
+}
+
 interface Props {
     pages: VenuePage[];
     orphanVenues: OrphanVenue[];
     stats: Stats | null;
     authed: boolean;
+    aiConfig?: AiConfig | null;
 }
 
-export function RootClient({ pages, orphanVenues, stats, authed }: Props) {
+export function RootClient({ pages, orphanVenues, stats, authed, aiConfig }: Props) {
     // If not authed, show OTP gate
     if (!authed) return <OtpGate />;
 
-    return <AdminDashboard pages={pages} orphanVenues={orphanVenues || []} stats={stats!} />;
+    return <AdminDashboard pages={pages} orphanVenues={orphanVenues || []} stats={stats!} aiConfig={aiConfig || null} />;
 }
 
 // ─── OTP Gate ────────────────────────────────────────────────────
@@ -153,9 +165,14 @@ function OtpGate() {
 
 // ─── Admin Dashboard ─────────────────────────────────────────────
 
-function AdminDashboard({ pages, orphanVenues, stats }: { pages: VenuePage[]; orphanVenues: OrphanVenue[]; stats: Stats }) {
+function AdminDashboard({ pages, orphanVenues, stats, aiConfig }: { pages: VenuePage[]; orphanVenues: OrphanVenue[]; stats: Stats; aiConfig: AiConfig | null }) {
     const [filter, setFilter] = useState<"all" | "draft" | "pending" | "approved" | "rejected" | "orphan">("all");
     const [acting, setActing] = useState<string | null>(null);
+    const [showAiConfig, setShowAiConfig] = useState(false);
+    const [savingAi, setSavingAi] = useState(false);
+    const [chatModel, setChatModel] = useState({ id: aiConfig?.chat_model || "openclaw", label: aiConfig?.chat_model_label || "OpenClaw" });
+    const [onboardingModel, setOnboardingModel] = useState({ id: aiConfig?.onboarding_model || "@cf/meta/llama-3.3-70b-instruct-fp8-fast", label: aiConfig?.onboarding_model_label || "Llama 3.3 70B" });
+    const [fallbackModel, setFallbackModel] = useState({ id: aiConfig?.fallback_model || "@cf/meta/llama-3.2-3b-instruct", label: aiConfig?.fallback_model_label || "Llama 3.2 3B" });
 
     const filtered = filter === "all" ? pages : pages.filter((p) => p.review_status === filter);
 
@@ -186,6 +203,126 @@ function AdminDashboard({ pages, orphanVenues, stats }: { pages: VenuePage[]; or
                     <StatBox label="Knowledge" value={stats.totalKnowledge} />
                     <StatBox label="Offerings" value={stats.totalOfferings} />
                 </div>
+
+                {/* AI Model Config */}
+                {aiConfig && (
+                <div className="mb-8 rounded-2xl border p-5" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
+                    <div className="mb-4 flex items-center justify-between">
+                        <div>
+                            <h2 className="font-sans text-[16px] font-semibold text-white">AI Models</h2>
+                            <p className="font-sans text-[12px]" style={{ color: "rgba(255,255,255,0.3)" }}>Change the AI model for chat, onboarding, and fallback</p>
+                        </div>
+                        <button onClick={() => setShowAiConfig(!showAiConfig)} className="font-sans text-[12px] text-white/40">
+                            {showAiConfig ? "Hide" : "Configure"}
+                        </button>
+                    </div>
+
+                    {/* Current models summary (always visible) */}
+                    <div className="flex flex-wrap gap-3">
+                        <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                            <p className="font-sans text-[9px] font-bold tracking-wider text-white/25">CHAT</p>
+                            <p className="font-sans text-[13px] font-medium text-white/70">{chatModel.label}</p>
+                        </div>
+                        <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                            <p className="font-sans text-[9px] font-bold tracking-wider text-white/25">ONBOARDING</p>
+                            <p className="font-sans text-[13px] font-medium text-white/70">{onboardingModel.label}</p>
+                        </div>
+                        <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                            <p className="font-sans text-[9px] font-bold tracking-wider text-white/25">FALLBACK</p>
+                            <p className="font-sans text-[13px] font-medium text-white/70">{fallbackModel.label}</p>
+                        </div>
+                    </div>
+
+                    {/* Expanded config (when showAiConfig is true) */}
+                    {showAiConfig && (
+                        <div className="mt-4 flex flex-col gap-4 border-t pt-4" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                            {/* Chat Model */}
+                            <div>
+                                <label className="mb-1.5 block font-sans text-[12px] font-semibold text-white/50">Chat Model (owner + guest chat)</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {aiConfig.available_chat_models.map((m) => (
+                                        <button
+                                            key={m.id}
+                                            onClick={async () => {
+                                                setSavingAi(true);
+                                                await updateAiConfig({ chat_model: m.id, chat_model_label: m.label });
+                                                setChatModel(m);
+                                                setSavingAi(false);
+                                            }}
+                                            disabled={savingAi}
+                                            className="rounded-lg border px-3 py-2 font-sans text-[12px] font-medium transition active:scale-95"
+                                            style={{
+                                                backgroundColor: chatModel.id === m.id ? "rgba(249,115,22,0.15)" : "transparent",
+                                                borderColor: chatModel.id === m.id ? "#F97316" : "rgba(255,255,255,0.08)",
+                                                color: chatModel.id === m.id ? "#F97316" : "rgba(255,255,255,0.4)",
+                                            }}
+                                        >
+                                            {m.label}
+                                            <span className="ml-1 text-[9px] text-white/20">{m.provider}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Onboarding Model */}
+                            <div>
+                                <label className="mb-1.5 block font-sans text-[12px] font-semibold text-white/50">Onboarding Model (hub setup)</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {aiConfig.available_onboarding_models.map((m) => (
+                                        <button
+                                            key={m.id}
+                                            onClick={async () => {
+                                                setSavingAi(true);
+                                                await updateAiConfig({ onboarding_model: m.id, onboarding_model_label: m.label });
+                                                setOnboardingModel(m);
+                                                setSavingAi(false);
+                                            }}
+                                            disabled={savingAi}
+                                            className="rounded-lg border px-3 py-2 font-sans text-[12px] font-medium transition active:scale-95"
+                                            style={{
+                                                backgroundColor: onboardingModel.id === m.id ? "rgba(249,115,22,0.15)" : "transparent",
+                                                borderColor: onboardingModel.id === m.id ? "#F97316" : "rgba(255,255,255,0.08)",
+                                                color: onboardingModel.id === m.id ? "#F97316" : "rgba(255,255,255,0.4)",
+                                            }}
+                                        >
+                                            {m.label}
+                                            <span className="ml-1 text-[9px] text-white/20">{m.provider}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Fallback Model */}
+                            <div>
+                                <label className="mb-1.5 block font-sans text-[12px] font-semibold text-white/50">Fallback Model (when primary fails)</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {aiConfig.available_onboarding_models.map((m) => (
+                                        <button
+                                            key={m.id}
+                                            onClick={async () => {
+                                                setSavingAi(true);
+                                                await updateAiConfig({ fallback_model: m.id, fallback_model_label: m.label });
+                                                setFallbackModel(m);
+                                                setSavingAi(false);
+                                            }}
+                                            disabled={savingAi}
+                                            className="rounded-lg border px-3 py-2 font-sans text-[12px] font-medium transition active:scale-95"
+                                            style={{
+                                                backgroundColor: fallbackModel.id === m.id ? "rgba(249,115,22,0.15)" : "transparent",
+                                                borderColor: fallbackModel.id === m.id ? "#F97316" : "rgba(255,255,255,0.08)",
+                                                color: fallbackModel.id === m.id ? "#F97316" : "rgba(255,255,255,0.4)",
+                                            }}
+                                        >
+                                            {m.label}
+                                            <span className="ml-1 text-[9px] text-white/20">{m.provider}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                )}
 
                 {/* Filters */}
                 <div className="mb-4 flex items-center gap-2">

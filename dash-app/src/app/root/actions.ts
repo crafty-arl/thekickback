@@ -118,3 +118,34 @@ export async function unpublishVenue(venuePageId: string) {
     revalidatePath("/root");
     return { ok: true };
 }
+
+// ─── AI config actions ──────────────────────────────────────────
+
+export async function getAiConfig() {
+    await assertRoot();
+    const { data, error } = await service
+        .from("platform_config")
+        .select("*")
+        .eq("id", "main")
+        .single();
+    if (error) return { error: error.message };
+    return { config: data };
+}
+
+export async function updateAiConfig(updates: {
+    chat_model?: string;
+    chat_model_label?: string;
+    onboarding_model?: string;
+    onboarding_model_label?: string;
+    fallback_model?: string;
+    fallback_model_label?: string;
+}) {
+    await assertRoot();
+    const { error } = await service
+        .from("platform_config")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", "main");
+    if (error) return { error: error.message };
+    revalidatePath("/root");
+    return { ok: true };
+}

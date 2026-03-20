@@ -26,13 +26,14 @@ export default async function RootPage() {
         process.env.SUPABASE_SERVICE_KEY!,
     );
 
-    const [pagesRes, allVenuesRes, memberCountRes, sessionCountRes, knowledgeCountRes, offeringCountRes] = await Promise.all([
+    const [pagesRes, allVenuesRes, memberCountRes, sessionCountRes, knowledgeCountRes, offeringCountRes, configRes] = await Promise.all([
         service.from("venue_pages").select("*, venues(id, name, type, address, neighborhood, lat, lng, max_occupancy)").order("created_at", { ascending: false }),
         service.from("venues").select("id, name, type, address, neighborhood, lat, lng, max_occupancy, state, vibe, occupancy, created_at").order("created_at", { ascending: false }),
         service.from("memberships").select("id", { count: "exact", head: true }),
         service.from("sessions").select("id", { count: "exact", head: true }),
         service.from("venue_knowledge").select("id", { count: "exact", head: true }),
         service.from("venue_offerings").select("id", { count: "exact", head: true }),
+        service.from("platform_config").select("*").eq("id", "main").single(),
     ]);
 
     const pages = pagesRes.data || [];
@@ -57,5 +58,7 @@ export default async function RootPage() {
         totalOfferings: offeringCountRes.count || 0,
     };
 
-    return <RootClient pages={pages} orphanVenues={orphanVenues} stats={stats} authed={true} />;
+    const aiConfig = configRes.data || null;
+
+    return <RootClient pages={pages} orphanVenues={orphanVenues} stats={stats} authed={true} aiConfig={aiConfig} />;
 }

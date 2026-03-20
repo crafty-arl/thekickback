@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { getAiConfig } from "@/lib/ai-config";
 
 function getService() {
   return createClient(
@@ -539,12 +540,13 @@ BEHAVIOR:
 - For complex bulk edits or photo uploads, tell the owner those require the settings page.
 - Keep responses concise. No emojis. Be direct and operational.`;
 
-    // ─── Call OpenClaw ────────────────────────────────────────
+    // ─── Call AI model (from config) ────────────────────────
 
+    const aiConfig = await getAiConfig();
     let reply =
       "Could not reach the AI agent right now. Try again in a moment.";
 
-    try {
+    async function callOpenClaw(model: string): Promise<string | null> {
       const res = await fetch(
         `${process.env.OPENCLAW_GATEWAY_URL}/v1/responses`,
         {
@@ -555,7 +557,7 @@ BEHAVIOR:
             "x-openclaw-agent-id": `owner-${venueId}`,
           },
           body: JSON.stringify({
-            model: "openclaw",
+            model,
             input: `${systemPrompt}\n\nOwner says: "${message}"`,
           }),
         },
@@ -569,14 +571,32 @@ BEHAVIOR:
         const text = msg?.content?.find(
           (c: { type: string; text?: string }) => c.type === "output_text",
         )?.text;
-        if (text) {
-          reply = text;
-        }
-      } else {
-        console.error("OpenClaw error:", res.status, await res.text());
+        return text || null;
+      }
+      console.error("AI model error:", model, res.status, await res.text());
+      return null;
+    }
+
+    try {
+      const text = await callOpenClaw(aiConfig.chat_model);
+      if (text) {
+        reply = text;
+      } else if (aiConfig.fallback_model && aiConfig.fallback_model !== aiConfig.chat_model) {
+        console.log("Primary model failed, trying fallback:", aiConfig.fallback_model);
+        const fallbackText = await callOpenClaw(aiConfig.fallback_model);
+        if (fallbackText) reply = fallbackText;
       }
     } catch (err) {
-      console.error("OpenClaw fetch error:", err);
+      console.error("AI fetch error:", err);
+      // Try fallback
+      try {
+        if (aiConfig.fallback_model && aiConfig.fallback_model !== aiConfig.chat_model) {
+          const fallbackText = await callOpenClaw(aiConfig.fallback_model);
+          if (fallbackText) reply = fallbackText;
+        }
+      } catch (fallbackErr) {
+        console.error("Fallback fetch error:", fallbackErr);
+      }
     }
 
     return NextResponse.json({ reply });
