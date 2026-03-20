@@ -67,16 +67,26 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Charge the card
+    // Calculate fees
+    const stripeFee = Math.round(amountCents * 0.029) + 30; // 2.9% + 30¢
+    const platformFee = Math.round(amountCents * 0.02);      // 2%
+    const totalCharge = amountCents + stripeFee + platformFee;
+
+    // Charge the card (total including fees)
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
+      amount: totalCharge,
       currency: "usd",
       customer: wallet.stripe_customer_id!,
       payment_method: wallet.stripe_payment_method_id,
       off_session: true,
       confirm: true,
-      description: `KickBack wallet — add ${(amountCents / 100).toFixed(2)}`,
-      metadata: { user_id: user.id, wallet_id: wallet.id, type: "fund" },
+      description: `KickBack wallet — add $${(amountCents / 100).toFixed(2)} (incl. fees)`,
+      metadata: {
+        user_id: user.id, wallet_id: wallet.id, type: "fund",
+        wallet_credit_cents: String(amountCents),
+        stripe_fee_cents: String(stripeFee),
+        platform_fee_cents: String(platformFee),
+      },
     });
 
     if (paymentIntent.status !== "succeeded") {

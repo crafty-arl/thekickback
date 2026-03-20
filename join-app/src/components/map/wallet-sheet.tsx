@@ -27,9 +27,19 @@ interface Transaction {
 }
 
 const FUND_PRESETS = [1000, 2500, 5000, 10000]; // $10, $25, $50, $100
+const STRIPE_FEE_RATE = 0.029; // 2.9%
+const STRIPE_FEE_FIXED = 30;   // 30¢
+const PLATFORM_FEE_RATE = 0.02; // 2% KickBack platform fee
 
 function formatDollars(cents: number): string {
   return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
+}
+
+function calcFees(amountCents: number) {
+  const stripeFee = Math.round(amountCents * STRIPE_FEE_RATE) + STRIPE_FEE_FIXED;
+  const platformFee = Math.round(amountCents * PLATFORM_FEE_RATE);
+  const totalCharge = amountCents + stripeFee + platformFee;
+  return { stripeFee, platformFee, totalCharge, walletCredit: amountCents };
 }
 
 function CardBrandIcon({ brand }: { brand: string | null }) {
@@ -52,6 +62,7 @@ export function WalletSheet() {
   const [addingCard, setAddingCard] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
   const [removingCard, setRemovingCard] = useState(false);
+  const [confirmAmount, setConfirmAmount] = useState<number | null>(null); // cents — shows confirmation modal
 
   const loadWallet = useCallback(() => {
     fetch("/api/wallet")
@@ -143,11 +154,14 @@ export function WalletSheet() {
     setRemovingCard(false);
   }, [loadWallet]);
 
-  // Add funds — one-time charge
-  const handleFund = useCallback(async (amountCents: number) => {
+  // Add funds — shows confirmation first, then charges
+  const handleFundConfirm = useCallback(async () => {
+    if (!confirmAmount) return;
     setFunding(true);
     setFundError(null);
     setFundSuccess(null);
+    const amountCents = confirmAmount;
+    setConfirmAmount(null);
     try {
       const res = await fetch("/api/wallet/fund", {
         method: "POST",
@@ -156,8 +170,8 @@ export function WalletSheet() {
       });
       const data = await res.json();
       if (data.ok) {
+        setWallet((prev) => prev ? { ...prev, balanceCents: data.balanceCents ?? (prev.balanceCents + amountCents) } : prev);
         setFundSuccess(`Added ${formatDollars(amountCents)} to your wallet`);
-        loadWallet();
         setTimeout(() => setFundSuccess(null), 3000);
       } else {
         setFundError(data.error || "Payment failed");
@@ -166,7 +180,7 @@ export function WalletSheet() {
       setFundError("Something went wrong");
     }
     setFunding(false);
-  }, [loadWallet]);
+  }, [confirmAmount]);
 
   if (loading) {
     return (
@@ -245,7 +259,7 @@ export function WalletSheet() {
               {FUND_PRESETS.map((amount) => (
                 <motion.button
                   key={amount}
-                  onClick={() => handleFund(amount)}
+                  onClick={() => setConfirmAmount(amount)}
                   disabled={funding}
                   whileTap={{ scale: 0.95 }}
                   className="flex-1 rounded-xl py-2.5 font-mono text-[13px] font-bold transition disabled:opacity-40"
@@ -279,7 +293,7 @@ export function WalletSheet() {
               <motion.button
                 onClick={() => {
                   const cents = Math.round(parseFloat(customAmount) * 100);
-                  if (cents >= 1000) handleFund(cents);
+                  if (cents >= 1000) setConfirmAmount(cents);
                 }}
                 disabled={funding || !customAmount || parseFloat(customAmount) < 10}
                 whileTap={{ scale: 0.95 }}
@@ -308,6 +322,61 @@ export function WalletSheet() {
               <p className="font-sans text-[12px] text-red-400">{fundError}</p>
             </div>
           )}
+
+          {/* Confirmation modal */}
+          {confirmAmount && (() => {
+            const fees = calcFees(confirmAmount);
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-3 rounded-2xl p-4"
+                style={{ backgroundColor: "rgba(99,91,255,0.06)", border: "1px solid rgba(99,91,255,0.2)" }}
+              >
+                <p className="font-sans text-[13px] font-semibold text-white/80">Confirm payment</p>
+                <div className="mt-2.5 flex flex-col gap-1.5">
+                  <div className="flex justify-between">
+                    <span className="font-sans text-[12px] text-white/40">Wallet credit</span>
+                    <span className="font-mono text-[12px] font-semibold text-white/70">{formatDollars(fees.walletCredit)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-sans text-[12px] text-white/40">Stripe fee (2.9% + 30¢)</span>
+                    <span className="font-mono text-[12px] text-white/40">{formatDollars(fees.stripeFee)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-sans text-[12px] text-white/40">Platform fee (2%)</span>
+                    <span className="font-mono text-[12px] text-white/40">{formatDollars(fees.platformFee)}</span>
+                  </div>
+                  <div className="mt-1 h-px" style={{ backgroundColor: "rgba(255,255,255,0.08)" }} />
+                  <div className="flex justify-between">
+                    <span className="font-sans text-[13px] font-semibold text-white/70">Total charge</span>
+                    <span className="font-mono text-[14px] font-bold text-white/90">{formatDollars(fees.totalCharge)}</span>
+                  </div>
+                </div>
+                <p className="mt-2 font-sans text-[10px] text-white/20">
+                  {formatDollars(fees.walletCredit)} will be added to your wallet. Card ····{wallet?.cardLast4} will be charged {formatDollars(fees.totalCharge)}.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <motion.button
+                    onClick={handleFundConfirm}
+                    disabled={funding}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex-1 rounded-xl py-2.5 font-sans text-[13px] font-bold text-white transition disabled:opacity-50"
+                    style={{ backgroundColor: "#635bff" }}
+                  >
+                    {funding ? "Processing..." : `Pay ${formatDollars(fees.totalCharge)}`}
+                  </motion.button>
+                  <button
+                    onClick={() => setConfirmAmount(null)}
+                    className="rounded-xl px-4 py-2.5 font-sans text-[13px] font-medium text-white/40 transition active:scale-95"
+                    style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })()}
 
           {/* Recent transactions */}
           {transactions.length > 0 && (
