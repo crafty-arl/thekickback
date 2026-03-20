@@ -1618,7 +1618,7 @@ export function TheDock({
         inputRef.current?.focus();
       }
     }
-  }, [input, loading, mode, selectedVenue, venueChatSnap, activeTab]);
+  }, [input, loading, mode, selectedVenue, venueChatSnap, activeTab, carts, clearCart]);
 
   // ─── Tab tap ───────────────────────────────────────────────────
 
