@@ -614,6 +614,168 @@ function KeyboardShortcutsPanel({
   );
 }
 
+// ─── Device Manager ─────────────────────────────────────────────
+
+interface DeviceRecord {
+  id: string;
+  device_id: string;
+  device_name: string | null;
+  last_active_at: string;
+  created_at: string;
+}
+
+function DeviceManager() {
+  const [devices, setDevices] = useState<DeviceRecord[]>([]);
+  const [maxDevices, setMaxDevices] = useState(3);
+  const [loading, setLoading] = useState(true);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [loggingOutAll, setLoggingOutAll] = useState(false);
+  const [currentDeviceId, setCurrentDeviceId] = useState("");
+
+  // Get current device fingerprint
+  useEffect(() => {
+    import("@/lib/device-id").then(({ getDeviceId }) => getDeviceId()).then(setCurrentDeviceId);
+  }, []);
+
+  const loadDevices = useCallback(() => {
+    fetch("/api/devices")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.devices) setDevices(data.devices);
+        if (data?.maxDevices) setMaxDevices(data.maxDevices);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { loadDevices(); }, [loadDevices]);
+
+  const handleRemove = useCallback(async (deviceDbId: string) => {
+    setRemoving(deviceDbId);
+    try {
+      const res = await fetch("/api/devices", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceDbId }),
+      });
+      const data = await res.json();
+      if (data.ok) loadDevices();
+    } catch {}
+    setRemoving(null);
+  }, [loadDevices]);
+
+  const handleLogoutAll = useCallback(async () => {
+    setLoggingOutAll(true);
+    try {
+      await fetch("/api/devices", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ all: true }),
+      });
+      window.location.reload();
+    } catch {
+      setLoggingOutAll(false);
+    }
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="px-4 py-3">
+        <div className="h-20 animate-pulse rounded-2xl" style={{ backgroundColor: "rgba(255,255,255,0.03)" }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-2">
+      {/* Header */}
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" /><line x1="12" y1="18" x2="12.01" y2="18" />
+          </svg>
+        </div>
+        <div>
+          <p className="font-sans text-[13px] font-semibold text-white/80">Devices</p>
+          <p className="font-sans text-[10px] text-white/30">{devices.length} of {maxDevices} devices</p>
+        </div>
+      </div>
+
+      {/* Device list */}
+      <div className="flex flex-col gap-1.5">
+        {devices.map((d) => {
+          const isCurrent = d.device_id === currentDeviceId;
+          const lastActive = new Date(d.last_active_at);
+          const isToday = new Date().toDateString() === lastActive.toDateString();
+          const timeLabel = isToday ? "Active today" : lastActive.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+          return (
+            <div
+              key={d.id}
+              className="flex items-center justify-between rounded-xl px-3 py-2.5"
+              style={{
+                backgroundColor: isCurrent ? "rgba(99,91,255,0.06)" : "rgba(255,255,255,0.02)",
+                border: isCurrent ? "1px solid rgba(99,91,255,0.15)" : "1px solid rgba(255,255,255,0.04)",
+              }}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isCurrent ? "#635bff" : "rgba(255,255,255,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2" /><line x1="12" y1="18" x2="12.01" y2="18" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-sans text-[11px] font-medium text-white/60">{d.device_name || "Unknown device"}</p>
+                    {isCurrent && (
+                      <span className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-bold uppercase tracking-wider" style={{ backgroundColor: "rgba(99,91,255,0.15)", color: "#a78bfa" }}>
+                        This device
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-sans text-[9px] text-white/25">{timeLabel}</p>
+                </div>
+              </div>
+              {!isCurrent && (
+                <motion.button
+                  onClick={() => handleRemove(d.id)}
+                  disabled={removing === d.id}
+                  whileTap={{ scale: 0.9 }}
+                  className="rounded-lg px-2.5 py-1.5 font-sans text-[10px] font-medium text-red-400/60 transition hover:bg-red-500/10 disabled:opacity-40"
+                >
+                  {removing === d.id ? "..." : "Remove"}
+                </motion.button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Log out all devices */}
+      {devices.length > 1 && (
+        <motion.button
+          onClick={handleLogoutAll}
+          disabled={loggingOutAll}
+          whileTap={{ scale: 0.97 }}
+          className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl py-2 font-sans text-[11px] font-medium text-red-400/50 transition hover:bg-red-500/5 disabled:opacity-40"
+          style={{ border: "1px solid rgba(239,68,68,0.1)" }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          {loggingOutAll ? "Logging out..." : "Log out all devices"}
+        </motion.button>
+      )}
+
+      {devices.length === 0 && (
+        <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+          <p className="font-sans text-[11px] text-white/30">No devices registered yet. They appear after you sign in.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────
 
 export function TheDock({
@@ -2386,6 +2548,9 @@ export function TheDock({
 
               {/* AI Wallet */}
               <WalletSheet />
+
+              {/* Device Management */}
+              <DeviceManager />
 
               {/* Preferences */}
               <div className="px-4">

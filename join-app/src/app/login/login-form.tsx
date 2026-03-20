@@ -47,7 +47,14 @@ export function LoginForm() {
     // Ensure we have a device ID
     const did = deviceId || (await getDeviceId());
 
-    const result = await verifyOtp(email, otpCode, did, returnTo);
+    // Build a human-readable device name
+    const ua = navigator.userAgent;
+    const isMobile = /iPhone|iPad|Android/i.test(ua);
+    const browser = /Chrome/i.test(ua) ? "Chrome" : /Safari/i.test(ua) ? "Safari" : /Firefox/i.test(ua) ? "Firefox" : "Browser";
+    const os = /iPhone|iPad/i.test(ua) ? "iOS" : /Android/i.test(ua) ? "Android" : /Mac/i.test(ua) ? "Mac" : /Windows/i.test(ua) ? "Windows" : "Device";
+    const deviceName = isMobile ? `${browser} on ${os}` : `${browser} on ${os}`;
+
+    const result = await verifyOtp(email, otpCode, did, deviceName, returnTo);
 
     if (result?.error) {
       setError(result.error);

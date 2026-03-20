@@ -9,6 +9,8 @@ const service = createServiceClient(
   process.env.SUPABASE_SERVICE_KEY!
 );
 
+const MAX_DEVICES = 3;
+
 export async function sendOtp(email: string) {
   const supabase = await createClient();
 
@@ -26,7 +28,7 @@ export async function sendOtp(email: string) {
   return { success: true };
 }
 
-export async function verifyOtp(email: string, token: string, deviceId: string, returnTo?: string) {
+export async function verifyOtp(email: string, token: string, deviceId: string, deviceName: string, returnTo?: string) {
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.verifyOtp({
@@ -43,23 +45,44 @@ export async function verifyOtp(email: string, token: string, deviceId: string, 
     return { error: "Verification failed." };
   }
 
-  // ─── Device-per-email enforcement ──────────────────────────
-  // Check if this email already has a registered device
-  const { data: profile } = await service
-    .from("profiles")
-    .select("device_id")
-    .eq("id", data.user.id)
+  // ─── Multi-device enforcement (max 3) ──────────────────────
+  // Check if this device is already registered to this user
+  const { data: existingDevice } = await service
+    .from("user_devices")
+    .select("id")
+    .eq("user_id", data.user.id)
+    .eq("device_id", deviceId)
     .maybeSingle();
 
-  if (profile?.device_id && profile.device_id !== deviceId) {
-    // Different device trying to use this account — reject
-    await supabase.auth.signOut();
-    return {
-      error: "This account is already registered to another device. Each email can only be used on one device.",
-    };
+  if (existingDevice) {
+    // Known device — update last_active and device name
+    await service.from("user_devices").update({
+      last_active_at: new Date().toISOString(),
+      device_name: deviceName || null,
+    }).eq("id", existingDevice.id);
+  } else {
+    // New device — check how many devices this user already has
+    const { count } = await service
+      .from("user_devices")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", data.user.id);
+
+    if ((count || 0) >= MAX_DEVICES) {
+      await supabase.auth.signOut();
+      return {
+        error: `You already have ${MAX_DEVICES} devices registered. Remove a device from Settings → Devices to add this one.`,
+      };
+    }
+
+    // Register this device
+    await service.from("user_devices").insert({
+      user_id: data.user.id,
+      device_id: deviceId,
+      device_name: deviceName || null,
+    });
   }
 
-  // Upsert profile with device_id
+  // Upsert profile (keep legacy device_id for backwards compat)
   await service.from("profiles").upsert(
     {
       id: data.user.id,
@@ -68,24 +91,6 @@ export async function verifyOtp(email: string, token: string, deviceId: string, 
     },
     { onConflict: "id" }
   );
-
-  // Also check: is this device already registered to a DIFFERENT email?
-  const { data: otherProfile } = await service
-    .from("profiles")
-    .select("id, email")
-    .eq("device_id", deviceId)
-    .neq("id", data.user.id)
-    .maybeSingle();
-
-  if (otherProfile) {
-    // This device is already bound to another account — reject
-    await supabase.auth.signOut();
-    // Clear the device_id we just set
-    await service.from("profiles").update({ device_id: null }).eq("id", data.user.id);
-    return {
-      error: `This device is already registered to ${otherProfile.email}. One device per account.`,
-    };
-  }
 
   redirect(returnTo || "/");
 }
