@@ -22,6 +22,10 @@ async function getAuthVenue() {
   return { userId: user.id, email: user.email, venueId: venue.id, venueName: venue.name };
 }
 
+function isTestKey(key: string): boolean {
+  return key.startsWith("sk_test_") || key.startsWith("rk_test_");
+}
+
 // POST /api/stripe/connect — create Stripe Connect onboarding link
 export async function POST() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -33,9 +37,9 @@ export async function POST() {
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
   const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
+  const testMode = isTestKey(process.env.STRIPE_SECRET_KEY);
 
   try {
-    // Check if stripe_account_id column exists by querying it
     const { data: existing, error: queryError } = await service
       .from("venues")
       .select("stripe_account_id")
@@ -44,14 +48,24 @@ export async function POST() {
 
     if (queryError) {
       console.error("Stripe Connect: venue query error:", queryError.message, queryError.code);
-      // Column may not exist yet — try adding it
-      if (queryError.message?.includes("stripe_account_id") || queryError.code === "42703") {
-        await service.rpc("exec_sql", { sql: "ALTER TABLE venues ADD COLUMN IF NOT EXISTS stripe_account_id text" }).then(() => {});
-      }
       return NextResponse.json({ error: `Database error: ${queryError.message}` }, { status: 500 });
     }
 
     let accountId = existing?.stripe_account_id;
+
+    // If existing account is from the wrong mode (test vs live), clear it
+    if (accountId) {
+      try {
+        const existing = await stripe.accounts.retrieve(accountId);
+        // Account exists in current mode — keep it
+        void existing;
+      } catch {
+        // Account doesn't exist in current mode — was from the other mode, clear it
+        console.log(`Stripe Connect: clearing stale account ${accountId} (wrong mode)`);
+        await service.from("venues").update({ stripe_account_id: null }).eq("id", auth.venueId);
+        accountId = null;
+      }
+    }
 
     if (!accountId) {
       const account = await stripe.accounts.create({
@@ -74,7 +88,7 @@ export async function POST() {
       type: "account_onboarding",
     });
 
-    return NextResponse.json({ url: accountLink.url });
+    return NextResponse.json({ url: accountLink.url, testMode });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Stripe Connect error:", message);
@@ -93,11 +107,12 @@ export async function GET() {
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
   const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
+  const testMode = isTestKey(process.env.STRIPE_SECRET_KEY);
 
   const { data: venue } = await service.from("venues").select("stripe_account_id").eq("id", auth.venueId).single();
 
   if (!venue?.stripe_account_id) {
-    return NextResponse.json({ connected: false });
+    return NextResponse.json({ connected: false, testMode });
   }
 
   try {
@@ -109,8 +124,11 @@ export async function GET() {
       detailsSubmitted: account.details_submitted,
       accountId: account.id,
       email: account.email,
+      testMode,
     });
   } catch {
-    return NextResponse.json({ connected: false, error: "Account not found" });
+    // Account not found in current mode — clear the stale reference
+    await service.from("venues").update({ stripe_account_id: null }).eq("id", auth.venueId);
+    return NextResponse.json({ connected: false, testMode, error: "Account not found — please reconnect" });
   }
 }

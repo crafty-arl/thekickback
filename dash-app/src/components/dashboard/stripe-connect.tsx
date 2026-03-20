@@ -9,6 +9,24 @@ interface StripeStatus {
   detailsSubmitted?: boolean;
   email?: string;
   error?: string;
+  testMode?: boolean;
+}
+
+function TestModeBanner() {
+  return (
+    <div className="mb-3 flex items-center gap-2.5 rounded-xl px-4 py-2.5" style={{ backgroundColor: "rgba(250,204,21,0.08)", border: "1px solid rgba(250,204,21,0.2)" }}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      <div>
+        <p className="font-sans text-[12px] font-semibold text-yellow-700">Test Mode</p>
+        <p className="font-sans text-[11px] text-yellow-600/60">
+          Using a Stripe test key — no real charges. Switch to a live key in production.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function StripeConnect() {
@@ -37,7 +55,7 @@ export function StripeConnect() {
         setConnectError(data.error || "Failed to create Stripe onboarding link");
         setConnecting(false);
       }
-    } catch (err) {
+    } catch {
       setConnectError("Network error — check your connection and try again");
       setConnecting(false);
     }
@@ -60,10 +78,13 @@ export function StripeConnect() {
     );
   }
 
-  // Connected and fully set up
+  const isTestMode = status?.testMode;
+
+  // ── Connected and fully set up ──
   if (status?.connected && status.chargesEnabled && status.payoutsEnabled) {
     return (
       <div className="rounded-2xl border border-black/5 bg-white p-5">
+        {isTestMode && <TestModeBanner />}
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: "rgba(74,222,128,0.1)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -87,10 +108,50 @@ export function StripeConnect() {
     );
   }
 
-  // Connected but not fully set up
-  if (status?.connected && !status.chargesEnabled) {
+  // ── Connected, details submitted, waiting on Stripe verification ──
+  if (status?.connected && status.detailsSubmitted) {
+    return (
+      <div className="rounded-2xl border border-black/5 bg-white p-5">
+        {isTestMode && <TestModeBanner />}
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: "rgba(99,91,255,0.1)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#635bff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="font-sans text-[14px] font-semibold text-black/80">Stripe Setup Complete</p>
+            <p className="font-sans text-[12px] text-black/40">
+              {status.chargesEnabled
+                ? "Payments active — waiting on payout verification"
+                : "Your account is being verified by Stripe. This usually takes a few minutes."}
+              {status.email ? ` · ${status.email}` : ""}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={handleDashboard}
+            className="flex-1 rounded-xl bg-black/[0.04] py-2.5 font-sans text-[13px] font-medium text-black/50 transition hover:bg-black/[0.08]"
+          >
+            Open Stripe Dashboard
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-xl bg-black/[0.04] px-4 py-2.5 font-sans text-[13px] font-medium text-black/50 transition hover:bg-black/[0.08]"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Connected but onboarding not finished ──
+  if (status?.connected && !status.detailsSubmitted) {
     return (
       <div className="rounded-2xl border p-5" style={{ borderColor: "rgba(249,115,22,0.2)", backgroundColor: "rgba(249,115,22,0.03)" }}>
+        {isTestMode && <TestModeBanner />}
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: "rgba(249,115,22,0.1)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -100,7 +161,7 @@ export function StripeConnect() {
           <div className="flex-1">
             <p className="font-sans text-[14px] font-semibold text-black/80">Stripe Setup Incomplete</p>
             <p className="font-sans text-[12px] text-black/40">
-              Finish setting up your account to accept payments
+              You started but didn&apos;t finish. Continue where you left off.
             </p>
           </div>
         </div>
@@ -115,15 +176,16 @@ export function StripeConnect() {
           className="mt-3 w-full rounded-xl py-2.5 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
           style={{ backgroundColor: "#f97316" }}
         >
-          {connecting ? "Redirecting to Stripe..." : "Complete Setup"}
+          {connecting ? "Redirecting to Stripe..." : "Continue Setup"}
         </button>
       </div>
     );
   }
 
-  // Not connected
+  // ── Not connected ──
   return (
     <div className="rounded-2xl border border-black/5 bg-white p-5">
+      {isTestMode && <TestModeBanner />}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: "rgba(99,91,255,0.1)" }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#635bff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
