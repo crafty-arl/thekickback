@@ -65,6 +65,34 @@ export function WalletSheet() {
 
   useEffect(() => { loadWallet(); }, [loadWallet]);
 
+  // Handle return from Stripe Checkout (card saved)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    const walletAction = params.get("wallet");
+
+    if (walletAction === "card-saved" && sessionId) {
+      // Confirm the card with our backend
+      fetch("/api/wallet/confirm-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) loadWallet();
+          else setCardError(data.error || "Failed to save card");
+        })
+        .catch(() => setCardError("Failed to save card"));
+
+      // Clean up URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("session_id");
+      url.searchParams.delete("wallet");
+      window.history.replaceState({}, "", url.pathname);
+    }
+  }, [loadWallet]);
+
   // Create wallet (first time)
   const createWallet = useCallback(async () => {
     setLoading(true);
@@ -76,28 +104,22 @@ export function WalletSheet() {
     loadWallet();
   }, [loadWallet]);
 
-  // Add card
+  // Add card — redirect to Stripe Checkout (hosted card form)
   const handleAddCard = useCallback(async () => {
     setAddingCard(true);
     setCardError(null);
     try {
       const res = await fetch("/api/wallet/setup-intent", { method: "POST" });
       const data = await res.json();
-      if (data.error) { setCardError(data.error); setAddingCard(false); return; }
-
-      const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-      if (!stripeKey) { setCardError("Stripe not configured"); setAddingCard(false); return; }
-
-      const { loadStripe } = await import("@stripe/stripe-js");
-      const stripe = await loadStripe(stripeKey);
-      if (!stripe) { setCardError("Failed to load Stripe"); setAddingCard(false); return; }
-
-      const { error } = await stripe.confirmCardSetup(data.clientSecret, {
-        return_url: `${window.location.origin}/?wallet=card-saved`,
-      });
-
-      if (error) {
-        setCardError(error.message || "Card setup failed");
+      if (data.error) {
+        setCardError(data.error);
+        setAddingCard(false);
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url; // Redirect to Stripe Checkout
+      } else {
+        setCardError("No checkout URL returned");
         setAddingCard(false);
       }
     } catch {

@@ -8,7 +8,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 );
 
-// POST /api/wallet/setup-intent — create a Stripe SetupIntent for saving a card
+// POST /api/wallet/setup-intent — create a Stripe Checkout Session in setup mode
+// Returns a URL to redirect the user to Stripe's hosted card form
 export async function POST() {
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({ error: "Payments not configured" }, { status: 503 });
@@ -28,7 +29,6 @@ export async function POST() {
     .single();
 
   if (!wallet) {
-    // Create wallet + Stripe customer
     const customer = await stripe.customers.create({
       email: user.email || undefined,
       metadata: { user_id: user.id },
@@ -39,7 +39,7 @@ export async function POST() {
       .insert({
         user_id: user.id,
         stripe_customer_id: customer.id,
-        spending_limit_cents: 5000, // default $50
+        spending_limit_cents: 5000,
       })
       .select("id, stripe_customer_id")
       .single();
@@ -48,7 +48,6 @@ export async function POST() {
   }
 
   if (!wallet?.stripe_customer_id) {
-    // Create Stripe customer for existing wallet without one
     const customer = await stripe.customers.create({
       email: user.email || undefined,
       metadata: { user_id: user.id },
@@ -57,15 +56,23 @@ export async function POST() {
     wallet!.stripe_customer_id = customer.id;
   }
 
-  // Create SetupIntent
-  const setupIntent = await stripe.setupIntents.create({
-    customer: wallet!.stripe_customer_id,
-    payment_method_types: ["card"],
-    metadata: { user_id: user.id, wallet_id: wallet!.id },
-  });
+  try {
+    // Create a Checkout Session in setup mode — Stripe hosts the card form
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://join.thekickback.net";
 
-  return NextResponse.json({
-    clientSecret: setupIntent.client_secret,
-    walletId: wallet!.id,
-  });
+    const session = await stripe.checkout.sessions.create({
+      mode: "setup",
+      customer: wallet!.stripe_customer_id,
+      payment_method_types: ["card"],
+      success_url: `${baseUrl}/?wallet=card-saved&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/?wallet=card-cancelled`,
+      metadata: { user_id: user.id, wallet_id: wallet!.id },
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Setup intent error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
