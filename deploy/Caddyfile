@@ -23,5 +23,6 @@ claw.thekickback.net {
 }
 
 sandbox.thekickback.net {
+	tls internal
 	reverse_proxy join-app:3000
 }
