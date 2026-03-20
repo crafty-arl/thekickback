@@ -966,6 +966,10 @@ export function TheDock({
   const [navLoading, setNavLoading] = useState(false);
   const [navProfile, setNavProfile] = useState<"walking" | "driving">("walking");
 
+  // ── Explore offerings (all venues) ──
+  const [exploreOfferings, setExploreOfferings] = useState<{ id: string; name: string; type: string; price_cents: number; venue_id: string; description: string | null; image_url: string | null; category: string | null }[]>([]);
+  const exploreOfferingsLoaded = useRef(false);
+
   // ── Concierge venue data ──
   const [apiVenues, setApiVenues] = useState<Record<string, ApiVenue>>({});
   const [richVenues, setRichVenues] = useState<Record<string, RichVenue>>({});
@@ -1332,6 +1336,26 @@ export function TheDock({
       return null;
     }
   }, []);
+
+  // ── Load all offerings for explore mode ──
+  useEffect(() => {
+    if (mode !== "explore" || exploreOfferingsLoaded.current) return;
+    exploreOfferingsLoaded.current = true;
+
+    const claimed = venues.filter((v) => v.claimed !== false).slice(0, 15);
+    Promise.all(
+      claimed.map((v) =>
+        fetch(`/api/offerings?venueId=${v.id}`)
+          .then((r) => r.ok ? r.json() : { offerings: [] })
+          .then((d) => (d.offerings || []).map((o: { id: string; name: string; type: string; price_cents: number; description: string | null; image_url?: string | null; category?: string | null }) => ({
+            ...o, venue_id: v.id, image_url: o.image_url || null, category: o.category || null,
+          })))
+          .catch(() => [])
+      )
+    ).then((results) => {
+      setExploreOfferings(results.flat());
+    });
+  }, [mode, venues]);
 
   // ── Load concierge history on first open ──
   useEffect(() => {
@@ -2304,6 +2328,85 @@ export function TheDock({
                     </div>
                   </div>
                 )}
+
+                {/* ── Offerings by category ── */}
+                {exploreOfferings.length > 0 && (() => {
+                  const OFFER_CATEGORIES: { key: string; label: string; types: string[]; icon: string }[] = [
+                    { key: "food", label: "FOOD & DRINKS", types: ["product"], icon: "M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3" },
+                    { key: "events", label: "EVENTS", types: ["event"], icon: "M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" },
+                    { key: "services", label: "SERVICES", types: ["service"], icon: "M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2M12 8v4l3 3" },
+                    { key: "reserve", label: "RESERVATIONS", types: ["reservation"], icon: "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" },
+                    { key: "membership", label: "MEMBERSHIPS", types: ["membership"], icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },
+                    { key: "shop", label: "SHOP", types: ["package", "custom"], icon: "M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" },
+                  ];
+
+                  return OFFER_CATEGORIES.map(({ key, label, types, icon }) => {
+                    const items = exploreOfferings.filter((o) => types.includes(o.type));
+                    if (items.length === 0) return null;
+
+                    return (
+                      <div key={key} className="mb-5">
+                        <div className="flex items-center justify-between px-5 pb-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
+                            <span className="font-sans text-[10px] font-semibold tracking-[2px] text-white/25">{label}</span>
+                          </div>
+                          <span className="font-sans text-[10px] text-white/15">{items.length}</span>
+                        </div>
+                        <div className="flex gap-2.5 overflow-x-auto px-5 pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory" }}>
+                          {items.map((item, i) => {
+                            const venue = venues.find((v) => v.id === item.venue_id);
+                            const color = venue?.themeColor || getVibeHexColor(venue?.vibe || "quiet");
+                            return (
+                              <motion.button
+                                key={item.id}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: Math.min(i * 0.03, 0.15) }}
+                                onClick={() => {
+                                  if (venue) {
+                                    handleExploreVenueTap(venue);
+                                    // Auto-send a message about this offering
+                                    setTimeout(() => send(`Tell me about ${item.name}`), 300);
+                                  }
+                                }}
+                                className="flex shrink-0 flex-col overflow-hidden rounded-2xl text-left active:scale-[0.97]"
+                                style={{
+                                  width: 160, scrollSnapAlign: "start",
+                                  backgroundColor: "rgba(255,255,255,0.03)",
+                                  border: `1px solid ${color}15`,
+                                }}
+                              >
+                                {/* Image or gradient header */}
+                                <div className="relative h-20 w-full" style={{ background: item.image_url ? undefined : `linear-gradient(135deg, ${color}20 0%, ${color}06 100%)` }}>
+                                  {item.image_url ? (
+                                    <img src={item.image_url} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center">
+                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={`${color}40`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
+                                    </div>
+                                  )}
+                                  {/* Price badge */}
+                                  <div className="absolute bottom-1.5 right-1.5 rounded-full px-1.5 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+                                    <span className="font-mono text-[10px] font-bold" style={{ color }}>${(item.price_cents / 100).toFixed(item.price_cents % 100 === 0 ? 0 : 2)}</span>
+                                  </div>
+                                </div>
+                                {/* Info */}
+                                <div className="flex flex-col gap-0.5 px-2.5 py-2">
+                                  <span className="truncate font-sans text-[12px] font-semibold text-white/80">{item.name}</span>
+                                  {item.description && (
+                                    <span className="line-clamp-1 font-sans text-[9px] leading-[1.3] text-white/30">{item.description}</span>
+                                  )}
+                                  <span className="mt-0.5 truncate font-sans text-[9px] font-medium text-white/20">{venue?.name || "Venue"}</span>
+                                </div>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
 
                 {/* Venue shelves */}
                 {yourSpots.length > 0 && (
