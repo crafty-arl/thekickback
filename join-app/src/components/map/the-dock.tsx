@@ -15,7 +15,7 @@ import { VibeCard, MenuCard, EventsCard, ReserveCard, ShopCard, SubscribeCard, J
 import { PointsBadge } from "./points-badge";
 import { VenueProfileCards } from "./venue-profile-cards";
 import { CheckoutCard, type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
-import { WalletSheet } from "./wallet-sheet";
+import { WalletSheet, useWalletStatus } from "./wallet-sheet";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -50,6 +50,21 @@ interface TheDockProps {
   activeTag: Tag | null;
   onTagSelect: (tag: Tag | null) => void;
   onNavigateVenue: (dir: -1 | 1) => void;
+}
+
+interface OfferingMeta {
+  name: string;
+  description: string | null;
+  price_cents: number;
+  image_url: string | null;
+  type: string;
+}
+
+interface CartItem {
+  offeringId: string;
+  name: string;
+  priceCents: number;
+  quantity: number;
 }
 
 interface Perk {
@@ -455,6 +470,85 @@ function LoadingDots() {
   );
 }
 
+/* ── AI message body — parses [[OFFER:id:name:price]] into tappable cards ── */
+
+function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
+  body: string; theme: string;
+  onAddToCart: (offeringId: string, name: string, priceCents: number) => void;
+  offeringsMap: Record<string, OfferingMeta>;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const parts = body.split(/(\[\[OFFER:[^\]]+\]\])/g);
+
+  if (parts.length === 1) {
+    return <p className="font-sans text-[14px] leading-[1.6]">{body}</p>;
+  }
+
+  const textParts: string[] = [];
+  const offerParts: { id: string; name: string; price: number }[] = [];
+
+  for (const part of parts) {
+    const match = part.match(/\[\[OFFER:([^:]+):([^:]+):(\d+)\]\]/);
+    if (match) {
+      offerParts.push({ id: match[1], name: match[2], price: parseInt(match[3]) / 100 });
+    } else if (part.trim()) {
+      textParts.push(part);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {textParts.length > 0 && (
+        <p className="font-sans text-[14px] leading-[1.6]">{textParts.join("")}</p>
+      )}
+      <div className="flex flex-col gap-1.5 mt-1">
+        {offerParts.map((offer) => {
+          const meta = offeringsMap[offer.id];
+          const isExpanded = expandedId === offer.id;
+          const hasImage = meta?.image_url;
+          const hasDesc = meta?.description;
+
+          return (
+            <div key={offer.id} className="rounded-xl overflow-hidden transition" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}>
+              {isExpanded && hasImage && (
+                <div className="relative" style={{ height: 120 }}>
+                  <img src={meta.image_url!} alt={offer.name} className="h-full w-full object-cover" />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.6) 100%)" }} />
+                </div>
+              )}
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : offer.id)}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left active:opacity-80"
+              >
+                {!isExpanded && hasImage && (
+                  <img src={meta.image_url!} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <span className="font-sans text-[13px] font-medium text-white/85">{offer.name}</span>
+                  {isExpanded && hasDesc && (
+                    <p className="mt-0.5 font-sans text-[11px] leading-[1.4] text-white/40">{meta.description}</p>
+                  )}
+                </div>
+                <span className="shrink-0 font-mono text-[13px] font-bold" style={{ color: theme }}>
+                  ${offer.price % 1 === 0 ? offer.price : offer.price.toFixed(2)}
+                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onAddToCart(offer.id, offer.name, Math.round(offer.price * 100)); }}
+                  className="shrink-0 rounded-full px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
+                  style={{ backgroundColor: theme, color: "#000" }}
+                >
+                  ADD
+                </button>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function TabIcon({ path, size = 16 }: { path: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={path} /></svg>
@@ -829,6 +923,19 @@ export function TheDock({
   const [perks, setPerks] = useState<Perk[]>([]);
   const [balance, setBalance] = useState(0);
 
+  // ── Offerings map (venueId → offeringId → meta) ──
+  const [offeringsMap, setOfferingsMap] = useState<Record<string, Record<string, OfferingMeta>>>({});
+
+  // ── Cart (venueId → items) ──
+  const [carts, setCarts] = useState<Map<string, CartItem[]>>(new Map());
+  const [cartExpanded, setCartExpanded] = useState(false);
+
+  // ── Venue offerings for quick replies ──
+  const [venueOfferings, setVenueOfferings] = useState<Record<string, { id: string; type: string; name: string }[]>>({});
+
+  // ── Wallet status ──
+  const walletStatus = useWalletStatus();
+
   // ── Concierge venue data ──
   const [apiVenues, setApiVenues] = useState<Record<string, ApiVenue>>({});
   const [richVenues, setRichVenues] = useState<Record<string, RichVenue>>({});
@@ -843,6 +950,104 @@ export function TheDock({
 
   // ── Current venue messages ──
   const currentVenueMessages = selectedVenue ? (venueThreads.get(selectedVenue.id) || []) : [];
+
+  // ── Cart helpers ──
+  const currentCart = selectedVenue ? (carts.get(selectedVenue.id) || []) : [];
+  const cartTotal = currentCart.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
+  const cartCount = currentCart.reduce((sum, item) => sum + item.quantity, 0);
+
+  const addToCart = useCallback((venueId: string, offeringId: string, name: string, priceCents: number) => {
+    setCarts((prev) => {
+      const next = new Map(prev);
+      const items = [...(next.get(venueId) || [])];
+      const existing = items.find((i) => i.offeringId === offeringId);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        items.push({ offeringId, name, priceCents, quantity: 1 });
+      }
+      next.set(venueId, items);
+      return next;
+    });
+  }, []);
+
+  const removeFromCart = useCallback((venueId: string, offeringId: string) => {
+    setCarts((prev) => {
+      const next = new Map(prev);
+      const items = (next.get(venueId) || [])
+        .map((i) => i.offeringId === offeringId ? { ...i, quantity: i.quantity - 1 } : i)
+        .filter((i) => i.quantity > 0);
+      if (items.length === 0) next.delete(venueId);
+      else next.set(venueId, items);
+      return next;
+    });
+    if (currentCart.length <= 1) setCartExpanded(false);
+  }, [currentCart.length]);
+
+  const clearCart = useCallback((venueId: string) => {
+    setCarts((prev) => { const next = new Map(prev); next.delete(venueId); return next; });
+    setCartExpanded(false);
+  }, []);
+
+  // ── Smart quick replies ──
+  const getVenueReplies = useCallback((): { label: string; action: string }[] => {
+    if (!selectedVenue) return [];
+    const offerings = venueOfferings[selectedVenue.id] || [];
+    const cart = carts.get(selectedVenue.id) || [];
+    const msgCount = currentVenueMessages.length;
+
+    // After checkout (last AI message mentions "confirmed" or "all set")
+    const lastAi = [...currentVenueMessages].reverse().find((m) => m.sender === "ai");
+    if (lastAi && (/confirmed|all set|order.*placed/i.test(lastAi.body))) {
+      return [
+        { label: "Anything else?", action: "anything else?" },
+        { label: "What's happening later?", action: "what's happening later?" },
+      ];
+    }
+
+    // Cart has items
+    if (cart.length > 0) {
+      return [
+        { label: `Checkout (${cart.reduce((s, i) => s + i.quantity, 0)} items)`, action: "__CHECKOUT__" },
+        { label: "Add more", action: "what else do you have?" },
+        { label: "Clear cart", action: "__CLEAR_CART__" },
+      ];
+    }
+
+    // After offerings shown — suggest specific items
+    const offersShown = currentVenueMessages.some((m) => m.sender === "ai" && m.body.includes("[[OFFER:"));
+    if (offersShown && offerings.length > 0) {
+      const products = offerings.filter((o) => o.type === "product" || o.type === "service");
+      const replies: { label: string; action: string }[] = products.slice(0, 2).map((o) => ({
+        label: `Order the ${o.name}`,
+        action: `I'd like to order the ${o.name}`,
+      }));
+      replies.push({ label: "What's popular?", action: "what's popular here?" });
+      return replies;
+    }
+
+    // Fresh conversation — built from venue's offerings
+    if (msgCount <= 2) {
+      const types = new Set(offerings.map((o) => o.type));
+      const replies: { label: string; action: string }[] = [];
+      if (types.has("product") || types.has("service")) {
+        const hasFood = offerings.some((o) => o.type === "product");
+        const hasService = offerings.some((o) => o.type === "service");
+        if (hasFood) replies.push({ label: "See the menu", action: "show me the menu" });
+        if (hasService) {
+          const svc = offerings.find((o) => o.type === "service");
+          replies.push({ label: `Book a ${svc?.name || "service"}`, action: `I'd like to book a ${svc?.name || "service"}` });
+        }
+      }
+      if (types.has("event")) replies.push({ label: "What's happening tonight?", action: "any events tonight?" });
+      if (types.has("membership")) replies.push({ label: "Tell me about membership", action: "tell me about membership" });
+      if (types.has("reservation")) replies.push({ label: "Reserve a spot", action: "I'd like to reserve a spot" });
+      replies.push({ label: "What's the vibe?", action: "what's the vibe right now?" });
+      return replies.slice(0, 4);
+    }
+
+    return [];
+  }, [selectedVenue, venueOfferings, carts, currentVenueMessages]);
 
   // ── Animate height/radius on mode + snap changes ──
   useEffect(() => {
@@ -1079,6 +1284,18 @@ export function TheDock({
           });
         }
       });
+
+      // Fetch offerings for quick replies (if not cached)
+      if (!venueOfferings[vid]) {
+        fetch(`/api/offerings?venueId=${vid}`)
+          .then((r) => r.ok ? r.json() : { offerings: [] })
+          .then((d) => {
+            if (d.offerings?.length) {
+              setVenueOfferings((prev) => ({ ...prev, [vid]: d.offerings.map((o: { id: string; type: string; name: string }) => ({ id: o.id, type: o.type, name: o.name })) }));
+            }
+          })
+          .catch(() => {});
+      }
     } else {
       if (mode === "venueChat") {
         setMode("explore");
@@ -1244,6 +1461,48 @@ export function TheDock({
       // Venue chat
       if (venueChatSnap === "collapsed") setVenueChatSnap("expanded");
 
+      // ── Cart special actions ──
+      if (msg === "__CHECKOUT__") {
+        setInput("");
+        // Build checkout from cart
+        const cart = carts.get(selectedVenue.id) || [];
+        if (cart.length === 0) return;
+        const checkoutData: CheckoutCardData = {
+          venue_name: selectedVenue.name,
+          venue_id: selectedVenue.id,
+          items: cart.map((item) => ({
+            offering_id: item.offeringId,
+            slot_id: null,
+            name: item.name,
+            quantity: item.quantity,
+            unit_price_cents: item.priceCents,
+          })),
+        };
+        const checkoutMsg: Message = {
+          id: `checkout-${Date.now()}`, sender: "ai",
+          body: "Here's your order — review and confirm when ready.",
+          timestamp: Date.now(), checkout: checkoutData,
+        };
+        setVenueThreads((prev) => {
+          const next = new Map(prev);
+          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), checkoutMsg]);
+          return next;
+        });
+        setCartExpanded(false);
+        return;
+      }
+      if (msg === "__CLEAR_CART__") {
+        setInput("");
+        clearCart(selectedVenue.id);
+        const clearMsg: Message = { id: `clear-${Date.now()}`, sender: "ai", body: "Cart cleared. What else can I help with?", timestamp: Date.now() };
+        setVenueThreads((prev) => {
+          const next = new Map(prev);
+          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), clearMsg]);
+          return next;
+        });
+        return;
+      }
+
       if (msg.toLowerCase() === "sign out" || msg.toLowerCase() === "signout") {
         const supabase = createClient();
         await supabase.auth.signOut();
@@ -1278,6 +1537,15 @@ export function TheDock({
           body: JSON.stringify(chatBody),
         });
         const data = await res.json();
+
+        // Store offerings metadata for rendering inline cards
+        if (data.offerings && Object.keys(data.offerings).length > 0) {
+          setOfferingsMap((prev) => ({
+            ...prev,
+            [selectedVenue.id]: { ...(prev[selectedVenue.id] || {}), ...data.offerings },
+          }));
+        }
+
         const cardTab = data.card || (activeTab !== "chat" ? activeTab : undefined);
         const aiMsg: Message = {
           id: `ai-${Date.now()}`, sender: "ai",
@@ -1463,7 +1731,32 @@ export function TheDock({
   // ─── Checkout handler for venue chat ──
   const handleCheckoutConfirm = useCallback(async (msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number) => {
     if (!selectedVenue || !msg.checkout) return;
+
+    const itemsTotal = msg.checkout.items.reduce((sum, item) => sum + item.unit_price_cents * item.quantity, 0);
+    const addOnsTotal = addOns.reduce((sum, a) => sum + a.price_cents, 0);
+    const subtotal = itemsTotal + addOnsTotal - pointsToSpend;
+
+    // Try wallet payment first if balance is sufficient
+    const useWallet = walletStatus?.active && walletStatus.balanceCents >= subtotal && subtotal > 0;
+
     try {
+      if (useWallet) {
+        // Pay with wallet — no extra fees
+        const spendRes = await fetch("/api/wallet/spend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amountCents: subtotal,
+            venueId: selectedVenue.id,
+            description: `Order at ${selectedVenue.name}`,
+          }),
+        });
+        const spendResult = await spendRes.json();
+        if (!spendRes.ok) {
+          throw new Error(spendResult.error || "Wallet spend failed");
+        }
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1473,17 +1766,20 @@ export function TheDock({
           addOns,
           pointsToSpend,
           notes: msg.checkout.notes,
+          paymentMethod: useWallet ? "wallet" : "card",
         }),
       });
       const result = await res.json();
       const confirmMsg: Message = result.orderId
-        ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed. ${pointsToSpend > 0 ? `Used ${pointsToSpend} points. ` : ""}Show this to the host when you arrive.`, timestamp: Date.now() }
+        ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed.${useWallet ? ` Paid $${(subtotal / 100).toFixed(2)} from wallet.` : ""} ${pointsToSpend > 0 ? `Used ${pointsToSpend} points. ` : ""}Show this to the host when you arrive.`, timestamp: Date.now() }
         : { id: `err-${Date.now()}`, sender: "ai", body: result.error || "Something went wrong with the order.", timestamp: Date.now() };
       setVenueThreads((prev) => {
         const next = new Map(prev);
         next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), confirmMsg]);
         return next;
       });
+      // Clear cart after successful order
+      if (result.orderId) clearCart(selectedVenue.id);
     } catch {
       setVenueThreads((prev) => {
         const next = new Map(prev);
@@ -1491,7 +1787,7 @@ export function TheDock({
         return next;
       });
     }
-  }, [selectedVenue]);
+  }, [selectedVenue, walletStatus, clearCart]);
 
   const handleCheckoutDismiss = useCallback(() => {
     if (!selectedVenue) return;
@@ -2245,6 +2541,14 @@ export function TheDock({
                     <span className="font-sans text-[8px] text-white/15">{selectedVenue.hours.split(",")[0]}</span>
                   </div>
                 )}
+                {walletStatus?.active && (
+                  <div className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(99,91,255,0.1)", border: "1px solid rgba(99,91,255,0.2)" }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#635bff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+                    </svg>
+                    <span className="font-mono text-[9px] font-semibold" style={{ color: "#635bff" }}>${(walletStatus.balanceCents / 100).toFixed(2)}</span>
+                  </div>
+                )}
               </div>
 
               {selectedVenue.tagline && (
@@ -2312,15 +2616,32 @@ export function TheDock({
                   }
 
                   if (msg.tab && msg.tab !== "chat") {
+                    // Phase 5: Inline tab responses — text bubble + compact strip below
                     return (
-                      <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                        {msg.tab === "vibe" && <VibeCard body="" venue={selectedVenue} vibeColor={vibeColor} />}
-                        {msg.tab === "menu" && <MenuCard body="" venue={selectedVenue} vibeColor={vibeColor} />}
-                        {msg.tab === "events" && <EventsCard body="" venue={selectedVenue} vibeColor={vibeColor} />}
-                        {msg.tab === "reserve" && <ReserveCard body="" venue={selectedVenue} vibeColor={vibeColor} />}
-                        {msg.tab === "shop" && <ShopCard body="" venue={selectedVenue} vibeColor={vibeColor} />}
-                        {msg.tab === "subscribe" && <SubscribeCard body="" venue={selectedVenue} vibeColor={vibeColor} />}
-                        {msg.tab === "join" && <JoinCard body="" venue={selectedVenue} vibeColor={vibeColor} />}
+                      <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
+                        {msg.body && (
+                          <div className="flex justify-start">
+                            <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                              <AiMessageBody
+                                body={msg.body}
+                                theme={vibeColor}
+                                offeringsMap={offeringsMap[selectedVenue.id] || {}}
+                                onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        {/* Compact tab strip */}
+                        <div className="ml-1">
+                          <button
+                            onClick={() => handleTabTap(msg.tab!)}
+                            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[10px] font-medium active:scale-95"
+                            style={{ backgroundColor: `${vibeColor}12`, color: vibeColor, border: `1px solid ${vibeColor}25` }}
+                          >
+                            <TabIcon path={TABS.find((t) => t.id === msg.tab)?.icon || ""} size={10} />
+                            View full {msg.tab} details
+                          </button>
+                        </div>
                       </motion.div>
                     );
                   }
@@ -2331,7 +2652,12 @@ export function TheDock({
                         {msg.body && (
                           <div className="flex justify-start">
                             <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                              <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
+                              <AiMessageBody
+                                body={msg.body}
+                                theme={vibeColor}
+                                offeringsMap={offeringsMap[selectedVenue.id] || {}}
+                                onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
+                              />
                             </div>
                           </div>
                         )}
@@ -2347,8 +2673,13 @@ export function TheDock({
 
                   return (
                     <motion.div key={msg.id} initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                      <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                        <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
+                      <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <AiMessageBody
+                          body={msg.body}
+                          theme={vibeColor}
+                          offeringsMap={offeringsMap[selectedVenue.id] || {}}
+                          onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
+                        />
                       </div>
                     </motion.div>
                   );
@@ -2356,6 +2687,99 @@ export function TheDock({
                 {loading && <LoadingDots />}
               </div>
             </div>
+
+            {/* Cart pill */}
+            {cartCount > 0 && selectedVenue && (
+              <div className="px-3 pb-1">
+                <AnimatePresence>
+                  {cartExpanded && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-1.5 overflow-hidden rounded-xl"
+                      style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}
+                    >
+                      <div className="flex flex-col gap-1 px-3 py-2">
+                        {currentCart.map((item) => (
+                          <div key={item.offeringId} className="flex items-center justify-between gap-2">
+                            <span className="min-w-0 flex-1 truncate font-sans text-[12px] text-white/70">{item.name}</span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => removeFromCart(selectedVenue.id, item.offeringId)}
+                                className="flex h-5 w-5 items-center justify-center rounded-full active:scale-90"
+                                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                              >
+                                <span className="font-mono text-[11px] font-bold text-white/50">-</span>
+                              </button>
+                              <span className="w-4 text-center font-mono text-[11px] font-bold text-white/60">{item.quantity}</span>
+                              <button
+                                onClick={() => addToCart(selectedVenue.id, item.offeringId, item.name, item.priceCents)}
+                                className="flex h-5 w-5 items-center justify-center rounded-full active:scale-90"
+                                style={{ backgroundColor: `${vibeColor}20` }}
+                              >
+                                <span className="font-mono text-[11px] font-bold" style={{ color: vibeColor }}>+</span>
+                              </button>
+                              <span className="w-12 text-right font-mono text-[11px] font-semibold text-white/50">${((item.priceCents * item.quantity) / 100).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2 border-t px-3 py-2" style={{ borderColor: `${vibeColor}15` }}>
+                        <button
+                          onClick={() => clearCart(selectedVenue.id)}
+                          className="rounded-full px-2.5 py-1 font-sans text-[10px] font-medium text-white/30 active:scale-95"
+                          style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+                        >
+                          Clear
+                        </button>
+                        <div className="flex-1" />
+                        <button
+                          onClick={() => { setCartExpanded(false); send("__CHECKOUT__"); }}
+                          className="rounded-full px-4 py-1.5 font-sans text-[11px] font-bold text-black active:scale-95"
+                          style={{ backgroundColor: vibeColor }}
+                        >
+                          Checkout ${(cartTotal / 100).toFixed(2)}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <button
+                  onClick={() => setCartExpanded(!cartExpanded)}
+                  className="flex w-full items-center justify-between rounded-full px-3 py-1.5 active:scale-[0.98]"
+                  style={{ backgroundColor: `${vibeColor}12`, border: `1px solid ${vibeColor}25` }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                    </svg>
+                    <span className="font-sans text-[11px] font-semibold" style={{ color: vibeColor }}>{cartCount} {cartCount === 1 ? "item" : "items"}</span>
+                  </div>
+                  <span className="font-mono text-[12px] font-bold" style={{ color: vibeColor }}>${(cartTotal / 100).toFixed(2)}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Smart quick replies */}
+            {!loading && selectedVenue && (() => {
+              const replies = getVenueReplies();
+              if (replies.length === 0) return null;
+              return (
+                <div className="flex gap-1.5 overflow-x-auto px-3 pb-1.5 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                  {replies.map((r) => (
+                    <button
+                      key={r.label}
+                      onClick={() => send(r.action)}
+                      className="shrink-0 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                      style={{ backgroundColor: `${vibeColor}08`, color: `${vibeColor}cc`, border: `1px solid ${vibeColor}20` }}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* Input bar */}
             <div className="flex items-center gap-2 px-3 pb-2 pt-1">
