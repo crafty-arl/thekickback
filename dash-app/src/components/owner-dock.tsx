@@ -262,15 +262,22 @@ export function OwnerDock({ initialData, venue, user }: OwnerDockProps) {
         return replies;
       }
       case "stats_shown":
-        return ["Any pending bookings?", "Guest list", "Compare to last week"];
+        return ["Any pending bookings?", "Guest list", "Compare to last week", "Add an offering"];
       case "bookings_shown":
         return pendingBookings > 0
           ? ["Approve all pending", "Past bookings"]
-          : ["Past bookings"];
+          : ["Past bookings", "Create an event"];
       case "mutation_done":
-        return ["What else?", "Show updated stats"];
+        return ["What else?", "Show updated stats", "Change something else"];
       default:
-        return ["Create an event", "Update hours", "Edit knowledge base"];
+        return [
+          "Create an event",
+          "Update hours",
+          "Add knowledge",
+          "Change venue name",
+          "Set up loyalty",
+          "Set AI chat limits",
+        ];
     }
   }
 
