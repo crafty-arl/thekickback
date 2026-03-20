@@ -46,6 +46,19 @@ export default async function DashboardPage() {
   const sandboxMode = await isSandbox();
   const mode = sandboxMode ? "test" : "live";
 
+  // ─── Check review status ─────────────────────────────────────────
+  const serviceEarly = createServiceClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+  const { data: venuePage } = await serviceEarly
+    .from("venue_pages")
+    .select("review_status, published, slug")
+    .eq("venue_id", venue.id)
+    .single();
+
+  const reviewStatus = venuePage?.review_status || "draft";
+
   // ─── Use service client for data queries (bypasses RLS) ──────────
   const service = createServiceClient(
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -273,6 +286,7 @@ export default async function DashboardPage() {
         leaderboard,
       }}
       venue={venue}
+      reviewStatus={reviewStatus}
       user={{ id: user.id, email: user.email || "" }}
     />
   );

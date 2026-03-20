@@ -176,13 +176,7 @@ export default function OnboardingPage() {
     }
   }, [router]);
 
-  // Redirect after submitted
-  useEffect(() => {
-    if (submitted) {
-      const timer = setTimeout(() => router.push("/"), 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [submitted, router]);
+  // No auto-redirect — user stays on page and sees "under review" state
 
   // ─── Send message ─────────────────────────────────────────────
 
@@ -421,15 +415,31 @@ export default function OnboardingPage() {
               className="mb-3 flex justify-start"
             >
               <div
-                className="max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-3"
+                className="max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-4"
                 style={{
-                  backgroundColor: "rgba(74,222,128,0.1)",
-                  border: "1px solid rgba(74,222,128,0.2)",
+                  backgroundColor: "rgba(74,222,128,0.06)",
+                  border: "1px solid rgba(74,222,128,0.15)",
                 }}
               >
-                <p className="font-sans text-[14px] leading-[1.6] text-green-400">
-                  Submitted for review. You'll be able to manage your hub from the dashboard while we review it. Redirecting...
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-400/20">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6 9 17l-5-5" /></svg>
+                  </div>
+                  <span className="font-sans text-[14px] font-bold text-green-400">Application Under Review</span>
+                </div>
+                <p className="mb-1 font-sans text-[13px] leading-[1.6] text-white/60">
+                  Your hub has been submitted and is being reviewed by our team. We&apos;ve sent a confirmation to your email.
                 </p>
+                <p className="mb-3 font-sans text-[13px] leading-[1.6] text-white/40">
+                  You can continue setting up your hub from the dashboard while you wait for approval.
+                </p>
+                <button
+                  onClick={() => router.push("/")}
+                  className="rounded-xl px-5 py-2.5 font-sans text-[13px] font-bold text-black active:scale-[0.98]"
+                  style={{ backgroundColor: "#4ADE80" }}
+                >
+                  Go to Dashboard
+                </button>
               </div>
             </motion.div>
           )}

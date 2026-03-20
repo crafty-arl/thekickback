@@ -32,12 +32,13 @@ interface DashboardData {
 interface OwnerDockProps {
   initialData: DashboardData;
   venue: { id: string; name: string; state: string; occupancy: number; max_occupancy: number; vibe: string };
+  reviewStatus?: string;
   user: { id: string; email: string };
 }
 
 // ─── Component ──────────────────────────────────────────────────────
 
-export function OwnerDock({ initialData, venue, user }: OwnerDockProps) {
+export function OwnerDock({ initialData, venue, reviewStatus, user }: OwnerDockProps) {
   const [messages, setMessages] = useState<OwnerMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -285,6 +286,21 @@ export function OwnerDock({ initialData, venue, user }: OwnerDockProps) {
 
   return (
     <div style={{ height: "100dvh" }} className="flex flex-col bg-black">
+      {/* Review status banner */}
+      {reviewStatus && reviewStatus !== "approved" && (
+        <div className="px-4 py-3 text-center" style={{
+          backgroundColor: reviewStatus === "pending" ? "rgba(249,115,22,0.1)" : reviewStatus === "rejected" ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.05)",
+          borderBottom: `1px solid ${reviewStatus === "pending" ? "rgba(249,115,22,0.2)" : reviewStatus === "rejected" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.08)"}`,
+        }}>
+          <span className="font-sans text-[12px] font-bold tracking-wide" style={{
+            color: reviewStatus === "pending" ? "#F97316" : reviewStatus === "rejected" ? "#EF4444" : "rgba(255,255,255,0.5)",
+          }}>
+            {reviewStatus === "pending" && "YOUR HUB IS UNDER REVIEW — We\u2019ll notify you once it\u2019s approved"}
+            {reviewStatus === "rejected" && "YOUR HUB WAS NOT APPROVED — Check your email for details or update your settings and resubmit"}
+            {reviewStatus === "draft" && "YOUR HUB IS IN DRAFT — Submit for review from Settings to go live"}
+          </span>
+        </div>
+      )}
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">

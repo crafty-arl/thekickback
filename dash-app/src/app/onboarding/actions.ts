@@ -124,12 +124,14 @@ export async function submitHubForReview() {
   // Find the user's venue
   const { data: ownership } = await service
     .from("venue_owners")
-    .select("venue_id")
+    .select("venue_id, venues(name)")
     .eq("user_id", user.id)
     .limit(1)
     .single();
 
   if (!ownership) return { error: "No hub found" };
+
+  const venueName = (ownership.venues as unknown as { name: string })?.name || "Your hub";
 
   // Update review status to pending
   const { error } = await service
@@ -138,5 +140,44 @@ export async function submitHubForReview() {
     .eq("venue_id", ownership.venue_id);
 
   if (error) return { error: error.message };
+
+  // Send notification emails
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
+    const adminEmail = "carl@craftthefuture.xyz";
+    const ownerEmail = user.email;
+
+    // Email to admin
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: "theKickBack <noreply@thekickback.net>",
+        to: [adminEmail],
+        subject: `New hub submitted for review: ${venueName}`,
+        html: `<h2>New Hub Submission</h2>
+<p><strong>${venueName}</strong> was submitted for review by ${ownerEmail}.</p>
+<p><a href="https://dash.thekickback.net/root">Review in admin dashboard</a></p>`,
+      }),
+    }).catch((err) => console.error("Admin email failed:", err));
+
+    // Email to owner
+    if (ownerEmail) {
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "theKickBack <noreply@thekickback.net>",
+          to: [ownerEmail],
+          subject: `${venueName} is under review`,
+          html: `<h2>Your hub is under review</h2>
+<p>We received your submission for <strong>${venueName}</strong> and it's now being reviewed.</p>
+<p>You'll receive an email once it's approved. In the meantime, you can continue editing your hub from the <a href="https://dash.thekickback.net">dashboard</a>.</p>
+<p>— theKickBack team</p>`,
+        }),
+      }).catch((err) => console.error("Owner email failed:", err));
+    }
+  }
+
   return { ok: true };
 }

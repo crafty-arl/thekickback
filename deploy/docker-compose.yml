@@ -103,6 +103,7 @@ services:
       - FOURSQUARE_SERVICE_TOKEN=${FOURSQUARE_SERVICE_TOKEN}
       - OPENCLAW_GATEWAY_URL=https://claw.thekickback.net
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - RESEND_API_KEY=${RESEND_API_KEY}
     restart: always
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
@@ -117,9 +118,15 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_MAPBOX_TOKEN: pk.eyJ1IjoiY3JhZmZ0eWFybCIsImEiOiJjbW00bndseTIwZWNuMnFwdzF4Nm9oa2R5In0.IZmVHl0HZsz2fucPLUmfMQ
     container_name: landing-blue
     expose:
       - "3000"
+    environment:
+      - OPENCLAW_GATEWAY_URL=https://claw.thekickback.net
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - OPENCLAW_HOOKS_TOKEN=${OPENCLAW_HOOKS_TOKEN}
     restart: always
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
@@ -134,9 +141,15 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_MAPBOX_TOKEN: pk.eyJ1IjoiY3JhZmZ0eWFybCIsImEiOiJjbW00bndseTIwZWNuMnFwdzF4Nm9oa2R5In0.IZmVHl0HZsz2fucPLUmfMQ
     container_name: landing-green
     expose:
       - "3000"
+    environment:
+      - OPENCLAW_GATEWAY_URL=https://claw.thekickback.net
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - OPENCLAW_HOOKS_TOKEN=${OPENCLAW_HOOKS_TOKEN}
     restart: always
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
@@ -153,7 +166,7 @@ services:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: claw
     init: true
-    command: ["openclaw", "gateway", "run", "--bind", "lan", "--allow-unconfigured"]
+    command: [ "openclaw", "gateway", "run", "--bind", "lan", "--allow-unconfigured" ]
     environment:
       - HOME=/home/node
       - TERM=xterm-256color
