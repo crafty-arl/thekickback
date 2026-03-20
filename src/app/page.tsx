@@ -10,7 +10,18 @@ const ACCENT = "#a78bfa";
 const ORANGE = "#f97316";
 
 /* Each use case: venue coords for flyTo + demo script */
-const DEMOS = [
+interface Demo {
+  id: string; label: string; emoji: string;
+  venue: { lng: number; lat: number; name: string; vibe: string };
+  tabs: string[]; activeTab: number;
+  messages: { sender: "guest" | "ai"; text: string }[];
+  offerings?: { name: string; price: number; emoji: string }[];
+  event?: { name: string; date: string; price: number; capacity: number; rsvps: number };
+  results?: { name: string; spec: string; dist: string; vibe: string }[];
+  schedule?: { day: string; hours: string; active: boolean }[];
+  setup?: string[];
+}
+const DEMOS: Demo[] = [
   {
     id: "barber", label: "The Barber", emoji: "✂️",
     venue: { lng: -97.7431, lat: 30.2672, name: "Metro Barbershop", vibe: "busy" },
@@ -381,9 +392,9 @@ export default function Home() {
                       ))}
 
                       {/* Offerings */}
-                      {(current as Record<string, unknown>).offerings && msgIndex >= 1 && (
+                      {!!current.offerings && msgIndex >= 1 && (
                         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5 overflow-x-auto pb-1" style={{ scrollSnapType: "x mandatory" }}>
-                          {((current as Record<string, unknown>).offerings as { name: string; price: number; emoji: string }[]).map((o) => (
+                          {(current.offerings as { name: string; price: number; emoji: string }[]).map((o) => (
                             <div key={o.name} className="flex shrink-0 flex-col overflow-hidden rounded-2xl" style={{ width: 150, backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${ACCENT}15`, scrollSnapAlign: "start" }}>
                               <div className="relative flex h-16 items-center justify-center" style={{ background: `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}06)` }}>
                                 <span className="text-2xl">{o.emoji}</span>
@@ -398,8 +409,8 @@ export default function Home() {
                       )}
 
                       {/* Event card */}
-                      {(current as Record<string, unknown>).event && msgIndex >= 1 && (() => {
-                        const ev = (current as Record<string, unknown>).event as { name: string; date: string; price: number; capacity: number; rsvps: number };
+                      {!!current.event && msgIndex >= 1 && (() => {
+                        const ev = current.event as { name: string; date: string; price: number; capacity: number; rsvps: number };
                         return (
                           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-2xl" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${ACCENT}15` }}>
                             <div className="relative flex h-16 items-center justify-center" style={{ background: `linear-gradient(135deg, ${ORANGE}20, ${ORANGE}06)` }}>
@@ -421,9 +432,9 @@ export default function Home() {
                       })()}
 
                       {/* Search results */}
-                      {(current as Record<string, unknown>).results && msgIndex >= 1 && (
+                      {!!current.results && msgIndex >= 1 && (
                         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-1.5">
-                          {((current as Record<string, unknown>).results as { name: string; spec: string; dist: string; vibe: string }[]).map((v) => {
+                          {(current.results as { name: string; spec: string; dist: string; vibe: string }[]).map((v) => {
                             const c = VIBE_COLORS[v.vibe] || ACCENT;
                             return (
                               <div key={v.name} className="flex items-center gap-3 rounded-2xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${c}15` }}>
@@ -440,10 +451,10 @@ export default function Home() {
                       )}
 
                       {/* Schedule */}
-                      {(current as Record<string, unknown>).schedule && (
+                      {!!current.schedule && (
                         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
                           <div className="font-sans text-[10px] font-semibold tracking-[2px] text-white/25 mb-1.5">THIS WEEK</div>
-                          {((current as Record<string, unknown>).schedule as { day: string; hours: string; active: boolean }[]).map((d) => (
+                          {(current.schedule as { day: string; hours: string; active: boolean }[]).map((d) => (
                             <div key={d.day} className="flex justify-between py-1 border-b last:border-0" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
                               <span className={`font-sans text-[11px] font-medium ${d.active ? "text-white/50" : "text-white/15"}`}>{d.day}</span>
                               <span className={`font-sans text-[11px] ${d.active ? "" : "line-through text-white/15"}`} style={{ color: d.active ? ACCENT : undefined }}>{d.hours}</span>
@@ -453,9 +464,9 @@ export default function Home() {
                       )}
 
                       {/* Setup checklist */}
-                      {(current as Record<string, unknown>).setup && msgIndex >= 3 && (
+                      {!!current.setup && msgIndex >= 3 && (
                         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                          {((current as Record<string, unknown>).setup as string[]).map((step, i) => (
+                          {(current.setup as string[]).map((step, i) => (
                             <div key={i} className="flex items-center gap-2 py-1">
                               <div className="flex h-4 w-4 items-center justify-center rounded-full" style={{ backgroundColor: `${ACCENT}25` }}>
                                 <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
