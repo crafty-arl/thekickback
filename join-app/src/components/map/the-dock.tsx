@@ -15,6 +15,7 @@ import { VibeCard, MenuCard, EventsCard, ReserveCard, ShopCard, SubscribeCard, J
 import { PointsBadge } from "./points-badge";
 import { VenueProfileCards } from "./venue-profile-cards";
 import { CheckoutCard, type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
+import { WalletSheet } from "./wallet-sheet";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -2382,6 +2383,9 @@ export function TheDock({
                   )}
                 </div>
               )}
+
+              {/* AI Wallet */}
+              <WalletSheet />
 
               {/* Preferences */}
               <div className="px-4">
