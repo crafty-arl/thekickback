@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
-import {
-  addOffering,
-  updateOffering,
-  deleteOffering,
-  addKnowledge,
-  deleteKnowledge,
-  addMenuItem,
-} from "@/app/settings/actions";
+import { revalidatePath } from "next/cache";
 
 function getService() {
   return createClient(
@@ -58,16 +51,19 @@ async function getOwnerVenueId(): Promise<string | null> {
 
 async function handleAction(
   action: NonNullable<RequestBody["action"]>,
+  venueId: string,
 ): Promise<{ reply: string; actionResult: ActionResult }> {
+  const svc = getService();
   try {
     switch (action.type) {
       case "approve_booking": {
         if (!action.id) throw new Error("Missing booking id");
-        const { error } = await getService()
+        const { error } = await svc
           .from("venue_bookings")
           .update({ cal_status: "accepted" })
           .eq("id", action.id);
         if (error) throw new Error(error.message);
+        revalidatePath("/");
         return {
           reply: `Done -- booking approved. [[ACTION_CONFIRM:{"success":true,"message":"Booking approved"}]]`,
           actionResult: { success: true, message: "Booking approved" },
@@ -76,11 +72,12 @@ async function handleAction(
 
       case "decline_booking": {
         if (!action.id) throw new Error("Missing booking id");
-        const { error } = await getService()
+        const { error } = await svc
           .from("venue_bookings")
           .update({ cal_status: "cancelled" })
           .eq("id", action.id);
         if (error) throw new Error(error.message);
+        revalidatePath("/");
         return {
           reply: `Done -- booking declined. [[ACTION_CONFIRM:{"success":true,"message":"Booking declined"}]]`,
           actionResult: { success: true, message: "Booking declined" },
@@ -89,11 +86,22 @@ async function handleAction(
 
       case "add_offering": {
         if (!action.data) throw new Error("Missing offering data");
-        const result = await addOffering(
-          action.data as Parameters<typeof addOffering>[0],
-        );
-        if ("error" in result)
-          throw new Error(result.error as string);
+        const d = action.data as { name: string; type: string; description?: string; price_cents: number; recurring?: boolean; interval?: string; perks?: string[]; duration_minutes?: number; capacity?: number; add_ons?: { name: string; price_cents: number }[] };
+        const { error } = await svc.from("venue_offerings").insert({
+          venue_id: venueId,
+          name: (d.name || "").trim(),
+          type: d.type || "custom",
+          description: d.description?.trim() || null,
+          price_cents: d.price_cents || 0,
+          recurring: d.recurring || false,
+          interval: d.recurring ? (d.interval || "month") : null,
+          perks: d.perks || [],
+          duration_minutes: d.duration_minutes || null,
+          capacity: d.capacity || null,
+          add_ons: d.add_ons || [],
+        });
+        if (error) throw new Error(error.message);
+        revalidatePath("/settings");
         return {
           reply: `Done -- offering created. [[ACTION_CONFIRM:{"success":true,"message":"Offering added"}]]`,
           actionResult: { success: true, message: "Offering added" },
@@ -103,12 +111,13 @@ async function handleAction(
       case "update_offering": {
         if (!action.id) throw new Error("Missing offering id");
         if (!action.data) throw new Error("Missing offering data");
-        const result = await updateOffering(
-          action.id,
-          action.data as Parameters<typeof updateOffering>[1],
-        );
-        if ("error" in result)
-          throw new Error(result.error as string);
+        const { error } = await svc
+          .from("venue_offerings")
+          .update(action.data)
+          .eq("id", action.id)
+          .eq("venue_id", venueId);
+        if (error) throw new Error(error.message);
+        revalidatePath("/settings");
         return {
           reply: `Done -- offering updated. [[ACTION_CONFIRM:{"success":true,"message":"Offering updated"}]]`,
           actionResult: { success: true, message: "Offering updated" },
@@ -117,9 +126,13 @@ async function handleAction(
 
       case "delete_offering": {
         if (!action.id) throw new Error("Missing offering id");
-        const result = await deleteOffering(action.id);
-        if ("error" in result)
-          throw new Error(result.error as string);
+        const { error } = await svc
+          .from("venue_offerings")
+          .delete()
+          .eq("id", action.id)
+          .eq("venue_id", venueId);
+        if (error) throw new Error(error.message);
+        revalidatePath("/settings");
         return {
           reply: `Done -- offering deleted. [[ACTION_CONFIRM:{"success":true,"message":"Offering deleted"}]]`,
           actionResult: { success: true, message: "Offering deleted" },
@@ -128,12 +141,13 @@ async function handleAction(
 
       case "add_knowledge": {
         if (!action.data?.content) throw new Error("Missing content");
-        const result = await addKnowledge(
-          action.data.content as string,
-          (action.data.category as string) || "general",
-        );
-        if ("error" in result)
-          throw new Error(result.error as string);
+        const { error } = await svc.from("venue_knowledge").insert({
+          venue_id: venueId,
+          content: (action.data.content as string).trim(),
+          category: (action.data.category as string) || "general",
+        });
+        if (error) throw new Error(error.message);
+        revalidatePath("/settings");
         return {
           reply: `Done -- knowledge added. [[ACTION_CONFIRM:{"success":true,"message":"Knowledge entry added"}]]`,
           actionResult: { success: true, message: "Knowledge entry added" },
@@ -142,9 +156,13 @@ async function handleAction(
 
       case "delete_knowledge": {
         if (!action.id) throw new Error("Missing knowledge id");
-        const result = await deleteKnowledge(action.id);
-        if ("error" in result)
-          throw new Error(result.error as string);
+        const { error } = await svc
+          .from("venue_knowledge")
+          .delete()
+          .eq("id", action.id)
+          .eq("venue_id", venueId);
+        if (error) throw new Error(error.message);
+        revalidatePath("/settings");
         return {
           reply: `Done -- knowledge entry removed. [[ACTION_CONFIRM:{"success":true,"message":"Knowledge entry deleted"}]]`,
           actionResult: { success: true, message: "Knowledge entry deleted" },
@@ -153,11 +171,18 @@ async function handleAction(
 
       case "add_menu_item": {
         if (!action.data) throw new Error("Missing menu item data");
-        const result = await addMenuItem(
-          action.data as Parameters<typeof addMenuItem>[0],
-        );
-        if ("error" in result)
-          throw new Error(result.error as string);
+        const mi = action.data as { category: string; name: string; description?: string; price_cents: number; inventory_count?: number };
+        const { error } = await svc.from("venue_menu_items").insert({
+          venue_id: venueId,
+          category: mi.category || "General",
+          name: (mi.name || "").trim(),
+          description: mi.description?.trim() || null,
+          price_cents: mi.price_cents || 0,
+          inventory_count: mi.inventory_count ?? null,
+          in_stock: true,
+        });
+        if (error) throw new Error(error.message);
+        revalidatePath("/settings");
         return {
           reply: `Done -- menu item added. [[ACTION_CONFIRM:{"success":true,"message":"Menu item added"}]]`,
           actionResult: { success: true, message: "Menu item added" },
@@ -211,7 +236,7 @@ export async function POST(request: NextRequest) {
 
     // ─── Action confirmation step ─────────────────────────────
     if (action) {
-      const result = await handleAction(action);
+      const result = await handleAction(action, venueId);
       return NextResponse.json(result);
     }
 
