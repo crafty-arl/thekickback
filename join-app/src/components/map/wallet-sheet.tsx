@@ -467,21 +467,38 @@ export function WalletSheet() {
 }
 
 // ── Hook: check if user has funded wallet (for AI to know) ──
-export function useWalletStatus() {
-  const [status, setStatus] = useState<{ active: boolean; balanceCents: number } | null>(null);
+interface WalletStatus {
+  active: boolean;
+  balanceCents: number;
+  hasCard: boolean;
+  refresh: () => void;
+}
 
-  useEffect(() => {
+export function useWalletStatus(): WalletStatus | null {
+  const [status, setStatus] = useState<WalletStatus | null>(null);
+
+  const refresh = useCallback(() => {
     fetch("/api/wallet")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (data?.wallet?.active && data.wallet.hasCard && data.wallet.balanceCents > 0) {
-          setStatus({ active: true, balanceCents: data.wallet.balanceCents });
+        if (data?.wallet) {
+          setStatus({
+            active: !!data.wallet.active,
+            balanceCents: data.wallet.balanceCents || 0,
+            hasCard: !!data.wallet.hasCard,
+            refresh: () => {},
+          });
         } else {
-          setStatus({ active: false, balanceCents: 0 });
+          setStatus({ active: false, balanceCents: 0, hasCard: false, refresh: () => {} });
         }
       })
-      .catch(() => setStatus({ active: false, balanceCents: 0 }));
+      .catch(() => setStatus({ active: false, balanceCents: 0, hasCard: false, refresh: () => {} }));
   }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  // Patch refresh into the status object
+  if (status) status.refresh = refresh;
 
   return status;
 }

@@ -2800,7 +2800,7 @@ export function TheDock({
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#635bff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
                     </svg>
-                    <span className="font-mono text-[9px] font-semibold" style={{ color: "#635bff" }}>${(walletStatus.balanceCents / 100).toFixed(2)}</span>
+                    <span className="font-mono text-[9px] font-semibold" style={{ color: "#635bff" }}>${((walletStatus?.balanceCents || 0) / 100).toFixed(2)}</span>
                   </div>
                 )}
                 {/* Navigate button */}
@@ -2984,7 +2984,8 @@ export function TheDock({
 
                   if (msg.checkout) {
                     const subtotal = msg.checkout.items.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0);
-                    const canUseWallet = walletStatus?.active && walletStatus.balanceCents >= subtotal;
+                    const hasWallet = walletStatus?.active && walletStatus.balanceCents > 0;
+                    const canUseWallet = hasWallet && walletStatus.balanceCents >= subtotal;
                     const stripeFee = Math.round(subtotal * 0.029 + 30);
                     const platformFee = Math.round(subtotal * 0.05);
                     const cardTotal = subtotal + stripeFee + platformFee;
