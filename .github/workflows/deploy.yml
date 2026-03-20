@@ -52,7 +52,8 @@ jobs:
             source .env
 
             # ── Cleanup ALL stale containers ──
-            # Force-stop and remove any containers with prefixed names (Docker rename artifacts)
+            # Stop and remove all compose containers cleanly, then prune
+            docker compose down --remove-orphans 2>/dev/null || true
             docker ps -aq | xargs -r docker rm -f 2>/dev/null || true
             docker image prune -f 2>/dev/null || true
 
