@@ -166,6 +166,36 @@ export async function deleteKnowledge(id: string) {
 
 // ─── Offering actions ────────────────────────────────────────────
 
+export async function uploadOfferingImage(offeringId: string, formData: FormData) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const file = formData.get("file") as File;
+    if (!file) return { error: "No file" };
+
+    const ext = file.name.split(".").pop() || "jpg";
+    const fileName = `${auth.venueId}/offerings/${offeringId}-${Date.now()}.${ext}`;
+
+    const { data: upload, error: uploadErr } = await service
+        .storage
+        .from("venue-assets")
+        .upload(fileName, file, { upsert: true, contentType: file.type });
+
+    if (uploadErr) return { error: uploadErr.message };
+
+    const { data: { publicUrl } } = service.storage.from("venue-assets").getPublicUrl(upload.path);
+
+    const { error } = await service
+        .from("venue_offerings")
+        .update({ image_url: publicUrl })
+        .eq("id", offeringId)
+        .eq("venue_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { url: publicUrl };
+}
+
 export async function addOffering(data: {
     name: string;
     type: string;

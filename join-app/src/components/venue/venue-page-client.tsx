@@ -75,6 +75,14 @@ interface Message {
   tab?: Tab;
 }
 
+interface OfferingMeta {
+  name: string;
+  description: string | null;
+  price_cents: number;
+  image_url: string | null;
+  type: string;
+}
+
 /* ── Helpers ── */
 
 function vc(vibe: string): string {
@@ -137,46 +145,83 @@ function toCardVenue(venue: Venue) {
   };
 }
 
-/* ── AI message body — parses [[OFFER:id:name:price]] into tappable chips ── */
+/* ── AI message body — parses [[OFFER:id:name:price]] into tappable chips with images ── */
 
-function AiMessageBody({ body, theme, onAddToCart }: { body: string; theme: string; onAddToCart: (name: string) => void }) {
-  // Split on [[OFFER:id:name:price_cents]] tags
+function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
+  body: string; theme: string;
+  onAddToCart: (name: string) => void;
+  offeringsMap: Record<string, OfferingMeta>;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const parts = body.split(/(\[\[OFFER:[^\]]+\]\])/g);
 
   if (parts.length === 1) {
-    // No offering links — plain text
     return <p className="font-sans text-[14px] leading-[1.6]">{body}</p>;
+  }
+
+  // Collect text parts and offering parts
+  const textParts: string[] = [];
+  const offerParts: { id: string; name: string; price: number }[] = [];
+
+  for (const part of parts) {
+    const match = part.match(/\[\[OFFER:([^:]+):([^:]+):(\d+)\]\]/);
+    if (match) {
+      offerParts.push({ id: match[1], name: match[2], price: parseInt(match[3]) / 100 });
+    } else if (part.trim()) {
+      textParts.push(part);
+    }
   }
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="font-sans text-[14px] leading-[1.6]">
-        {parts.map((part, i) => {
-          const match = part.match(/\[\[OFFER:([^:]+):([^:]+):(\d+)\]\]/);
-          if (!match) return <span key={i}>{part}</span>;
-          return null; // offerings rendered below
-        })}
-      </p>
-      {/* Render offering chips */}
-      <div className="flex flex-wrap gap-1.5 mt-1">
-        {parts.map((part, i) => {
-          const match = part.match(/\[\[OFFER:([^:]+):([^:]+):(\d+)\]\]/);
-          if (!match) return null;
-          const [, , name, priceStr] = match;
-          const price = parseInt(priceStr) / 100;
+      {textParts.length > 0 && (
+        <p className="font-sans text-[14px] leading-[1.6]">{textParts.join("")}</p>
+      )}
+      <div className="flex flex-col gap-1.5 mt-1">
+        {offerParts.map((offer) => {
+          const meta = offeringsMap[offer.id];
+          const isExpanded = expandedId === offer.id;
+          const hasImage = meta?.image_url;
+          const hasDesc = meta?.description;
+
           return (
-            <button
-              key={i}
-              onClick={() => onAddToCart(name)}
-              className="flex items-center gap-2 rounded-xl px-3 py-2 font-sans text-[12px] font-medium active:scale-95 transition"
-              style={{ backgroundColor: `${theme}15`, border: `1px solid ${theme}30`, color: theme }}
-            >
-              <span className="text-white/80">{name}</span>
-              <span className="font-mono font-bold">${price % 1 === 0 ? price : price.toFixed(2)}</span>
-              <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ backgroundColor: theme, color: "#000" }}>
-                ADD
-              </span>
-            </button>
+            <div key={offer.id} className="rounded-xl overflow-hidden transition" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}>
+              {/* Expanded: show image + description */}
+              {isExpanded && hasImage && (
+                <div className="relative" style={{ height: 120 }}>
+                  <img src={meta.image_url!} alt={offer.name} className="h-full w-full object-cover" />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.6) 100%)" }} />
+                </div>
+              )}
+
+              {/* Main row */}
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : offer.id)}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left active:opacity-80"
+              >
+                {/* Thumbnail (collapsed) */}
+                {!isExpanded && hasImage && (
+                  <img src={meta.image_url!} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <span className="font-sans text-[13px] font-medium text-white/85">{offer.name}</span>
+                  {isExpanded && hasDesc && (
+                    <p className="mt-0.5 font-sans text-[11px] leading-[1.4] text-white/40">{meta.description}</p>
+                  )}
+                </div>
+                <span className="shrink-0 font-mono text-[13px] font-bold" style={{ color: theme }}>
+                  ${offer.price % 1 === 0 ? offer.price : offer.price.toFixed(2)}
+                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onAddToCart(offer.name); }}
+                  className="shrink-0 rounded-full px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
+                  style={{ backgroundColor: theme, color: "#000" }}
+                >
+                  ADD
+                </button>
+              </button>
+            </div>
           );
         })}
       </div>
@@ -200,6 +245,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const [messages, setMessages] = useState<Message[]>([welcomeMsg]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [offeringsMap, setOfferingsMap] = useState<Record<string, OfferingMeta>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasSentTabCommand = useRef<Set<Tab>>(new Set(["chat"]));
@@ -256,6 +302,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         body: JSON.stringify({ message: msg, venueId: venue.id, venueName: venue.name, vibe: venue.vibe, occupancy: venue.occupancy, table }),
       });
       const data = await res.json();
+      if (data.offerings) setOfferingsMap((prev) => ({ ...prev, ...data.offerings }));
       setMessages((prev) => [...prev, { id: `ai-${Date.now()}`, sender: "ai", body: data.reply || "Couldn't reach the venue right now.", timestamp: Date.now(), tab: activeTab }]);
     } catch {
       setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "ai", body: "Something went wrong. Try again.", timestamp: Date.now() }]);
@@ -513,7 +560,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                     return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
                         <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                          <AiMessageBody body={msg.body} theme={theme} onAddToCart={(name) => send(`I want ${name}`)} />
+                          <AiMessageBody body={msg.body} theme={theme} onAddToCart={(name) => send(`I want ${name}`)} offeringsMap={offeringsMap} />
                         </div>
                       </motion.div>
                     );

@@ -28,28 +28,34 @@ async function getVenueKnowledge(venueId: string): Promise<string> {
     .join("\n\n");
 }
 
-async function getVenueOfferings(venueId: string): Promise<string> {
+interface OfferingRow {
+  id: string; type: string; name: string; description: string | null;
+  price_cents: number; recurring: boolean; interval: string | null;
+  duration_minutes: number | null; capacity: number | null;
+  add_ons: { name: string; price_cents: number }[] | null;
+  category: string | null; image_url: string | null;
+}
+
+async function getVenueOfferingsRaw(venueId: string): Promise<OfferingRow[]> {
   const { data } = await supabase
     .from("venue_offerings")
-    .select("id, type, name, description, price_cents, recurring, interval, duration_minutes, capacity, add_ons, category")
+    .select("id, type, name, description, price_cents, recurring, interval, duration_minutes, capacity, add_ons, category, image_url")
     .eq("venue_id", venueId)
     .eq("active", true)
     .order("sort_order");
+  return (data || []) as OfferingRow[];
+}
 
-  if (!data || data.length === 0) return "";
-
-  return data
-    .map((o) => {
-      const price = o.price_cents === 0
-        ? "Free"
-        : `$${(o.price_cents / 100).toFixed(2)}${o.recurring ? `/${o.interval || "mo"}` : ""}`;
-      const duration = o.duration_minutes ? ` (${o.duration_minutes} min)` : "";
-      const addOns = o.add_ons?.length
-        ? ` | Add-ons: ${o.add_ons.map((a: { name: string; price_cents: number }) => `${a.name} $${(a.price_cents / 100).toFixed(2)}`).join(", ")}`
-        : "";
-      return `- [${o.type}] "${o.name}" ${price}${duration}${addOns} (id:${o.id})`;
-    })
-    .join("\n");
+function formatOfferingsForPrompt(data: OfferingRow[]): string {
+  if (data.length === 0) return "";
+  return data.map((o) => {
+    const price = o.price_cents === 0 ? "Free" : `$${(o.price_cents / 100).toFixed(2)}${o.recurring ? `/${o.interval || "mo"}` : ""}`;
+    const duration = o.duration_minutes ? ` (${o.duration_minutes} min)` : "";
+    const addOns = o.add_ons?.length
+      ? ` | Add-ons: ${o.add_ons.map((a) => `${a.name} $${(a.price_cents / 100).toFixed(2)}`).join(", ")}`
+      : "";
+    return `- [${o.type}] "${o.name}" ${price}${duration}${addOns} (id:${o.id})`;
+  }).join("\n");
 }
 
 function parseCheckout(text: string): { reply: string; checkout: Record<string, unknown> | null } {
@@ -145,11 +151,18 @@ export async function POST(request: Request) {
   }
 
   // Fetch venue-specific knowledge, offerings, and user preferences
-  const [knowledge, offerings, prefsContext] = await Promise.all([
+  const [knowledge, offeringsRaw, prefsContext] = await Promise.all([
     getVenueKnowledge(venueId),
-    getVenueOfferings(venueId),
+    getVenueOfferingsRaw(venueId),
     userId ? getPreferencesContext(userId, venueId) : Promise.resolve(""),
   ]);
+  const offerings = formatOfferingsForPrompt(offeringsRaw);
+
+  // Build offerings lookup for the client (id → metadata)
+  const offeringsMap: Record<string, { name: string; description: string | null; price_cents: number; image_url: string | null; type: string }> = {};
+  for (const o of offeringsRaw) {
+    offeringsMap[o.id] = { name: o.name, description: o.description, price_cents: o.price_cents, image_url: o.image_url, type: o.type };
+  }
 
   // Build context for claw
   const context = [
@@ -282,5 +295,5 @@ export async function POST(request: Request) {
     extractPreferences(userId, message, reply, venueId, venueName).catch(() => {});
   }
 
-  return Response.json({ reply, checkout, booking: bookingResult });
+  return Response.json({ reply, checkout, booking: bookingResult, offerings: offeringsMap });
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate, updateAiLimits, getAiUsageStats } from "./actions";
+import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, uploadOfferingImage, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate, updateAiLimits, getAiUsageStats } from "./actions";
 import { uploadGalleryImage, deleteGalleryImage, updateHeroImage, removeHeroImage } from "../../app/edit/gallery-actions";
 import { addStaffMember, updateStaffMember, deleteStaffMember, uploadStaffAvatar, toggleStaffVisibility } from "./staff-actions";
 import { linkStaffToOffering, unlinkStaffFromOffering } from "./staff-offering-actions";
@@ -214,6 +214,7 @@ interface Offering {
     active: boolean;
     sort_order: number;
     stripe_price_id: string | null;
+    image_url: string | null;
     created_at: string;
 }
 
@@ -1162,9 +1163,24 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                 const typeInfo = OFFERING_TYPES.find((t) => t.id === o.type);
                                 return (
                                     <div key={o.id} className="group flex items-start gap-4 rounded-xl border p-4" style={{ borderColor: o.active ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)", backgroundColor: "rgba(255,255,255,0.02)", opacity: o.active ? 1 : 0.5 }}>
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(249,115,22,0.15)" }}>
-                                            <span className="text-[18px]">{typeInfo?.icon || "✦"}</span>
-                                        </div>
+                                        {/* Image or icon */}
+                                        <label className="relative flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl" style={{ backgroundColor: "rgba(249,115,22,0.15)" }}>
+                                            {o.image_url ? (
+                                                <img src={o.image_url} alt="" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <span className="text-[18px]">{typeInfo?.icon || "✦"}</span>
+                                            )}
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition group-hover:opacity-100">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+                                            </div>
+                                            <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+                                                const fd = new FormData();
+                                                fd.append("file", file);
+                                                await uploadOfferingImage(o.id, fd);
+                                            }} />
+                                        </label>
                                         <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2">
                                                 <p className="font-sans text-[14px] font-semibold text-white">{o.name}</p>

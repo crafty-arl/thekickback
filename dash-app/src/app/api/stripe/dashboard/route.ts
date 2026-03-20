@@ -32,7 +32,7 @@ export async function GET() {
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-04-30.basil" });
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
     const loginLink = await stripe.accounts.createLoginLink(venue.stripe_account_id);
     return NextResponse.json({ url: loginLink.url });
   } catch (err) {
