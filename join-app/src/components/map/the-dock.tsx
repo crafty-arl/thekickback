@@ -1984,6 +1984,31 @@ export function TheDock({
                     </svg>
                     <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
                   </motion.button>
+                  {/* Clear thread */}
+                  {currentVenueMessages.length > 1 && (
+                    <motion.button
+                      onClick={() => {
+                        if (!selectedVenue) return;
+                        const welcomeBody = selectedVenue.claimed === false
+                          ? `Hey — I know a bit about ${selectedVenue.name} from public info. Ask me what you want to know.`
+                          : `Welcome to ${selectedVenue.name}. ${getVibeLabel(selectedVenue.vibe)} right now, ${selectedVenue.occupancy} people. Ask me anything.`;
+                        setVenueThreads((prev) => {
+                          const next = new Map(prev);
+                          next.set(selectedVenue.id, [{ id: `welcome-${Date.now()}`, sender: "ai", body: welcomeBody, timestamp: Date.now() }]);
+                          return next;
+                        });
+                      }}
+                      whileTap={{ scale: 0.85 }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full"
+                      style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                      title="Start over"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      </svg>
+                    </motion.button>
+                  )}
                   <motion.button
                     onClick={() => setVenueChatExpanded(false)}
                     whileTap={{ scale: 0.85 }}
