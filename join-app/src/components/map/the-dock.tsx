@@ -187,19 +187,21 @@ function snapToHeight(snap: SnapPoint): string {
   return `${SNAP_FULL}vh`;
 }
 
-function getDockHeight(mode: DockMode, exploreSnap: SnapPoint, venueChatExpanded: boolean): string {
+type VenueChatSnap = "collapsed" | "expanded" | "full";
+
+function getDockHeight(mode: DockMode, exploreSnap: SnapPoint, venueChatSnap: VenueChatSnap): string {
   switch (mode) {
     case "idle": return "56px";
     case "explore": return snapToHeight(exploreSnap);
     case "concierge": return "70dvh";
-    case "venueChat": return venueChatExpanded ? "70dvh" : "56px";
+    case "venueChat": return venueChatSnap === "full" ? "92dvh" : venueChatSnap === "expanded" ? "70dvh" : "56px";
     case "profile": return "70dvh";
   }
 }
 
-function getDockRadius(mode: DockMode, exploreSnap: SnapPoint, venueChatExpanded: boolean): string {
+function getDockRadius(mode: DockMode, exploreSnap: SnapPoint, venueChatSnap: VenueChatSnap): string {
   if (mode === "idle") return "28px";
-  if (mode === "venueChat" && !venueChatExpanded) return "28px";
+  if (mode === "venueChat" && venueChatSnap === "collapsed") return "28px";
   if (mode === "explore" && exploreSnap === "full") return "24px 24px 0 0";
   if (mode === "explore" && exploreSnap !== "full") return "20px";
   return "24px 24px 0 0";
@@ -806,7 +808,7 @@ export function TheDock({
   const [mode, setMode] = useState<DockMode>("idle");
   const [previousMode, setPreviousMode] = useState<DockMode>("idle");
   const [exploreSnap, setExploreSnap] = useState<SnapPoint>("peek");
-  const [venueChatExpanded, setVenueChatExpanded] = useState(false);
+  const [venueChatSnap, setVenueChatSnap] = useState<VenueChatSnap>("collapsed");
 
   // ── Chat state (persisted across mode switches) ──
   const [conciergeMessages, setConciergeMessages] = useState<Message[]>([
@@ -845,11 +847,11 @@ export function TheDock({
   // ── Animate height/radius on mode + snap changes ──
   useEffect(() => {
     controls.start({
-      height: getDockHeight(mode, exploreSnap, venueChatExpanded),
-      borderRadius: getDockRadius(mode, exploreSnap, venueChatExpanded),
+      height: getDockHeight(mode, exploreSnap, venueChatSnap),
+      borderRadius: getDockRadius(mode, exploreSnap, venueChatSnap),
       transition: { type: "spring", damping: 30, stiffness: 300 },
     });
-  }, [mode, exploreSnap, venueChatExpanded, controls]);
+  }, [mode, exploreSnap, venueChatSnap, controls]);
 
   // ── Scroll to bottom on new messages ──
   useEffect(() => {
@@ -898,7 +900,8 @@ export function TheDock({
         if (mode === "profile") { setMode(previousMode); return; }
         if (mode === "concierge") { setMode("idle"); return; }
         if (mode === "venueChat") {
-          if (venueChatExpanded) { setVenueChatExpanded(false); return; }
+          if (venueChatSnap === "full") { setVenueChatSnap("expanded"); return; }
+          if (venueChatSnap === "expanded") { setVenueChatSnap("collapsed"); return; }
           onVenueSelect(null); return;
         }
         if (mode === "explore") {
@@ -917,7 +920,10 @@ export function TheDock({
           if (exploreSnap === "peek") setExploreSnap("half");
           else if (exploreSnap === "half") setExploreSnap("full");
         }
-        else if (mode === "venueChat" && !venueChatExpanded) setVenueChatExpanded(true);
+        else if (mode === "venueChat") {
+          if (venueChatSnap === "collapsed") setVenueChatSnap("expanded");
+          else if (venueChatSnap === "expanded") setVenueChatSnap("full");
+        }
         return;
       }
 
@@ -930,7 +936,10 @@ export function TheDock({
           else setMode("idle");
         }
         else if (mode === "concierge") setMode("idle");
-        else if (mode === "venueChat" && venueChatExpanded) setVenueChatExpanded(false);
+        else if (mode === "venueChat") {
+          if (venueChatSnap === "full") setVenueChatSnap("expanded");
+          else if (venueChatSnap === "expanded") setVenueChatSnap("collapsed");
+        }
         return;
       }
 
@@ -945,7 +954,7 @@ export function TheDock({
       if (e.key === "Enter" && selectedVenue && mode !== "venueChat") {
         e.preventDefault();
         setMode("venueChat");
-        setVenueChatExpanded(true);
+        setVenueChatSnap("expanded");
         return;
       }
 
@@ -994,7 +1003,7 @@ export function TheDock({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isDesktop, mode, previousMode, exploreSnap, venueChatExpanded, selectedVenue, hasLocation, showShortcuts, onNavigateVenue, onRecenter, onVenueSelect]);
+  }, [isDesktop, mode, previousMode, exploreSnap, venueChatSnap, selectedVenue, hasLocation, showShortcuts, onNavigateVenue, onRecenter, onVenueSelect]);
 
   // ── Load thread history from API ──
   const loadThreadHistory = useCallback(async (venueId: string | null) => {
@@ -1036,7 +1045,7 @@ export function TheDock({
   useEffect(() => {
     if (selectedVenue) {
       setMode("venueChat");
-      setVenueChatExpanded(false);
+      setVenueChatSnap("collapsed");
       setActiveTab("chat");
 
       // If we already have cached messages, keep them
@@ -1233,7 +1242,7 @@ export function TheDock({
 
     if (mode === "venueChat" && selectedVenue) {
       // Venue chat
-      if (!venueChatExpanded) setVenueChatExpanded(true);
+      if (venueChatSnap === "collapsed") setVenueChatSnap("expanded");
 
       if (msg.toLowerCase() === "sign out" || msg.toLowerCase() === "signout") {
         const supabase = createClient();
@@ -1336,7 +1345,7 @@ export function TheDock({
         inputRef.current?.focus();
       }
     }
-  }, [input, loading, mode, selectedVenue, venueChatExpanded, activeTab]);
+  }, [input, loading, mode, selectedVenue, venueChatSnap, activeTab]);
 
   // ─── Tab tap ───────────────────────────────────────────────────
 
@@ -1386,10 +1395,12 @@ export function TheDock({
       if (draggingDown) setMode("idle");
     } else if (mode === "venueChat") {
       if (draggingDown) {
-        if (venueChatExpanded) setVenueChatExpanded(false);
+        if (venueChatSnap === "full") setVenueChatSnap("expanded");
+        else if (venueChatSnap === "expanded") setVenueChatSnap("collapsed");
         // Don't dismiss on drag from collapsed — keep venue selected
       } else if (draggingUp) {
-        if (!venueChatExpanded) setVenueChatExpanded(true);
+        if (venueChatSnap === "collapsed") setVenueChatSnap("expanded");
+        else if (venueChatSnap === "expanded") setVenueChatSnap("full");
       }
     } else if (mode === "profile") {
       if (draggingDown) setMode(previousMode);
@@ -1402,14 +1413,14 @@ export function TheDock({
     if (mode === "idle" || mode === "explore") {
       if (selectedVenue) {
         setMode("venueChat");
-        setVenueChatExpanded(true);
+        setVenueChatSnap("expanded");
       } else {
         setMode("concierge");
       }
-    } else if (mode === "venueChat" && !venueChatExpanded) {
-      setVenueChatExpanded(true);
+    } else if (mode === "venueChat" && venueChatSnap === "collapsed") {
+      setVenueChatSnap("expanded");
     }
-  }, [mode, selectedVenue, venueChatExpanded]);
+  }, [mode, selectedVenue, venueChatSnap]);
 
   // ─── Concierge venue card tap ──────────────────────────────────
 
@@ -1445,6 +1456,7 @@ export function TheDock({
   const tierColor = TIER_CONFIG[user?.tier || "explorer"]?.color || "#94a3b8";
   const vibeColor = selectedVenue ? getVibeHexColor(selectedVenue.vibe) : ACCENT;
   const sendColor = mode === "venueChat" ? vibeColor : ACCENT;
+  const venueChatExpanded = venueChatSnap !== "collapsed";
   const showExpandedContent = mode === "explore" || mode === "concierge" || mode === "profile" || (mode === "venueChat" && venueChatExpanded);
   const isCollapsedPill = mode === "idle" || (mode === "venueChat" && !venueChatExpanded);
 
@@ -1696,7 +1708,7 @@ export function TheDock({
         {/* ═══ VENUE CHAT COLLAPSED ═══ */}
         {mode === "venueChat" && !venueChatExpanded && selectedVenue && (
           <div className="flex h-full items-center gap-2 px-3">
-            <button onClick={() => setVenueChatExpanded(true)} className="flex items-center gap-2 pl-1">
+            <button onClick={() => setVenueChatSnap("expanded")} className="flex items-center gap-2 pl-1">
               <motion.div
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ backgroundColor: vibeColor }}
@@ -2172,8 +2184,26 @@ export function TheDock({
                       </svg>
                     </motion.button>
                   )}
+                  {/* Expand to full / collapse from full */}
                   <motion.button
-                    onClick={() => setVenueChatExpanded(false)}
+                    onClick={() => setVenueChatSnap(venueChatSnap === "full" ? "expanded" : "full")}
+                    whileTap={{ scale: 0.85 }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full"
+                    style={{ backgroundColor: venueChatSnap === "full" ? `${vibeColor}15` : "rgba(255,255,255,0.08)" }}
+                  >
+                    {venueChatSnap === "full" ? (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
+                        <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
+                      </svg>
+                    ) : (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-40">
+                        <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+                      </svg>
+                    )}
+                  </motion.button>
+                  {/* Collapse to pill */}
+                  <motion.button
+                    onClick={() => setVenueChatSnap("collapsed")}
                     whileTap={{ scale: 0.85 }}
                     className="flex h-7 w-7 items-center justify-center rounded-full"
                     style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
