@@ -175,6 +175,7 @@ export async function addOffering(data: {
     interval?: string;
     perks?: string[];
     duration_minutes?: number;
+    capacity?: number;
     add_ons?: { name: string; price_cents: number }[];
 }) {
     const auth = await getAuthVenue();
@@ -191,6 +192,7 @@ export async function addOffering(data: {
         interval: data.recurring ? (data.interval || "month") : null,
         perks: data.perks || [],
         duration_minutes: data.duration_minutes || null,
+        capacity: data.capacity || null,
         add_ons: data.add_ons || [],
     }).select("id");
 

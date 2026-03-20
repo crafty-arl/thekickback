@@ -486,6 +486,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [offeringPerks, setOfferingPerks] = useState("");
     const [offeringDuration, setOfferingDuration] = useState("");
     const [offeringAddOns, setOfferingAddOns] = useState("");
+    const [offeringCapacity, setOfferingCapacity] = useState("");
     const [savingOffering, setSavingOffering] = useState(false);
     const [offeringMsg, setOfferingMsg] = useState("");
     const [togglingOffering, setTogglingOffering] = useState<string | null>(null);
@@ -586,13 +587,14 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
             interval: template?.recurring ? "month" : undefined,
             perks: offeringPerks.split("\n").map((p) => p.trim()).filter(Boolean),
             duration_minutes: offeringDuration ? parseInt(offeringDuration) : undefined,
+            capacity: offeringCapacity ? parseInt(offeringCapacity) : undefined,
             add_ons: parsedAddOns.length > 0 ? parsedAddOns : undefined,
         });
         if (result.error) { setOfferingMsg(result.error); }
         else {
             setOfferingMsg("Added!");
             setShowAddOffering(false);
-            setOfferingName(""); setOfferingDesc(""); setOfferingPrice(""); setOfferingPerks(""); setOfferingDuration(""); setOfferingAddOns("");
+            setOfferingName(""); setOfferingDesc(""); setOfferingPrice(""); setOfferingPerks(""); setOfferingDuration(""); setOfferingAddOns(""); setOfferingCapacity("");
             setTimeout(() => setOfferingMsg(""), 2000);
         }
         setSavingOffering(false);
@@ -1295,6 +1297,9 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                         </Field>
                                         <Field label="How long does it take?" hint="In minutes — skip if not applicable">
                                             <input type="number" value={offeringDuration} onChange={(e) => setOfferingDuration(e.target.value)} placeholder="60" className="input" />
+                                        </Field>
+                                        <Field label="How many can you book at the same time?" hint="e.g. 1 for a barber chair, 10 for a group class">
+                                            <input type="number" min="1" value={offeringCapacity} onChange={(e) => setOfferingCapacity(e.target.value)} placeholder="1" className="input" style={{ maxWidth: 120 }} />
                                         </Field>
                                         <Field label="What's included?" hint="One perk per line">
                                             <textarea value={offeringPerks} onChange={(e) => setOfferingPerks(e.target.value)} rows={3} placeholder={"Priority seating\n10% off drinks\nExclusive events"} className="input resize-none" />
