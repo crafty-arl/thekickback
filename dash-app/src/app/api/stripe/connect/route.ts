@@ -35,11 +35,21 @@ export async function POST() {
   const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
   try {
-    const { data: existing } = await service
+    // Check if stripe_account_id column exists by querying it
+    const { data: existing, error: queryError } = await service
       .from("venues")
       .select("stripe_account_id")
       .eq("id", auth.venueId)
       .single();
+
+    if (queryError) {
+      console.error("Stripe Connect: venue query error:", queryError.message, queryError.code);
+      // Column may not exist yet — try adding it
+      if (queryError.message?.includes("stripe_account_id") || queryError.code === "42703") {
+        await service.rpc("exec_sql", { sql: "ALTER TABLE venues ADD COLUMN IF NOT EXISTS stripe_account_id text" }).then(() => {});
+      }
+      return NextResponse.json({ error: `Database error: ${queryError.message}` }, { status: 500 });
+    }
 
     let accountId = existing?.stripe_account_id;
 
@@ -50,7 +60,11 @@ export async function POST() {
         metadata: { venue_id: auth.venueId, venue_name: auth.venueName },
       });
       accountId = account.id;
-      await service.from("venues").update({ stripe_account_id: accountId }).eq("id", auth.venueId);
+
+      const { error: updateError } = await service.from("venues").update({ stripe_account_id: accountId }).eq("id", auth.venueId);
+      if (updateError) {
+        console.error("Stripe Connect: failed to save account ID:", updateError.message);
+      }
     }
 
     const accountLink = await stripe.accountLinks.create({

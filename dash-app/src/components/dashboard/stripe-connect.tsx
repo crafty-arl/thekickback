@@ -15,6 +15,7 @@ export function StripeConnect() {
   const [status, setStatus] = useState<StripeStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/stripe/connect")
@@ -26,13 +27,18 @@ export function StripeConnect() {
 
   const handleConnect = async () => {
     setConnecting(true);
+    setConnectError(null);
     try {
       const res = await fetch("/api/stripe/connect", { method: "POST" });
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        setConnectError(data.error || "Failed to create Stripe onboarding link");
+        setConnecting(false);
       }
-    } catch {
+    } catch (err) {
+      setConnectError("Network error — check your connection and try again");
       setConnecting(false);
     }
   };
@@ -98,6 +104,11 @@ export function StripeConnect() {
             </p>
           </div>
         </div>
+        {connectError && (
+          <div className="mt-2 rounded-xl px-4 py-2" style={{ backgroundColor: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)" }}>
+            <p className="font-sans text-[12px] text-red-500">{connectError}</p>
+          </div>
+        )}
         <button
           onClick={handleConnect}
           disabled={connecting}
@@ -144,6 +155,12 @@ export function StripeConnect() {
           ))}
         </div>
       </div>
+
+      {connectError && (
+        <div className="mt-3 rounded-xl px-4 py-3" style={{ backgroundColor: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)" }}>
+          <p className="font-sans text-[12px] text-red-500">{connectError}</p>
+        </div>
+      )}
 
       <button
         onClick={handleConnect}
