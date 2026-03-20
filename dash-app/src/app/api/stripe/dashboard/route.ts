@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { getStripeKey } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/stripe/dashboard — get a Stripe dashboard login link
 export async function GET() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const { key } = await getStripeKey();
+  if (!key) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
   }
 
@@ -32,7 +34,7 @@ export async function GET() {
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+    const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
     const loginLink = await stripe.accounts.createLoginLink(venue.stripe_account_id);
     return NextResponse.json({ url: loginLink.url });
   } catch (err) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { getStripeKey } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -22,22 +23,18 @@ async function getAuthVenue() {
   return { userId: user.id, email: user.email, venueId: venue.id, venueName: venue.name };
 }
 
-function isTestKey(key: string): boolean {
-  return key.startsWith("sk_test_") || key.startsWith("rk_test_");
-}
-
 // POST /api/stripe/connect — create Stripe Connect onboarding link
 export async function POST() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const { key, testMode } = await getStripeKey();
+  if (!key) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
   }
 
   const auth = await getAuthVenue();
   if (!auth) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+  const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
   const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
-  const testMode = isTestKey(process.env.STRIPE_SECRET_KEY);
 
   try {
     const { data: existing, error: queryError } = await service
@@ -56,11 +53,8 @@ export async function POST() {
     // If existing account is from the wrong mode (test vs live), clear it
     if (accountId) {
       try {
-        const existing = await stripe.accounts.retrieve(accountId);
-        // Account exists in current mode — keep it
-        void existing;
+        await stripe.accounts.retrieve(accountId);
       } catch {
-        // Account doesn't exist in current mode — was from the other mode, clear it
         console.log(`Stripe Connect: clearing stale account ${accountId} (wrong mode)`);
         await service.from("venues").update({ stripe_account_id: null }).eq("id", auth.venueId);
         accountId = null;
@@ -81,10 +75,14 @@ export async function POST() {
       }
     }
 
+    const baseUrl = testMode
+      ? (process.env.NEXT_PUBLIC_SANDBOX_URL || "https://sanddash.thekickback.net")
+      : (process.env.NEXT_PUBLIC_APP_URL || "https://dash.thekickback.net");
+
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://dash.thekickback.net"}/settings?stripe=refresh`,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://dash.thekickback.net"}/settings?stripe=success`,
+      refresh_url: `${baseUrl}/settings?stripe=refresh`,
+      return_url: `${baseUrl}/settings?stripe=success`,
       type: "account_onboarding",
     });
 
@@ -98,16 +96,16 @@ export async function POST() {
 
 // GET /api/stripe/connect — check Stripe connection status
 export async function GET() {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ connected: false, error: "Stripe not configured" });
+  const { key, testMode } = await getStripeKey();
+  if (!key) {
+    return NextResponse.json({ connected: false, testMode, error: "Stripe not configured" });
   }
 
   const auth = await getAuthVenue();
   if (!auth) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+  const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
   const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
-  const testMode = isTestKey(process.env.STRIPE_SECRET_KEY);
 
   const { data: venue } = await service.from("venues").select("stripe_account_id").eq("id", auth.venueId).single();
 
@@ -127,7 +125,6 @@ export async function GET() {
       testMode,
     });
   } catch {
-    // Account not found in current mode — clear the stale reference
     await service.from("venues").update({ stripe_account_id: null }).eq("id", auth.venueId);
     return NextResponse.json({ connected: false, testMode, error: "Account not found — please reconnect" });
   }

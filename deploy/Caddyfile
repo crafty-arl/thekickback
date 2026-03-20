@@ -18,6 +18,10 @@ dash.thekickback.net {
 	reverse_proxy dash-app:3000
 }
 
+sanddash.thekickback.net {
+	reverse_proxy dash-app:3000
+}
+
 claw.thekickback.net {
 	reverse_proxy claw:18789
 }

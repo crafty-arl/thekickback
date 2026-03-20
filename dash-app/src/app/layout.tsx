@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
+import { SandboxBanner } from "@/components/sandbox-banner";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -27,6 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${dmSans.variable} ${fraunces.variable} antialiased`}>
+        <SandboxBanner />
         {children}
       </body>
     </html>
