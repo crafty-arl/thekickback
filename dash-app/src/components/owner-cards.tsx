@@ -1,0 +1,385 @@
+"use client";
+
+import { motion } from "framer-motion";
+import Link from "next/link";
+
+/* ------------------------------------------------------------------ */
+/*  Shared                                                            */
+/* ------------------------------------------------------------------ */
+
+const glass = {
+  backgroundColor: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.06)",
+};
+
+const enter = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } };
+
+function fmt$(cents: number) {
+  return `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function relativeTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+const tierColors: Record<string, string> = {
+  explorer: "#94a3b8",
+  regular: "#4ade80",
+  member: "#f97316",
+  vip: "#a78bfa",
+};
+
+/* ------------------------------------------------------------------ */
+/*  1. StatsCard                                                      */
+/* ------------------------------------------------------------------ */
+
+export function StatsCard({
+  occupancy,
+  capacity,
+  visitorsToday,
+  revenue,
+  members,
+}: {
+  occupancy: number;
+  capacity: number;
+  visitorsToday: number;
+  revenue: number;
+  members: number;
+}) {
+  const pct = capacity > 0 ? Math.round((occupancy / capacity) * 100) : 0;
+
+  return (
+    <motion.div {...enter} style={glass} className="rounded-2xl p-4 space-y-3">
+      {/* Occupancy bar */}
+      <div>
+        <p className="text-[10px] text-white/40 mb-1">Occupancy</p>
+        <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            style={{ backgroundColor: "#F97316" }}
+            initial={{ width: 0 }}
+            animate={{ width: `${pct}%` }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          />
+        </div>
+        <p className="text-[20px] font-bold text-white/90 mt-1">
+          {occupancy}
+          <span className="text-[10px] text-white/40 font-normal"> / {capacity}</span>
+        </p>
+      </div>
+
+      {/* 2x2 grid */}
+      <div className="grid grid-cols-2 gap-3">
+        <StatBox label="Visitors Today" value={String(visitorsToday)} />
+        <StatBox label="Revenue" value={fmt$(revenue)} />
+        <StatBox label="Members" value={String(members)} />
+        <StatBox label="Occupancy %" value={`${pct}%`} />
+      </div>
+    </motion.div>
+  );
+}
+
+function StatBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={glass} className="rounded-xl p-3">
+      <p className="text-[10px] text-white/40">{label}</p>
+      <p className="text-[20px] font-bold text-white/90">{value}</p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  2. BookingsCard                                                   */
+/* ------------------------------------------------------------------ */
+
+export function BookingsCard({
+  bookings,
+  onApprove,
+  onDecline,
+}: {
+  bookings: Array<{
+    id: string;
+    guest_name: string;
+    offering_name: string;
+    starts_at: string;
+    cal_status: string;
+  }>;
+  onApprove?: (id: string) => void;
+  onDecline?: (id: string) => void;
+}) {
+  return (
+    <motion.div {...enter} style={glass} className="rounded-2xl p-4 space-y-2">
+      <p className="text-[10px] text-white/40 mb-1">Bookings</p>
+
+      {bookings.length === 0 && (
+        <p className="text-white/40 text-sm">No bookings</p>
+      )}
+
+      {bookings.map((b) => (
+        <div
+          key={b.id}
+          style={glass}
+          className="rounded-xl p-3 flex items-center justify-between gap-3"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-white/85 truncate">{b.guest_name}</p>
+            <p className="text-[10px] text-white/40 truncate">
+              {b.offering_name} &middot; {formatTime(b.starts_at)}
+            </p>
+          </div>
+
+          <StatusBadge status={b.cal_status} />
+
+          {onApprove && onDecline && b.cal_status === "pending" && (
+            <div className="flex gap-1.5 shrink-0">
+              <button
+                onClick={() => onApprove(b.id)}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => onDecline(b.id)}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+              >
+                Decline
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </motion.div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    pending: "bg-yellow-500/20 text-yellow-400",
+    confirmed: "bg-green-500/20 text-green-400",
+    declined: "bg-red-500/20 text-red-400",
+    cancelled: "bg-white/10 text-white/40",
+  };
+  return (
+    <span
+      className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${colors[status] ?? colors.pending}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  3. GuestsCard                                                     */
+/* ------------------------------------------------------------------ */
+
+export function GuestsCard({
+  guests,
+}: {
+  guests: Array<{
+    id: string;
+    display_name: string | null;
+    tier: string;
+    venue_xp: number;
+    started_at: string;
+  }>;
+}) {
+  return (
+    <motion.div {...enter} style={glass} className="rounded-2xl p-4 space-y-2">
+      <p className="text-[10px] text-white/40 mb-1">
+        Active Guests ({guests.length})
+      </p>
+
+      {guests.length === 0 && (
+        <p className="text-white/40 text-sm">No active guests</p>
+      )}
+
+      {guests.map((g) => (
+        <div
+          key={g.id}
+          style={glass}
+          className="rounded-xl p-3 flex items-center justify-between gap-3"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-white/85 truncate">
+                {g.display_name ?? "Guest"}
+              </p>
+              <span
+                className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                style={{
+                  backgroundColor: `${tierColors[g.tier] ?? tierColors.explorer}20`,
+                  color: tierColors[g.tier] ?? tierColors.explorer,
+                }}
+              >
+                {g.tier}
+              </span>
+            </div>
+            <p className="text-[10px] text-white/40">
+              {g.venue_xp} XP &middot; checked in {relativeTime(g.started_at)}
+            </p>
+          </div>
+        </div>
+      ))}
+    </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  4. RevenueCard                                                    */
+/* ------------------------------------------------------------------ */
+
+export function RevenueCard({
+  today,
+  thisWeek,
+  pendingPayouts,
+}: {
+  today: number;
+  thisWeek: number;
+  pendingPayouts: number;
+}) {
+  return (
+    <motion.div {...enter} style={glass} className="rounded-2xl p-4">
+      <p className="text-[10px] text-white/40 mb-3">Revenue</p>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <p className="text-[10px] text-white/40">Today</p>
+          <p className="text-[20px] font-bold" style={{ color: "#F97316" }}>
+            {fmt$(today)}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] text-white/40">This Week</p>
+          <p className="text-[20px] font-bold text-white/90">{fmt$(thisWeek)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-white/40">Pending</p>
+          <p className="text-[20px] font-bold text-white/90">
+            {fmt$(pendingPayouts)}
+          </p>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  5. ActionConfirmCard                                              */
+/* ------------------------------------------------------------------ */
+
+export function ActionConfirmCard({
+  success,
+  message,
+}: {
+  success: boolean;
+  message: string;
+}) {
+  const accent = success ? "34,197,94" : "239,68,68"; // green-500 / red-500
+
+  return (
+    <motion.div
+      {...enter}
+      className="rounded-2xl p-4 flex items-center gap-3"
+      style={{
+        ...glass,
+        borderColor: `rgba(${accent}, 0.2)`,
+      }}
+    >
+      {/* Icon */}
+      <div
+        className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+        style={{ backgroundColor: `rgba(${accent}, 0.15)` }}
+      >
+        {success ? (
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3 8.5L6.5 12L13 4"
+              stroke={`rgb(${accent})`}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : (
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M4 4L12 12M12 4L4 12"
+              stroke={`rgb(${accent})`}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </div>
+
+      <p className="text-white/85 text-sm">{message}</p>
+    </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  6. SettingsLinkCard                                               */
+/* ------------------------------------------------------------------ */
+
+export function SettingsLinkCard({
+  section,
+  label,
+}: {
+  section: string;
+  label: string;
+}) {
+  return (
+    <motion.div {...enter}>
+      <Link
+        href={`/settings#${section}`}
+        style={glass}
+        className="rounded-2xl p-4 flex items-center justify-between gap-3 hover:bg-white/[0.06] transition-colors block"
+      >
+        <span className="text-white/85 text-sm font-medium">{label}</span>
+
+        <svg
+          className="shrink-0 text-white/40"
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M6 4L10 8L6 12"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </Link>
+    </motion.div>
+  );
+}

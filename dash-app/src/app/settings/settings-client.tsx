@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, uploadOfferingImage, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate, updateAiLimits, getAiUsageStats } from "./actions";
 import { uploadGalleryImage, deleteGalleryImage, updateHeroImage, removeHeroImage } from "../../app/edit/gallery-actions";
@@ -495,6 +495,20 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
 
+    // Deep link: scroll to hash section on mount
+    useEffect(() => {
+        const hash = window.location.hash.replace("#", "");
+        if (hash) {
+            const validSection = SECTIONS.find((s) => s.id === hash);
+            if (validSection) {
+                setActiveSection(hash);
+                setTimeout(() => {
+                    document.getElementById(hash)?.scrollIntoView({ behavior: "smooth" });
+                }, 100);
+            }
+        }
+    }, []);
+
     // Gallery state
     const [galleryImages, setGalleryImages] = useState(initialGallery);
     const [heroImage, setHeroImage] = useState(page?.hero_image || null);
@@ -730,7 +744,10 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
             {/* Header */}
             <header className="sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 backdrop-blur-xl sm:px-6" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(10,10,10,0.9)" }}>
                 <div className="flex items-center gap-3">
-                    <Link href="/"><img src="/logo.png" alt="theKickBack" className="h-6 w-auto" /></Link>
+                    <Link href="/" className="flex items-center gap-1.5 text-white/40 hover:text-white/60 text-[13px] font-medium transition">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        Back to Chat
+                    </Link>
                     <div className="hidden h-4 w-px sm:block" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
                     <span className="hidden font-sans text-[13px] font-medium sm:block" style={{ color: "rgba(255,255,255,0.35)" }}>Settings</span>
                 </div>

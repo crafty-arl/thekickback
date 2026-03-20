@@ -4,13 +4,16 @@
   --font-sans: var(--font-dm-sans);
   --font-display: var(--font-fraunces);
   --color-orange: #F97316;
-  --color-surface: #FAFAFA;
+  --color-surface: rgba(255, 255, 255, 0.04);
   --color-dark: #000000;
   --color-white: #FFFFFF;
 }
 
 body {
   font-family: var(--font-sans);
-  background: #FAFAFA;
-  color: #000000;
+  background: #000000;
+  color: rgba(255, 255, 255, 0.85);
 }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

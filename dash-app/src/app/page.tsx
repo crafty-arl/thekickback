@@ -1,17 +1,9 @@
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import type { GuestSession, VenueRequest, ChatMessage, VenueStats, VenuePerk, PerkRedemption, VenueMultiplier, PointLeaderboardEntry } from "@/lib/dashboard";
-import { StatCard } from "@/components/dashboard/stat-card";
-import { GuestTable } from "@/components/dashboard/guest-table";
-import { RequestFeed } from "@/components/dashboard/request-feed";
-import { TextLog } from "@/components/dashboard/text-log";
-import { OccupancyBar } from "@/components/dashboard/occupancy-bar";
-import { PointsPanel } from "@/components/dashboard/points-panel";
-import { SignOutButton } from "@/components/dashboard/sign-out-button";
-import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
-import { BookingsPanel, type Booking } from "@/components/dashboard/bookings-panel";
+import { type Booking } from "@/components/dashboard/bookings-panel";
+import { OwnerDock } from "@/components/owner-dock";
 import { isSandbox } from "@/lib/stripe";
 
 export default async function DashboardPage() {
@@ -268,114 +260,20 @@ export default async function DashboardPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#FAFAFA]">
-      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8">
-        {/* Dashboard Header */}
-        <header className="flex items-center justify-between border-b border-black/5 bg-[#FAFAFA] py-4">
-          <div className="flex items-center gap-4">
-            <a href="https://thekickback.net">
-              <Image
-                src="/logo.png"
-                alt="theKickBack"
-                width={140}
-                height={46}
-                className="h-8 w-auto md:h-[46px]"
-                priority
-              />
-            </a>
-            <div className="hidden h-6 w-px bg-black/10 sm:block" />
-            <span className="hidden font-sans text-sm font-medium text-black/40 sm:block">
-              Venue Dashboard
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-green-400" />
-              <span className="font-sans text-sm font-medium text-black/60">
-                {venue.name}
-              </span>
-            </div>
-            <a href="/settings" className="rounded-lg bg-black/[0.06] px-3 py-1.5 font-sans text-xs font-medium text-black/50 transition hover:bg-black/[0.1]">
-              Settings
-            </a>
-            <SignOutButton />
-          </div>
-        </header>
-
-        {/* Venue info bar */}
-        <div className="flex flex-col gap-2 py-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-1">
-            <h1 className="font-sans text-2xl font-bold tracking-tight text-black sm:text-3xl">
-              {venue.name}
-            </h1>
-            <p className="font-sans text-sm text-black/45">
-              {venue.state === "active" ? "Open" : "Closed"} &middot;{" "}
-              {venue.vibe} vibe &middot; {user.email}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-full bg-black px-4 py-2 font-mono text-xs font-medium text-orange">
-              {venue.state === "active" ? "LIVE" : "OFFLINE"}
-            </span>
-          </div>
-        </div>
-
-        {/* Tabbed Dashboard */}
-        <DashboardTabs
-          bookingCount={bookings.filter((b) => new Date(b.starts_at) > new Date()).length}
-          sessionCount={sessions.length}
-          pendingRequestCount={requests.filter((r) => r.status === "pending").length}
-          conversationCount={messages.filter((m) => m.sender_type === "guest").length}
-          overviewContent={
-            <>
-              {/* Stats grid */}
-              <section className="grid grid-cols-2 gap-3 pb-6 sm:grid-cols-4 sm:gap-4">
-                <StatCard label="IN VENUE NOW" value={stats.currentOccupancy} sub={`of ${stats.capacity} capacity`} accent />
-                <StatCard label="TOTAL TODAY" value={stats.totalToday} sub="visitors today" />
-                <StatCard label="MESSAGES TODAY" value={stats.totalMessages} sub="email + chat" />
-                <StatCard label="MEMBERS" value={stats.members} sub="active memberships" />
-              </section>
-
-              {/* Occupancy */}
-              <section className="pb-8">
-                <OccupancyBar stats={stats} />
-              </section>
-            </>
-          }
-          bookingsContent={
-            <section className="pb-8">
-              <BookingsPanel bookings={bookings} />
-            </section>
-          }
-          sessionsContent={
-            <section className="pb-8">
-              <GuestTable sessions={sessions} />
-            </section>
-          }
-          requestsContent={
-            <section className="pb-8">
-              <RequestFeed requests={requests} />
-            </section>
-          }
-          conversationsContent={
-            <section className="pb-8">
-              <TextLog messages={messages} />
-            </section>
-          }
-          pointsContent={
-            <section className="pb-8">
-              <PointsPanel
-                perks={perks}
-                redemptions={redemptions}
-                multipliers={multipliers}
-                leaderboard={leaderboard}
-                pointsIssuedToday={stats.pointsIssuedToday}
-                perksRedeemedToday={stats.perksRedeemedToday}
-              />
-            </section>
-          }
-        />
-      </div>
-    </main>
+    <OwnerDock
+      initialData={{
+        stats,
+        sessions,
+        requests,
+        bookings,
+        messages,
+        perks,
+        redemptions,
+        multipliers,
+        leaderboard,
+      }}
+      venue={venue}
+      user={{ id: user.id, email: user.email || "" }}
+    />
   );
 }
