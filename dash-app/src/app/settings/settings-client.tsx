@@ -6,6 +6,7 @@ import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOfferin
 import { uploadGalleryImage, deleteGalleryImage, updateHeroImage, removeHeroImage } from "../../app/edit/gallery-actions";
 import { addStaffMember, updateStaffMember, deleteStaffMember, uploadStaffAvatar, toggleStaffVisibility } from "./staff-actions";
 import { linkStaffToOffering, unlinkStaffFromOffering } from "./staff-offering-actions";
+import { StripeConnect } from "@/components/dashboard/stripe-connect";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 
 // ─── Constants ───────────────────────────────────────────────────
@@ -175,6 +176,7 @@ const SECTION_GROUPS = [
     {
         group: "MANAGE",
         sections: [
+            { id: "payments", label: "Payments", icon: "💳" },
             { id: "members", label: "Members", icon: "👥" },
             { id: "account", label: "Account", icon: "⚙" },
         ],
@@ -1333,12 +1335,16 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                 </div>
                             )}
 
-                            {!offerings.some((o) => o.stripe_price_id) && offerings.length > 0 && (
-                                <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.06)" }}>
-                                    <span className="font-sans text-[11px]" style={{ color: "rgba(249,115,22,0.6)" }}>
-                                        💳 Stripe not connected yet — offerings will show on your page but payments won&apos;t process until connected.
+                            {offerings.length > 0 && (
+                                <button
+                                    onClick={() => setActiveSection("payments")}
+                                    className="w-full rounded-lg px-3 py-2 text-left transition hover:opacity-80"
+                                    style={{ backgroundColor: "rgba(99,91,255,0.06)" }}
+                                >
+                                    <span className="font-sans text-[11px]" style={{ color: "rgba(99,91,255,0.6)" }}>
+                                        💳 Set up Stripe in the Payments section to start accepting payments.
                                     </span>
-                                </div>
+                                </button>
                             )}
                         </Card>
 
@@ -1984,6 +1990,11 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                     </div>
                                 )}
                             </div>
+                        </Card>
+
+                        {/* ─── Payments ─────────────────────────────────────────── */}
+                        <Card id="payments" title="Payments" desc="Connect Stripe to accept payments from guests and receive payouts.">
+                            <StripeConnect />
                         </Card>
 
                         {/* ─── Members ──────────────────────────────────────────── */}
