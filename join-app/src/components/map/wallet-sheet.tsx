@@ -48,6 +48,7 @@ export function WalletSheet() {
   const [funding, setFunding] = useState(false);
   const [fundError, setFundError] = useState<string | null>(null);
   const [fundSuccess, setFundSuccess] = useState<string | null>(null);
+  const [customAmount, setCustomAmount] = useState("");
   const [addingCard, setAddingCard] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
 
@@ -198,6 +199,37 @@ export function WalletSheet() {
                 </motion.button>
               ))}
             </div>
+
+            {/* Custom amount */}
+            <div className="mt-2 flex gap-1.5">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-[14px] font-bold text-white/25">$</span>
+                <input
+                  type="number"
+                  min="10"
+                  max="500"
+                  step="1"
+                  placeholder="Custom"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  className="w-full rounded-xl py-2.5 pl-7 pr-3 font-mono text-[13px] font-bold text-white placeholder:text-white/20 focus:outline-none"
+                  style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                />
+              </div>
+              <motion.button
+                onClick={() => {
+                  const cents = Math.round(parseFloat(customAmount) * 100);
+                  if (cents >= 1000) handleFund(cents);
+                }}
+                disabled={funding || !customAmount || parseFloat(customAmount) < 10}
+                whileTap={{ scale: 0.95 }}
+                className="rounded-xl px-5 py-2.5 font-sans text-[13px] font-bold text-white transition disabled:opacity-30"
+                style={{ backgroundColor: "#635bff" }}
+              >
+                {funding ? "..." : "Add"}
+              </motion.button>
+            </div>
+            <p className="mt-1 font-sans text-[9px] text-white/15">$10 minimum</p>
           </div>
 
           {/* Success / Error */}
