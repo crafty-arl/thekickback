@@ -5,9 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Venue } from "@/lib/venues";
-import { VenueDrawer } from "@/components/map/venue-drawer";
-import { MasterDrawer } from "@/components/map/master-drawer";
-import { ExploreSheet, type Tag } from "@/components/map/explore-sheet";
+import { TheDock, type Tag } from "@/components/map/the-dock";
 import type { MapRef } from "react-map-gl";
 
 const MapView = dynamic(
@@ -24,7 +22,6 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
     const [activeTag, setActiveTag] = useState<Tag | null>(null);
-    const [masterExpanded, setMasterExpanded] = useState(false);
     const mapRef = useRef<MapRef | null>(null);
 
     // Filtered venues based on active tag
@@ -140,20 +137,6 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 </header>
             </div>
 
-            {/* ExploreSheet — hidden when venue is selected */}
-            <AnimatePresence>
-                {!selectedVenue && (
-                    <ExploreSheet
-                        venues={venues}
-                        onVenueSelect={setSelectedVenue}
-                        onTagSelect={handleTagSelect}
-                        activeTag={activeTag}
-                        userLocation={userLocation}
-                        masterExpanded={masterExpanded}
-                    />
-                )}
-            </AnimatePresence>
-
             {/* Edge arrows — prev/next venue (show when venue selected OR tag active) */}
             <AnimatePresence>
                 {(selectedVenue || (activeTag && filteredVenues.length > 1)) && (
@@ -203,26 +186,17 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 )}
             </AnimatePresence>
 
-            {/* Command bar — always visible, morphs between master and venue agent */}
-            <AnimatePresence mode="wait">
-                {selectedVenue ? (
-                    <VenueDrawer
-                        key={selectedVenue.id}
-                        venue={selectedVenue}
-                        onClose={() => setSelectedVenue(null)}
-                    />
-                ) : (
-                    <MasterDrawer
-                        key="master"
-                        venues={venues}
-                        onVenueSelect={setSelectedVenue}
-                        onRecenter={handleRecenter}
-                        hasLocation={!!userLocation}
-                        userLocation={userLocation}
-                        onExpandedChange={setMasterExpanded}
-                    />
-                )}
-            </AnimatePresence>
+            {/* The Dock — single unified bottom component */}
+            <TheDock
+                venues={venues}
+                selectedVenue={selectedVenue}
+                onVenueSelect={setSelectedVenue}
+                userLocation={userLocation}
+                onRecenter={handleRecenter}
+                hasLocation={!!userLocation}
+                activeTag={activeTag}
+                onTagSelect={handleTagSelect}
+            />
         </main>
     );
 }
