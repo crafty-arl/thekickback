@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { getStripeKey } from "@/lib/stripe";
+import { getStripeKey, isSandbox } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -27,15 +27,18 @@ export async function GET() {
   if (!ownership) return NextResponse.json({ error: "No venue" }, { status: 404 });
 
   const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
-  const { data: venue } = await service.from("venues").select("stripe_account_id").eq("id", ownership.venue_id).single();
+  const sandbox = await isSandbox();
+  const accountCol = sandbox ? "stripe_test_account_id" : "stripe_account_id";
+  const { data: venue } = await service.from("venues").select("stripe_account_id, stripe_test_account_id").eq("id", ownership.venue_id).single();
 
-  if (!venue?.stripe_account_id) {
+  const stripeAccountId = (venue as Record<string, unknown>)?.[accountCol] as string | null;
+  if (!stripeAccountId) {
     return NextResponse.json({ error: "Stripe not connected" }, { status: 400 });
   }
 
   try {
     const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
-    const loginLink = await stripe.accounts.createLoginLink(venue.stripe_account_id);
+    const loginLink = await stripe.accounts.createLoginLink(stripeAccountId);
     return NextResponse.json({ url: loginLink.url });
   } catch (err) {
     console.error("Stripe dashboard link error:", err);

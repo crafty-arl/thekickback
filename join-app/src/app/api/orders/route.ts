@@ -1,5 +1,7 @@
+import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import { isSandboxServer } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -13,6 +15,9 @@ export async function POST(request: Request) {
   if (!user) {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
+
+  const h = await headers();
+  const mode = isSandboxServer(h) ? "test" : "live";
 
   const userId = user.id;
   const { venueId, items, addOns, pointsToSpend, notes } = await request.json();
@@ -47,6 +52,12 @@ export async function POST(request: Request) {
     if (error) {
       console.error("Order error:", error);
       return Response.json({ error: error.message }, { status: 400 });
+    }
+
+    // Tag the order and its items with the current mode
+    if (data) {
+      await supabase.from("orders").update({ mode }).eq("id", data);
+      await supabase.from("order_items").update({ mode }).eq("order_id", data);
     }
 
     // Grant purchase bonus points (10 pts per dollar spent)

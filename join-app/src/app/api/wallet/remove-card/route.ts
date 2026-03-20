@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { getStripeSecretKey } from "@/lib/sandbox";
+import { getStripeSecretKey, isSandboxServer } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -16,10 +16,14 @@ export async function POST() {
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
+  const h = await headers();
+  const mode = isSandboxServer(h) ? "test" : "live";
+
   const { data: wallet } = await supabase
     .from("user_wallets")
     .select("id, stripe_customer_id, stripe_payment_method_id")
     .eq("user_id", user.id)
+    .eq("mode", mode)
     .single();
 
   if (!wallet) {
@@ -27,7 +31,6 @@ export async function POST() {
   }
 
   // Detach from Stripe if possible
-  const h = await headers();
   const { key } = getStripeSecretKey(h);
   if (wallet.stripe_payment_method_id && key) {
     try {

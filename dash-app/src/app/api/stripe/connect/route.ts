@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { getStripeKey } from "@/lib/stripe";
+import { getStripeKey, isSandbox } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -37,9 +37,12 @@ export async function POST() {
   const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
   try {
+    const sandbox = await isSandbox();
+    const accountCol = sandbox ? "stripe_test_account_id" : "stripe_account_id";
+
     const { data: existing, error: queryError } = await service
       .from("venues")
-      .select("stripe_account_id")
+      .select("stripe_account_id, stripe_test_account_id")
       .eq("id", auth.venueId)
       .single();
 
@@ -48,7 +51,7 @@ export async function POST() {
       return NextResponse.json({ error: `Database error: ${queryError.message}` }, { status: 500 });
     }
 
-    let accountId = existing?.stripe_account_id;
+    let accountId = (existing as Record<string, unknown>)?.[accountCol] as string | null;
 
     // If existing account is from the wrong mode (test vs live), clear it
     if (accountId) {
@@ -56,7 +59,7 @@ export async function POST() {
         await stripe.accounts.retrieve(accountId);
       } catch {
         console.log(`Stripe Connect: clearing stale account ${accountId} (wrong mode)`);
-        await service.from("venues").update({ stripe_account_id: null }).eq("id", auth.venueId);
+        await service.from("venues").update({ [accountCol]: null }).eq("id", auth.venueId);
         accountId = null;
       }
     }
@@ -69,7 +72,7 @@ export async function POST() {
       });
       accountId = account.id;
 
-      const { error: updateError } = await service.from("venues").update({ stripe_account_id: accountId }).eq("id", auth.venueId);
+      const { error: updateError } = await service.from("venues").update({ [accountCol]: accountId }).eq("id", auth.venueId);
       if (updateError) {
         console.error("Stripe Connect: failed to save account ID:", updateError.message);
       }
@@ -107,14 +110,18 @@ export async function GET() {
   const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
   const service = createServiceClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
-  const { data: venue } = await service.from("venues").select("stripe_account_id").eq("id", auth.venueId).single();
+  const sandbox = await isSandbox();
+  const accountCol = sandbox ? "stripe_test_account_id" : "stripe_account_id";
 
-  if (!venue?.stripe_account_id) {
+  const { data: venue } = await service.from("venues").select("stripe_account_id, stripe_test_account_id").eq("id", auth.venueId).single();
+
+  const stripeAccountId = (venue as Record<string, unknown>)?.[accountCol] as string | null;
+  if (!stripeAccountId) {
     return NextResponse.json({ connected: false, testMode });
   }
 
   try {
-    const account = await stripe.accounts.retrieve(venue.stripe_account_id);
+    const account = await stripe.accounts.retrieve(stripeAccountId);
     return NextResponse.json({
       connected: true,
       chargesEnabled: account.charges_enabled,
@@ -125,7 +132,7 @@ export async function GET() {
       testMode,
     });
   } catch {
-    await service.from("venues").update({ stripe_account_id: null }).eq("id", auth.venueId);
+    await service.from("venues").update({ [accountCol]: null }).eq("id", auth.venueId);
     return NextResponse.json({ connected: false, testMode, error: "Account not found — please reconnect" });
   }
 }

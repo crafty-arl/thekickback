@@ -2146,6 +2146,9 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                             <div className="pt-2">
                                 <SignOutButton />
                             </div>
+                            {typeof window !== "undefined" && window.location.hostname.startsWith("sanddash.") && (
+                                <SeedDemoButton />
+                            )}
                         </Card>
 
                         {/* ─── Save bar ─────────────────────────────────────────── */}
@@ -2234,6 +2237,49 @@ function Row({ label, value, link, accent }: { label: string; value: string; lin
                 <a href={link} target="_blank" className="font-sans text-[13px] font-medium underline" style={{ color: "#F97316" }}>{value}</a>
             ) : (
                 <span className="font-sans text-[13px] font-medium" style={{ color: accent || "rgba(255,255,255,0.7)" }}>{value}</span>
+            )}
+        </div>
+    );
+}
+
+function SeedDemoButton() {
+    const [seeding, setSeeding] = useState(false);
+    const [result, setResult] = useState<{ ok?: boolean; seeded?: number; claimed?: number; unclaimed?: number; error?: string } | null>(null);
+
+    async function handleSeed() {
+        setSeeding(true);
+        setResult(null);
+        try {
+            const res = await fetch("/api/seed-demo", { method: "POST" });
+            const data = await res.json();
+            setResult(data);
+        } catch (err) {
+            setResult({ error: err instanceof Error ? err.message : "Failed to seed" });
+        } finally {
+            setSeeding(false);
+        }
+    }
+
+    return (
+        <div className="mt-4 rounded-xl border p-4" style={{ borderColor: "rgba(234,179,8,0.3)", backgroundColor: "rgba(234,179,8,0.05)" }}>
+            <h3 className="font-sans text-[13px] font-bold text-yellow-400">Sandbox Demo Data</h3>
+            <p className="mt-1 font-sans text-[11px] text-white/40">
+                Seed ~30 real Milwaukee venues from Foursquare — 10 fully set up, 20 unclaimed on the map. All financial data is test-mode.
+            </p>
+            <button
+                onClick={handleSeed}
+                disabled={seeding}
+                className="mt-3 rounded-xl px-5 py-2.5 font-sans text-[13px] font-bold text-black transition active:scale-[0.97] disabled:opacity-50"
+                style={{ backgroundColor: "#EAB308" }}
+            >
+                {seeding ? "Seeding..." : "Seed Demo Data"}
+            </button>
+            {result && (
+                <p className="mt-2 font-sans text-[11px]" style={{ color: result.ok ? "#4ADE80" : "#EF4444" }}>
+                    {result.ok
+                        ? `Seeded ${result.seeded} venues (${result.claimed} claimed, ${result.unclaimed} unclaimed)`
+                        : result.error}
+                </p>
             )}
         </div>
     );

@@ -1,5 +1,7 @@
+import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { createCalBooking } from "@/lib/cal";
+import { isSandboxServer } from "@/lib/sandbox";
 
 const supabase = createClient(
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -104,6 +106,8 @@ export async function POST(request: Request) {
     }
 
     // Save booking locally for dashboard visibility
+    const h = await headers();
+    const mode = isSandboxServer(h) ? "test" : "live";
     await supabase.from("venue_bookings").insert({
         venue_id: venueId,
         offering_id: offeringId,
@@ -116,6 +120,7 @@ export async function POST(request: Request) {
         starts_at: result.start,
         ends_at: result.end,
         duration_minutes: duration,
+        mode,
     }).then(({ error }) => {
         if (error) console.error("Failed to save booking locally:", error.message);
     });

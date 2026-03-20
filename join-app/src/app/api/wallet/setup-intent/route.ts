@@ -25,12 +25,14 @@ export async function POST() {
 
   const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
   const sandbox = isSandboxServer(h);
+  const mode = sandbox ? "test" : "live";
 
   // Get or create wallet with Stripe customer valid in current mode
   let { data: wallet } = await supabase
     .from("user_wallets")
     .select("id, stripe_customer_id")
     .eq("user_id", user.id)
+    .eq("mode", mode)
     .single();
 
   if (!wallet) {
@@ -45,6 +47,7 @@ export async function POST() {
         user_id: user.id,
         stripe_customer_id: customer.id,
         spending_limit_cents: 5000,
+        mode,
       })
       .select("id, stripe_customer_id")
       .single();

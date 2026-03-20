@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { getStripeSecretKey } from "@/lib/sandbox";
+import { getStripeSecretKey, isSandboxServer } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -15,6 +15,7 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
   const h = await headers();
   const { key } = getStripeSecretKey(h);
+  const mode = isSandboxServer(h) ? "test" : "live";
   if (!key) {
     return NextResponse.json({ error: "Payments not configured" }, { status: 503 });
   }
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
     .from("user_wallets")
     .select("id, stripe_customer_id, stripe_payment_method_id")
     .eq("user_id", user.id)
+    .eq("mode", mode)
     .single();
 
   if (!wallet) {
@@ -129,6 +131,7 @@ export async function POST(req: NextRequest) {
       description: `Added funds — $${(amountCents / 100).toFixed(2)}`,
       stripe_payment_intent_id: verified.id,
       status: "completed",
+      mode,
     });
 
     // Get updated balance

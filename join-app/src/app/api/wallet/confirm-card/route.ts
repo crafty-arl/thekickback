@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { getStripeSecretKey } from "@/lib/sandbox";
+import { getStripeSecretKey, isSandboxServer } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -49,10 +49,12 @@ export async function POST(req: NextRequest) {
     const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
 
     // Get wallet
+    const mode = isSandboxServer(h) ? "test" : "live";
     const { data: wallet } = await supabase
       .from("user_wallets")
       .select("id, stripe_customer_id")
       .eq("user_id", user.id)
+      .eq("mode", mode)
       .single();
 
     if (!wallet) {

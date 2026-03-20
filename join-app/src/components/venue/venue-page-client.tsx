@@ -8,6 +8,7 @@ import { VenueGallery } from "./venue-gallery";
 import { VenueStaff } from "./venue-staff";
 import type { StaffMember } from "./venue-staff";
 import { WalletSheet, useWalletStatus } from "../map/wallet-sheet";
+import { isSandboxClient } from "@/lib/sandbox";
 
 /* ── Types ── */
 
@@ -480,6 +481,13 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
   return (
     <main className="relative min-h-dvh w-full text-white" style={{ backgroundColor: "#000" }}>
+
+      {/* ═══ SANDBOX BANNER ═══ */}
+      {isSandboxClient() && (
+        <div className="sticky top-0 z-50 bg-yellow-500 px-4 py-1.5 text-center font-sans text-[12px] font-bold tracking-wider text-black">
+          SANDBOX MODE — Test data only
+        </div>
+      )}
 
       {/* ═══ PROFILE HEADER ═══ */}
       <div className="relative" style={{ height: 280 }}>

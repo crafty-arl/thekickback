@@ -12,6 +12,7 @@ import { PointsPanel } from "@/components/dashboard/points-panel";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 import { BookingsPanel, type Booking } from "@/components/dashboard/bookings-panel";
+import { isSandbox } from "@/lib/stripe";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -49,6 +50,9 @@ export default async function DashboardPage() {
     max_occupancy: number;
     vibe: string;
   };
+
+  const sandboxMode = await isSandbox();
+  const mode = sandboxMode ? "test" : "live";
 
   // ─── Use service client for data queries (bypasses RLS) ──────────
   const service = createServiceClient(
@@ -164,6 +168,7 @@ export default async function DashboardPage() {
       .from("venue_bookings")
       .select("*")
       .eq("venue_id", venue.id)
+      .eq("mode", mode)
       .order("starts_at", { ascending: true }),
   ]);
 

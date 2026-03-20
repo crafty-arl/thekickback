@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { getStripeSecretKey } from "@/lib/sandbox";
+import { getStripeSecretKey, isSandboxServer } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -28,10 +28,14 @@ export async function GET() {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
+  const h = await headers();
+  const mode = isSandboxServer(h) ? "test" : "live";
+
   const { data: wallet } = await supabase
     .from("user_wallets")
     .select("*")
     .eq("user_id", user.id)
+    .eq("mode", mode)
     .single();
 
   if (!wallet) {
@@ -53,6 +57,7 @@ export async function GET() {
     .from("wallet_transactions")
     .select("id, amount_cents, description, status, venue_id, created_at, venues(name)")
     .eq("user_id", user.id)
+    .eq("mode", mode)
     .order("created_at", { ascending: false })
     .limit(20);
 
@@ -112,11 +117,15 @@ export async function POST(req: NextRequest) {
 
   const stripe = await getStripe();
 
+  const h2 = await headers();
+  const mode = isSandboxServer(h2) ? "test" : "live";
+
   // Check if wallet exists
   const { data: existing } = await supabase
     .from("user_wallets")
     .select("id, stripe_customer_id")
     .eq("user_id", user.id)
+    .eq("mode", mode)
     .single();
 
   if (existing) {
@@ -154,6 +163,7 @@ export async function POST(req: NextRequest) {
       period: period || "weekly",
       auto_reload: autoReload || false,
       auto_reload_amount_cents: autoReloadAmountCents || 0,
+      mode,
     })
     .select("id")
     .single();
