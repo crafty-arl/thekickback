@@ -16,6 +16,7 @@ import { PointsBadge } from "./points-badge";
 import { VenueProfileCards } from "./venue-profile-cards";
 import { CheckoutCard, type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
 import { WalletSheet, useWalletStatus } from "./wallet-sheet";
+import { usePasskey } from "@/lib/use-passkey";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -936,6 +937,10 @@ export function TheDock({
   // ── Wallet status ──
   const walletStatus = useWalletStatus();
 
+  // ── Passkey biometric ──
+  const passkey = usePasskey();
+  const [paymentMode, setPaymentMode] = useState<"choose" | "processing" | null>(null);
+
   // ── Concierge venue data ──
   const [apiVenues, setApiVenues] = useState<Record<string, ApiVenue>>({});
   const [richVenues, setRichVenues] = useState<Record<string, RichVenue>>({});
@@ -1729,19 +1734,18 @@ export function TheDock({
   const isCollapsedPill = mode === "idle" || (mode === "venueChat" && !venueChatExpanded);
 
   // ─── Checkout handler for venue chat ──
-  const handleCheckoutConfirm = useCallback(async (msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number) => {
+  const processPayment = useCallback(async (
+    msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number, method: "wallet" | "card"
+  ) => {
     if (!selectedVenue || !msg.checkout) return;
+    setPaymentMode("processing");
 
     const itemsTotal = msg.checkout.items.reduce((sum, item) => sum + item.unit_price_cents * item.quantity, 0);
     const addOnsTotal = addOns.reduce((sum, a) => sum + a.price_cents, 0);
     const subtotal = itemsTotal + addOnsTotal - pointsToSpend;
 
-    // Try wallet payment first if balance is sufficient
-    const useWallet = walletStatus?.active && walletStatus.balanceCents >= subtotal && subtotal > 0;
-
     try {
-      if (useWallet) {
-        // Pay with wallet — no extra fees
+      if (method === "wallet") {
         const spendRes = await fetch("/api/wallet/spend", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1752,9 +1756,7 @@ export function TheDock({
           }),
         });
         const spendResult = await spendRes.json();
-        if (!spendRes.ok) {
-          throw new Error(spendResult.error || "Wallet spend failed");
-        }
+        if (!spendRes.ok) throw new Error(spendResult.error || "Wallet spend failed");
       }
 
       const res = await fetch("/api/orders", {
@@ -1766,19 +1768,18 @@ export function TheDock({
           addOns,
           pointsToSpend,
           notes: msg.checkout.notes,
-          paymentMethod: useWallet ? "wallet" : "card",
+          paymentMethod: method,
         }),
       });
       const result = await res.json();
       const confirmMsg: Message = result.orderId
-        ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed.${useWallet ? ` Paid $${(subtotal / 100).toFixed(2)} from wallet.` : ""} ${pointsToSpend > 0 ? `Used ${pointsToSpend} points. ` : ""}Show this to the host when you arrive.`, timestamp: Date.now() }
+        ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed.${method === "wallet" ? ` Paid $${(subtotal / 100).toFixed(2)} from AI Credit.` : " Charged to card on file."} ${pointsToSpend > 0 ? `Used ${pointsToSpend} points. ` : ""}Show this to the host when you arrive.`, timestamp: Date.now() }
         : { id: `err-${Date.now()}`, sender: "ai", body: result.error || "Something went wrong with the order.", timestamp: Date.now() };
       setVenueThreads((prev) => {
         const next = new Map(prev);
         next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), confirmMsg]);
         return next;
       });
-      // Clear cart after successful order
       if (result.orderId) clearCart(selectedVenue.id);
     } catch {
       setVenueThreads((prev) => {
@@ -1786,8 +1787,54 @@ export function TheDock({
         next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), { id: `err-${Date.now()}`, sender: "ai", body: "Couldn't process the order. Try again.", timestamp: Date.now() }]);
         return next;
       });
+    } finally {
+      setPaymentMode(null);
     }
-  }, [selectedVenue, walletStatus, clearCart]);
+  }, [selectedVenue, clearCart]);
+
+  const handleCheckoutConfirm = useCallback(async (
+    msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number, method: "wallet" | "card" = "card"
+  ) => {
+    if (!selectedVenue || !msg.checkout) return;
+
+    // ── Biometric verification required ──
+    if (!passkey.hasPasskey) {
+      // First-time: register a passkey
+      const registered = await passkey.register();
+      if (!registered) {
+        setVenueThreads((prev) => {
+          const next = new Map(prev);
+          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
+            id: `bio-${Date.now()}`, sender: "ai",
+            body: "Biometric setup is required to make purchases. Please try again and complete the Face ID / Touch ID setup.",
+            timestamp: Date.now(),
+          }]);
+          return next;
+        });
+        return;
+      }
+    }
+
+    // Verify biometric
+    const verified = await passkey.verify();
+    if (!verified) {
+      if (passkey.error) {
+        setVenueThreads((prev) => {
+          const next = new Map(prev);
+          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
+            id: `bio-err-${Date.now()}`, sender: "ai",
+            body: "Biometric verification failed. Payment cancelled for your safety.",
+            timestamp: Date.now(),
+          }]);
+          return next;
+        });
+      }
+      return;
+    }
+
+    // Biometric passed — process payment
+    await processPayment(msg, addOns, pointsToSpend, method);
+  }, [selectedVenue, passkey, processPayment]);
 
   const handleCheckoutDismiss = useCallback(() => {
     if (!selectedVenue) return;
@@ -2633,9 +2680,112 @@ export function TheDock({
                         <CheckoutCard
                           data={msg.checkout}
                           vibeColor={vibeColor}
-                          onConfirm={(addOns: CheckoutAddOn[], pointsToSpend: number) => handleCheckoutConfirm(msg, addOns, pointsToSpend)}
+                          onConfirm={(addOns: CheckoutAddOn[], pointsToSpend: number) => handleCheckoutConfirm(msg, addOns, pointsToSpend, "card")}
                           onDismiss={handleCheckoutDismiss}
                         />
+                        {/* Dual payment options */}
+                        {msg.checkout && (() => {
+                          const subtotal = msg.checkout!.items.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0);
+                          const canUseWallet = walletStatus?.active && walletStatus.balanceCents >= subtotal;
+                          const stripeFee = Math.round(subtotal * 0.029 + 30);
+                          const platformFee = Math.round(subtotal * 0.05);
+
+                          return (
+                            <div className="flex flex-col gap-2 mt-2">
+                              {/* Pay with AI Credit */}
+                              {walletStatus?.active && (
+                                <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(99,91,255,0.06)", border: "1px solid rgba(99,91,255,0.15)" }}>
+                                  <div className="px-3.5 py-2.5">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <span className="font-sans text-[12px] font-bold" style={{ color: "#a78bfa" }}>Pay with AI Credit</span>
+                                      <span className="font-mono text-[10px] text-white/30">Balance: ${(walletStatus.balanceCents / 100).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between mb-0.5">
+                                      <span className="font-sans text-[11px] text-white/50">Subtotal</span>
+                                      <span className="font-mono text-[11px] text-white/50">${(subtotal / 100).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <span className="font-sans text-[11px] text-white/50">Platform fee</span>
+                                      <span className="font-mono text-[11px] font-semibold" style={{ color: "#4ade80" }}>$0.00</span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
+                                      disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
+                                      className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[12px] font-bold text-black transition active:scale-[0.97] disabled:opacity-40"
+                                      style={{ backgroundColor: canUseWallet ? "#a78bfa" : "rgba(167,139,250,0.3)" }}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2" />
+                                        <path d="M2 12h20" />
+                                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                                      </svg>
+                                      {passkey.verifying || paymentMode === "processing"
+                                        ? "Verifying..."
+                                        : canUseWallet
+                                          ? `Confirm with Face ID — $${(subtotal / 100).toFixed(2)}`
+                                          : `Insufficient balance (need $${((subtotal - walletStatus.balanceCents) / 100).toFixed(2)} more)`
+                                      }
+                                    </button>
+                                    <p className="mt-1.5 text-center font-sans text-[9px] text-white/20">No extra fees — funds already loaded</p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Pay with Card */}
+                              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                                <div className="px-3.5 py-2.5">
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <span className="font-sans text-[12px] font-bold text-white/70">Pay with Card</span>
+                                  </div>
+                                  <div className="flex items-center justify-between mb-0.5">
+                                    <span className="font-sans text-[11px] text-white/40">Subtotal</span>
+                                    <span className="font-mono text-[11px] text-white/40">${(subtotal / 100).toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between mb-0.5">
+                                    <span className="font-sans text-[11px] text-white/40">Stripe fee (2.9% + 30¢)</span>
+                                    <span className="font-mono text-[11px] text-white/40">${(stripeFee / 100).toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <span className="font-sans text-[11px] text-white/40">Platform fee (5%)</span>
+                                    <span className="font-mono text-[11px] text-white/40">${(platformFee / 100).toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between mb-2 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                                    <span className="font-sans text-[12px] font-semibold text-white/60">Total</span>
+                                    <span className="font-mono text-[14px] font-bold text-white/80">${((subtotal + stripeFee + platformFee) / 100).toFixed(2)}</span>
+                                  </div>
+                                  <button
+                                    onClick={() => handleCheckoutConfirm(msg, [], 0, "card")}
+                                    disabled={paymentMode === "processing" || passkey.verifying}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[12px] font-bold text-black transition active:scale-[0.97] disabled:opacity-40"
+                                    style={{ backgroundColor: vibeColor }}
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+                                    </svg>
+                                    {passkey.verifying || paymentMode === "processing"
+                                      ? "Verifying..."
+                                      : `Confirm with Face ID — $${((subtotal + stripeFee + platformFee) / 100).toFixed(2)}`
+                                    }
+                                  </button>
+                                  {walletStatus?.active && (
+                                    <p className="mt-1.5 text-center font-sans text-[9px] text-white/20">
+                                      Load funds into AI Credit to skip fees next time
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Cancel */}
+                              <button
+                                onClick={handleCheckoutDismiss}
+                                className="w-full rounded-xl py-2 font-sans text-[11px] font-medium text-white/30 transition hover:bg-white/[0.03]"
+                                style={{ border: "1px solid rgba(255,255,255,0.04)" }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </motion.div>
                     );
                   }

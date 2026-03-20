@@ -71,6 +71,8 @@ services:
       - CAL_API_KEY=${CAL_API_KEY}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - STRIPE_TEST_SECRET_KEY=${STRIPE_TEST_SECRET_KEY}
+      - PASSKEY_RP_ID=join.thekickback.net
+      - PASSKEY_ORIGIN=https://join.thekickback.net
     restart: always
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
