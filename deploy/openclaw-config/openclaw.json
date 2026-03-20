@@ -15,7 +15,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/google/gemini-2.5-flash-preview"
+        "primary": "openrouter/google/gemini-2.5-flash"
       }
     }
   }
