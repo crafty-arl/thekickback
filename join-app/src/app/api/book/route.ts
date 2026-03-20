@@ -29,10 +29,10 @@ export async function POST(request: Request) {
         return Response.json({ error: "No Cal.com API key configured for this venue" }, { status: 400 });
     }
 
-    // Get the offering's cal_event_type_id
+    // Get the offering's cal_event_type_id and duration
     const { data: offering } = await supabase
         .from("venue_offerings")
-        .select("cal_event_type_id, name")
+        .select("cal_event_type_id, name, duration_minutes")
         .eq("id", offeringId)
         .eq("venue_id", venueId)
         .single();
@@ -59,6 +59,23 @@ export async function POST(request: Request) {
     if ("error" in result) {
         return Response.json({ error: result.error }, { status: 502 });
     }
+
+    // Save booking locally for dashboard visibility
+    await supabase.from("venue_bookings").insert({
+        venue_id: venueId,
+        offering_id: offeringId,
+        cal_booking_id: result.id,
+        cal_booking_uid: result.uid,
+        cal_status: result.status || "confirmed",
+        offering_name: offering.name,
+        guest_name: attendeeName,
+        guest_email: attendeeEmail,
+        starts_at: result.start,
+        ends_at: result.end,
+        duration_minutes: offering.duration_minutes || null,
+    }).then(({ error }) => {
+        if (error) console.error("Failed to save booking locally:", error.message);
+    });
 
     return Response.json({
         booking: result,

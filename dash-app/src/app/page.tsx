@@ -11,6 +11,7 @@ import { OccupancyBar } from "@/components/dashboard/occupancy-bar";
 import { PointsPanel } from "@/components/dashboard/points-panel";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
+import { BookingsPanel, type Booking } from "@/components/dashboard/bookings-panel";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -65,6 +66,7 @@ export default async function DashboardPage() {
     todaySessionsRes, todayMessagesRes,
     perksRes, redemptionsRes, multipliersRes,
     leaderboardRes, pointsTodayRes, perksTodayRes,
+    bookingsRes,
   ] = await Promise.all([
     // Active sessions with profile info
     service
@@ -156,6 +158,13 @@ export default async function DashboardPage() {
       .select("id", { count: "exact", head: true })
       .eq("venue_id", venue.id)
       .gte("created_at", todayISO),
+
+    // Bookings
+    service
+      .from("venue_bookings")
+      .select("*")
+      .eq("venue_id", venue.id)
+      .order("starts_at", { ascending: true }),
   ]);
 
   // Supabase joins return related records as arrays — extract first element
@@ -170,6 +179,7 @@ export default async function DashboardPage() {
   })) as VenueRequest[];
 
   const messages = (messagesRes.data || []) as ChatMessage[];
+  const bookings = (bookingsRes.data || []) as Booking[];
   const perks = (perksRes.data || []) as VenuePerk[];
 
   const redemptions: PerkRedemption[] = (redemptionsRes.data || []).map((r: Record<string, unknown>) => ({
@@ -275,6 +285,7 @@ export default async function DashboardPage() {
 
         {/* Tabbed Dashboard */}
         <DashboardTabs
+          bookingCount={bookings.filter((b) => new Date(b.starts_at) > new Date()).length}
           sessionCount={sessions.length}
           pendingRequestCount={requests.filter((r) => r.status === "pending").length}
           conversationCount={messages.filter((m) => m.sender_type === "guest").length}
@@ -293,6 +304,11 @@ export default async function DashboardPage() {
                 <OccupancyBar stats={stats} />
               </section>
             </>
+          }
+          bookingsContent={
+            <section className="pb-8">
+              <BookingsPanel bookings={bookings} />
+            </section>
           }
           sessionsContent={
             <section className="pb-8">

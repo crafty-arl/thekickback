@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 
-type TabId = "overview" | "sessions" | "requests" | "conversations" | "points";
+type TabId = "overview" | "bookings" | "sessions" | "requests" | "conversations" | "points";
 
 interface DashboardTabsProps {
   overviewContent: React.ReactNode;
+  bookingsContent: React.ReactNode;
   sessionsContent: React.ReactNode;
   requestsContent: React.ReactNode;
   conversationsContent: React.ReactNode;
   pointsContent: React.ReactNode;
+  bookingCount?: number;
   sessionCount?: number;
   pendingRequestCount?: number;
   conversationCount?: number;
@@ -17,6 +19,7 @@ interface DashboardTabsProps {
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "overview", label: "Overview", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1" },
+  { id: "bookings", label: "Bookings", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
   { id: "sessions", label: "Sessions", icon: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" },
   { id: "requests", label: "Requests", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" },
   { id: "conversations", label: "AI Chats", icon: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" },
@@ -25,10 +28,12 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
 
 export function DashboardTabs({
   overviewContent,
+  bookingsContent,
   sessionsContent,
   requestsContent,
   conversationsContent,
   pointsContent,
+  bookingCount,
   sessionCount,
   pendingRequestCount,
   conversationCount,
@@ -36,6 +41,7 @@ export function DashboardTabs({
   const [active, setActive] = useState<TabId>("overview");
 
   function getBadge(tabId: TabId): number | undefined {
+    if (tabId === "bookings") return bookingCount;
     if (tabId === "sessions") return sessionCount;
     if (tabId === "requests") return pendingRequestCount;
     if (tabId === "conversations") return conversationCount;
@@ -89,6 +95,7 @@ export function DashboardTabs({
 
       {/* Tab content */}
       {active === "overview" && overviewContent}
+      {active === "bookings" && bookingsContent}
       {active === "sessions" && sessionsContent}
       {active === "requests" && requestsContent}
       {active === "conversations" && conversationsContent}
