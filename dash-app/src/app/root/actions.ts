@@ -149,3 +149,26 @@ export async function updateAiConfig(updates: {
     revalidatePath("/root");
     return { ok: true };
 }
+
+// ─── Delete venue ───────────────────────────────────────────────
+
+export async function deleteVenue(venuePageId: string, venueId: string) {
+    await assertRoot();
+
+    // Delete dependents first, then core records
+    await service.from("venue_offerings").delete().eq("venue_id", venueId);
+    await service.from("venue_knowledge").delete().eq("venue_id", venueId);
+    await service.from("venue_xp_actions").delete().eq("venue_id", venueId);
+    await service.from("venue_xp_milestones").delete().eq("venue_id", venueId);
+    await service.from("venue_perks").delete().eq("venue_id", venueId);
+    await service.from("venue_multipliers").delete().eq("venue_id", venueId);
+    await service.from("venue_gallery").delete().eq("venue_id", venueId);
+    await service.from("venue_staff").delete().eq("venue_id", venueId);
+    await service.from("venue_owners").delete().eq("venue_id", venueId);
+    await service.from("memberships").delete().eq("venue_id", venueId);
+    await service.from("venue_pages").delete().eq("id", venuePageId);
+    await service.from("venues").delete().eq("id", venueId);
+
+    revalidatePath("/root");
+    return { ok: true };
+}

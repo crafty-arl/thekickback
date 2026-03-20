@@ -2,7 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { rootSendOtp, rootVerifyOtp, approveVenue, rejectVenue, unpublishVenue, updateAiConfig } from "./actions";
+import { rootSendOtp, rootVerifyOtp, approveVenue, rejectVenue, unpublishVenue, deleteVenue, updateAiConfig } from "./actions";
+
+const DEFAULT_CHAT_MODELS = [
+    { id: "openclaw", label: "OpenClaw (default)", provider: "openclaw" },
+    { id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", label: "Llama 3.3 70B", provider: "cloudflare" },
+    { id: "@cf/meta/llama-3.2-3b-instruct", label: "Llama 3.2 3B", provider: "cloudflare" },
+    { id: "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b", label: "DeepSeek R1 32B", provider: "cloudflare" },
+];
+const DEFAULT_ONBOARDING_MODELS = [
+    { id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", label: "Llama 3.3 70B", provider: "cloudflare" },
+    { id: "@cf/meta/llama-3.2-3b-instruct", label: "Llama 3.2 3B", provider: "cloudflare" },
+    { id: "openclaw", label: "OpenClaw", provider: "openclaw" },
+];
 
 interface VenuePage {
     id: string;
@@ -179,6 +191,12 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig }: { pages: Venue
     async function handleApprove(id: string) { setActing(id); await approveVenue(id); setActing(null); }
     async function handleReject(id: string) { setActing(id); await rejectVenue(id); setActing(null); }
     async function handleUnpublish(id: string) { setActing(id); await unpublishVenue(id); setActing(null); }
+    async function handleDelete(pageId: string, venueId: string) {
+        if (!confirm("Delete this hub and ALL its data? This cannot be undone.")) return;
+        setActing(pageId);
+        await deleteVenue(pageId, venueId);
+        setActing(null);
+    }
 
     return (
         <main className="min-h-svh" style={{ backgroundColor: "#0A0A0A" }}>
@@ -205,7 +223,6 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig }: { pages: Venue
                 </div>
 
                 {/* AI Model Config */}
-                {aiConfig && (
                 <div className="mb-8 rounded-2xl border p-5" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
                     <div className="mb-4 flex items-center justify-between">
                         <div>
@@ -240,7 +257,7 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig }: { pages: Venue
                             <div>
                                 <label className="mb-1.5 block font-sans text-[12px] font-semibold text-white/50">Chat Model (owner + guest chat)</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {aiConfig.available_chat_models.map((m) => (
+                                    {(aiConfig?.available_chat_models || DEFAULT_CHAT_MODELS).map((m) => (
                                         <button
                                             key={m.id}
                                             onClick={async () => {
@@ -268,7 +285,7 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig }: { pages: Venue
                             <div>
                                 <label className="mb-1.5 block font-sans text-[12px] font-semibold text-white/50">Onboarding Model (hub setup)</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {aiConfig.available_onboarding_models.map((m) => (
+                                    {(aiConfig?.available_onboarding_models || DEFAULT_ONBOARDING_MODELS).map((m) => (
                                         <button
                                             key={m.id}
                                             onClick={async () => {
@@ -296,7 +313,7 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig }: { pages: Venue
                             <div>
                                 <label className="mb-1.5 block font-sans text-[12px] font-semibold text-white/50">Fallback Model (when primary fails)</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {aiConfig.available_onboarding_models.map((m) => (
+                                    {(aiConfig?.available_onboarding_models || DEFAULT_ONBOARDING_MODELS).map((m) => (
                                         <button
                                             key={m.id}
                                             onClick={async () => {
@@ -322,7 +339,6 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig }: { pages: Venue
                         </div>
                     )}
                 </div>
-                )}
 
                 {/* Filters */}
                 <div className="mb-4 flex items-center gap-2">
@@ -404,6 +420,9 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig }: { pages: Venue
                                 <a href={`https://join.thekickback.net/${p.slug}`} target="_blank" className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-medium" style={{ backgroundColor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.25)" }}>
                                     Preview
                                 </a>
+                                <button onClick={() => handleDelete(p.id, p.venues?.id)} disabled={acting === p.id || !p.venues?.id} className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-medium transition active:scale-95" style={{ backgroundColor: "rgba(239,68,68,0.08)", color: "rgba(239,68,68,0.6)" }}>
+                                    {acting === p.id ? "..." : "Delete"}
+                                </button>
                             </div>
                         </div>
                     ))}
