@@ -10,10 +10,12 @@ import {
   addMenuItem,
 } from "@/app/settings/actions";
 
-const service = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!,
-);
+function getService() {
+  return createClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+}
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -41,7 +43,7 @@ async function getOwnerVenueId(): Promise<string | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data } = await service
+  const { data } = await getService()
     .from("venue_owners")
     .select("venue_id, role")
     .eq("user_id", user.id)
@@ -61,7 +63,7 @@ async function handleAction(
     switch (action.type) {
       case "approve_booking": {
         if (!action.id) throw new Error("Missing booking id");
-        const { error } = await service
+        const { error } = await getService()
           .from("venue_bookings")
           .update({ cal_status: "accepted" })
           .eq("id", action.id);
@@ -74,7 +76,7 @@ async function handleAction(
 
       case "decline_booking": {
         if (!action.id) throw new Error("Missing booking id");
-        const { error } = await service
+        const { error } = await getService()
           .from("venue_bookings")
           .update({ cal_status: "cancelled" })
           .eq("id", action.id);
@@ -215,30 +217,31 @@ export async function POST(request: NextRequest) {
 
     // ─── Regular chat: fetch live context ─────────────────────
 
+    const svc = getService();
     const [venueRes, bookingsRes, sessionsRes, offeringsRes, knowledgeRes] =
       await Promise.all([
-        service
+        svc
           .from("venues")
           .select("name, current_occupancy, max_occupancy")
           .eq("id", venueId)
           .single(),
-        service
+        svc
           .from("venue_bookings")
           .select("id, guest_name, offering_name, starts_at, cal_status")
           .eq("venue_id", venueId)
           .eq("cal_status", "pending")
           .order("starts_at", { ascending: true }),
-        service
+        svc
           .from("sessions")
           .select("id, user_id, started_at, status, profiles(display_name, phone)")
           .eq("venue_id", venueId)
           .eq("status", "active"),
-        service
+        svc
           .from("venue_offerings")
           .select("id, name, type, price_cents, active")
           .eq("venue_id", venueId)
           .eq("active", true),
-        service
+        svc
           .from("venue_knowledge")
           .select("category")
           .eq("venue_id", venueId),
