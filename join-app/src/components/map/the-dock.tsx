@@ -672,6 +672,7 @@ export function TheDock({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const handleTabTapRef = useRef<(tab: Tab) => void>(() => {});
+  const conciergeHistoryLoaded = useRef(false);
   const threadInfo = useThreadCount();
 
   // ── Current venue messages ──
@@ -831,20 +832,75 @@ export function TheDock({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isDesktop, mode, previousMode, exploreSnap, venueChatExpanded, selectedVenue, hasLocation, showShortcuts, onNavigateVenue, onRecenter, onVenueSelect]);
 
+  // ── Load thread history from API ──
+  const loadThreadHistory = useCallback(async (venueId: string | null) => {
+    try {
+      const url = venueId ? `/api/threads?venueId=${venueId}` : "/api/threads?master=true";
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data.messages?.length) return null;
+
+      return data.messages.map((m: { id: string; sender_type: string; body: string; created_at: string }) => ({
+        id: m.id,
+        sender: m.sender_type as "guest" | "ai",
+        body: m.body,
+        timestamp: new Date(m.created_at).getTime(),
+      })) as Message[];
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // ── Load concierge history on first open ──
+  useEffect(() => {
+    if (mode !== "concierge") return;
+    if (conciergeHistoryLoaded.current) return;
+    conciergeHistoryLoaded.current = true;
+
+    // Only load if we still have the default welcome message
+    if (conciergeMessages.length > 1) return;
+
+    loadThreadHistory(null).then((messages) => {
+      if (messages && messages.length > 0) {
+        setConciergeMessages(messages);
+      }
+    });
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Sync selectedVenue prop → mode ──
   useEffect(() => {
     if (selectedVenue) {
       setMode("venueChat");
       setVenueChatExpanded(false);
       setActiveTab("chat");
-      // Init thread if none exists
+
+      // If we already have cached messages, keep them
+      if (venueThreads.has(selectedVenue.id)) return;
+
+      // Set a welcome message immediately, then try to load history
+      const welcomeMsg: Message = {
+        id: `welcome-${selectedVenue.id}`,
+        sender: "ai",
+        body: `Welcome to ${selectedVenue.name}. ${getVibeLabel(selectedVenue.vibe)} right now, ${selectedVenue.occupancy} people. Ask me anything.`,
+        timestamp: Date.now(),
+      };
       setVenueThreads((prev) => {
-        if (prev.has(selectedVenue.id)) return prev;
         const next = new Map(prev);
-        next.set(selectedVenue.id, [
-          { id: `welcome-${selectedVenue.id}`, sender: "ai", body: `Welcome to ${selectedVenue.name}. ${getVibeLabel(selectedVenue.vibe)} right now, ${selectedVenue.occupancy} people. Ask me anything.`, timestamp: Date.now() },
-        ]);
+        next.set(selectedVenue.id, [welcomeMsg]);
         return next;
+      });
+
+      // Fetch persisted history and replace welcome message if found
+      const vid = selectedVenue.id;
+      loadThreadHistory(vid).then((messages) => {
+        if (messages && messages.length > 0) {
+          setVenueThreads((prev) => {
+            const next = new Map(prev);
+            next.set(vid, messages);
+            return next;
+          });
+        }
       });
     } else {
       if (mode === "venueChat") {
@@ -1698,8 +1754,17 @@ export function TheDock({
                       <ThreadsList
                         onThreadSelect={(venueId) => {
                           if (venueId) {
+                            // Venue thread — open venue chat with history
                             const venue = venues.find((v) => v.id === venueId);
                             if (venue) handleExploreVenueTap(venue);
+                          } else {
+                            // Master/concierge thread — load history and switch to concierge
+                            loadThreadHistory(null).then((messages) => {
+                              if (messages && messages.length > 0) {
+                                setConciergeMessages(messages);
+                              }
+                            });
+                            setMode("concierge");
                           }
                         }}
                       />
