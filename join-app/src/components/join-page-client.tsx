@@ -196,6 +196,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 hasLocation={!!userLocation}
                 activeTag={activeTag}
                 onTagSelect={handleTagSelect}
+                onNavigateVenue={navigateVenue}
             />
         </main>
     );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { motion, PanInfo, useAnimationControls } from "framer-motion";
+import { motion, AnimatePresence, PanInfo, useAnimationControls } from "framer-motion";
 import {
   type Venue,
   getVibeHexColor,
@@ -47,6 +47,7 @@ interface TheDockProps {
   hasLocation: boolean;
   activeTag: Tag | null;
   onTagSelect: (tag: Tag | null) => void;
+  onNavigateVenue: (dir: -1 | 1) => void;
 }
 
 interface Perk {
@@ -456,11 +457,171 @@ function TabIcon({ path, size = 16 }: { path: string; size?: number }) {
   );
 }
 
+// ─── Desktop Detection ───────────────────────────────────────────
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: fine) and (min-width: 768px)");
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isDesktop;
+}
+
+function useIsMac() {
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    setIsMac(navigator.platform?.toLowerCase().includes("mac") || navigator.userAgent?.toLowerCase().includes("mac"));
+  }, []);
+  return isMac;
+}
+
+// ─── Keyboard shortcut badge ─────────────────────────────────────
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="inline-flex h-5 min-w-[20px] items-center justify-center rounded px-1 font-mono text-[10px] font-semibold text-white/50"
+      style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}
+    >
+      {children}
+    </span>
+  );
+}
+
+// ─── Keyboard Shortcuts Overlay ──────────────────────────────────
+
+function KeyboardShortcutsPanel({
+  isMac,
+  mode,
+  onClose,
+}: {
+  isMac: boolean;
+  mode: DockMode;
+  onClose: () => void;
+}) {
+  const mod = isMac ? "\u2318" : "Ctrl";
+
+  const sections = [
+    {
+      title: "NAVIGATION",
+      shortcuts: [
+        { keys: ["\u2190"], label: "Previous venue" },
+        { keys: ["\u2192"], label: "Next venue" },
+        { keys: ["Esc"], label: "Back / collapse" },
+        { keys: [mod, "K"], label: "Focus input" },
+        { keys: ["Enter"], label: "Open venue chat" },
+      ],
+    },
+    {
+      title: "DOCK MODES",
+      shortcuts: [
+        { keys: ["E"], label: "Explore" },
+        { keys: ["C"], label: "Concierge" },
+        { keys: ["P"], label: "Profile" },
+        { keys: [mod, "\u2191"], label: "Snap dock up" },
+        { keys: [mod, "\u2193"], label: "Snap dock down" },
+      ],
+    },
+    {
+      title: "VENUE TABS",
+      shortcuts: TABS.map((tab, i) => ({
+        keys: [`${i + 1}`],
+        label: tab.label,
+      })),
+    },
+    {
+      title: "MAP",
+      shortcuts: [
+        { keys: ["L"], label: "Recenter location" },
+      ],
+    },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 8, scale: 0.96 }}
+      transition={{ type: "spring", damping: 25, stiffness: 400 }}
+      className="fixed right-4 top-[max(80px,calc(env(safe-area-inset-top)+80px))] z-[60] w-[280px] overflow-hidden rounded-2xl"
+      style={{
+        background: "rgba(12, 12, 14, 0.95)",
+        backdropFilter: "blur(40px) saturate(1.8)",
+        WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+        boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 8px 40px rgba(0,0,0,0.5)",
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h8" />
+          </svg>
+          <span className="font-sans text-[12px] font-semibold text-white/80">Keyboard Shortcuts</span>
+        </div>
+        <button onClick={onClose} className="flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-white/[0.08]">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="opacity-40">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Current mode indicator */}
+      <div className="mx-4 mb-2 flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ backgroundColor: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.15)" }}>
+        <div className="h-1.5 w-1.5 rounded-full bg-[#a78bfa]" />
+        <span className="font-sans text-[9px] font-semibold text-[#a78bfa]">
+          {mode === "idle" ? "Idle" : mode === "explore" ? "Explore" : mode === "concierge" ? "Concierge" : mode === "venueChat" ? "Venue Chat" : "Profile"}
+        </span>
+      </div>
+
+      {/* Sections */}
+      <div className="max-h-[50vh] overflow-y-auto px-4 pb-3" style={{ WebkitOverflowScrolling: "touch" }}>
+        {sections.map((section) => (
+          <div key={section.title} className="mb-3">
+            <span className="mb-1.5 block font-sans text-[8px] font-semibold tracking-[1.5px] text-white/20">
+              {section.title}
+            </span>
+            <div className="flex flex-col gap-1">
+              {section.shortcuts.map((sc, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <span className="font-sans text-[11px] text-white/45">{sc.label}</span>
+                  <div className="flex items-center gap-0.5">
+                    {sc.keys.map((k, j) => (
+                      <span key={j}>
+                        {j > 0 && <span className="mx-0.5 text-[9px] text-white/15">+</span>}
+                        <Kbd>{k}</Kbd>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className="border-t border-white/[0.05] px-4 py-2">
+        <span className="font-sans text-[9px] text-white/15">Press <Kbd>?</Kbd> to toggle</span>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────
 
 export function TheDock({
-  venues, selectedVenue, onVenueSelect, userLocation, onRecenter, hasLocation, activeTag, onTagSelect,
+  venues, selectedVenue, onVenueSelect, userLocation, onRecenter, hasLocation, activeTag, onTagSelect, onNavigateVenue,
 }: TheDockProps) {
+  // ── Desktop / platform detection ──
+  const isDesktop = useIsDesktop();
+  const isMac = useIsMac();
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
   // ── Mode state ──
   const [mode, setMode] = useState<DockMode>("idle");
   const [previousMode, setPreviousMode] = useState<DockMode>("idle");
@@ -494,6 +655,7 @@ export function TheDock({
   const controls = useAnimationControls();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const handleTabTapRef = useRef<(tab: Tab) => void>(() => {});
   const threadInfo = useThreadCount();
 
   // ── Current venue messages ──
@@ -521,6 +683,137 @@ export function TheDock({
     window.visualViewport?.addEventListener("resize", handleResize);
     return () => window.visualViewport?.removeEventListener("resize", handleResize);
   }, []);
+
+  // ── Keyboard shortcuts (desktop only) ──
+  useEffect(() => {
+    if (!isDesktop) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      const inInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+      const mod = e.metaKey || e.ctrlKey;
+
+      // ── Always-active shortcuts ──
+
+      // ? — toggle shortcuts panel
+      if (e.key === "?" && !mod) {
+        e.preventDefault();
+        setShowShortcuts((prev) => !prev);
+        return;
+      }
+
+      // Cmd/Ctrl+K — focus input
+      if (e.key === "k" && mod) {
+        e.preventDefault();
+        inputRef.current?.focus();
+        return;
+      }
+
+      // Escape — back / collapse / close shortcuts
+      if (e.key === "Escape") {
+        if (showShortcuts) { setShowShortcuts(false); return; }
+        if (inInput) { (target as HTMLInputElement).blur(); return; }
+        e.preventDefault();
+        if (mode === "profile") { setMode(previousMode); return; }
+        if (mode === "concierge") { setMode("idle"); return; }
+        if (mode === "venueChat") {
+          if (venueChatExpanded) { setVenueChatExpanded(false); return; }
+          onVenueSelect(null); return;
+        }
+        if (mode === "explore") {
+          if (exploreSnap === "full") { setExploreSnap("half"); return; }
+          if (exploreSnap === "half") { setExploreSnap("peek"); return; }
+          setMode("idle"); return;
+        }
+        return;
+      }
+
+      // Cmd/Ctrl+ArrowUp — snap dock up
+      if (e.key === "ArrowUp" && mod) {
+        e.preventDefault();
+        if (mode === "idle") { setMode("explore"); setExploreSnap("half"); }
+        else if (mode === "explore") {
+          if (exploreSnap === "peek") setExploreSnap("half");
+          else if (exploreSnap === "half") setExploreSnap("full");
+        }
+        else if (mode === "venueChat" && !venueChatExpanded) setVenueChatExpanded(true);
+        return;
+      }
+
+      // Cmd/Ctrl+ArrowDown — snap dock down
+      if (e.key === "ArrowDown" && mod) {
+        e.preventDefault();
+        if (mode === "explore") {
+          if (exploreSnap === "full") setExploreSnap("half");
+          else if (exploreSnap === "half") setExploreSnap("peek");
+          else setMode("idle");
+        }
+        else if (mode === "concierge") setMode("idle");
+        else if (mode === "venueChat" && venueChatExpanded) setVenueChatExpanded(false);
+        return;
+      }
+
+      // ── Skip single-key shortcuts when typing ──
+      if (inInput) return;
+
+      // Arrow left/right — navigate venues
+      if (e.key === "ArrowLeft") { e.preventDefault(); onNavigateVenue(-1); return; }
+      if (e.key === "ArrowRight") { e.preventDefault(); onNavigateVenue(1); return; }
+
+      // Enter — open venue chat if venue selected
+      if (e.key === "Enter" && selectedVenue && mode !== "venueChat") {
+        e.preventDefault();
+        setMode("venueChat");
+        setVenueChatExpanded(true);
+        return;
+      }
+
+      // E — toggle explore
+      if (e.key === "e" || e.key === "E") {
+        e.preventDefault();
+        if (mode === "explore") { setMode("idle"); }
+        else { setMode("explore"); setExploreSnap("half"); }
+        return;
+      }
+
+      // C — concierge
+      if (e.key === "c" || e.key === "C") {
+        e.preventDefault();
+        if (mode === "concierge") setMode("idle");
+        else setMode("concierge");
+        return;
+      }
+
+      // P — profile
+      if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        if (mode === "profile") { setMode(previousMode); }
+        else { setPreviousMode(mode); setMode("profile"); }
+        return;
+      }
+
+      // L — recenter location
+      if ((e.key === "l" || e.key === "L") && hasLocation) {
+        e.preventDefault();
+        onRecenter();
+        return;
+      }
+
+      // 1-8 — venue tabs (only in venueChat)
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= 8 && mode === "venueChat" && selectedVenue) {
+        const tab = TABS[num - 1];
+        if (tab) {
+          e.preventDefault();
+          handleTabTapRef.current(tab.id);
+        }
+        return;
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDesktop, mode, previousMode, exploreSnap, venueChatExpanded, selectedVenue, hasLocation, showShortcuts, onNavigateVenue, onRecenter, onVenueSelect]);
 
   // ── Sync selectedVenue prop → mode ──
   useEffect(() => {
@@ -828,6 +1121,9 @@ export function TheDock({
     send(cmd);
   }, [selectedVenue, hasSentTabCommands, send]);
 
+  // Keep ref in sync
+  handleTabTapRef.current = handleTabTap;
+
   // ─── Drag handling ─────────────────────────────────────────────
 
   function handleDrag(_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) {
@@ -959,6 +1255,38 @@ export function TheDock({
   // ═══════════════════════════════════════════════════════════════
 
   return (
+    <>
+    {/* ─── Desktop Keyboard Shortcuts Button + Panel ─── */}
+    {isDesktop && (
+      <>
+        {/* ? toggle button — fixed top-right */}
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          onClick={() => setShowShortcuts((prev) => !prev)}
+          className="fixed right-4 top-[max(16px,env(safe-area-inset-top))] z-[60] flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/[0.08]"
+          style={{
+            backgroundColor: showShortcuts ? "rgba(167,139,250,0.15)" : "rgba(255,255,255,0.06)",
+            border: `1px solid ${showShortcuts ? "rgba(167,139,250,0.3)" : "rgba(255,255,255,0.08)"}`,
+          }}
+          title="Keyboard shortcuts (?)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showShortcuts ? "#a78bfa" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2" />
+            <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h8" />
+          </svg>
+        </motion.button>
+
+        {/* Shortcuts overlay */}
+        <AnimatePresence>
+          {showShortcuts && (
+            <KeyboardShortcutsPanel isMac={isMac} mode={mode} onClose={() => setShowShortcuts(false)} />
+          )}
+        </AnimatePresence>
+      </>
+    )}
+
     <motion.div
       initial={{ y: 60, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
@@ -989,7 +1317,7 @@ export function TheDock({
             {/* Avatar */}
             <button
               onClick={handleAvatarTap}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+              className="group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
               style={{
                 background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`,
                 border: `2px solid ${tierColor}40`,
@@ -1002,12 +1330,13 @@ export function TheDock({
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
                 </svg>
               )}
+              {isDesktop && <span className="absolute -bottom-1 -right-1 hidden h-4 min-w-[16px] items-center justify-center rounded bg-white/[0.08] px-0.5 font-mono text-[8px] font-bold text-white/40 group-hover:flex" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>P</span>}
             </button>
 
             {/* Center: pulsing dot + input */}
             <button
               onClick={() => { setMode("explore"); setExploreSnap("half"); }}
-              className="flex items-center gap-1.5 pl-1"
+              className="group relative flex items-center gap-1.5 pl-1"
             >
               <motion.div
                 className="h-2 w-2 rounded-full"
@@ -1015,6 +1344,7 @@ export function TheDock({
                 animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
                 transition={{ duration: 3, repeat: Infinity }}
               />
+              {isDesktop && <span className="absolute -bottom-1 -right-2 hidden h-4 min-w-[16px] items-center justify-center rounded bg-white/[0.08] px-0.5 font-mono text-[8px] font-bold text-white/40 group-hover:flex" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>E</span>}
             </button>
 
             <input
@@ -1023,7 +1353,7 @@ export function TheDock({
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
               onFocus={handleInputFocus}
-              placeholder="Explore or ask anything..."
+              placeholder={isDesktop ? `Explore or ask anything...  ${isMac ? "\u2318" : "Ctrl+"}K` : "Explore or ask anything..."}
               enterKeyHint="send"
               autoComplete="off"
               autoCorrect="off"
@@ -1584,6 +1914,7 @@ export function TheDock({
                   >
                     <TabIcon path={tab.icon} size={12} />
                     {tab.label}
+                    {isDesktop && <span className="ml-0.5 font-mono text-[8px] opacity-30">{TABS.indexOf(tab) + 1}</span>}
                   </motion.button>
                 );
               })}
@@ -1842,5 +2173,6 @@ export function TheDock({
         )}
       </motion.div>
     </motion.div>
+    </>
   );
 }
