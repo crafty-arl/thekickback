@@ -13,6 +13,7 @@ import { PreferencesSection } from "./preferences-section";
 import { ThreadsList, useThreadCount } from "./threads-list";
 import { VibeCard, MenuCard, EventsCard, ReserveCard, ShopCard, SubscribeCard, JoinCard } from "./tab-cards";
 import { PointsBadge } from "./points-badge";
+import { VenueProfileCards } from "./venue-profile-cards";
 import { CheckoutCard, type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -2069,12 +2070,17 @@ export function TheDock({
 
             <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
 
-            {/* Messages */}
+            {/* Messages + Venue Profile */}
             <div
               ref={scrollRef}
               className="flex-1 overflow-y-auto overscroll-contain px-4 py-3"
               style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
             >
+              {/* Venue splash cards — the storefront lives at the top of the chat */}
+              {selectedVenue.claimed !== false && (
+                <VenueProfileCards venue={selectedVenue} />
+              )}
+
               <div className="flex flex-col gap-2.5">
                 {currentVenueMessages.map((msg) => {
                   if (msg.sender === "guest") {
