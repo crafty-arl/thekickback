@@ -12,6 +12,12 @@ export interface GuestSession {
     email: string | null;
     display_name: string | null;
   };
+  // Enriched by dashboard
+  kickback_score?: number;
+  tier?: string;
+  venue_xp?: number;
+  venue_visits?: number;
+  is_member?: boolean;
 }
 
 export interface VenueRequest {

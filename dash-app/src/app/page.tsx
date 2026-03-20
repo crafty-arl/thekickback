@@ -168,10 +168,42 @@ export default async function DashboardPage() {
   ]);
 
   // Supabase joins return related records as arrays — extract first element
-  const sessions: GuestSession[] = (sessionsRes.data || []).map((s: Record<string, unknown>) => ({
+  const rawSessions = (sessionsRes.data || []).map((s: Record<string, unknown>) => ({
     ...s,
     profiles: Array.isArray(s.profiles) ? s.profiles[0] : s.profiles,
   })) as GuestSession[];
+
+  // Enrich sessions with kickback score, venue XP, and membership status
+  const sessionUserIds = rawSessions.map((s) => s.user_id).filter(Boolean);
+  let scoreMap = new Map<string, { kickback_score: number; tier: string }>();
+  let xpMap = new Map<string, { xp: number; visits: number }>();
+  let memberSet = new Set<string>();
+
+  if (sessionUserIds.length > 0) {
+    const [scoresRes, xpRes, membershipsRes] = await Promise.all([
+      service.from("point_balances").select("user_id, kickback_score, tier").in("user_id", sessionUserIds),
+      service.from("user_venue_xp").select("user_id, xp, visits").eq("venue_id", venue.id).in("user_id", sessionUserIds),
+      service.from("memberships").select("user_id").eq("venue_id", venue.id).in("user_id", sessionUserIds),
+    ]);
+    for (const r of (scoresRes.data || []) as { user_id: string; kickback_score: number; tier: string }[]) {
+      scoreMap.set(r.user_id, { kickback_score: r.kickback_score, tier: r.tier });
+    }
+    for (const r of (xpRes.data || []) as { user_id: string; xp: number; visits: number }[]) {
+      xpMap.set(r.user_id, { xp: r.xp, visits: r.visits });
+    }
+    for (const r of (membershipsRes.data || []) as { user_id: string }[]) {
+      memberSet.add(r.user_id);
+    }
+  }
+
+  const sessions: GuestSession[] = rawSessions.map((s) => ({
+    ...s,
+    kickback_score: scoreMap.get(s.user_id)?.kickback_score || 0,
+    tier: scoreMap.get(s.user_id)?.tier || "explorer",
+    venue_xp: xpMap.get(s.user_id)?.xp || 0,
+    venue_visits: xpMap.get(s.user_id)?.visits || 0,
+    is_member: memberSet.has(s.user_id),
+  }));
 
   const requests: VenueRequest[] = (requestsRes.data || []).map((r: Record<string, unknown>) => ({
     ...r,
