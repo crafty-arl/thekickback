@@ -57,6 +57,7 @@ export async function GET() {
   return NextResponse.json({
     wallet: fresh ? {
       id: fresh.id,
+      balanceCents: fresh.balance_cents || 0,
       spendingLimitCents: fresh.spending_limit_cents,
       spentThisPeriodCents: fresh.spent_this_period_cents,
       remainingCents: Math.max(0, remaining),
