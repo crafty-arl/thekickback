@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { HubPreview } from "@/components/hub-preview";
 import type { HubData } from "@/components/hub-preview";
+import { submitHubForReview } from "./actions";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -165,24 +166,12 @@ export default function OnboardingPage() {
 
   // ─── Submit for review ────────────────────────────────────────
 
-  const submitForReview = useCallback(async () => {
-    try {
-      await fetch("/api/stats", { method: "GET" }); // just to get auth context
-      const res = await fetch("/api/chat/owner", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: "submit_for_review",
-          venueId: "__auto__",
-          action: { type: "submit_for_review" },
-        }),
-      });
-      if (res.ok) {
-        setSubmitted(true);
-        setTimeout(() => router.push("/"), 2000);
-      }
-    } catch {
-      // Fallback: just redirect
+  const handleSubmitForReview = useCallback(async () => {
+    const result = await submitHubForReview();
+    if (result?.ok) {
+      setSubmitted(true);
+    } else {
+      // Still redirect even on error — hub was created
       router.push("/");
     }
   }, [router]);
@@ -285,7 +274,7 @@ export default function OnboardingPage() {
   return (
     <main className="flex h-dvh bg-black">
       {/* Left: Chat */}
-      <div className="flex w-full flex-col lg:w-1/2">
+      <div className={`flex w-full flex-col lg:w-1/2 ${showPreview ? "hidden lg:flex" : ""}`}>
         {/* Header */}
         <header className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
           <Image
@@ -406,7 +395,7 @@ export default function OnboardingPage() {
                 </p>
                 <div className="flex gap-2">
                   <button
-                    onClick={submitForReview}
+                    onClick={handleSubmitForReview}
                     className="rounded-xl px-5 py-2.5 font-sans text-[13px] font-bold text-black active:scale-[0.98]"
                     style={{ backgroundColor: "#F97316" }}
                   >

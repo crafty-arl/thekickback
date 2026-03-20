@@ -110,3 +110,33 @@ export async function createVenue(formData: VenueFormData) {
 
   redirect("/");
 }
+
+export async function submitHubForReview() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const service = createServiceClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+
+  // Find the user's venue
+  const { data: ownership } = await service
+    .from("venue_owners")
+    .select("venue_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .single();
+
+  if (!ownership) return { error: "No hub found" };
+
+  // Update review status to pending
+  const { error } = await service
+    .from("venue_pages")
+    .update({ review_status: "pending" })
+    .eq("venue_id", ownership.venue_id);
+
+  if (error) return { error: error.message };
+  return { ok: true };
+}
