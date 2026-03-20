@@ -1,357 +1,569 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, FormEvent } from "react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { MapBackdrop, MapHandle } from "@/components/map-backdrop";
 
-/* ── Types ── */
-interface Message {
-  id: string;
-  sender: "guest" | "ai";
-  body: string;
-  card?: string;
-}
+/* ═══ CONSTANTS (mirrored from real TheDock) ═══ */
+const ACCENT = "#a78bfa";
+const ORANGE = "#f97316";
 
-const ACCENT = "#F97316";
+/* Each use case: venue coords for flyTo + demo script */
+const DEMOS = [
+  {
+    id: "barber", label: "The Barber", emoji: "✂️",
+    venue: { lng: -97.7431, lat: 30.2672, name: "Metro Barbershop", vibe: "busy" },
+    tabs: ["Chat", "Vibe", "Menu", "Reserve", "Shop"],
+    activeTab: 0,
+    messages: [
+      { sender: "guest" as const, text: "What time can Marcus take me today?" },
+      { sender: "ai" as const, text: "Marcus has a 2:15 PM slot open. Classic cut. Want me to lock it in?" },
+      { sender: "guest" as const, text: "Yeah book it" },
+      { sender: "ai" as const, text: "Done. Classic cut at 2:15 with Marcus. You'll get a reminder 30 min before. ✂️" },
+    ],
+  },
+  {
+    id: "league", label: "The League", emoji: "🏀",
+    venue: { lng: -97.7407, lat: 30.274, name: "Thursday Night League", vibe: "lit" },
+    tabs: ["Chat", "Vibe", "Events", "Join"],
+    activeTab: 0,
+    messages: [
+      { sender: "guest" as const, text: "Which court tonight?" },
+      { sender: "ai" as const, text: "Court 3 at Johnson Park. 12 confirmed so far. Bring water — it's hot." },
+      { sender: "guest" as const, text: "How do I get there?" },
+      { sender: "ai" as const, text: "0.8 mi from you. Walking: 15 min. I'll drop a pin. 📍" },
+    ],
+  },
+  {
+    id: "nailtech", label: "The Nail Tech", emoji: "💅",
+    venue: { lng: -97.7341, lat: 30.2849, name: "Mai's Nails", vibe: "moderate" },
+    tabs: ["Chat", "Vibe", "Menu", "Reserve", "Shop"],
+    activeTab: 4,
+    messages: [
+      { sender: "guest" as const, text: "What can I buy or order here?" },
+      { sender: "ai" as const, text: "Here's what's available today:" },
+    ],
+    offerings: [
+      { name: "Gel Full Set", price: 6500, emoji: "💅" },
+      { name: "Fill + Design", price: 4500, emoji: "✨" },
+      { name: "Pedicure Deluxe", price: 5500, emoji: "🦶" },
+    ],
+  },
+  {
+    id: "eventgoer", label: "The Event Goer", emoji: "🎤",
+    venue: { lng: -97.742, lat: 30.295, name: "Community Arts Center", vibe: "busy" },
+    tabs: ["Chat", "Vibe", "Events", "Reserve"],
+    activeTab: 2,
+    messages: [
+      { sender: "guest" as const, text: "Anything happening tonight?" },
+      { sender: "ai" as const, text: "There's a Poetry Night listed tonight. $10 entry, 22 spots left. Want me to grab you a ticket?" },
+      { sender: "guest" as const, text: "Yeah, I'm in" },
+      { sender: "ai" as const, text: "You're on the list. Doors at 7:30 — show this thread at the door. 🎤" },
+    ],
+    event: { name: "Poetry Night", date: "Tonight · 7:30 PM", price: 1000, capacity: 40, rsvps: 18 },
+  },
+  {
+    id: "seeker", label: "The Seeker", emoji: "🔍",
+    venue: { lng: -97.7505, lat: 30.2695, name: "Precision Tailoring", vibe: "quiet" },
+    tabs: ["Chat"],
+    activeTab: 0,
+    messages: [
+      { sender: "guest" as const, text: "I need a good tailor near downtown. Alterations by Saturday." },
+      { sender: "ai" as const, text: "Found 2 spots near you that do same-week alterations:" },
+    ],
+    results: [
+      { name: "Precision Tailoring", spec: "Alterations · Hemming", dist: "0.3 mi", vibe: "quiet" },
+      { name: "Stitch & Press", spec: "Alterations · Rush Orders", dist: "0.9 mi", vibe: "moderate" },
+    ],
+  },
+  {
+    id: "staff", label: "The Staff", emoji: "👤",
+    venue: { lng: -97.726, lat: 30.2615, name: "Ink & Iron Tattoo", vibe: "moderate" },
+    tabs: ["Chat", "My Hours", "Schedule"],
+    activeTab: 1,
+    messages: [
+      { sender: "guest" as const, text: "I can't do Wednesdays anymore" },
+      { sender: "ai" as const, text: "Got it. Wednesday removed. Clients with bookings will be notified automatically." },
+    ],
+    schedule: [
+      { day: "Mon", hours: "10am – 6pm", active: true },
+      { day: "Tue", hours: "10am – 6pm", active: true },
+      { day: "Wed", hours: "Off", active: false },
+      { day: "Thu", hours: "12pm – 8pm", active: true },
+      { day: "Fri", hours: "10am – 6pm", active: true },
+    ],
+  },
+  {
+    id: "owner", label: "The Owner", emoji: "🏠",
+    venue: { lng: -97.748, lat: 30.2555, name: "Amir's Tea House", vibe: "quiet" },
+    tabs: ["Chat"],
+    activeTab: 0,
+    messages: [
+      { sender: "guest" as const, text: "I just opened a tea house. How do I get set up?" },
+      { sender: "ai" as const, text: "Welcome! Tell me about your spot and I'll build everything for you." },
+      { sender: "guest" as const, text: "It's called Amir's Tea House. We're on South Lamar." },
+      { sender: "ai" as const, text: "You're live. Storefront, AI agent, and map pin — all set. People can find you now." },
+    ],
+    setup: ["Storefront created", "AI agent trained", "Pin on the map", "Share link ready"],
+  },
+  {
+    id: "regular", label: "The Regular", emoji: "📍",
+    venue: { lng: -97.738, lat: 30.278, name: "The Commons", vibe: "moderate" },
+    tabs: ["Chat", "Vibe", "Menu", "Events"],
+    activeTab: 0,
+    messages: [
+      { sender: "guest" as const, text: "What's alive near me right now?" },
+      { sender: "ai" as const, text: "8 spots are live within walking distance. The Commons is closest — moderate vibe. Tap to start chatting." },
+    ],
+  },
+];
 
-/* ── Knowledge base — the AI answers from this ── */
-const KB_KNOWLEDGE: Record<string, string> = {
-  "what is kickback": "KickBack is the digital front door for real-world venues. Every venue gets its own AI agent, every guest earns XP. No app download needed — works on web, email, and SMS.",
-  "how does it work": "Guests discover venues on a live map. Tap one — you're chatting with its AI. Ask about the vibe, menu, events, or reserve a booth. All from one conversation. Venue owners set up in 5 minutes — AI builds everything.",
-  "what do venues get": "Your own AI agent that knows your menu, hours, and vibe. A live dashboard with occupancy, messages, and member management. Wallet passes for guests. XP roadmap for loyalty. Stripe payouts. All from one setup.",
-  "what do guests get": "A map of every venue around you. Chat with any of them. Earn XP everywhere you go — it all adds up to your KickBack Score. Redeem perks, collect venue badges, never wonder 'what's the vibe?' again.",
-  "pricing": "Guests are always free. Venue owners: Free plan ($0) gets 1 venue + AI + 100 interactions. Pro ($49/mo) gets unlimited + all channels + wallet passes. Network ($99/mo) gets map priority + cross-venue recognition + insights.",
-  "groups": "KickBack works for any gathering point — running clubs, book clubs, tech meetups, sports leagues, community orgs. Same dashboard, same AI, same XP system. It's not just venues, it's any third place where people come together.",
-  "xp": "Every visit, order, referral, and interaction earns XP. Your KickBack Score is the total across all venues. Each venue also has its own XP roadmap with milestones and perks. Visit more, earn more, unlock more.",
-  "wallet": "Guests get Apple or Google Wallet passes with live venue updates on their lock screen. When they redeem a perk, it becomes a wallet badge with a QR code the venue scans. No app needed.",
-  "ai agent": "Every venue gets a dedicated AI agent powered by OpenClaw. It knows the menu, hours, vibe, and offerings. Guests chat naturally — 'any booths open?' — and the AI handles it. Venue owners customize the knowledge base from the dashboard.",
-  "stripe": "Venue owners connect Stripe in 5 minutes. Guests pay through chat — the venue receives funds directly. Automatic payouts to your bank. Platform fee based on your plan (5-10%).",
-  "get started": "Venue owners: go to dash.thekickback.net, tell the AI about your spot, and you're live in 5 minutes. Guests: go to join.thekickback.net and open the map. That's it.",
-  "events": "Venues and groups can create events as offerings. Guests RSVP through chat, earn XP for attending, and get wallet pass reminders. Works for live music, workshops, meetups, game nights — anything.",
-  "membership": "Venues set their own membership tiers with custom perks. Members earn bonus XP. Memberships are managed through the dashboard, billed through Stripe, and recognized across the network.",
+const VIBE_COLORS: Record<string, string> = {
+  quiet: "#4ade80", moderate: "#facc15", busy: "#f97316", lit: "#f87171",
 };
 
-function matchKnowledge(input: string): string {
-  const lower = input.toLowerCase().replace(/[?!.,]/g, "");
-  for (const [key, value] of Object.entries(KB_KNOWLEDGE)) {
-    const words = key.split(" ");
-    if (words.every((w) => lower.includes(w))) return value;
-  }
-  // Fuzzy match
-  if (lower.includes("price") || lower.includes("cost") || lower.includes("how much")) return KB_KNOWLEDGE["pricing"];
-  if (lower.includes("venue") || lower.includes("owner") || lower.includes("business")) return KB_KNOWLEDGE["what do venues get"];
-  if (lower.includes("guest") || lower.includes("user") || lower.includes("visitor")) return KB_KNOWLEDGE["what do guests get"];
-  if (lower.includes("group") || lower.includes("club") || lower.includes("meetup") || lower.includes("league")) return KB_KNOWLEDGE["groups"];
-  if (lower.includes("xp") || lower.includes("points") || lower.includes("earn") || lower.includes("loyalty")) return KB_KNOWLEDGE["xp"];
-  if (lower.includes("wallet") || lower.includes("pass") || lower.includes("apple")) return KB_KNOWLEDGE["wallet"];
-  if (lower.includes("ai") || lower.includes("agent") || lower.includes("chat")) return KB_KNOWLEDGE["ai agent"];
-  if (lower.includes("pay") || lower.includes("stripe") || lower.includes("money")) return KB_KNOWLEDGE["stripe"];
-  if (lower.includes("start") || lower.includes("sign up") || lower.includes("join") || lower.includes("setup")) return KB_KNOWLEDGE["get started"];
-  if (lower.includes("event") || lower.includes("rsvp") || lower.includes("ticket")) return KB_KNOWLEDGE["events"];
-  if (lower.includes("member")) return KB_KNOWLEDGE["membership"];
-  if (lower.includes("how") || lower.includes("work")) return KB_KNOWLEDGE["how does it work"];
-  if (lower.includes("what")) return KB_KNOWLEDGE["what is kickback"];
-  return "I can tell you about how KickBack works, what venues and guests get, pricing, XP, groups, events, wallet passes, or the AI agent. What are you curious about?";
-}
-
-function getCardForQuery(input: string): string | undefined {
-  const lower = input.toLowerCase();
-  if (lower.includes("how") && lower.includes("work")) return "how";
-  if (lower.includes("venue") || lower.includes("owner") || lower.includes("business")) return "venues";
-  if (lower.includes("guest") || lower.includes("user") || lower.includes("visitor")) return "guests";
-  if (lower.includes("price") || lower.includes("cost") || lower.includes("plan")) return "pricing";
-  if (lower.includes("start") || lower.includes("sign") || lower.includes("setup") || lower.includes("own")) return "owner";
-  return undefined;
-}
-
-/* ── Cards ── */
-
-function HeroCard() {
-  return (
-    <div className="overflow-hidden rounded-2xl" style={{ border: `1px solid ${ACCENT}20` }}>
-      <div className="relative flex items-end px-4 pb-4 pt-12 sm:px-6 sm:pt-16 md:pt-20" style={{ background: `linear-gradient(135deg, ${ACCENT}20 0%, ${ACCENT}06 50%, rgba(0,0,0,0.5) 100%)` }}>
-        <div className="w-full">
-          <div className="mb-2 flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: ACCENT }}>
-              <div className="h-1 w-1 animate-pulse rounded-full bg-black" />
-              <span className="font-sans text-[8px] font-bold tracking-[1px] text-black">LIVE</span>
-            </div>
-            <span className="rounded-full px-2 py-0.5 font-mono text-[9px] text-white/40" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>Austin · Milwaukee · Expanding</span>
-          </div>
-          <h1 className="font-display text-[22px] font-bold leading-tight text-white sm:text-[32px] md:text-[40px]">theKickBack</h1>
-          <p className="mt-1 font-sans text-[12px] text-white/45 sm:text-[14px] md:text-[16px]">The digital front door for real-world venues.</p>
-        </div>
-      </div>
-      <div className="flex items-center justify-between px-4 py-2 sm:px-6" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-        <span className="font-sans text-[8px] font-semibold tracking-[1px] text-white/20 sm:text-[9px]">VENUES · GROUPS · COMMUNITIES</span>
-      </div>
-    </div>
-  );
-}
-
-function HowCard() {
-  const steps = [
-    { icon: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z", label: "Discover", desc: "Live map of every venue and group around you" },
-    { icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z", label: "Chat", desc: "Every venue has its own AI agent" },
-    { icon: "M13 2L3 14h9l-1 8 10-12h-9l1-8z", label: "Earn XP", desc: "Visit, order, refer — your score grows" },
-    { icon: "M20 14H4a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2z", label: "Wallet", desc: "Apple/Google Wallet passes, live updates" },
-  ];
-  return (
-    <div className="rounded-2xl p-3 sm:p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-      <p className="mb-2 font-sans text-[8px] font-semibold tracking-[1.5px] text-white/20 sm:text-[9px]">HOW IT WORKS</p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {steps.map((s) => (
-          <div key={s.label} className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10" style={{ backgroundColor: `${ACCENT}15` }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={s.icon} /></svg>
-            </div>
-            <div>
-              <p className="font-sans text-[11px] font-semibold text-white/70 sm:text-[12px]">{s.label}</p>
-              <p className="font-sans text-[9px] text-white/30 sm:text-[10px]">{s.desc}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function VenuesCard() {
-  const features = [
-    "AI agent that knows your menu, hours, vibe",
-    "Live dashboard — occupancy, messages, members",
-    "Offerings + POS — sell anything through chat",
-    "XP roadmap + milestones — custom loyalty",
-    "Wallet passes — your venue on their lock screen",
-    "Stripe Connect — automatic payouts",
-    "Works for venues, groups, clubs, and orgs",
-  ];
-  return (
-    <div className="rounded-2xl p-3 sm:p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-      <p className="mb-2 font-sans text-[8px] font-semibold tracking-[1.5px] text-white/20 sm:text-[9px]">FOR VENUE OWNERS & ORGANIZERS</p>
-      <div className="grid gap-1.5 sm:grid-cols-2">
-        {features.map((f) => (
-          <div key={f} className="flex items-start gap-2">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.5" strokeLinecap="round" className="mt-0.5 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
-            <span className="font-sans text-[10px] text-white/45 sm:text-[11px]">{f}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function GuestsCard() {
-  return (
-    <div className="rounded-2xl p-3 sm:p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-      <p className="mb-2 font-sans text-[8px] font-semibold tracking-[1.5px] text-white/20 sm:text-[9px]">FOR GUESTS</p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {[
-          { emoji: "🗺️", title: "Live Map", desc: "Every venue, color-coded by vibe" },
-          { emoji: "💬", title: "Chat with Venues", desc: "Ask anything, book anything" },
-          { emoji: "⚡", title: "Earn XP", desc: "Every visit and order counts" },
-          { emoji: "🏆", title: "Collect Badges", desc: "Each venue has its own roadmap" },
-          { emoji: "🎁", title: "Redeem Perks", desc: "Free drinks, priority access" },
-          { emoji: "👥", title: "Join Groups", desc: "Running clubs, book clubs, leagues" },
-        ].map((item) => (
-          <div key={item.title} className="flex items-center gap-2.5">
-            <span className="text-[14px] sm:text-[16px]">{item.emoji}</span>
-            <div>
-              <p className="font-sans text-[10px] font-semibold text-white/60 sm:text-[11px]">{item.title}</p>
-              <p className="font-sans text-[9px] text-white/25 sm:text-[10px]">{item.desc}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PricingCard() {
-  return (
-    <div className="grid gap-2 sm:grid-cols-3">
-      {[
-        { tier: "Free", price: "$0", features: ["1 venue", "AI agent", "Web chat", "100 interactions/mo"], highlight: false },
-        { tier: "Pro", price: "$49", features: ["Unlimited interactions", "All channels", "Wallet passes", "Members", "10% fee"], highlight: true },
-        { tier: "Network", price: "$99", features: ["Everything in Pro", "Map priority", "Cross-venue", "Insights", "7% fee"], highlight: false },
-      ].map((p) => (
-        <div
-          key={p.tier}
-          className="rounded-xl px-3 py-2.5 sm:px-4 sm:py-3"
-          style={{
-            backgroundColor: p.highlight ? `${ACCENT}08` : "rgba(255,255,255,0.02)",
-            border: `1px solid ${p.highlight ? `${ACCENT}30` : "rgba(255,255,255,0.05)"}`,
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-sans text-[9px] font-semibold tracking-[1px] sm:text-[10px]" style={{ color: p.highlight ? ACCENT : "rgba(255,255,255,0.25)" }}>{p.tier.toUpperCase()}</span>
-              <span className="font-sans text-[18px] font-bold text-white sm:text-[22px]">{p.price}</span>
-              <span className="font-sans text-[9px] text-white/20">/mo</span>
-            </div>
-            {p.highlight && <span className="rounded-full px-2 py-0.5 font-sans text-[7px] font-bold sm:text-[8px]" style={{ backgroundColor: `${ACCENT}20`, color: ACCENT }}>POPULAR</span>}
-          </div>
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {p.features.map((f) => (
-              <span key={f} className="rounded-md px-1.5 py-0.5 font-sans text-[8px] text-white/30 sm:text-[9px]" style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>{f}</span>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function OwnerCard() {
-  return (
-    <div className="rounded-2xl p-3 sm:p-4" style={{ backgroundColor: `${ACCENT}06`, border: `1px solid ${ACCENT}15` }}>
-      <p className="mb-2 font-sans text-[8px] font-semibold tracking-[1.5px] sm:text-[9px]" style={{ color: `${ACCENT}80` }}>GET STARTED</p>
-      <p className="font-sans text-[11px] text-white/50 sm:text-[13px]">Tell your AI about your spot. It builds everything — menu, offerings, XP, milestones, perks. Zero manual work. Live in 5 minutes.</p>
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <a href="https://dash.thekickback.net" className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[12px] font-bold text-black active:scale-[0.97] sm:text-[13px]" style={{ backgroundColor: ACCENT }}>
-          Set Up Your Venue
-        </a>
-        <a href="https://join.thekickback.net" className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[12px] font-semibold text-white/50 active:scale-[0.97] sm:text-[13px]" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          Explore as a Guest
-        </a>
-      </div>
-      <p className="mt-2 text-center font-sans text-[8px] text-white/15 sm:text-[9px]">Free to start · No credit card · 5 minute setup</p>
-    </div>
-  );
-}
-
-const CARD_MAP: Record<string, () => React.ReactNode> = {
-  hero: () => <HeroCard />,
-  how: () => <HowCard />,
-  venues: () => <VenuesCard />,
-  guests: () => <GuestsCard />,
-  pricing: () => <PricingCard />,
-  owner: () => <OwnerCard />,
+const TAB_ICONS: Record<string, string> = {
+  Chat: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+  Vibe: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+  Menu: "M3 6h18M3 12h18M3 18h18",
+  Events: "M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4",
+  Reserve: "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z",
+  Shop: "M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6",
+  Join: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
+  "My Hours": "M12 8v4l3 3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z",
+  Schedule: "M3 6h18M3 12h18M3 18h18",
 };
 
 const QUICK_ACTIONS = [
   "How does it work?",
-  "What do venues get?",
-  "What do guests get?",
-  "Pricing",
-  "Groups & clubs",
-  "I own a venue",
+  "I own a small business",
+  "I want to find an event",
+  "I'm looking for a service",
+  "I work at a venue",
+  "What's the AI Wallet?",
 ];
+
+/* ═══ CHAT TYPES ═══ */
+interface Msg { role: "user" | "assistant"; content: string; }
 
 /* ═══ MAIN ═══ */
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: "hero", sender: "ai", body: "", card: "hero" },
-    { id: "welcome", sender: "ai", body: "Hey. I'm KickBack — the digital front door for real-world venues and groups. Every spot gets its own AI. Every guest earns XP. Ask me anything or pick a topic below." },
+  const mapRef = useRef<MapHandle>(null);
+  const [activeCase, setActiveCase] = useState(0);
+  const [msgIndex, setMsgIndex] = useState(0);
+  const [expanded, setExpanded] = useState(true);
+  const current = DEMOS[activeCase];
+  const vibeColor = VIBE_COLORS[current.venue.vibe] || ACCENT;
+
+  /* Manual navigation only — no autoplay */
+  function selectCase(idx: number) {
+    setExpanded(true);
+    setActiveCase(idx);
+    setMsgIndex(0);
+    mapRef.current?.flyTo(DEMOS[idx].venue.lng, DEMOS[idx].venue.lat);
+  }
+
+  function stepForward() {
+    const maxMsgs = current.messages.length - 1;
+    if (msgIndex < maxMsgs) {
+      setMsgIndex(msgIndex + 1);
+    } else {
+      const next = (activeCase + 1) % DEMOS.length;
+      setActiveCase(next);
+      setMsgIndex(0);
+      mapRef.current?.flyTo(DEMOS[next].venue.lng, DEMOS[next].venue.lat);
+    }
+  }
+
+  function stepBack() {
+    if (msgIndex > 0) {
+      setMsgIndex(msgIndex - 1);
+    } else {
+      const prev = (activeCase - 1 + DEMOS.length) % DEMOS.length;
+      setActiveCase(prev);
+      setMsgIndex(DEMOS[prev].messages.length - 1);
+      mapRef.current?.flyTo(DEMOS[prev].venue.lng, DEMOS[prev].venue.lat);
+    }
+  }
+
+  const visibleMsgs = current.messages.slice(0, msgIndex + 1);
+
+  /* ── OpenClaw Q&A Chat ── */
+  const [chatMsgs, setChatMsgs] = useState<Msg[]>([
+    { role: "assistant", content: "Hey. I'm KickBack — infrastructure for every gathering place that deserves a front door. Barbershops, courts, salons, leagues, studios. Ask me anything." },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMsgs]);
 
-  function send(text: string) {
+  async function sendChat(text: string) {
     if (!text.trim() || loading) return;
-    const msg = text.trim();
-    setMessages((prev) => [...prev, { id: `user-${Date.now()}`, sender: "guest", body: msg }]);
+    const userMsg: Msg = { role: "user", content: text.trim() };
+    setChatMsgs((p) => [...p, userMsg]);
     setInput("");
     setLoading(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text.trim() }),
+      });
+      const data = await res.json();
+      setChatMsgs((p) => [...p, { role: "assistant", content: data.reply || "I'm here to help." }]);
+    } catch {
+      setChatMsgs((p) => [...p, { role: "assistant", content: "Connection lost. Try again." }]);
+    } finally { setLoading(false); }
+  }
 
-    setTimeout(() => {
-      const reply = matchKnowledge(msg);
-      const card = getCardForQuery(msg);
-      setMessages((prev) => [...prev, { id: `ai-${Date.now()}`, sender: "ai", body: reply, card }]);
-      setLoading(false);
-    }, 500);
+  function sendMessage(e?: FormEvent) {
+    e?.preventDefault();
+    sendChat(input);
   }
 
   return (
-    <main className="flex h-dvh w-full flex-col bg-black text-white">
-      {/* Logo */}
-      <div className="flex items-center justify-between px-4 pt-[max(10px,env(safe-area-inset-top))] pb-1 sm:px-8">
-        <Image src="/logo.png" alt="theKickBack" width={140} height={44} className="h-6 w-auto invert sm:h-8 md:h-9" priority />
-        <div className="hidden items-center gap-3 sm:flex">
-          <a href="https://join.thekickback.net" className="font-sans text-[12px] text-white/40 transition hover:text-white/60">Explore</a>
-          <a href="https://dash.thekickback.net" className="rounded-full px-4 py-1.5 font-sans text-[12px] font-semibold text-black" style={{ backgroundColor: ACCENT }}>Dashboard</a>
+    <div className="fixed inset-0 overflow-hidden" style={{ background: "#0a0a0a" }}>
+      {/* ── FULL-SCREEN MAP (left side) ── */}
+      <div className="absolute inset-0 lg:right-[420px]">
+        <MapBackdrop ref={mapRef} />
+      </div>
+
+      {/* ── LOGO (top-left) ── */}
+      <div className="absolute top-5 left-4 z-50">
+        <Image src="/logo.png" alt="theKickBack" width={180} height={60} priority style={{ height: "auto", filter: "brightness(0) invert(1)" }} />
+      </div>
+
+      {/* ── NAV (top-right, above chat) ── */}
+      <div className="absolute top-5 right-4 z-50 flex items-center gap-2">
+        <a href="https://join.thekickback.net"
+          className="flex items-center rounded-full px-3 py-1.5 text-[11px] font-medium text-white/60 transition hover:text-white/90"
+          style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >Explore</a>
+        <a href="https://dash.thekickback.net"
+          className="flex items-center rounded-full px-3 py-1.5 text-[11px] font-semibold"
+          style={{ backgroundColor: ORANGE, color: "#fff" }}
+        >Dashboard</a>
+      </div>
+
+      {/* ── USE CASE STRIP (over map, below logo) ── */}
+      <div className="absolute top-16 left-4 right-[420px] z-50 hidden lg:flex justify-center">
+        <div className="flex gap-1 rounded-full px-1.5 py-1 overflow-x-auto"
+          style={{ backgroundColor: "rgba(12,12,14,0.8)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          {DEMOS.map((d, i) => (
+            <button key={d.id} onClick={() => selectCase(i)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-all"
+              style={i === activeCase
+                ? { backgroundColor: `${ACCENT}25`, color: ACCENT }
+                : { color: "rgba(255,255,255,0.35)" }
+              }
+            >
+              <span className="text-xs">{d.emoji}</span>
+              <span>{d.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Chat — responsive max-width */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 sm:px-8 md:px-12" style={{ WebkitOverflowScrolling: "touch" }}>
-        <div className="mx-auto flex max-w-2xl flex-col gap-2.5">
-          {messages.map((msg) => {
-            if (msg.sender === "guest") {
-              return (
-                <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end">
-                  <div className="max-w-[85%] rounded-2xl rounded-br-sm px-3.5 py-2.5 sm:max-w-[70%]" style={{ backgroundColor: ACCENT, color: "#000" }}>
-                    <p className="font-sans text-[13px] leading-[1.5] sm:text-[14px]">{msg.body}</p>
+      {/* ═══ THE DOCK (bottom of map area) ═══ */}
+      <motion.div
+        initial={{ y: 60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="fixed bottom-0 left-0 z-40"
+        style={{ right: "420px", paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}
+      >
+        {/* Mobile: show dock full-width; Desktop: only left of chat */}
+        <div className="hidden lg:block">
+          <motion.div
+            animate={{ height: expanded ? "50vh" : 56, borderRadius: expanded ? "20px" : 28 }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            className="relative mx-3 flex flex-col overflow-hidden"
+            style={{
+              background: "rgba(12, 12, 14, 0.92)",
+              backdropFilter: "blur(40px) saturate(1.8)",
+              WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 -4px 30px rgba(0,0,0,0.3)",
+            }}
+          >
+            {/* Collapsed */}
+            {!expanded && (
+              <button onClick={() => setExpanded(true)} className="flex h-full items-center gap-2 px-4">
+                <motion.div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: vibeColor, boxShadow: `0 0 6px ${vibeColor}60` }}
+                  animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                />
+                <span className="font-sans text-[13px] font-semibold text-white/70">{current.venue.name}</span>
+                <span className="font-sans text-[11px] text-white/25">{current.label}</span>
+                <div className="ml-auto">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9" /></svg>
+                </div>
+              </button>
+            )}
+
+            {/* Expanded */}
+            {expanded && (
+              <>
+                {/* Drag handle */}
+                <button onClick={() => setExpanded(false)} className="flex shrink-0 justify-center pt-2 pb-1 cursor-pointer">
+                  <div className="h-1 w-8 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+                </button>
+
+                {/* Venue header */}
+                <div className="flex shrink-0 items-center gap-3 px-4 pb-2">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: `linear-gradient(135deg, ${vibeColor}30, ${vibeColor}10)`, border: `2px solid ${vibeColor}40` }}
+                  >
+                    <span className="text-[16px]">{current.emoji}</span>
                   </div>
-                </motion.div>
-              );
-            }
-            return (
-              <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-2">
-                {msg.card && CARD_MAP[msg.card] && CARD_MAP[msg.card]()}
-                {msg.body && (
-                  <div className="flex justify-start">
-                    <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 sm:max-w-[70%]" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                      <p className="font-sans text-[13px] leading-[1.5] sm:text-[14px]">{msg.body}</p>
+                  <div className="flex flex-1 flex-col">
+                    <span className="font-sans text-[14px] font-semibold text-white/90">{current.venue.name}</span>
+                    <span className="font-sans text-[10px] text-white/30">{current.label}</span>
+                  </div>
+                  <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: `${vibeColor}12`, border: `1px solid ${vibeColor}25` }}>
+                    <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor, boxShadow: `0 0 4px ${vibeColor}` }} />
+                    <span className="font-sans text-[10px] font-semibold capitalize" style={{ color: vibeColor }}>{current.venue.vibe}</span>
+                  </div>
+                  {/* Navigation */}
+                  <div className="flex items-center gap-1">
+                    <button onClick={stepBack}
+                      className="flex items-center justify-center rounded-full w-7 h-7"
+                      style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
+                    </button>
+                    <button onClick={stepForward}
+                      className="flex items-center justify-center rounded-full w-7 h-7"
+                      style={{ backgroundColor: `${ACCENT}15`, border: `1px solid ${ACCENT}25` }}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.5" strokeLinecap="round"><polyline points="9 6 15 12 9 18" /></svg>
+                    </button>
+                  </div>
+                  <button onClick={() => setExpanded(false)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" strokeLinecap="round"><polyline points="6 15 12 9 18 15" /></svg>
+                  </button>
+                </div>
+
+                {/* Tab strip */}
+                <div className="flex gap-0.5 px-3 pb-2">
+                  {current.tabs.map((tab, i) => (
+                    <div key={tab} className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap"
+                      style={i === current.activeTab ? { backgroundColor: `${ACCENT}15`, color: ACCENT } : { color: "rgba(255,255,255,0.25)" }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={TAB_ICONS[tab] || TAB_ICONS.Chat} /></svg>
+                      {tab}
                     </div>
+                  ))}
+                </div>
+
+                {/* Chat messages + cards */}
+                <div className="flex-1 overflow-y-auto px-4 pb-3 space-y-2" style={{ WebkitOverflowScrolling: "touch" }}>
+                  <AnimatePresence mode="wait">
+                    <motion.div key={activeCase} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
+                      {visibleMsgs.map((m, i) => (
+                        <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                          className={`flex ${m.sender === "guest" ? "justify-end" : "justify-start"}`}
+                        >
+                          {m.sender === "ai" && (
+                            <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${ACCENT}15` }}>
+                              <motion.div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ACCENT }} animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 2, repeat: Infinity }} />
+                            </div>
+                          )}
+                          <div className="max-w-[80%] px-3.5 py-2.5 font-sans text-[13px] leading-relaxed"
+                            style={m.sender === "guest"
+                              ? { background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}cc)`, color: "#000", borderRadius: "16px 16px 4px 16px", fontWeight: 500 }
+                              : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", borderRadius: "16px 16px 16px 4px", border: "1px solid rgba(255,255,255,0.05)" }
+                            }
+                          >{m.text}</div>
+                        </motion.div>
+                      ))}
+
+                      {/* Offerings */}
+                      {(current as Record<string, unknown>).offerings && msgIndex >= 1 && (
+                        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5 overflow-x-auto pb-1" style={{ scrollSnapType: "x mandatory" }}>
+                          {((current as Record<string, unknown>).offerings as { name: string; price: number; emoji: string }[]).map((o) => (
+                            <div key={o.name} className="flex shrink-0 flex-col overflow-hidden rounded-2xl" style={{ width: 150, backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${ACCENT}15`, scrollSnapAlign: "start" }}>
+                              <div className="relative flex h-16 items-center justify-center" style={{ background: `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}06)` }}>
+                                <span className="text-2xl">{o.emoji}</span>
+                                <div className="absolute bottom-1.5 right-1.5 rounded-full px-1.5 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+                                  <span className="font-mono text-[10px] font-bold" style={{ color: ACCENT }}>${(o.price / 100).toFixed(0)}</span>
+                                </div>
+                              </div>
+                              <div className="px-2.5 py-2"><span className="font-sans text-[12px] font-semibold text-white/80">{o.name}</span></div>
+                            </div>
+                          ))}
+                        </motion.div>
+                      )}
+
+                      {/* Event card */}
+                      {(current as Record<string, unknown>).event && msgIndex >= 1 && (() => {
+                        const ev = (current as Record<string, unknown>).event as { name: string; date: string; price: number; capacity: number; rsvps: number };
+                        return (
+                          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-2xl" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${ACCENT}15` }}>
+                            <div className="relative flex h-16 items-center justify-center" style={{ background: `linear-gradient(135deg, ${ORANGE}20, ${ORANGE}06)` }}>
+                              <span className="text-2xl">🎤</span>
+                              <div className="absolute bottom-1.5 right-1.5 rounded-full px-1.5 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+                                <span className="font-mono text-[10px] font-bold" style={{ color: ORANGE }}>${(ev.price / 100).toFixed(0)}</span>
+                              </div>
+                            </div>
+                            <div className="px-3 py-2.5">
+                              <div className="font-sans text-[12px] font-semibold text-white/80">{ev.name}</div>
+                              <div className="font-sans text-[9px] text-white/30 mb-1.5">{ev.date}</div>
+                              <div className="h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                                <div className="h-full rounded-full" style={{ width: `${(ev.rsvps / ev.capacity) * 100}%`, backgroundColor: ORANGE }} />
+                              </div>
+                              <div className="font-sans text-[9px] text-white/25 mt-1">{ev.rsvps}/{ev.capacity} RSVPs</div>
+                            </div>
+                          </motion.div>
+                        );
+                      })()}
+
+                      {/* Search results */}
+                      {(current as Record<string, unknown>).results && msgIndex >= 1 && (
+                        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-1.5">
+                          {((current as Record<string, unknown>).results as { name: string; spec: string; dist: string; vibe: string }[]).map((v) => {
+                            const c = VIBE_COLORS[v.vibe] || ACCENT;
+                            return (
+                              <div key={v.name} className="flex items-center gap-3 rounded-2xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${c}15` }}>
+                                <div className="h-2 w-2 rounded-full" style={{ backgroundColor: c, boxShadow: `0 0 4px ${c}` }} />
+                                <div className="flex-1">
+                                  <div className="font-sans text-[12px] font-semibold text-white/80">{v.name}</div>
+                                  <div className="font-sans text-[9px] text-white/30">{v.spec}</div>
+                                </div>
+                                <div className="font-sans text-[10px] text-white/25">{v.dist}</div>
+                              </div>
+                            );
+                          })}
+                        </motion.div>
+                      )}
+
+                      {/* Schedule */}
+                      {(current as Record<string, unknown>).schedule && (
+                        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div className="font-sans text-[10px] font-semibold tracking-[2px] text-white/25 mb-1.5">THIS WEEK</div>
+                          {((current as Record<string, unknown>).schedule as { day: string; hours: string; active: boolean }[]).map((d) => (
+                            <div key={d.day} className="flex justify-between py-1 border-b last:border-0" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+                              <span className={`font-sans text-[11px] font-medium ${d.active ? "text-white/50" : "text-white/15"}`}>{d.day}</span>
+                              <span className={`font-sans text-[11px] ${d.active ? "" : "line-through text-white/15"}`} style={{ color: d.active ? ACCENT : undefined }}>{d.hours}</span>
+                            </div>
+                          ))}
+                        </motion.div>
+                      )}
+
+                      {/* Setup checklist */}
+                      {(current as Record<string, unknown>).setup && msgIndex >= 3 && (
+                        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                          {((current as Record<string, unknown>).setup as string[]).map((step, i) => (
+                            <div key={i} className="flex items-center gap-2 py-1">
+                              <div className="flex h-4 w-4 items-center justify-center rounded-full" style={{ backgroundColor: `${ACCENT}25` }}>
+                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                              </div>
+                              <span className="font-sans text-[11px] text-white/50">{step}</span>
+                            </div>
+                          ))}
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                {/* Dock input (visual) */}
+                <div className="flex items-center gap-2 px-3 pb-2 pt-1">
+                  <div className="min-w-0 flex-1 rounded-full px-4 flex items-center font-sans text-[13px] text-white/25"
+                    style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >Ask {current.venue.name} anything...</div>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: ACCENT, boxShadow: `0 2px 10px ${ACCENT}40` }}>
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
+                    </svg>
                   </div>
-                )}
-              </motion.div>
-            );
-          })}
+                </div>
+              </>
+            )}
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* ═══ Q&A CHAT (right panel, fixed) ═══ */}
+      <div className="fixed top-0 right-0 bottom-0 w-full lg:w-[420px] z-30 flex flex-col"
+        style={{
+          background: "rgba(12, 12, 14, 0.96)",
+          borderLeft: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        {/* Chat header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <motion.div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ORANGE }}
+            animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
+            transition={{ duration: 3, repeat: Infinity }}
+          />
+          <span className="font-sans text-[15px] font-semibold text-white/90">KickBack</span>
+          <span className="font-sans text-[11px] text-white/30">Ask me anything</span>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          {chatMsgs.map((m, i) => (
+            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              {m.role === "assistant" && (
+                <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${ORANGE}15` }}>
+                  <span className="text-[10px] font-bold" style={{ color: ORANGE }}>KB</span>
+                </div>
+              )}
+              <div className="max-w-[85%] px-4 py-2.5 font-sans text-[13px] leading-relaxed"
+                style={m.role === "user"
+                  ? { background: ORANGE, color: "#fff", borderRadius: "16px 16px 4px 16px" }
+                  : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", borderRadius: "16px 16px 16px 4px", border: "1px solid rgba(255,255,255,0.05)" }
+                }
+              >{m.content}</div>
+            </div>
+          ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="flex gap-1.5 rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                {[0, 1, 2].map((i) => (
-                  <motion.div key={i} className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -5, 0] }} transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.12 }} />
-                ))}
-              </div>
+              <div className="px-4 py-2.5 rounded-2xl font-sans text-[13px]" style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.4)" }}>Thinking...</div>
             </div>
           )}
+          <div ref={chatEndRef} />
         </div>
-      </div>
 
-      {/* Quick actions */}
-      <div className="flex gap-1.5 overflow-x-auto px-4 pb-2 no-scrollbar sm:justify-center sm:px-8" style={{ WebkitOverflowScrolling: "touch" }}>
-        {QUICK_ACTIONS.map((q) => (
-          <button key={q} onClick={() => send(q)} className="shrink-0 rounded-full px-3.5 py-2 font-sans text-[11px] font-medium text-white/40 active:scale-95 sm:text-[12px]" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            {q}
-          </button>
-        ))}
-      </div>
-
-      {/* Dock */}
-      <div className="px-3 pb-[max(6px,env(safe-area-inset-bottom))] sm:px-8">
-        <div className="mx-auto flex max-w-2xl items-center gap-2 rounded-full px-3 sm:px-4" style={{ height: 52, background: "rgba(15,15,18,0.9)", backdropFilter: "blur(40px) saturate(1.8)", WebkitBackdropFilter: "blur(40px) saturate(1.8)", boxShadow: "0 0 0 1px rgba(255,255,255,0.1), 0 -4px 30px rgba(0,0,0,0.3)" }}>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <div className="h-2 w-2 animate-pulse rounded-full" style={{ backgroundColor: ACCENT }} />
-            <span className="font-sans text-[12px] font-semibold text-white/80">KB</span>
+        {/* Quick actions */}
+        {chatMsgs.length <= 1 && (
+          <div className="px-5 pb-2 flex flex-wrap gap-1.5">
+            {QUICK_ACTIONS.map((q) => (
+              <button key={q} onClick={() => sendChat(q)}
+                className="px-3 py-1.5 rounded-full font-sans text-[11px] font-medium transition-colors"
+                style={{ backgroundColor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.06)" }}
+              >{q}</button>
+            ))}
           </div>
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send(input)}
-            placeholder="Ask about KickBack..."
-            className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/20 focus:outline-none sm:text-[14px]"
+        )}
+
+        {/* Input */}
+        <form onSubmit={sendMessage} className="flex items-center gap-2 px-4 py-3 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about KickBack..."
+            className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+            style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
           />
-          <button onClick={() => send(input)} disabled={!input.trim() || loading} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full disabled:opacity-30 sm:h-9 sm:w-9" style={{ backgroundColor: ACCENT }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
-            </svg>
-          </button>
-          <div className="hidden shrink-0 items-center gap-2 pl-2 sm:flex">
-            <a href="https://join.thekickback.net" className="rounded-full px-3 py-1.5 font-sans text-[10px] font-bold text-black sm:text-[11px]" style={{ backgroundColor: ACCENT }}>Explore Venues</a>
-            <a href="https://dash.thekickback.net" className="rounded-full px-3 py-1.5 font-sans text-[10px] font-semibold text-white/50 sm:text-[11px]" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>I Own a Venue</a>
-          </div>
+          {input.trim() && (
+            <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.9 }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+              style={{ backgroundColor: ORANGE, boxShadow: `0 2px 10px ${ORANGE}40` }}
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
+              </svg>
+            </motion.button>
+          )}
+        </form>
+
+        {/* Footer */}
+        <div className="flex justify-center gap-4 px-4 py-2 border-t" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+          <a href="https://join.thekickback.net" className="font-sans text-[11px] font-semibold" style={{ color: ORANGE }}>Find Your Spot</a>
+          <a href="https://dash.thekickback.net" className="font-sans text-[11px] font-semibold" style={{ color: ORANGE }}>Set Up Your Hub</a>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
