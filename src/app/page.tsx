@@ -217,10 +217,11 @@ export default function Home() {
     setInput("");
     setLoading(true);
     try {
+      const userCount = chatMsgs.filter(m => m.role === "user").length + 1; // +1 for current
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text.trim() }),
+        body: JSON.stringify({ message: text.trim(), messageCount: userCount }),
       });
       const data = await res.json();
       setChatMsgs((p) => [...p, { role: "assistant", content: data.reply || "I'm here to help." }]);
