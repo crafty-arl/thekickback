@@ -78,6 +78,40 @@ export async function POST(request: Request) {
       });
     }
 
+    // ─── Handle membership items ──────────────────────────────
+    const membershipItems = allItems.filter(
+      (i: { offering_id?: string; metadata?: { type?: string } }) =>
+        i.metadata?.type === "membership" && i.offering_id
+    );
+
+    for (const mi of membershipItems) {
+      // Look up offering to get interval
+      const { data: offering } = await supabase
+        .from("venue_offerings")
+        .select("id, interval, recurring")
+        .eq("id", mi.offering_id)
+        .single();
+
+      const expiresAt = new Date();
+      if (offering?.interval === "year") {
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+      } else {
+        expiresAt.setMonth(expiresAt.getMonth() + 1);
+      }
+
+      await supabase.from("memberships").upsert({
+        user_id: userId,
+        venue_id: venueId,
+        tier: "member",
+        offering_id: mi.offering_id,
+        expires_at: expiresAt.toISOString(),
+        auto_renew: true,
+        last_charged_at: new Date().toISOString(),
+        charge_method: "wallet",
+        mode,
+      }, { onConflict: "user_id,venue_id" });
+    }
+
     return Response.json({ orderId: data });
   } catch (err) {
     console.error("Order creation failed:", err);
