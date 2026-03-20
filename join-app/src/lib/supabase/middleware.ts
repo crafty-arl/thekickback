@@ -25,6 +25,21 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  // Detect sandbox mode from hostname
+  const host = request.headers.get("host") || "";
+  const isSandbox = host.startsWith("sandbox.");
+  if (isSandbox) {
+    supabaseResponse.headers.set("x-kickback-mode", "sandbox");
+    supabaseResponse.cookies.set("kickback_sandbox", "true", {
+      path: "/",
+      httpOnly: false,
+      sameSite: "lax",
+      maxAge: 86400,
+    });
+  } else {
+    supabaseResponse.cookies.delete("kickback_sandbox");
+  }
+
   // Refresh the session (keeps cookies alive)
   const {
     data: { user },

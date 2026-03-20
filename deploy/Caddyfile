@@ -21,3 +21,7 @@ dash.thekickback.net {
 claw.thekickback.net {
 	reverse_proxy claw:18789
 }
+
+sandbox.thekickback.net {
+	reverse_proxy join-app:3000
+}

@@ -3,6 +3,7 @@ import { DM_Sans, Fraunces, Geist } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import Script from "next/script";
+import { SandboxBanner } from "@/components/sandbox-banner";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -49,6 +50,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/logo.png" />
       </head>
       <body className={`${dmSans.variable} ${fraunces.variable} antialiased`}>
+        <SandboxBanner />
         {children}
         <Script id="sw-register" strategy="afterInteractive">
           {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}`}
