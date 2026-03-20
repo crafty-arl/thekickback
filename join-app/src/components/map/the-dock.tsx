@@ -2556,38 +2556,7 @@ export function TheDock({
               )}
             </div>
 
-            {/* Tab row */}
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className="flex w-full gap-1 px-3 pb-2 no-scrollbar"
-              style={{ WebkitOverflowScrolling: "touch", overflowX: "scroll", overflowY: "hidden", scrollSnapType: "x mandatory" }}
-            >
-              {TABS.map((tab) => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <motion.button
-                    key={tab.id}
-                    onClick={() => handleTabTap(tab.id)}
-                    whileTap={{ scale: 0.92 }}
-                    className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 font-sans text-[11px] font-medium transition-colors"
-                    style={{
-                      backgroundColor: isActive ? `${vibeColor}20` : "rgba(255,255,255,0.04)",
-                      color: isActive ? vibeColor : "rgba(255,255,255,0.35)",
-                      border: `1px solid ${isActive ? `${vibeColor}30` : "rgba(255,255,255,0.06)"}`,
-                      scrollSnapAlign: "start",
-                    }}
-                  >
-                    <TabIcon path={tab.icon} size={12} />
-                    {tab.label}
-                    {isDesktop && <span className="ml-0.5 font-mono text-[8px] opacity-30">{TABS.indexOf(tab) + 1}</span>}
-                  </motion.button>
-                );
-              })}
-            </motion.div>
-
-            {/* Points */}
+            {/* Points / Member Perks */}
             <PointsBadge venueId={selectedVenue.id} vibeColor={vibeColor} expanded={true} />
 
             <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
