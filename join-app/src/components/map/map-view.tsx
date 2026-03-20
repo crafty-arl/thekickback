@@ -1,9 +1,14 @@
 "use client";
 
 import { useRef, useCallback, useEffect } from "react";
-import Map, { Marker, type MapRef } from "react-map-gl";
+import Map, { Marker, Source, Layer, type MapRef } from "react-map-gl";
 import { type Venue } from "@/lib/venues";
 import { VenueMarker } from "./venue-marker";
+
+export interface RouteData {
+  geometry: GeoJSON.LineString;
+  color: string;
+}
 
 export interface MapViewProps {
   venues: Venue[];
@@ -11,6 +16,7 @@ export interface MapViewProps {
   onVenueSelect: (venue: Venue | null) => void;
   userLocation?: { latitude: number; longitude: number } | null;
   mapRef?: React.RefObject<MapRef | null>;
+  route?: RouteData | null;
 }
 
 function getBounds(venues: Venue[]) {
@@ -81,7 +87,7 @@ function desaturateMap(map: mapboxgl.Map) {
   }
 }
 
-export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, mapRef: externalMapRef }: MapViewProps) {
+export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, mapRef: externalMapRef, route }: MapViewProps) {
   const internalMapRef = useRef<MapRef>(null);
   const mapRef = externalMapRef || internalMapRef;
   const fittedRef = useRef(false);
@@ -214,6 +220,33 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, ma
           />
         </Marker>
       ))}
+
+      {/* Navigation route line */}
+      {route && (
+        <Source
+          id="nav-route"
+          type="geojson"
+          data={{ type: "Feature", geometry: route.geometry, properties: {} }}
+        >
+          <Layer
+            id="nav-route-bg"
+            type="line"
+            paint={{ "line-color": "#000", "line-width": 6, "line-opacity": 0.15 }}
+            layout={{ "line-join": "round", "line-cap": "round" }}
+          />
+          <Layer
+            id="nav-route-line"
+            type="line"
+            paint={{
+              "line-color": route.color,
+              "line-width": 4,
+              "line-opacity": 0.85,
+              "line-dasharray": [0, 2],
+            }}
+            layout={{ "line-join": "round", "line-cap": "round" }}
+          />
+        </Source>
+      )}
 
       {/* User location dot */}
       {userLocation && (

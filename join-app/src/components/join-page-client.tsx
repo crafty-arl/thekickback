@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { type Venue } from "@/lib/venues";
 import { TheDock, type Tag } from "@/components/map/the-dock";
 import type { MapRef } from "react-map-gl";
+import type { RouteData } from "@/components/map/map-view";
 
 const MapView = dynamic(
     () => import("@/components/map/map-view").then((m) => m.MapView),
@@ -23,6 +24,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
     const [activeTag, setActiveTag] = useState<Tag | null>(null);
     const mapRef = useRef<MapRef | null>(null);
+    const [navRoute, setNavRoute] = useState<RouteData | null>(null);
 
     // Filtered venues based on active tag
     const filteredVenues = activeTag
@@ -128,6 +130,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 onVenueSelect={setSelectedVenue}
                 userLocation={userLocation}
                 mapRef={mapRef}
+                route={navRoute}
             />
 
             {/* Header overlay — logo only */}
@@ -205,6 +208,8 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 activeTag={activeTag}
                 onTagSelect={handleTagSelect}
                 onNavigateVenue={navigateVenue}
+                onRouteChange={setNavRoute}
+                mapRef={mapRef}
             />
         </main>
     );

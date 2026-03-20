@@ -41,6 +41,24 @@ interface Message {
   checkout?: CheckoutCardData;
 }
 
+interface RouteData {
+  geometry: GeoJSON.LineString;
+  color: string;
+}
+
+interface NavStep {
+  instruction: string;
+  distance: number; // meters
+  duration: number; // seconds
+}
+
+interface NavInfo {
+  steps: NavStep[];
+  distance: number; // total meters
+  duration: number; // total seconds
+  profile: "walking" | "driving";
+}
+
 interface TheDockProps {
   venues: Venue[];
   selectedVenue: Venue | null;
@@ -51,6 +69,8 @@ interface TheDockProps {
   activeTag: Tag | null;
   onTagSelect: (tag: Tag | null) => void;
   onNavigateVenue: (dir: -1 | 1) => void;
+  onRouteChange?: (route: RouteData | null) => void;
+  mapRef?: React.RefObject<import("react-map-gl").MapRef | null>;
 }
 
 interface OfferingMeta {
@@ -876,7 +896,7 @@ function DeviceManager() {
 // ─── Main Component ──────────────────────────────────────────────
 
 export function TheDock({
-  venues, selectedVenue, onVenueSelect, userLocation, onRecenter, hasLocation, activeTag, onTagSelect, onNavigateVenue,
+  venues, selectedVenue, onVenueSelect, userLocation, onRecenter, hasLocation, activeTag, onTagSelect, onNavigateVenue, onRouteChange, mapRef: parentMapRef,
 }: TheDockProps) {
   // ── Desktop / platform detection ──
   const isDesktop = useIsDesktop();
@@ -941,6 +961,11 @@ export function TheDock({
   const passkey = usePasskey();
   const [paymentMode, setPaymentMode] = useState<"choose" | "processing" | null>(null);
 
+  // ── Navigation ──
+  const [navInfo, setNavInfo] = useState<NavInfo | null>(null);
+  const [navLoading, setNavLoading] = useState(false);
+  const [navProfile, setNavProfile] = useState<"walking" | "driving">("walking");
+
   // ── Concierge venue data ──
   const [apiVenues, setApiVenues] = useState<Record<string, ApiVenue>>({});
   const [richVenues, setRichVenues] = useState<Record<string, RichVenue>>({});
@@ -993,6 +1018,79 @@ export function TheDock({
     setCarts((prev) => { const next = new Map(prev); next.delete(venueId); return next; });
     setCartExpanded(false);
   }, []);
+
+  // ── Navigation helpers ──
+  const fetchDirections = useCallback(async (profile: "walking" | "driving") => {
+    if (!userLocation || !selectedVenue) return;
+    setNavLoading(true);
+    setNavProfile(profile);
+    try {
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      const coords = `${userLocation.longitude},${userLocation.latitude};${selectedVenue.longitude},${selectedVenue.latitude}`;
+      const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?steps=true&geometries=geojson&overview=full&access_token=${token}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const route = data.routes?.[0];
+      if (!route) throw new Error("No route found");
+
+      const steps: NavStep[] = route.legs[0].steps.map((s: { maneuver: { instruction: string }; distance: number; duration: number }) => ({
+        instruction: s.maneuver.instruction,
+        distance: s.distance,
+        duration: s.duration,
+      }));
+
+      setNavInfo({
+        steps,
+        distance: route.distance,
+        duration: route.duration,
+        profile,
+      });
+
+      // Draw route on map
+      const color = selectedVenue ? getVibeHexColor(selectedVenue.vibe) : ACCENT;
+      onRouteChange?.({
+        geometry: route.geometry,
+        color,
+      });
+
+      // Fit map to route bounds
+      const coords2 = route.geometry.coordinates as [number, number][];
+      const lngs = coords2.map((c) => c[0]);
+      const lats = coords2.map((c) => c[1]);
+      parentMapRef?.current?.fitBounds(
+        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+        { padding: { top: 100, bottom: 350, left: 60, right: 60 }, duration: 1000 }
+      );
+    } catch {
+      setNavInfo(null);
+    } finally {
+      setNavLoading(false);
+    }
+  }, [userLocation, selectedVenue, onRouteChange, parentMapRef]);
+
+  const clearNav = useCallback(() => {
+    setNavInfo(null);
+    onRouteChange?.(null);
+  }, [onRouteChange]);
+
+  const openInMaps = useCallback(() => {
+    if (!selectedVenue) return;
+    const { latitude, longitude } = selectedVenue;
+    const label = encodeURIComponent(selectedVenue.name);
+    const mode = navProfile === "walking" ? "w" : "d";
+    // iOS/macOS
+    const appleUrl = `maps://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=${mode}&q=${label}`;
+    // Google Maps fallback
+    const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=${navProfile}`;
+    // Try Apple Maps first (works on iOS/macOS), fall back to Google
+    const w = window.open(appleUrl, "_blank");
+    if (!w || w.closed) window.open(googleUrl, "_blank");
+  }, [selectedVenue, navProfile]);
+
+  // Clear route when venue deselected
+  useEffect(() => {
+    if (!selectedVenue) clearNav();
+  }, [selectedVenue, clearNav]);
 
   // ── Smart quick replies ──
   const getVenueReplies = useCallback((): { label: string; action: string }[] => {
@@ -2596,12 +2694,125 @@ export function TheDock({
                     <span className="font-mono text-[9px] font-semibold" style={{ color: "#635bff" }}>${(walletStatus.balanceCents / 100).toFixed(2)}</span>
                   </div>
                 )}
+                {/* Navigate button */}
+                {hasLocation && selectedVenue.latitude !== 0 && (
+                  <button
+                    onClick={() => navInfo ? clearNav() : fetchDirections(navProfile)}
+                    disabled={navLoading}
+                    className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 active:scale-95"
+                    style={{
+                      backgroundColor: navInfo ? `${vibeColor}20` : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${navInfo ? `${vibeColor}30` : "rgba(255,255,255,0.06)"}`,
+                    }}
+                  >
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={navInfo ? vibeColor : "rgba(255,255,255,0.4)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                    </svg>
+                    <span className="font-sans text-[9px] font-semibold" style={{ color: navInfo ? vibeColor : "rgba(255,255,255,0.4)" }}>
+                      {navLoading ? "..." : navInfo ? `${Math.round(navInfo.duration / 60)} min` : "Navigate"}
+                    </span>
+                  </button>
+                )}
               </div>
 
               {selectedVenue.tagline && (
                 <p className="mt-1 line-clamp-1 font-sans text-[10px] italic text-white/25">&ldquo;{selectedVenue.tagline}&rdquo;</p>
               )}
             </div>
+
+            {/* Navigation directions panel */}
+            <AnimatePresence>
+              {navInfo && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mx-4 mb-1 overflow-hidden rounded-xl"
+                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${vibeColor}15` }}
+                >
+                  {/* Profile toggle + summary */}
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      {/* Walking / Driving toggle */}
+                      <div className="flex rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <button
+                          onClick={() => fetchDirections("walking")}
+                          className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold transition"
+                          style={{
+                            backgroundColor: navProfile === "walking" ? `${vibeColor}20` : "transparent",
+                            color: navProfile === "walking" ? vibeColor : "rgba(255,255,255,0.35)",
+                          }}
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="5" r="2" /><path d="M10 22V18L7 15V11L10 9L14 9L17 11V15L14 18V22" />
+                          </svg>
+                          Walk
+                        </button>
+                        <button
+                          onClick={() => fetchDirections("driving")}
+                          className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold transition"
+                          style={{
+                            backgroundColor: navProfile === "driving" ? `${vibeColor}20` : "transparent",
+                            color: navProfile === "driving" ? vibeColor : "rgba(255,255,255,0.35)",
+                          }}
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 17h14M5 17a2 2 0 01-2-2V9a2 2 0 012-2h14a2 2 0 012 2v6a2 2 0 01-2 2M5 17l-1 3M19 17l1 3" />
+                          </svg>
+                          Drive
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[12px] font-bold" style={{ color: vibeColor }}>{Math.round(navInfo.duration / 60)} min</span>
+                        <span className="font-mono text-[10px] text-white/30">
+                          {navInfo.distance < 1000
+                            ? `${Math.round(navInfo.distance)} m`
+                            : `${(navInfo.distance / 1609).toFixed(1)} mi`
+                          }
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={openInMaps}
+                        className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold active:scale-95"
+                        style={{ backgroundColor: `${vibeColor}15`, color: vibeColor, border: `1px solid ${vibeColor}25` }}
+                      >
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                        Open Maps
+                      </button>
+                      <button
+                        onClick={clearNav}
+                        className="flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-white/[0.08]"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5" strokeLinecap="round">
+                          <path d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Step-by-step directions */}
+                  <div className="max-h-[120px] overflow-y-auto px-3 pb-2" style={{ WebkitOverflowScrolling: "touch" }}>
+                    {navInfo.steps.filter((s) => s.instruction).map((step, i) => (
+                      <div key={i} className="flex items-start gap-2 py-1" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.03)" : "none" }}>
+                        <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${vibeColor}15` }}>
+                          <span className="font-mono text-[7px] font-bold" style={{ color: vibeColor }}>{i + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-sans text-[11px] leading-[1.4] text-white/60">{step.instruction}</p>
+                          <span className="font-mono text-[9px] text-white/20">
+                            {step.distance < 1000 ? `${Math.round(step.distance)} m` : `${(step.distance / 1609).toFixed(1)} mi`}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Points / Member Perks */}
             <PointsBadge venueId={selectedVenue.id} vibeColor={vibeColor} expanded={true} />
