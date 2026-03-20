@@ -11,7 +11,7 @@ import { SignOutButton } from "@/components/dashboard/sign-out-button";
 
 // ─── Constants ───────────────────────────────────────────────────
 
-const TYPES = ["bar", "restaurant", "lounge", "club", "cafe", "coworking", "barbershop", "nail_salon", "group", "community", "league", "org", "other"];
+const TYPES = ["bar", "restaurant", "lounge", "club", "cafe", "coworking", "barbershop", "nail_salon", "group", "community", "league", "org", "artist", "musician", "creator", "other"];
 const VIBES = ["quiet", "moderate", "busy", "packed"];
 
 const KNOWLEDGE_CATEGORIES = [
@@ -196,6 +196,29 @@ const VENUE_TEMPLATES: VenueTemplate[] = [
             { type: "event", name: "Volunteer Day", description: "Community cleanup / build day", price_cents: 0, recurring: false, duration_minutes: 240 },
             { type: "reservation", name: "Community Space", description: "Reserve the space for your event (members only)", price_cents: 5000, recurring: false, duration_minutes: 180 },
             { type: "product", name: "Donation", description: "One-time contribution to the community fund", price_cents: 1000, recurring: false },
+        ],
+    },
+    {
+        id: "touring_artist", label: "Touring Artist", icon: "🎤", description: "Musician, DJ, band, or performing artist",
+        offerings: [
+            { type: "event", name: "General Admission", description: "Entry to tonight's show", price_cents: 2500, recurring: false },
+            { type: "event", name: "VIP Experience", description: "Early entry, front row, meet & greet after", price_cents: 7500, recurring: false, perks: ["Early entry", "Front row access", "Meet & greet", "Signed poster"] },
+            { type: "membership", name: "Fan Club", description: "Early access to tickets, unreleased tracks, group chat", price_cents: 500, recurring: true, interval: "month", perks: ["Pre-sale tickets", "Unreleased music", "Fan-only chat", "Birthday shoutout"] },
+            { type: "product", name: "Tour Tee", description: "Limited edition tour shirt", price_cents: 3500, recurring: false },
+            { type: "package", name: "Tour Bundle", description: "Tee + poster + digital download", price_cents: 4500, recurring: false, perks: ["Tour tee", "Signed poster", "Digital EP download", "Sticker pack"] },
+            { type: "service", name: "Meet & Greet", description: "20 min — photo, conversation, signed merch", price_cents: 10000, recurring: false, duration_minutes: 20 },
+            { type: "product", name: "Signed Vinyl", description: "Limited press, hand-signed", price_cents: 4000, recurring: false },
+        ],
+    },
+    {
+        id: "creator", label: "Creator / Brand", icon: "✨", description: "Content creator, influencer, or personal brand",
+        offerings: [
+            { type: "event", name: "Community Meetup", description: "IRL hangout with the community", price_cents: 0, recurring: false, duration_minutes: 120 },
+            { type: "event", name: "Workshop", description: "Learn from the creator — limited seats", price_cents: 5000, recurring: false, duration_minutes: 180 },
+            { type: "membership", name: "Inner Circle", description: "Exclusive content, early access, direct chat", price_cents: 1000, recurring: true, interval: "month", perks: ["Exclusive content", "Early access to drops", "Direct chat access", "Monthly AMA"] },
+            { type: "product", name: "Merch Drop", description: "Limited edition merchandise", price_cents: 3000, recurring: false },
+            { type: "package", name: "Founding Member", description: "Lifetime access + all merch drops + events", price_cents: 25000, recurring: false, perks: ["Lifetime membership", "All future merch free", "VIP at every event", "Name in credits"] },
+            { type: "service", name: "1-on-1 Session", description: "Private consultation or coaching call", price_cents: 15000, recurring: false, duration_minutes: 60 },
         ],
     },
 ];

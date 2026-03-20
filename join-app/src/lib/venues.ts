@@ -39,7 +39,10 @@ export const VENUE_CATEGORIES: { value: string; label: string }[] = [
   { value: "community", label: "Communities" },
   { value: "league", label: "Leagues" },
   { value: "org", label: "Orgs" },
-  { value: "venue", label: "Venues" },
+  { value: "artist", label: "Artists" },
+  { value: "musician", label: "Musicians" },
+  { value: "creator", label: "Creators" },
+  { value: "venue", label: "All Hubs" },
 ];
 
 // Austin, TX center
