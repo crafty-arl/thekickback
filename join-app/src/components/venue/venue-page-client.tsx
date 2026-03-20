@@ -7,7 +7,7 @@ import { VenueOfferings } from "./venue-offerings";
 import { VenueGallery } from "./venue-gallery";
 import { VenueStaff } from "./venue-staff";
 import type { StaffMember } from "./venue-staff";
-// Offering links are rendered inline as tappable chips — no big card imports needed
+import { WalletSheet, useWalletStatus } from "../map/wallet-sheet";
 
 /* ── Types ── */
 
@@ -367,6 +367,8 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const [cart, setCart] = useState<CartItem[]>([]);
   const [drawerOfferId, setDrawerOfferId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const walletStatus = useWalletStatus();
   const [pointsData, setPointsData] = useState<{
     balance: number; total_earned: number; tier: string; kickback_score: number;
     current_streak: number; venues_visited: number;
@@ -504,10 +506,14 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                 {pointsData.balance.toLocaleString()} pts
               </button>
             )}
-            <a href={`https://thekickback.net/wallet/pass/${venue.id}/guest`} className="flex h-9 items-center gap-1.5 rounded-full px-3.5 backdrop-blur-md font-sans text-[12px] font-medium text-white/70" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+            <button
+              onClick={() => setWalletOpen(true)}
+              className="flex h-9 items-center gap-1.5 rounded-full px-3.5 backdrop-blur-md font-sans text-[12px] font-medium"
+              style={{ backgroundColor: walletStatus?.active ? "rgba(99,91,255,0.3)" : "rgba(0,0,0,0.4)", color: walletStatus?.active ? "#c4b5fd" : "rgba(255,255,255,0.7)" }}
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
-              Wallet
-            </a>
+              {walletStatus?.active ? `$${(walletStatus.balanceCents / 100).toFixed(0)}` : "Wallet"}
+            </button>
           </div>
         </div>
 
@@ -737,6 +743,34 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                   </div>
                 )}
               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ AI WALLET DRAWER — slides from right ═══ */}
+      <AnimatePresence>
+        {walletOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setWalletOpen(false)}
+              className="fixed inset-0 z-[80]"
+              style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+            />
+            <motion.div
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed inset-y-0 right-0 z-[85] w-[85vw] max-w-sm flex flex-col overflow-y-auto"
+              style={{ backgroundColor: "rgba(12,12,15,0.97)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <div className="flex items-center justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] pb-2">
+                <h2 className="font-sans text-[16px] font-bold text-white">AI Wallet</h2>
+                <button onClick={() => setWalletOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <WalletSheet />
             </motion.div>
           </>
         )}
