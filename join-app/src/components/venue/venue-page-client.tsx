@@ -366,9 +366,29 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const [offeringsMap, setOfferingsMap] = useState<Record<string, OfferingMeta>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [drawerOfferId, setDrawerOfferId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [pointsData, setPointsData] = useState<{
+    balance: number; total_earned: number; tier: string; kickback_score: number;
+    current_streak: number; venues_visited: number;
+  } | null>(null);
+  const [txHistory, setTxHistory] = useState<{
+    id: string; amount: number; reason: string; venues?: { name: string }; created_at: string;
+  }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasSentTabCommand = useRef<Set<Tab>>(new Set(["chat"]));
+
+  // Fetch balance + history
+  useEffect(() => {
+    if (!user) return;
+    fetch(`/api/points?venueId=${venue.id}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.balance) setPointsData(data.balance);
+        if (data?.history) setTxHistory(data.history);
+      })
+      .catch(() => {});
+  }, [user, venue.id]);
 
   // Load persisted thread history on mount
   useEffect(() => {
@@ -474,6 +494,16 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
           </a>
           <div className="flex items-center gap-2">
+            {/* Balance pill */}
+            {pointsData && (
+              <button
+                onClick={() => setHistoryOpen(true)}
+                className="flex h-9 items-center gap-1.5 rounded-full px-3.5 backdrop-blur-md font-sans text-[12px] font-bold"
+                style={{ backgroundColor: "rgba(0,0,0,0.4)", color: theme }}
+              >
+                {pointsData.balance.toLocaleString()} pts
+              </button>
+            )}
             <a href={`https://thekickback.net/wallet/pass/${venue.id}/guest`} className="flex h-9 items-center gap-1.5 rounded-full px-3.5 backdrop-blur-md font-sans text-[12px] font-medium text-white/70" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
               Wallet
@@ -625,6 +655,92 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
           </div>
         )}
       </div>
+
+      {/* ═══ BALANCE & HISTORY DRAWER — slides from right ═══ */}
+      <AnimatePresence>
+        {historyOpen && pointsData && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setHistoryOpen(false)}
+              className="fixed inset-0 z-[80]"
+              style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+            />
+            <motion.div
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed inset-y-0 right-0 z-[85] w-[85vw] max-w-sm flex flex-col overflow-y-auto"
+              style={{ backgroundColor: "rgba(12,12,15,0.97)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] pb-4">
+                <h2 className="font-sans text-[16px] font-bold text-white">Your Balance</h2>
+                <button onClick={() => setHistoryOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {/* Balance card */}
+              <div className="mx-5 rounded-2xl p-5" style={{ background: `linear-gradient(135deg, ${theme}25 0%, ${theme}08 100%)`, border: `1px solid ${theme}30` }}>
+                <p className="font-sans text-[11px] font-semibold tracking-[1px] text-white/30">POINTS BALANCE</p>
+                <p className="mt-1 font-mono text-[36px] font-bold text-white">{pointsData.balance.toLocaleString()}</p>
+                <div className="mt-3 flex items-center gap-3">
+                  <span className="rounded-full px-2.5 py-1 font-sans text-[10px] font-bold tracking-wider" style={{ backgroundColor: `${theme}25`, color: theme }}>{pointsData.tier.toUpperCase()}</span>
+                  {pointsData.current_streak > 0 && (
+                    <span className="font-sans text-[11px] text-white/35">{pointsData.current_streak}wk streak</span>
+                  )}
+                  {pointsData.venues_visited > 0 && (
+                    <span className="font-sans text-[11px] text-white/35">{pointsData.venues_visited} venues</span>
+                  )}
+                </div>
+                <div className="mt-3 flex justify-between font-sans text-[11px] text-white/25">
+                  <span>{pointsData.total_earned.toLocaleString()} earned all time</span>
+                  <span>KB Score: {pointsData.kickback_score?.toLocaleString() || 0}</span>
+                </div>
+              </div>
+
+              {/* Transaction history */}
+              <div className="mt-5 px-5">
+                <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">RECENT ACTIVITY</p>
+                {txHistory.length === 0 ? (
+                  <div className="rounded-2xl py-8 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                    <p className="text-[24px]">📊</p>
+                    <p className="mt-2 font-sans text-[13px] text-white/30">No transactions yet</p>
+                    <p className="mt-1 font-sans text-[11px] text-white/15">Check in, order, or earn points to see activity here</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5 pb-8">
+                    {txHistory.map((tx) => {
+                      const isPositive = tx.amount > 0;
+                      const reason = tx.reason.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                      const venueName = (tx.venues as { name?: string } | undefined)?.name;
+                      const date = new Date(tx.created_at);
+                      const timeStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+                      return (
+                        <div key={tx.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: isPositive ? "rgba(74,222,128,0.12)" : "rgba(239,68,68,0.12)" }}>
+                            <span className="font-mono text-[11px] font-bold" style={{ color: isPositive ? "#4ade80" : "#ef4444" }}>
+                              {isPositive ? "+" : "−"}
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-sans text-[13px] font-medium text-white/70">{reason}</p>
+                            <p className="font-sans text-[10px] text-white/25">{venueName ? `${venueName} · ` : ""}{timeStr}</p>
+                          </div>
+                          <span className="shrink-0 font-mono text-[14px] font-bold" style={{ color: isPositive ? "#4ade80" : "#ef4444" }}>
+                            {isPositive ? "+" : "−"}{Math.abs(tx.amount).toLocaleString()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ═══ PRODUCT DRAWER — slides from left ═══ */}
       <AnimatePresence>

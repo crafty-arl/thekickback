@@ -36,6 +36,11 @@ export async function GET(req: NextRequest) {
 
     // Active challenges
     supabaseGet(`challenges?active=eq.true&select=*`),
+
+    // Recent transaction history (last 30 entries)
+    supabaseGet(
+      `point_ledger?user_id=eq.${userId}&select=id,amount,reason,venue_id,venues(name),created_at&order=created_at.desc&limit=30`
+    ),
   ];
 
   // If viewing a specific venue, also fetch venue-specific data
@@ -54,7 +59,8 @@ export async function GET(req: NextRequest) {
 
   const results = await Promise.all(queries);
 
-  const [balanceRes, venueXpProfiles, challenges] = results as [
+  const [balanceRes, venueXpProfiles, challenges, ledgerRes] = results as [
+    Record<string, unknown>[],
     Record<string, unknown>[],
     Record<string, unknown>[],
     Record<string, unknown>[],
@@ -77,6 +83,7 @@ export async function GET(req: NextRequest) {
     balance: kickbackScore,
     venueProfiles: Array.isArray(venueXpProfiles) ? venueXpProfiles : [],
     challenges: Array.isArray(challenges) ? challenges : [],
+    history: Array.isArray(ledgerRes) ? ledgerRes : [],
   };
 
   if (venueId) {
