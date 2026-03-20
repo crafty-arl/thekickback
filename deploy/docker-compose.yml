@@ -57,6 +57,7 @@ services:
         NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_rF_CWGfwxUwSXyFG_Zl56w_V_OfW_mQ
         NEXT_PUBLIC_MAPBOX_TOKEN: pk.eyJ1IjoiY3JhZmZ0eWFybCIsImEiOiJjbW00bndseTIwZWNuMnFwdzF4Nm9oa2R5In0.IZmVHl0HZsz2fucPLUmfMQ
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_live_51TCrTTHDqihbB0Ez0psiCemHgR6Og4foGO543wOa5Z0eIQw9jaRoq8oIsazDLfF3WNBVnuHNEcTu6GLsecKEJs6d00T22JbNy6
+        NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY: pk_test_51TCrdWH6XfMk5tURZpN0Gjfc09UFg8VsKuuVeYfvrHpTM04HjfpOZL8YAZzR4NlRBN0htY0E45M2crhkiH8vgPR000Ju6zIlom
     container_name: join-app
     expose:
       - "3000"

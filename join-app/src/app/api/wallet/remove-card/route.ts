@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { getStripeSecretKey } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -25,9 +27,11 @@ export async function POST() {
   }
 
   // Detach from Stripe if possible
-  if (wallet.stripe_payment_method_id && process.env.STRIPE_SECRET_KEY) {
+  const h = await headers();
+  const { key } = getStripeSecretKey(h);
+  if (wallet.stripe_payment_method_id && key) {
     try {
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+      const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
       await stripe.paymentMethods.detach(wallet.stripe_payment_method_id);
     } catch {
       // Payment method may already be detached — continue

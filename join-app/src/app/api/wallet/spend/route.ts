@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { getStripeSecretKey } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -42,7 +44,9 @@ export async function POST(req: NextRequest) {
   }
 
   // If venue has Stripe Connect, transfer their cut
-  if (process.env.STRIPE_SECRET_KEY) {
+  const h = await headers();
+  const { key: stripeKey } = getStripeSecretKey(h);
+  if (stripeKey) {
     const { data: venue } = await supabase
       .from("venues")
       .select("stripe_account_id, platform_fee_rate")
@@ -51,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     if (venue?.stripe_account_id && result.stripe_customer_id) {
       try {
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+        const stripe = new Stripe(stripeKey, { apiVersion: "2026-02-25.clover" });
         const feeRate = venue.platform_fee_rate || 0.10;
         const venueAmount = Math.round(amountCents * (1 - feeRate));
 

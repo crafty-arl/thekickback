@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { getStripeSecretKey } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -11,7 +13,9 @@ const supabase = createClient(
 // POST /api/wallet/fund — one-time charge to add funds to wallet
 // Body: { amountCents } — e.g. 2500 = $25
 export async function POST(req: NextRequest) {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const h = await headers();
+  const { key } = getStripeSecretKey(h);
+  if (!key) {
     return NextResponse.json({ error: "Payments not configured" }, { status: 503 });
   }
 
@@ -39,7 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No card on file — add a payment method first" }, { status: 400 });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+  const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
 
   try {
     // Charge the card

@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { getStripeSecretKey } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 );
 
-function getStripe() {
-  if (!process.env.STRIPE_SECRET_KEY) return null;
-  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+async function getStripe() {
+  const h = await headers();
+  const { key } = getStripeSecretKey(h);
+  if (!key) return null;
+  return new Stripe(key, { apiVersion: "2026-02-25.clover" });
 }
 
 async function getUser() {
@@ -106,7 +110,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid period" }, { status: 400 });
   }
 
-  const stripe = getStripe();
+  const stripe = await getStripe();
 
   // Check if wallet exists
   const { data: existing } = await supabase

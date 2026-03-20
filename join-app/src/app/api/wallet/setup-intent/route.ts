@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { getStripeSecretKey, isSandboxServer } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -11,7 +13,9 @@ const supabase = createClient(
 // POST /api/wallet/setup-intent — create a Stripe Checkout Session in setup mode
 // Returns a URL to redirect the user to Stripe's hosted card form
 export async function POST() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const h = await headers();
+  const { key } = getStripeSecretKey(h);
+  if (!key) {
     return NextResponse.json({ error: "Payments not configured" }, { status: 503 });
   }
 
@@ -19,7 +23,8 @@ export async function POST() {
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+  const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
+  const sandbox = isSandboxServer(h);
 
   // Get or create wallet with Stripe customer
   let { data: wallet } = await supabase
@@ -58,7 +63,7 @@ export async function POST() {
 
   try {
     // Create a Checkout Session in setup mode — Stripe hosts the card form
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://join.thekickback.net";
+    const baseUrl = sandbox ? "https://sandbox.thekickback.net" : (process.env.NEXT_PUBLIC_APP_URL || "https://join.thekickback.net");
 
     const session = await stripe.checkout.sessions.create({
       mode: "setup",
