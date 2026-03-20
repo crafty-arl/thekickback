@@ -2874,11 +2874,18 @@ export function TheDock({
                   }
 
                   if (msg.checkout) {
+                    const subtotal = msg.checkout.items.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0);
+                    const canUseWallet = walletStatus?.active && walletStatus.balanceCents >= subtotal;
+                    const stripeFee = Math.round(subtotal * 0.029 + 30);
+                    const platformFee = Math.round(subtotal * 0.05);
+                    const cardTotal = subtotal + stripeFee + platformFee;
+
                     return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
+                        {/* AI message text */}
                         {msg.body && (
                           <div className="flex justify-start">
-                            <div className="max-w-[80%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                            <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
                               <AiMessageBody
                                 body={msg.body}
                                 theme={vibeColor}
@@ -2888,115 +2895,133 @@ export function TheDock({
                             </div>
                           </div>
                         )}
-                        <CheckoutCard
-                          data={msg.checkout}
-                          vibeColor={vibeColor}
-                          onConfirm={(addOns: CheckoutAddOn[], pointsToSpend: number) => handleCheckoutConfirm(msg, addOns, pointsToSpend, "card")}
-                          onDismiss={handleCheckoutDismiss}
-                        />
-                        {/* Dual payment options */}
-                        {msg.checkout && (() => {
-                          const subtotal = msg.checkout!.items.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0);
-                          const canUseWallet = walletStatus?.active && walletStatus.balanceCents >= subtotal;
-                          const stripeFee = Math.round(subtotal * 0.029 + 30);
-                          const platformFee = Math.round(subtotal * 0.05);
 
-                          return (
-                            <div className="flex flex-col gap-2 mt-2">
-                              {/* Pay with AI Credit */}
-                              {walletStatus?.active && (
-                                <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(99,91,255,0.06)", border: "1px solid rgba(99,91,255,0.15)" }}>
-                                  <div className="px-3.5 py-2.5">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                      <span className="font-sans text-[12px] font-bold" style={{ color: "#a78bfa" }}>Pay with AI Credit</span>
-                                      <span className="font-mono text-[10px] text-white/30">Balance: ${(walletStatus.balanceCents / 100).toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between mb-0.5">
-                                      <span className="font-sans text-[11px] text-white/50">Subtotal</span>
-                                      <span className="font-mono text-[11px] text-white/50">${(subtotal / 100).toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                      <span className="font-sans text-[11px] text-white/50">Platform fee</span>
-                                      <span className="font-mono text-[11px] font-semibold" style={{ color: "#4ade80" }}>$0.00</span>
-                                    </div>
-                                    <button
-                                      onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
-                                      disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
-                                      className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[12px] font-bold text-black transition active:scale-[0.97] disabled:opacity-40"
-                                      style={{ backgroundColor: canUseWallet ? "#a78bfa" : "rgba(167,139,250,0.3)" }}
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2" />
-                                        <path d="M2 12h20" />
-                                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                                      </svg>
-                                      {passkey.verifying || paymentMode === "processing"
-                                        ? "Verifying..."
-                                        : canUseWallet
-                                          ? `Confirm with Face ID — $${(subtotal / 100).toFixed(2)}`
-                                          : `Insufficient balance (need $${((subtotal - walletStatus.balanceCents) / 100).toFixed(2)} more)`
-                                      }
-                                    </button>
-                                    <p className="mt-1.5 text-center font-sans text-[9px] text-white/20">No extra fees — funds already loaded</p>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Pay with Card */}
-                              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                                <div className="px-3.5 py-2.5">
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <span className="font-sans text-[12px] font-bold text-white/70">Pay with Card</span>
-                                  </div>
-                                  <div className="flex items-center justify-between mb-0.5">
-                                    <span className="font-sans text-[11px] text-white/40">Subtotal</span>
-                                    <span className="font-mono text-[11px] text-white/40">${(subtotal / 100).toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex items-center justify-between mb-0.5">
-                                    <span className="font-sans text-[11px] text-white/40">Stripe fee (2.9% + 30¢)</span>
-                                    <span className="font-mono text-[11px] text-white/40">${(stripeFee / 100).toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <span className="font-sans text-[11px] text-white/40">Platform fee (5%)</span>
-                                    <span className="font-mono text-[11px] text-white/40">${(platformFee / 100).toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex items-center justify-between mb-2 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                                    <span className="font-sans text-[12px] font-semibold text-white/60">Total</span>
-                                    <span className="font-mono text-[14px] font-bold text-white/80">${((subtotal + stripeFee + platformFee) / 100).toFixed(2)}</span>
-                                  </div>
-                                  <button
-                                    onClick={() => handleCheckoutConfirm(msg, [], 0, "card")}
-                                    disabled={paymentMode === "processing" || passkey.verifying}
-                                    className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[12px] font-bold text-black transition active:scale-[0.97] disabled:opacity-40"
-                                    style={{ backgroundColor: vibeColor }}
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
-                                    </svg>
-                                    {passkey.verifying || paymentMode === "processing"
-                                      ? "Verifying..."
-                                      : `Confirm with Face ID — $${((subtotal + stripeFee + platformFee) / 100).toFixed(2)}`
-                                    }
-                                  </button>
-                                  {walletStatus?.active && (
-                                    <p className="mt-1.5 text-center font-sans text-[9px] text-white/20">
-                                      Load funds into AI Credit to skip fees next time
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Cancel */}
-                              <button
-                                onClick={handleCheckoutDismiss}
-                                className="w-full rounded-xl py-2 font-sans text-[11px] font-medium text-white/30 transition hover:bg-white/[0.03]"
-                                style={{ border: "1px solid rgba(255,255,255,0.04)" }}
-                              >
-                                Cancel
-                              </button>
+                        {/* Order summary */}
+                        <div className="w-full rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}15` }}>
+                          <div className="px-3.5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                              </svg>
+                              <span className="font-sans text-[13px] font-bold text-white/80">Order at {selectedVenue.name}</span>
                             </div>
-                          );
-                        })()}
+                            {msg.checkout.items.map((item, i) => (
+                              <div key={i} className="flex items-center justify-between py-0.5">
+                                <span className="font-sans text-[12px] text-white/60">
+                                  {item.name}{item.quantity > 1 ? ` x${item.quantity}` : ""}
+                                </span>
+                                <span className="font-mono text-[12px] text-white/50">${((item.unit_price_cents * item.quantity) / 100).toFixed(2)}</span>
+                              </div>
+                            ))}
+                            <div className="flex items-center justify-between mt-1 pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                              <span className="font-sans text-[12px] font-semibold text-white/70">Subtotal</span>
+                              <span className="font-mono text-[13px] font-bold text-white/80">${(subtotal / 100).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ══ Pay with AI Credit ══ */}
+                        <div className="w-full rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(99,91,255,0.06)", border: "1px solid rgba(99,91,255,0.2)" }}>
+                          <div className="px-3.5 py-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(99,91,255,0.15)" }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+                                </svg>
+                              </div>
+                              <div className="flex-1">
+                                <span className="font-sans text-[13px] font-bold" style={{ color: "#a78bfa" }}>Pay with AI Credit</span>
+                                {walletStatus?.active && (
+                                  <span className="ml-2 font-mono text-[10px] text-white/30">Balance: ${(walletStatus.balanceCents / 100).toFixed(2)}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="font-sans text-[11px] text-white/40">Total</span>
+                              <span className="font-mono text-[13px] font-bold" style={{ color: "#a78bfa" }}>${(subtotal / 100).toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-sans text-[11px] text-white/40">Platform fee</span>
+                              <span className="font-mono text-[11px] font-semibold" style={{ color: "#4ade80" }}>$0.00</span>
+                            </div>
+                            <button
+                              onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
+                              disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
+                              className="w-full flex items-center justify-center gap-2 rounded-xl py-3 font-sans text-[13px] font-bold text-black transition active:scale-[0.97] disabled:opacity-40"
+                              style={{ backgroundColor: canUseWallet ? "#a78bfa" : "rgba(167,139,250,0.3)" }}
+                            >
+                              {passkey.verifying || paymentMode === "processing"
+                                ? "Verifying..."
+                                : canUseWallet
+                                  ? `Pay $${(subtotal / 100).toFixed(2)} with AI Credit`
+                                  : walletStatus?.active
+                                    ? `Need $${((subtotal - (walletStatus?.balanceCents || 0)) / 100).toFixed(2)} more`
+                                    : "Set up AI Credit"
+                              }
+                            </button>
+                            <p className="mt-1.5 text-center font-sans text-[9px] text-white/25">No extra fees — fastest checkout</p>
+                          </div>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="flex items-center gap-3 px-2">
+                          <div className="flex-1 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
+                          <span className="font-sans text-[10px] font-medium text-white/20">or</span>
+                          <div className="flex-1 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
+                        </div>
+
+                        {/* ══ Pay with Card on File ══ */}
+                        <div className="w-full rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                          <div className="px-3.5 py-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+                                </svg>
+                              </div>
+                              <span className="font-sans text-[13px] font-bold text-white/70">Pay with Card on File</span>
+                            </div>
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="font-sans text-[11px] text-white/40">Subtotal</span>
+                              <span className="font-mono text-[11px] text-white/40">${(subtotal / 100).toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="font-sans text-[11px] text-white/40">Processing fee (2.9% + 30¢)</span>
+                              <span className="font-mono text-[11px] text-white/40">${(stripeFee / 100).toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="font-sans text-[11px] text-white/40">Platform fee (5%)</span>
+                              <span className="font-mono text-[11px] text-white/40">${(platformFee / 100).toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center justify-between mb-2 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                              <span className="font-sans text-[12px] font-semibold text-white/60">Total</span>
+                              <span className="font-mono text-[15px] font-bold text-white/80">${(cardTotal / 100).toFixed(2)}</span>
+                            </div>
+                            <button
+                              onClick={() => handleCheckoutConfirm(msg, [], 0, "card")}
+                              disabled={paymentMode === "processing" || passkey.verifying}
+                              className="w-full flex items-center justify-center gap-2 rounded-xl py-3 font-sans text-[13px] font-bold text-black transition active:scale-[0.97] disabled:opacity-40"
+                              style={{ backgroundColor: vibeColor }}
+                            >
+                              {passkey.verifying || paymentMode === "processing"
+                                ? "Verifying..."
+                                : `Pay $${(cardTotal / 100).toFixed(2)} with Card`
+                              }
+                            </button>
+                            <p className="mt-1.5 text-center font-sans text-[9px] text-white/20">
+                              Save with AI Credit — skip fees next time
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Cancel */}
+                        <button
+                          onClick={handleCheckoutDismiss}
+                          className="w-full rounded-xl py-2.5 font-sans text-[12px] font-medium text-white/30 transition hover:bg-white/[0.04]"
+                          style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                        >
+                          Cancel
+                        </button>
                       </motion.div>
                     );
                   }
