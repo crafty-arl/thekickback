@@ -51,6 +51,7 @@ export function WalletSheet() {
   const [customAmount, setCustomAmount] = useState("");
   const [addingCard, setAddingCard] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
+  const [removingCard, setRemovingCard] = useState(false);
 
   const loadWallet = useCallback(() => {
     fetch("/api/wallet")
@@ -128,6 +129,20 @@ export function WalletSheet() {
     }
   }, []);
 
+  // Remove card
+  const handleRemoveCard = useCallback(async () => {
+    setRemovingCard(true);
+    try {
+      const res = await fetch("/api/wallet/remove-card", { method: "POST" });
+      const data = await res.json();
+      if (data.ok) loadWallet();
+      else setCardError(data.error || "Failed to remove card");
+    } catch {
+      setCardError("Something went wrong");
+    }
+    setRemovingCard(false);
+  }, [loadWallet]);
+
   // Add funds — one-time charge
   const handleFund = useCallback(async (amountCents: number) => {
     setFunding(true);
@@ -198,6 +213,29 @@ export function WalletSheet() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Card management */}
+          <div className="mt-2 flex gap-1.5">
+            <button
+              onClick={handleAddCard}
+              disabled={addingCard}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 font-sans text-[11px] font-medium text-white/40 transition active:scale-95 disabled:opacity-40"
+              style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+              </svg>
+              {addingCard ? "Redirecting..." : "Switch Card"}
+            </button>
+            <button
+              onClick={handleRemoveCard}
+              disabled={removingCard}
+              className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 font-sans text-[11px] font-medium text-red-400/60 transition active:scale-95 disabled:opacity-40"
+              style={{ backgroundColor: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.1)" }}
+            >
+              {removingCard ? "..." : "Remove"}
+            </button>
           </div>
 
           {/* Add Funds */}
