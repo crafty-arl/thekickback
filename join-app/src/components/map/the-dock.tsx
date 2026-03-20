@@ -2366,7 +2366,6 @@ export function TheDock({
                                 onClick={() => {
                                   if (venue) {
                                     handleExploreVenueTap(venue);
-                                    // Auto-send a message about this offering
                                     setTimeout(() => send(`Tell me about ${item.name}`), 300);
                                   }
                                 }}
