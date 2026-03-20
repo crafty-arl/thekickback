@@ -3,18 +3,18 @@
 import { useState, useMemo } from "react";
 import { ChatMessage } from "@/lib/dashboard";
 
-// ─── Topic detection ─────────────────────────────────────────────
-const TOPIC_RULES: { id: string; label: string; color: string; keywords: RegExp }[] = [
-  { id: "menu", label: "Menu & Drinks", color: "#F97316", keywords: /\b(menu|food|drink|cocktail|beer|wine|coffee|latte|eat|hungry|specials?|appetizer|entree|dessert|vegan|gluten)\b/i },
-  { id: "reserve", label: "Reservations", color: "#a78bfa", keywords: /\b(reserv|book|booth|table|seat|spot|tonight|tomorrow|friday|saturday|party|group|private)\b/i },
-  { id: "vibe", label: "Vibe & Crowd", color: "#4ade80", keywords: /\b(vibe|busy|crowd|packed|quiet|loud|energy|atmosphere|wait|line|full|empty|scene)\b/i },
-  { id: "events", label: "Events", color: "#60a5fa", keywords: /\b(event|show|live|music|dj|performance|tonight|happening|schedule|open mic|comedy)\b/i },
-  { id: "hours", label: "Hours & Location", color: "#facc15", keywords: /\b(hour|open|close|when|where|address|direction|parking|located|find you)\b/i },
-  { id: "membership", label: "Membership & Perks", color: "#f87171", keywords: /\b(member|join|sign up|perk|reward|points|xp|loyalty|tier|vip|upgrade|subscription)\b/i },
-  { id: "order", label: "Orders & Prices", color: "#2dd4bf", keywords: /\b(order|price|cost|how much|pay|buy|purchase|checkout|add|cart)\b/i },
+// ─── Topics with friendly emoji labels ───────────────────────────
+const TOPIC_RULES: { id: string; label: string; emoji: string; color: string; bg: string; keywords: RegExp }[] = [
+  { id: "menu", label: "Food & Drinks", emoji: "🍸", color: "#F97316", bg: "#F9731610", keywords: /\b(menu|food|drink|cocktail|beer|wine|coffee|latte|eat|hungry|specials?|appetizer|entree|dessert|vegan|gluten)\b/i },
+  { id: "reserve", label: "Reservations", emoji: "🪑", color: "#a78bfa", bg: "#a78bfa10", keywords: /\b(reserv|book|booth|table|seat|spot|tonight|tomorrow|friday|saturday|party|group|private)\b/i },
+  { id: "vibe", label: "Vibe Check", emoji: "✨", color: "#4ade80", bg: "#4ade8010", keywords: /\b(vibe|busy|crowd|packed|quiet|loud|energy|atmosphere|wait|line|full|empty|scene)\b/i },
+  { id: "events", label: "Events", emoji: "🎵", color: "#60a5fa", bg: "#60a5fa10", keywords: /\b(event|show|live|music|dj|performance|tonight|happening|schedule|open mic|comedy)\b/i },
+  { id: "hours", label: "Hours & Location", emoji: "📍", color: "#facc15", bg: "#facc1510", keywords: /\b(hour|open|close|when|where|address|direction|parking|located|find you)\b/i },
+  { id: "membership", label: "Membership", emoji: "👑", color: "#f87171", bg: "#f8717110", keywords: /\b(member|join|sign up|perk|reward|points|xp|loyalty|tier|vip|upgrade|subscription)\b/i },
+  { id: "order", label: "Orders & Prices", emoji: "💳", color: "#2dd4bf", bg: "#2dd4bf10", keywords: /\b(order|price|cost|how much|pay|buy|purchase|checkout|add|cart)\b/i },
 ];
 
-function detectTopic(text: string): { id: string; label: string; color: string } | null {
+function detectTopic(text: string): (typeof TOPIC_RULES)[number] | null {
   for (const rule of TOPIC_RULES) {
     if (rule.keywords.test(text)) return rule;
   }
@@ -26,12 +26,11 @@ interface Conversation {
   id: string;
   guestMessage: ChatMessage;
   aiReply: ChatMessage | null;
-  topic: { id: string; label: string; color: string } | null;
+  topic: (typeof TOPIC_RULES)[number] | null;
   timestamp: string;
 }
 
 function groupConversations(messages: ChatMessage[]): Conversation[] {
-  // Messages come newest-first from the API — reverse to chronological
   const sorted = [...messages].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
@@ -41,12 +40,9 @@ function groupConversations(messages: ChatMessage[]): Conversation[] {
 
   while (i < sorted.length) {
     const msg = sorted[i];
-
     if (msg.sender_type === "guest") {
-      // Look ahead for an AI reply
       const next = sorted[i + 1];
       const aiReply = next && next.sender_type === "ai" ? next : null;
-
       convos.push({
         id: msg.id,
         guestMessage: msg,
@@ -54,19 +50,13 @@ function groupConversations(messages: ChatMessage[]): Conversation[] {
         topic: detectTopic(msg.body),
         timestamp: msg.created_at,
       });
-
       i += aiReply ? 2 : 1;
     } else {
-      // Orphan AI message (no preceding guest message) — skip or show solo
       i++;
     }
   }
 
-  return convos.reverse(); // newest first
-}
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return convos.reverse();
 }
 
 function timeAgo(iso: string): string {
@@ -86,19 +76,13 @@ export function TextLog({ messages }: { messages: ChatMessage[] }) {
 
   const conversations = useMemo(() => groupConversations(messages), [messages]);
 
-  // Count topics for the insight bar
   const topicCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of conversations) {
-      if (c.topic) {
-        counts.set(c.topic.id, (counts.get(c.topic.id) || 0) + 1);
-      }
+      if (c.topic) counts.set(c.topic.id, (counts.get(c.topic.id) || 0) + 1);
     }
     return Array.from(counts.entries())
-      .map(([id, count]) => {
-        const rule = TOPIC_RULES.find((r) => r.id === id)!;
-        return { id, label: rule.label, color: rule.color, count };
-      })
+      .map(([id, count]) => ({ ...TOPIC_RULES.find((r) => r.id === id)!, count }))
       .sort((a, b) => b.count - a.count);
   }, [conversations]);
 
@@ -106,66 +90,92 @@ export function TextLog({ messages }: { messages: ChatMessage[] }) {
     ? conversations.filter((c) => c.topic?.id === filterTopic)
     : conversations;
 
+  const topTopic = topicCounts[0];
+
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-black p-4 sm:p-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <span className="font-sans text-[10px] font-medium tracking-[2px] text-white/40">
-          GUEST CONVERSATIONS
-        </span>
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
-          <span className="font-sans text-[10px] font-medium tracking-[2px] text-white/40">
-            {conversations.length} chats
-          </span>
+    <div className="flex flex-col gap-6">
+
+      {/* ── Big number summary ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
+          <p className="font-mono text-[28px] font-bold tracking-tight text-black">{conversations.length}</p>
+          <p className="font-sans text-[13px] text-black/40">Total chats</p>
+        </div>
+        <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
+          <p className="font-mono text-[28px] font-bold tracking-tight text-black">{topicCounts.length}</p>
+          <p className="font-sans text-[13px] text-black/40">Topics asked</p>
+        </div>
+        <div className="rounded-2xl border border-black/5 bg-white px-5 py-4 sm:col-span-2">
+          {topTopic ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-[22px]">{topTopic.emoji}</span>
+                <p className="font-sans text-[18px] font-bold text-black">{topTopic.label}</p>
+              </div>
+              <p className="mt-0.5 font-sans text-[13px] text-black/40">
+                Most asked about ({topTopic.count} {topTopic.count === 1 ? "chat" : "chats"})
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-sans text-[18px] font-bold text-black/20">No topics yet</p>
+              <p className="font-sans text-[13px] text-black/30">Chats will be categorized here</p>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Topic insight bar */}
+      {/* ── Topic filter pills ── */}
       {topicCounts.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/20">
-            WHAT GUESTS ARE ASKING ABOUT
+        <div className="flex flex-col gap-3">
+          <p className="font-sans text-[13px] font-semibold text-black/50">
+            What are guests asking about?
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setFilterTopic(null)}
+              className="rounded-full px-4 py-2 font-sans text-[13px] font-medium transition active:scale-95"
+              style={{
+                backgroundColor: filterTopic === null ? "#000" : "rgba(0,0,0,0.04)",
+                color: filterTopic === null ? "#fff" : "rgba(0,0,0,0.4)",
+              }}
+            >
+              All ({conversations.length})
+            </button>
             {topicCounts.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setFilterTopic(filterTopic === t.id ? null : t.id)}
-                className="flex items-center gap-1.5 rounded-full px-2.5 py-1 font-sans text-[10px] font-semibold transition active:scale-95"
+                className="flex items-center gap-2 rounded-full px-4 py-2 font-sans text-[13px] font-medium transition active:scale-95"
                 style={{
-                  backgroundColor: filterTopic === t.id ? `${t.color}25` : "rgba(255,255,255,0.05)",
-                  color: filterTopic === t.id ? t.color : "rgba(255,255,255,0.4)",
-                  border: `1px solid ${filterTopic === t.id ? `${t.color}40` : "rgba(255,255,255,0.08)"}`,
+                  backgroundColor: filterTopic === t.id ? t.color : "rgba(0,0,0,0.04)",
+                  color: filterTopic === t.id ? "#fff" : "rgba(0,0,0,0.5)",
                 }}
               >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: t.color }} />
+                <span className="text-[14px]">{t.emoji}</span>
                 {t.label}
-                <span className="rounded-full px-1 font-mono text-[9px]" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                <span
+                  className="rounded-full px-1.5 py-0.5 font-mono text-[11px] font-bold leading-none"
+                  style={{
+                    backgroundColor: filterTopic === t.id ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.06)",
+                  }}
+                >
                   {t.count}
                 </span>
               </button>
             ))}
-            {filterTopic && (
-              <button
-                onClick={() => setFilterTopic(null)}
-                className="rounded-full px-2 py-1 font-sans text-[10px] text-white/30 transition hover:text-white/50"
-              >
-                Clear
-              </button>
-            )}
           </div>
 
-          {/* Mini bar chart */}
-          <div className="flex h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+          {/* Topic bar — visual breakdown */}
+          <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-black/[0.04]">
             {topicCounts.map((t) => (
               <div
                 key={t.id}
-                className="h-full transition-all"
+                className="h-full transition-all duration-300"
                 style={{
                   width: `${(t.count / conversations.length) * 100}%`,
                   backgroundColor: t.color,
-                  opacity: filterTopic && filterTopic !== t.id ? 0.2 : 0.7,
+                  opacity: filterTopic && filterTopic !== t.id ? 0.15 : 1,
                 }}
               />
             ))}
@@ -173,52 +183,65 @@ export function TextLog({ messages }: { messages: ChatMessage[] }) {
         </div>
       )}
 
-      {/* Conversation list */}
-      <div className="flex flex-col gap-2">
+      {/* ── Conversation cards ── */}
+      <div className="flex flex-col gap-3">
         {filtered.length === 0 && (
-          <p className="py-6 text-center font-sans text-sm text-white/20">
-            {filterTopic ? "No conversations about this topic yet." : "No conversations yet. Guest chats will appear here."}
-          </p>
+          <div className="rounded-2xl border border-black/5 bg-white px-6 py-12 text-center">
+            <p className="text-[32px]">💬</p>
+            <p className="mt-2 font-sans text-[15px] font-medium text-black/40">
+              {filterTopic ? "No chats about this topic yet" : "No guest chats yet"}
+            </p>
+            <p className="mt-1 font-sans text-[13px] text-black/25">
+              {filterTopic ? "Try a different filter" : "When guests message your AI, conversations show up here"}
+            </p>
+          </div>
         )}
+
         {filtered.map((convo) => (
           <div
             key={convo.id}
-            className="group rounded-xl transition"
-            style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
+            className="overflow-hidden rounded-2xl border border-black/5 bg-white transition hover:border-black/10"
           >
-            {/* Guest message */}
-            <div className="flex items-start gap-2.5 px-3 pt-3 pb-1.5">
-              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(74,222,128,0.15)" }}>
-                <span className="font-sans text-[8px] font-bold text-green-400">G</span>
+            {/* Guest question */}
+            <div className="flex items-start gap-3 px-5 pt-4 pb-3">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black">
+                <span className="font-sans text-[11px] font-bold text-white">G</span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-sans text-[13px] leading-[1.5] text-white/75">{convo.guestMessage.body}</p>
+                <div className="flex items-center gap-2">
+                  <span className="font-sans text-[12px] font-semibold text-black/40">Guest asked</span>
+                  <span className="font-sans text-[12px] text-black/25">{timeAgo(convo.timestamp)}</span>
+                </div>
+                <p className="mt-1 font-sans text-[15px] leading-[1.6] text-black/80">
+                  {convo.guestMessage.body}
+                </p>
               </div>
-              <span className="shrink-0 font-sans text-[9px] text-white/20">{timeAgo(convo.timestamp)}</span>
             </div>
 
             {/* AI reply */}
             {convo.aiReply && (
-              <div className="flex items-start gap-2.5 px-3 pt-1 pb-2.5">
-                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(249,115,22,0.15)" }}>
-                  <span className="font-sans text-[8px] font-bold" style={{ color: "#F97316" }}>AI</span>
+              <div className="flex items-start gap-3 border-t border-black/[0.04] px-5 pt-3 pb-4" style={{ backgroundColor: "rgba(249,115,22,0.02)" }}>
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "#F97316" }}>
+                  <span className="font-sans text-[11px] font-bold text-white">AI</span>
                 </div>
-                <p className="min-w-0 flex-1 font-sans text-[12px] leading-[1.5] text-white/45">{convo.aiReply.body}</p>
+                <div className="min-w-0 flex-1">
+                  <span className="font-sans text-[12px] font-semibold" style={{ color: "#F97316" }}>Your AI replied</span>
+                  <p className="mt-1 font-sans text-[14px] leading-[1.6] text-black/55">
+                    {convo.aiReply.body}
+                  </p>
+                </div>
               </div>
             )}
 
-            {/* Bottom meta */}
-            <div className="flex items-center gap-2 border-t px-3 py-1.5" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
-              <span className="font-mono text-[9px] text-white/15">{formatTime(convo.timestamp)}</span>
-              {convo.topic && (
-                <span
-                  className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-semibold"
-                  style={{ backgroundColor: `${convo.topic.color}15`, color: convo.topic.color }}
-                >
+            {/* Topic tag */}
+            {convo.topic && (
+              <div className="flex items-center gap-2 border-t border-black/[0.04] px-5 py-2.5">
+                <span className="text-[13px]">{convo.topic.emoji}</span>
+                <span className="font-sans text-[12px] font-medium" style={{ color: convo.topic.color }}>
                   {convo.topic.label}
                 </span>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
