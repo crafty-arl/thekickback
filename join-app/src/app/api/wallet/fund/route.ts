@@ -45,6 +45,27 @@ export async function POST(req: NextRequest) {
 
   const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
 
+  // Verify customer exists in current Stripe mode
+  if (wallet.stripe_customer_id) {
+    try {
+      await stripe.customers.retrieve(wallet.stripe_customer_id);
+    } catch {
+      // Customer from other mode — create new one
+      const customer = await stripe.customers.create({
+        email: user.email || undefined,
+        metadata: { user_id: user.id },
+      });
+      // Re-attach payment method to new customer
+      try {
+        await stripe.paymentMethods.attach(wallet.stripe_payment_method_id, { customer: customer.id });
+      } catch {
+        return NextResponse.json({ error: "Card not valid in this mode — please add a new card" }, { status: 400 });
+      }
+      await supabase.from("user_wallets").update({ stripe_customer_id: customer.id }).eq("id", wallet.id);
+      wallet.stripe_customer_id = customer.id;
+    }
+  }
+
   try {
     // Charge the card
     const paymentIntent = await stripe.paymentIntents.create({

@@ -26,7 +26,7 @@ export async function POST() {
   const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
   const sandbox = isSandboxServer(h);
 
-  // Get or create wallet with Stripe customer
+  // Get or create wallet with Stripe customer valid in current mode
   let { data: wallet } = await supabase
     .from("user_wallets")
     .select("id, stripe_customer_id")
@@ -50,6 +50,16 @@ export async function POST() {
       .single();
 
     wallet = newWallet;
+  }
+
+  // Ensure customer exists in current Stripe mode (live vs test are separate)
+  if (wallet?.stripe_customer_id) {
+    try {
+      await stripe.customers.retrieve(wallet.stripe_customer_id);
+    } catch {
+      // Customer doesn't exist in this mode — create a new one
+      wallet.stripe_customer_id = null as unknown as string;
+    }
   }
 
   if (!wallet?.stripe_customer_id) {
