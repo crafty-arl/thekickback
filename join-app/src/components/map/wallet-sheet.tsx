@@ -106,14 +106,29 @@ export function WalletSheet() {
   }, [loadWallet]);
 
   // Create wallet (first time)
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const createWallet = useCallback(async () => {
-    setLoading(true);
-    await fetch("/api/wallet", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spendingLimitCents: 5000, period: "weekly" }),
-    });
-    loadWallet();
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/wallet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spendingLimitCents: 5000, period: "weekly" }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setCreateError(data.error || `Failed (${res.status})`);
+        setCreating(false);
+        return;
+      }
+      loadWallet();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setCreating(false);
+    }
   }, [loadWallet]);
 
   // Add card — redirect to Stripe Checkout (hosted card form)
@@ -434,12 +449,16 @@ export function WalletSheet() {
           <p className="mt-1 font-sans text-[11px] leading-[1.5] text-white/35">
             Load funds into your wallet and the AI orders for you at any venue — no checkout needed.
           </p>
+          {createError && (
+            <p className="mt-2 font-sans text-[11px] text-red-400">{createError}</p>
+          )}
           <button
             onClick={createWallet}
-            className="mt-3 w-full rounded-xl py-2.5 font-sans text-[13px] font-bold text-white transition active:scale-[0.98]"
+            disabled={creating}
+            className="mt-3 w-full rounded-xl py-2.5 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
             style={{ backgroundColor: "#635bff" }}
           >
-            Set Up AI Wallet
+            {creating ? "Setting up..." : "Set Up AI Wallet"}
           </button>
         </div>
       )}
