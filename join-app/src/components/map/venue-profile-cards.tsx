@@ -31,14 +31,20 @@ interface OfferingData {
 
 interface VenueProfileCardsProps {
   venue: Venue;
+  onAction?: (command: string) => void;
 }
 
 const TYPE_ICONS: Record<string, string> = {
-  membership: "👑", reservation: "🪑", service: "✂️", product: "☕",
-  event: "🎟️", package: "📦", custom: "✦",
+  membership: "\u{1F451}", reservation: "\u{1FA91}", service: "\u2702\uFE0F", product: "\u2615",
+  event: "\u{1F39F}\uFE0F", package: "\u{1F4E6}", custom: "\u2726",
 };
 
-export function VenueProfileCards({ venue }: VenueProfileCardsProps) {
+const TYPE_LABELS: Record<string, string> = {
+  membership: "Memberships", reservation: "Reservations", service: "Services",
+  product: "Products", event: "Events", package: "Packages", custom: "More",
+};
+
+export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
   const [page, setPage] = useState<VenuePageData | null>(null);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [offerings, setOfferings] = useState<OfferingData[]>([]);
@@ -46,7 +52,6 @@ export function VenueProfileCards({ venue }: VenueProfileCardsProps) {
   const pct = getOccupancyPercent(venue);
 
   useEffect(() => {
-    // Fetch venue page data, gallery, and offerings
     Promise.all([
       fetch(`/api/venue-page?venueId=${venue.id}`).then((r) => r.ok ? r.json() : null),
       fetch(`/api/offerings?venueId=${venue.id}`).then((r) => r.ok ? r.json() : { offerings: [] }),
@@ -59,10 +64,38 @@ export function VenueProfileCards({ venue }: VenueProfileCardsProps) {
     }).catch(() => {});
   }, [venue.id]);
 
-  // Don't render until we have data
   if (!page && offerings.length === 0) return null;
 
   const theme = page?.theme_color || vibeColor;
+
+  // Group offerings by type, memberships first
+  const memberships = offerings.filter((o) => o.type === "membership");
+  const otherOfferings = offerings.filter((o) => o.type !== "membership");
+  const typeGroups = otherOfferings.reduce<Record<string, OfferingData[]>>((acc, o) => {
+    (acc[o.type] ||= []).push(o);
+    return acc;
+  }, {});
+
+  const handleOfferingTap = (o: OfferingData) => {
+    if (!onAction) return;
+    if (o.type === "membership") {
+      onAction(`I want to join the ${o.name} membership`);
+    } else if (o.type === "reservation") {
+      onAction(`I'd like to book ${o.name}`);
+    } else if (o.type === "event") {
+      onAction(`Tell me about the ${o.name} event`);
+    } else if (o.type === "service") {
+      onAction(`I'd like to book ${o.name}`);
+    } else {
+      onAction(`I want ${o.name}`);
+    }
+  };
+
+  const formatPrice = (o: OfferingData) => {
+    if (o.price_cents === 0) return "Free";
+    const base = `$${(o.price_cents / 100).toFixed(0)}`;
+    return o.recurring ? `${base}/${o.interval || "mo"}` : base;
+  };
 
   return (
     <div className="flex flex-col gap-2 pb-2">
@@ -73,7 +106,6 @@ export function VenueProfileCards({ venue }: VenueProfileCardsProps) {
         className="overflow-hidden rounded-2xl"
         style={{ border: `1px solid ${theme}20` }}
       >
-        {/* Gradient hero */}
         <div
           className="relative flex items-end px-4 pb-3 pt-10"
           style={{
@@ -102,7 +134,7 @@ export function VenueProfileCards({ venue }: VenueProfileCardsProps) {
             <h2 className="font-sans text-[18px] font-bold text-white leading-tight">{venue.name}</h2>
             {page?.tagline && <p className="mt-0.5 font-sans text-[11px] text-white/50">{page.tagline}</p>}
             {venue.neighborhood && (
-              <p className="mt-0.5 font-sans text-[10px] text-white/25">{venue.neighborhood}{venue.address ? ` · ${venue.address}` : ""}</p>
+              <p className="mt-0.5 font-sans text-[10px] text-white/25">{venue.neighborhood}{venue.address ? ` \u00b7 ${venue.address}` : ""}</p>
             )}
           </div>
         </div>
@@ -119,12 +151,94 @@ export function VenueProfileCards({ venue }: VenueProfileCardsProps) {
         </div>
       </motion.div>
 
+      {/* ── Membership Cards (featured) ── */}
+      {memberships.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="flex flex-col gap-1.5"
+        >
+          {memberships.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => handleOfferingTap(m)}
+              className="w-full overflow-hidden rounded-2xl text-left transition-all active:scale-[0.98]"
+              style={{
+                background: `linear-gradient(135deg, ${theme}12 0%, ${theme}04 100%)`,
+                border: `1px solid ${theme}25`,
+              }}
+            >
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${theme}15` }}>
+                  <span className="text-[18px]">{"\u{1F451}"}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-sans text-[13px] font-bold text-white/90">{m.name}</span>
+                    <span className="rounded-full px-2 py-0.5 font-mono text-[10px] font-bold" style={{ backgroundColor: `${theme}20`, color: theme }}>
+                      {formatPrice(m)}
+                    </span>
+                  </div>
+                  {m.description && <p className="mt-0.5 line-clamp-1 font-sans text-[10px] text-white/35">{m.description}</p>}
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-50">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </div>
+            </button>
+          ))}
+        </motion.div>
+      )}
+
+      {/* ── Quick Actions Strip (other offerings) ── */}
+      {Object.keys(typeGroups).length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex gap-1.5 overflow-x-auto no-scrollbar"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          {Object.entries(typeGroups).map(([type, items]) => (
+            <button
+              key={type}
+              onClick={() => {
+                if (items.length === 1) {
+                  handleOfferingTap(items[0]);
+                } else if (onAction) {
+                  const cmds: Record<string, string> = {
+                    event: "any events tonight?",
+                    reservation: "I'd like to reserve a spot",
+                    service: "what services do you offer?",
+                    product: "what can I order?",
+                    package: "show me your packages",
+                  };
+                  onAction(cmds[type] || `show me ${type} options`);
+                }
+              }}
+              className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 transition-all active:scale-[0.96]"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <span className="text-[13px]">{TYPE_ICONS[type] || "\u2726"}</span>
+              <div className="flex flex-col items-start">
+                <span className="font-sans text-[11px] font-semibold text-white/60">{TYPE_LABELS[type] || type}</span>
+                <span className="font-mono text-[9px] text-white/25">{items.length} available</span>
+              </div>
+            </button>
+          ))}
+        </motion.div>
+      )}
+
       {/* ── Hours Card ── */}
       {page?.hours && page.hours.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
+          transition={{ delay: 0.15 }}
           className="rounded-2xl px-4 py-3"
           style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
         >
@@ -133,7 +247,7 @@ export function VenueProfileCards({ venue }: VenueProfileCardsProps) {
             {page.hours.map((h) => (
               <div key={h.day} className="flex gap-2">
                 <span className="font-sans text-[10px] text-white/30">{h.day}</span>
-                <span className="font-sans text-[10px] text-white/50">{h.open}{h.close ? `–${h.close}` : ""}</span>
+                <span className="font-sans text-[10px] text-white/50">{h.open}{h.close ? `\u2013${h.close}` : ""}</span>
               </div>
             ))}
           </div>
@@ -145,7 +259,7 @@ export function VenueProfileCards({ venue }: VenueProfileCardsProps) {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.2 }}
           className="flex gap-1.5 overflow-x-auto rounded-2xl no-scrollbar"
         >
           {gallery.slice(0, 4).map((img) => (
@@ -156,40 +270,12 @@ export function VenueProfileCards({ venue }: VenueProfileCardsProps) {
         </motion.div>
       )}
 
-      {/* ── Offerings Card ── */}
-      {offerings.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="rounded-2xl px-4 py-3"
-          style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
-        >
-          <p className="mb-2 font-sans text-[8px] font-semibold tracking-[1px] text-white/20">AVAILABLE</p>
-          <div className="flex flex-col gap-1">
-            {offerings.slice(0, 5).map((o) => {
-              const price = o.price_cents === 0 ? "Free" : `$${(o.price_cents / 100).toFixed(0)}${o.recurring ? `/${o.interval || "mo"}` : ""}`;
-              return (
-                <div key={o.id} className="flex items-center gap-2">
-                  <span className="text-[11px]">{TYPE_ICONS[o.type] || "✦"}</span>
-                  <span className="flex-1 truncate font-sans text-[11px] text-white/50">{o.name}</span>
-                  <span className="font-mono text-[10px] font-semibold" style={{ color: theme }}>{price}</span>
-                </div>
-              );
-            })}
-            {offerings.length > 5 && (
-              <span className="font-sans text-[9px] text-white/15">+{offerings.length - 5} more</span>
-            )}
-          </div>
-        </motion.div>
-      )}
-
       {/* ── Menu Card ── */}
       {page?.menu_sections && page.menu_sections.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.25 }}
           className="rounded-2xl px-4 py-3"
           style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
         >
