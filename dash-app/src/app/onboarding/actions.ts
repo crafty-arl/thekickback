@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import nodemailer from "nodemailer";
 
 interface VenueFormData {
   name: string;
@@ -141,40 +142,41 @@ export async function submitHubForReview() {
 
   if (error) return { error: error.message };
 
-  // Send notification emails
-  const resendKey = process.env.RESEND_API_KEY;
-  if (resendKey) {
+  // Send notification emails via Gmail SMTP
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  if (smtpUser && smtpPass) {
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user: smtpUser, pass: smtpPass },
+    });
+
+    const from = `theKickBack <${smtpUser}>`;
     const adminEmail = "carl@craftthefuture.xyz";
     const ownerEmail = user.email;
 
     // Email to admin
-    await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: "theKickBack <noreply@thekickback.net>",
-        to: [adminEmail],
-        subject: `New hub submitted for review: ${venueName}`,
-        html: `<h2>New Hub Submission</h2>
+    transporter.sendMail({
+      from,
+      to: adminEmail,
+      subject: `New hub submitted for review: ${venueName}`,
+      html: `<h2>New Hub Submission</h2>
 <p><strong>${venueName}</strong> was submitted for review by ${ownerEmail}.</p>
 <p><a href="https://dash.thekickback.net/root">Review in admin dashboard</a></p>`,
-      }),
     }).catch((err) => console.error("Admin email failed:", err));
 
     // Email to owner
     if (ownerEmail) {
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "theKickBack <noreply@thekickback.net>",
-          to: [ownerEmail],
-          subject: `${venueName} is under review`,
-          html: `<h2>Your hub is under review</h2>
+      transporter.sendMail({
+        from,
+        to: ownerEmail,
+        subject: `${venueName} is under review`,
+        html: `<h2>Your hub is under review</h2>
 <p>We received your submission for <strong>${venueName}</strong> and it's now being reviewed.</p>
 <p>You'll receive an email once it's approved. In the meantime, you can continue editing your hub from the <a href="https://dash.thekickback.net">dashboard</a>.</p>
-<p>— theKickBack team</p>`,
-        }),
+<p style="color:#666;">— theKickBack team</p>`,
       }).catch((err) => console.error("Owner email failed:", err));
     }
   }
