@@ -101,7 +101,7 @@ export async function createVenue(formData: VenueFormData) {
     description: null,
     theme_color: themeColor,
     published: false,
-    review_status: "pending",
+    review_status: "draft",
     hours: formData.hours ? [{ day: "Daily", open: formData.hours, close: "" }] : [],
     menu_sections: [],
   });

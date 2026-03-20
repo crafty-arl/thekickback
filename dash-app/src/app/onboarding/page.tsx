@@ -125,6 +125,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [venueCreated, setVenueCreated] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const [hubData, setHubData] = useState<HubData>({
     name: "",
@@ -162,14 +163,37 @@ export default function OnboardingPage() {
     return () => vv.removeEventListener("resize", onResize);
   }, [scrollToBottom]);
 
-  // ─── Redirect after venue created ─────────────────────────────
+  // ─── Submit for review ────────────────────────────────────────
 
+  const submitForReview = useCallback(async () => {
+    try {
+      await fetch("/api/stats", { method: "GET" }); // just to get auth context
+      const res = await fetch("/api/chat/owner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: "submit_for_review",
+          venueId: "__auto__",
+          action: { type: "submit_for_review" },
+        }),
+      });
+      if (res.ok) {
+        setSubmitted(true);
+        setTimeout(() => router.push("/"), 2000);
+      }
+    } catch {
+      // Fallback: just redirect
+      router.push("/");
+    }
+  }, [router]);
+
+  // Redirect after submitted
   useEffect(() => {
-    if (venueCreated) {
-      const timer = setTimeout(() => router.push("/"), 2000);
+    if (submitted) {
+      const timer = setTimeout(() => router.push("/"), 2500);
       return () => clearTimeout(timer);
     }
-  }, [venueCreated, router]);
+  }, [submitted, router]);
 
   // ─── Send message ─────────────────────────────────────────────
 
@@ -363,8 +387,45 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Success state */}
-          {venueCreated && (
+          {/* Hub created — submit for review */}
+          {venueCreated && !submitted && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-3 flex justify-start"
+            >
+              <div
+                className="max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-4"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <p className="mb-3 font-sans text-[14px] leading-[1.6] text-white/85">
+                  Your hub is ready. Check the preview on the right, then submit for review. Once approved, it goes live.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={submitForReview}
+                    className="rounded-xl px-5 py-2.5 font-sans text-[13px] font-bold text-black active:scale-[0.98]"
+                    style={{ backgroundColor: "#F97316" }}
+                  >
+                    Submit for Review
+                  </button>
+                  <button
+                    onClick={() => router.push("/")}
+                    className="rounded-xl px-5 py-2.5 font-sans text-[13px] font-medium text-white/40 active:scale-[0.98]"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                  >
+                    Edit Later
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Submitted for review */}
+          {submitted && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -378,7 +439,7 @@ export default function OnboardingPage() {
                 }}
               >
                 <p className="font-sans text-[14px] leading-[1.6] text-green-400">
-                  Your hub is live. Redirecting to your dashboard...
+                  Submitted for review. You'll be able to manage your hub from the dashboard while we review it. Redirecting...
                 </p>
               </div>
             </motion.div>

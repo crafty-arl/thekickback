@@ -209,7 +209,7 @@ async function createVenueFromAI(data: {
       hours,
       menu_sections: menuSections,
       published: false,
-      review_status: "pending",
+      review_status: "draft",
     }),
   });
 

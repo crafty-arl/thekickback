@@ -154,7 +154,7 @@ function OtpGate() {
 // ─── Admin Dashboard ─────────────────────────────────────────────
 
 function AdminDashboard({ pages, orphanVenues, stats }: { pages: VenuePage[]; orphanVenues: OrphanVenue[]; stats: Stats }) {
-    const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected" | "orphan">("all");
+    const [filter, setFilter] = useState<"all" | "draft" | "pending" | "approved" | "rejected" | "orphan">("all");
     const [acting, setActing] = useState<string | null>(null);
 
     const filtered = filter === "all" ? pages : pages.filter((p) => p.review_status === filter);
@@ -190,7 +190,7 @@ function AdminDashboard({ pages, orphanVenues, stats }: { pages: VenuePage[]; or
                 {/* Filters */}
                 <div className="mb-4 flex items-center gap-2">
                     <h2 className="flex-1 font-sans text-[16px] font-semibold text-white">Venues</h2>
-                    {(["all", "pending", "approved", "rejected", "orphan"] as const).map((f) => {
+                    {(["all", "draft", "pending", "approved", "rejected", "orphan"] as const).map((f) => {
                         const count = f === "all" ? pages.length + orphanVenues.length
                             : f === "orphan" ? orphanVenues.length
                                 : pages.filter((p) => p.review_status === f).length;

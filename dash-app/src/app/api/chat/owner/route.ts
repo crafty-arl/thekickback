@@ -362,6 +362,19 @@ async function handleAction(
         };
       }
 
+      case "submit_for_review": {
+        const { error } = await svc
+          .from("venue_pages")
+          .update({ review_status: "pending" })
+          .eq("venue_id", venueId);
+        if (error) throw new Error(error.message);
+        revalidatePath("/");
+        return {
+          reply: `Your hub has been submitted for review. You'll be notified once it's approved and goes live. [[ACTION_CONFIRM:{"success":true,"message":"Submitted for review"}]]`,
+          actionResult: { success: true, message: "Submitted for review" },
+        };
+      }
+
       default:
         return {
           reply: `Unknown action type: ${action.type}. [[ACTION_CONFIRM:{"success":false,"message":"Unknown action"}]]`,
@@ -419,7 +432,7 @@ export async function POST(request: NextRequest) {
     const [venueRes, pageRes, bookingsRes, sessionsRes, offeringsRes, knowledgeRes, xpActionsRes, xpMilestonesRes, aiLimitsRes, membersRes, multipliersRes] =
       await Promise.all([
         svc.from("venues").select("name, type, address, neighborhood, max_occupancy, occupancy, vibe, rules").eq("id", venueId).single(),
-        svc.from("venue_pages").select("tagline, description, theme_color, hours, slug").eq("venue_id", venueId).single(),
+        svc.from("venue_pages").select("tagline, description, theme_color, hours, slug, review_status, published").eq("venue_id", venueId).single(),
         svc.from("venue_bookings").select("id, guest_name, offering_name, starts_at, cal_status").eq("venue_id", venueId).eq("cal_status", "pending").order("starts_at", { ascending: true }),
         svc.from("sessions").select("id, user_id, started_at, status, profiles(display_name, phone)").eq("venue_id", venueId).eq("status", "active"),
         svc.from("venue_offerings").select("id, name, type, price_cents, active, recurring, interval, duration_minutes").eq("venue_id", venueId).eq("active", true),
@@ -470,7 +483,8 @@ CURRENT VENUE CONFIG:
 - Description: ${venuePage?.description || "not set"}
 - Theme color: ${venuePage?.theme_color || "#F97316"}
 - Hours: ${venuePage?.hours ? JSON.stringify(venuePage.hours) : "not set"}
-- Public page: ${venuePage?.slug ? `join.thekickback.net/${venuePage.slug}` : "not published"}
+- Review status: ${venuePage?.review_status || "draft"} | Published: ${venuePage?.published ? "yes" : "no"}
+- Public page: ${venuePage?.slug ? `join.thekickback.net/${venuePage.slug}` : "not set"}
 
 LIVE DATA:
 - Occupancy: ${occupancy}/${capacity}
@@ -516,6 +530,7 @@ WRITE ACTIONS — you can execute these when the owner asks:
 | add_multiplier | Activate a points multiplier (e.g. 2x for happy hour) |
 | approve_booking | Accept a pending booking |
 | decline_booking | Decline a pending booking |
+| submit_for_review | Submit hub for admin review (required before going live) |
 
 BEHAVIOR:
 - When the owner asks to change something, propose the specific action and ask for confirmation.
