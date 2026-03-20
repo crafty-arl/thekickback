@@ -44,6 +44,14 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 const { latitude, longitude } = pos.coords;
                 setUserLocation({ latitude, longitude });
 
+                // Fly to user's location on launch
+                mapRef.current?.flyTo({
+                    center: [longitude, latitude],
+                    zoom: 14,
+                    pitch: 40,
+                    duration: 1200,
+                });
+
                 try {
                     const res = await fetch(`/api/discover?lat=${latitude}&lng=${longitude}`);
                     if (!res.ok) return;
