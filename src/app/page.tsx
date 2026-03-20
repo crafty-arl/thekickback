@@ -592,6 +592,9 @@ export default function Home() {
         <div className="flex justify-center gap-4 px-4 py-2 border-t" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
           <a href="https://join.thekickback.net" className="font-sans text-[11px] font-semibold" style={{ color: ORANGE }}>Find Your Spot</a>
           <a href="https://dash.thekickback.net" className="font-sans text-[11px] font-semibold" style={{ color: ORANGE }}>Set Up Your Hub</a>
+          <span className="text-white/10">·</span>
+          <a href="/about" className="font-sans text-[11px] text-white/30 hover:text-white/60 transition">About</a>
+          <a href="/privacy" className="font-sans text-[11px] text-white/30 hover:text-white/60 transition">Privacy</a>
         </div>
       </div>
     </div>
