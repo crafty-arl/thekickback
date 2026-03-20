@@ -621,6 +621,22 @@ export function TheDock({
   const isDesktop = useIsDesktop();
   const isMac = useIsMac();
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Show onboarding toast once on desktop (after 2s delay)
+  useEffect(() => {
+    if (!isDesktop) return;
+    try {
+      if (localStorage.getItem("kb-shortcuts-seen")) return;
+    } catch { return; }
+    const timer = setTimeout(() => setShowOnboarding(true), 2000);
+    return () => clearTimeout(timer);
+  }, [isDesktop]);
+
+  const dismissOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+    try { localStorage.setItem("kb-shortcuts-seen", "1"); } catch {}
+  }, []);
 
   // ── Mode state ──
   const [mode, setMode] = useState<DockMode>("idle");
@@ -1277,6 +1293,65 @@ export function TheDock({
             <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h8" />
           </svg>
         </motion.button>
+
+        {/* Onboarding toast — shows once for new desktop users */}
+        <AnimatePresence>
+          {showOnboarding && !showShortcuts && (
+            <motion.div
+              initial={{ opacity: 0, x: 20, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 20, scale: 0.95 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed right-4 top-[max(52px,calc(env(safe-area-inset-top)+52px))] z-[60] flex items-start gap-3 rounded-xl px-4 py-3"
+              style={{
+                background: "rgba(12, 12, 14, 0.95)",
+                backdropFilter: "blur(40px) saturate(1.8)",
+                WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+                boxShadow: "0 0 0 1px rgba(167,139,250,0.2), 0 8px 30px rgba(0,0,0,0.4)",
+                maxWidth: 320,
+              }}
+            >
+              {/* Keyboard icon */}
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(167,139,250,0.1)" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h8" />
+                </svg>
+              </div>
+
+              <div className="flex-1">
+                <p className="font-sans text-[13px] font-semibold text-white/90">Keyboard shortcuts available</p>
+                <p className="mt-0.5 font-sans text-[11px] leading-[1.4] text-white/40">
+                  Press <Kbd>?</Kbd> anytime to see all shortcuts. Try <Kbd>{isMac ? "\u2318" : "Ctrl"}</Kbd><span className="mx-0.5 text-[9px] text-white/15">+</span><Kbd>K</Kbd> to search, <Kbd>E</Kbd> to explore, or <Kbd>\u2190</Kbd> <Kbd>\u2192</Kbd> to browse venues.
+                </p>
+
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    onClick={() => { dismissOnboarding(); setShowShortcuts(true); }}
+                    className="rounded-full px-3 py-1 font-sans text-[11px] font-semibold text-black active:scale-95"
+                    style={{ backgroundColor: "#a78bfa" }}
+                  >
+                    View all shortcuts
+                  </button>
+                  <button
+                    onClick={dismissOnboarding}
+                    className="rounded-full px-3 py-1 font-sans text-[11px] font-medium text-white/40 active:scale-95"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    Got it
+                  </button>
+                </div>
+              </div>
+
+              {/* Close X */}
+              <button onClick={dismissOnboarding} className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition hover:bg-white/[0.08]">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="opacity-30">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Shortcuts overlay */}
         <AnimatePresence>
