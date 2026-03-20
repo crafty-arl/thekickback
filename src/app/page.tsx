@@ -243,7 +243,7 @@ export default function Home() {
 
       {/* ── LOGO (top-left, desktop only) ── */}
       <div className="absolute top-5 left-4 z-50 hidden lg:block">
-        <Image src="/logo.png" alt="theKickBack" width={180} height={60} priority style={{ height: "auto", filter: "brightness(0) invert(1)" }} />
+        <Image src="/logo.png" alt="theKickBack" width={180} height={60} priority style={{ height: "auto", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.3))" }} />
       </div>
 
       {/* ── NAV (top-right, desktop only) ── */}
