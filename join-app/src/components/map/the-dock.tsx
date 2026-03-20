@@ -14,6 +14,7 @@ import { ThreadsList, useThreadCount } from "./threads-list";
 import { VibeCard, MenuCard, EventsCard, ReserveCard, ShopCard, SubscribeCard, JoinCard } from "./tab-cards";
 import { PointsBadge } from "./points-badge";
 import { VenueProfileCards } from "./venue-profile-cards";
+import { VenueContact } from "./venue-contact";
 import { CheckoutCard, type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
 import { WalletSheet, useWalletStatus } from "./wallet-sheet";
 import { usePasskey } from "@/lib/use-passkey";
@@ -924,6 +925,7 @@ export function TheDock({
   const [previousMode, setPreviousMode] = useState<DockMode>("idle");
   const [exploreSnap, setExploreSnap] = useState<SnapPoint>("peek");
   const [venueChatSnap, setVenueChatSnap] = useState<VenueChatSnap>("collapsed");
+  const [showVenueContact, setShowVenueContact] = useState(false);
 
   // ── Chat state (persisted across mode switches) ──
   const [conciergeMessages, setConciergeMessages] = useState<Message[]>([
@@ -1429,6 +1431,7 @@ export function TheDock({
         setExploreSnap("half");
       }
     }
+    setShowVenueContact(false);
   }, [selectedVenue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load user profile ──
@@ -2676,12 +2679,15 @@ export function TheDock({
         )}
 
         {/* ═══ VENUE CHAT EXPANDED ═══ */}
-        {mode === "venueChat" && venueChatExpanded && selectedVenue && (
+        {mode === "venueChat" && venueChatExpanded && selectedVenue && !showVenueContact && (
           <>
             {/* Header */}
             <div className="px-4 pt-3 pb-1">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowVenueContact(true)}
+                  className="flex items-center gap-2 active:opacity-70"
+                >
                   <motion.div
                     className="h-2.5 w-2.5 rounded-full"
                     style={{ backgroundColor: vibeColor }}
@@ -2689,7 +2695,8 @@ export function TheDock({
                     transition={{ duration: 2, repeat: Infinity }}
                   />
                   <span className="font-sans text-[15px] font-semibold text-white/90">{selectedVenue.name}</span>
-                </div>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+                </button>
                 <div className="flex items-center gap-1.5">
                   <motion.button
                     onClick={handleKBBack}
@@ -3266,6 +3273,15 @@ export function TheDock({
               </motion.button>
             </div>
           </>
+        )}
+
+        {/* ═══ VENUE CONTACT PAGE ═══ */}
+        {mode === "venueChat" && venueChatExpanded && selectedVenue && showVenueContact && (
+          <VenueContact
+            venue={selectedVenue}
+            onClose={() => setShowVenueContact(false)}
+            onChat={() => setShowVenueContact(false)}
+          />
         )}
 
         {/* ═══ VENUE CHAT — UNCLAIMED (Ghost Agent) ═══ */}
