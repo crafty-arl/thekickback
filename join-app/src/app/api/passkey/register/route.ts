@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -13,14 +14,25 @@ const supabase = createClient(
 );
 
 const RP_NAME = "KickBack";
-const RP_ID = process.env.PASSKEY_RP_ID || "join.thekickback.net";
-const ORIGIN = process.env.PASSKEY_ORIGIN || "https://join.thekickback.net";
+
+// Derive RP ID and origin from the request host so it works on all domains
+function getRpConfig(host: string) {
+  // Strip port for RP ID (WebAuthn uses bare hostname)
+  const rpID = host.split(":")[0];
+  const isLocalhost = rpID === "localhost" || rpID === "127.0.0.1";
+  const origin = isLocalhost ? `http://${host}` : `https://${rpID}`;
+  return { rpID, origin };
+}
 
 // GET — generate registration options (challenge)
 export async function GET() {
   const authClient = await createAuthClient();
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const h = await headers();
+  const host = h.get("host") || "join.thekickback.net";
+  const { rpID } = getRpConfig(host);
 
   // Get existing passkeys to exclude
   const { data: existing } = await supabase
@@ -35,16 +47,17 @@ export async function GET() {
 
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
-    rpID: RP_ID,
+    rpID,
     userName: user.email || user.id,
     userID: new TextEncoder().encode(user.id),
     userDisplayName: user.email || "KickBack User",
     attestationType: "none",
     excludeCredentials,
     authenticatorSelection: {
-      authenticatorAttachment: "platform",
-      userVerification: "required",
-      residentKey: "required",
+      // No authenticatorAttachment — allows both platform (Face ID, Touch ID,
+      // Windows Hello) and cross-platform (security keys, phone-as-authenticator)
+      userVerification: "preferred", // biometric if available, password/PIN fallback
+      residentKey: "preferred",
     },
   });
 
@@ -63,6 +76,10 @@ export async function POST(req: NextRequest) {
   const authClient = await createAuthClient();
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const h = await headers();
+  const host = h.get("host") || "join.thekickback.net";
+  const { rpID, origin } = getRpConfig(host);
 
   const body: RegistrationResponseJSON & { deviceName?: string } = await req.json();
 
@@ -86,8 +103,8 @@ export async function POST(req: NextRequest) {
     const verification = await verifyRegistrationResponse({
       response: body,
       expectedChallenge: challengeRow.challenge,
-      expectedOrigin: ORIGIN,
-      expectedRPID: RP_ID,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
     });
 
     if (!verification.verified || !verification.registrationInfo) {

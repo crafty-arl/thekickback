@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { getStripeSecretKey } from "@/lib/sandbox";
+import { getStripeSecretKey, isSandboxServer } from "@/lib/sandbox";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -17,6 +17,9 @@ export async function POST(req: NextRequest) {
   const authClient = await createAuthClient();
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const h = await headers();
+  const mode = isSandboxServer(h) ? "test" : "live";
 
   const { amountCents, venueId, orderId, description } = await req.json();
 
@@ -44,26 +47,27 @@ export async function POST(req: NextRequest) {
   }
 
   // If venue has Stripe Connect, transfer their cut
-  const h = await headers();
   const { key: stripeKey } = getStripeSecretKey(h);
   if (stripeKey) {
+    const accountCol = mode === "test" ? "stripe_test_account_id" : "stripe_account_id";
     const { data: venue } = await supabase
       .from("venues")
-      .select("stripe_account_id, platform_fee_rate")
+      .select(`${accountCol}, platform_fee_rate`)
       .eq("id", venueId)
       .single();
 
-    if (venue?.stripe_account_id && result.stripe_customer_id) {
+    const stripeAccountId = (venue as Record<string, unknown>)?.[accountCol] as string | undefined;
+    if (stripeAccountId && result.stripe_customer_id) {
       try {
         const stripe = new Stripe(stripeKey, { apiVersion: "2026-02-25.clover" });
-        const feeRate = venue.platform_fee_rate || 0.10;
+        const feeRate = (venue as Record<string, unknown>)?.platform_fee_rate as number || 0.10;
         const venueAmount = Math.round(amountCents * (1 - feeRate));
 
         // Transfer to venue's connected account
         const transfer = await stripe.transfers.create({
           amount: venueAmount,
           currency: "usd",
-          destination: venue.stripe_account_id,
+          destination: stripeAccountId,
           metadata: {
             user_id: user.id,
             venue_id: venueId,

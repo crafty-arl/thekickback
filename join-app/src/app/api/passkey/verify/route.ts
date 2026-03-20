@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -12,14 +13,22 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 );
 
-const RP_ID = process.env.PASSKEY_RP_ID || "join.thekickback.net";
-const ORIGIN = process.env.PASSKEY_ORIGIN || "https://join.thekickback.net";
+function getRpConfig(host: string) {
+  const rpID = host.split(":")[0];
+  const isLocalhost = rpID === "localhost" || rpID === "127.0.0.1";
+  const origin = isLocalhost ? `http://${host}` : `https://${rpID}`;
+  return { rpID, origin };
+}
 
-// GET — generate authentication options (challenge for biometric prompt)
+// GET — generate authentication options (challenge for biometric/password prompt)
 export async function GET() {
   const authClient = await createAuthClient();
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const h = await headers();
+  const host = h.get("host") || "join.thekickback.net";
+  const { rpID } = getRpConfig(host);
 
   // Get user's registered passkeys
   const { data: passkeys } = await supabase
@@ -38,9 +47,9 @@ export async function GET() {
   }));
 
   const options = await generateAuthenticationOptions({
-    rpID: RP_ID,
+    rpID,
     allowCredentials,
-    userVerification: "required",
+    userVerification: "preferred", // biometric if available, password/PIN fallback on desktop
   });
 
   // Store challenge
@@ -53,11 +62,15 @@ export async function GET() {
   return NextResponse.json(options);
 }
 
-// POST — verify biometric authentication response
+// POST — verify authentication response
 export async function POST(req: NextRequest) {
   const authClient = await createAuthClient();
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const h = await headers();
+  const host = h.get("host") || "join.thekickback.net";
+  const { rpID, origin } = getRpConfig(host);
 
   const body: AuthenticationResponseJSON = await req.json();
 
@@ -94,8 +107,8 @@ export async function POST(req: NextRequest) {
     const verification = await verifyAuthenticationResponse({
       response: body,
       expectedChallenge: challengeRow.challenge,
-      expectedOrigin: ORIGIN,
-      expectedRPID: RP_ID,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
       credential: {
         id: passkey.credential_id,
         publicKey: Buffer.from(passkey.public_key, "base64url"),
