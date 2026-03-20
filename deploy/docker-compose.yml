@@ -99,6 +99,8 @@ services:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
       - CAL_API_KEY=${CAL_API_KEY}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_TEST_SECRET_KEY=${STRIPE_TEST_SECRET_KEY}
+      - FOURSQUARE_SERVICE_TOKEN=${FOURSQUARE_SERVICE_TOKEN}
     restart: always
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]

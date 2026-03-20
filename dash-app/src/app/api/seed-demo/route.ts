@@ -5,10 +5,12 @@ import { isSandbox } from "@/lib/stripe";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const supabase = createServiceClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
+function getSupabase() {
+  return createServiceClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!
+  );
+}
 
 // Milwaukee, WI center
 const MKE_LAT = 43.039;
@@ -140,6 +142,8 @@ export async function POST() {
   if (!sandbox) {
     return NextResponse.json({ error: "Seed demo is only available in sandbox mode" }, { status: 403 });
   }
+
+  const supabase = getSupabase();
 
   const fsqToken = process.env.FOURSQUARE_SERVICE_TOKEN;
   if (!fsqToken) {

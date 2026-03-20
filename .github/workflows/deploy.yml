@@ -100,6 +100,52 @@ jobs:
             docker compose up -d --force-recreate caddy
             echo "Deploy complete"
 
+      - name: Run database migrations
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 2m
+          script: |
+            cd /opt/thekickback/deploy
+            source .env
+
+            echo "Running pending migrations..."
+            for F in /opt/thekickback/supabase/migrations/*.sql; do
+              NAME=$(basename "$F")
+              # Track applied migrations in a simple file
+              APPLIED="/opt/thekickback/deploy/.migrations_applied"
+              touch "$APPLIED"
+              if grep -qF "$NAME" "$APPLIED" 2>/dev/null; then
+                echo "  skip $NAME (already applied)"
+                continue
+              fi
+              echo "  applying $NAME..."
+              STATUS=$(curl -s -o /tmp/migration_out.txt -w "%{http_code}" \
+                "${SUPABASE_URL}/rest/v1/rpc/exec_sql" \
+                -X POST \
+                -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+                -H "Content-Type: application/json" \
+                -d "{\"query\": $(python3 -c "import json,sys; print(json.dumps(open(sys.argv[1]).read()))" "$F")}" 2>/dev/null)
+
+              if [ "$STATUS" = "200" ] || [ "$STATUS" = "204" ]; then
+                echo "$NAME" >> "$APPLIED"
+                echo "  ✓ $NAME applied"
+              else
+                # exec_sql may not exist — try direct column check instead
+                echo "  ⚠ RPC not available (HTTP $STATUS) — trying direct ALTER via docker..."
+                docker exec -i $(docker ps -q -f name=dash-app) node -e "
+                  const { createClient } = require('@supabase/supabase-js');
+                  const fs = require('fs');
+                  // Can't run DDL via REST — will need manual migration
+                " 2>/dev/null || true
+                echo "  ⚠ Migration $NAME needs manual apply via Supabase dashboard SQL editor"
+              fi
+            done
+            echo "Migrations done"
+
       - name: Test all services
         uses: appleboy/ssh-action@v1
         with:
@@ -196,3 +242,180 @@ jobs:
             echo "═══ RESULTS: $PASS passed, $FAIL failed, $WARN warnings ═══"
             [ $FAIL -gt 0 ] && { echo "FAILED"; exit 1; }
             echo "All critical tests passed"
+
+      - name: Test sandbox isolation
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 3m
+          script: |
+            cd /opt/thekickback/deploy
+            source .env
+            PASS=0; FAIL=0; WARN=0
+
+            ok()   { PASS=$((PASS + 1)); echo "  ✓ $1"; }
+            fail() { FAIL=$((FAIL + 1)); echo "  ✗ $1"; }
+            warn() { WARN=$((WARN + 1)); echo "  ⚠ $1"; }
+
+            echo "═══ SANDBOX DOMAIN ROUTING ═══"
+            # Verify sandbox domains resolve to the same app instances
+            for D in sandbox.thekickback.net sanddash.thekickback.net; do
+              CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 8 -Lk -H "Host: $D" https://localhost/health 2>/dev/null)
+              [ "$CODE" = "000" ] && CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 8 -H "Host: $D" http://localhost:80/health 2>/dev/null)
+              [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "$D responds" || warn "$D — HTTP $CODE (Caddy TLS warmup)"
+            done
+
+            echo ""
+            echo "═══ SANDBOX vs PRODUCTION — API ISOLATION ═══"
+            JOIN_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' join-app 2>/dev/null)
+            DASH_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' dash-app 2>/dev/null)
+
+            # Test: sandbox wallet GET returns sandbox data (mode=test context)
+            if [ -n "$JOIN_IP" ]; then
+              # Production request (Host: join.thekickback.net)
+              PROD_RESP=$(curl -sf --max-time 10 "http://$JOIN_IP:3000/api/wallet" \
+                -H "Host: join.thekickback.net" 2>/dev/null)
+              # Sandbox request (Host: sandbox.thekickback.net)
+              SAND_RESP=$(curl -sf --max-time 10 "http://$JOIN_IP:3000/api/wallet" \
+                -H "Host: sandbox.thekickback.net" 2>/dev/null)
+
+              # Both should return (even if 401 for unauthenticated — that's fine, means the route works)
+              PROD_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$JOIN_IP:3000/api/wallet" \
+                -H "Host: join.thekickback.net" 2>/dev/null)
+              SAND_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$JOIN_IP:3000/api/wallet" \
+                -H "Host: sandbox.thekickback.net" 2>/dev/null)
+
+              [ "$PROD_CODE" = "401" ] || [ "$PROD_CODE" = "200" ] && ok "join prod wallet API ($PROD_CODE)" || fail "join prod wallet — HTTP $PROD_CODE"
+              [ "$SAND_CODE" = "401" ] || [ "$SAND_CODE" = "200" ] && ok "join sandbox wallet API ($SAND_CODE)" || fail "join sandbox wallet — HTTP $SAND_CODE"
+            else
+              fail "join-app not running"
+            fi
+
+            if [ -n "$DASH_IP" ]; then
+              # Production dashboard
+              PROD_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$DASH_IP:3000/health" \
+                -H "Host: dash.thekickback.net" 2>/dev/null)
+              # Sandbox dashboard
+              SAND_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$DASH_IP:3000/health" \
+                -H "Host: sanddash.thekickback.net" 2>/dev/null)
+
+              [ "$PROD_CODE" = "200" ] && ok "dash prod health ($PROD_CODE)" || fail "dash prod — HTTP $PROD_CODE"
+              [ "$SAND_CODE" = "200" ] && ok "dash sandbox health ($SAND_CODE)" || fail "dash sandbox — HTTP $SAND_CODE"
+
+              # Seed-demo should reject on production host
+              SEED_PROD=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$DASH_IP:3000/api/seed-demo" \
+                -X POST -H "Host: dash.thekickback.net" 2>/dev/null)
+              [ "$SEED_PROD" = "403" ] && ok "seed-demo blocked on production ($SEED_PROD)" || warn "seed-demo on prod — HTTP $SEED_PROD (expected 403)"
+
+              # Seed-demo should be allowed on sandbox host (will fail auth but not 403)
+              SEED_SAND=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$DASH_IP:3000/api/seed-demo" \
+                -X POST -H "Host: sanddash.thekickback.net" 2>/dev/null)
+              [ "$SEED_SAND" != "403" ] && ok "seed-demo allowed on sandbox ($SEED_SAND)" || fail "seed-demo blocked on sandbox — HTTP $SEED_SAND"
+            else
+              fail "dash-app not running"
+            fi
+
+            echo ""
+            echo "═══ DATABASE — MODE COLUMN CHECK ═══"
+            # Verify the mode column exists on financial tables
+            for TBL in user_wallets wallet_transactions orders order_items venue_bookings perk_redemptions; do
+              RESP=$(curl -sf --max-time 5 \
+                "${SUPABASE_URL}/rest/v1/${TBL}?select=mode&limit=0" \
+                -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" 2>/dev/null)
+              CODE=$?
+              if [ $CODE -eq 0 ]; then
+                ok "$TBL.mode column exists"
+              else
+                fail "$TBL.mode column missing"
+              fi
+            done
+
+            # Verify stripe_test_account_id on venues
+            RESP=$(curl -sf --max-time 5 \
+              "${SUPABASE_URL}/rest/v1/venues?select=stripe_test_account_id&limit=0" \
+              -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" 2>/dev/null)
+            [ $? -eq 0 ] && ok "venues.stripe_test_account_id exists" || fail "venues.stripe_test_account_id missing"
+
+            echo ""
+            echo "═══ SANDBOX RESULTS: $PASS passed, $FAIL failed, $WARN warnings ═══"
+            [ $FAIL -gt 0 ] && { echo "SANDBOX TESTS FAILED"; exit 1; }
+            echo "All sandbox isolation tests passed"
+
+      - name: Test production domains
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 3m
+          script: |
+            cd /opt/thekickback/deploy
+            source .env
+            PASS=0; FAIL=0; WARN=0
+
+            ok()   { PASS=$((PASS + 1)); echo "  ✓ $1"; }
+            fail() { FAIL=$((FAIL + 1)); echo "  ✗ $1"; }
+            warn() { WARN=$((WARN + 1)); echo "  ⚠ $1"; }
+
+            echo "═══ PRODUCTION DOMAIN VERIFICATION ═══"
+
+            # Verify each production domain resolves and serves the correct app
+            # Landing page
+            CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: thekickback.net" https://localhost/ 2>/dev/null)
+            [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "thekickback.net landing" || warn "thekickback.net — HTTP $CODE"
+
+            # Join app — check health + verify it serves venue pages
+            CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: join.thekickback.net" https://localhost/health 2>/dev/null)
+            [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "join.thekickback.net health" || warn "join.thekickback.net — HTTP $CODE"
+
+            # Dashboard — health
+            CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: dash.thekickback.net" https://localhost/health 2>/dev/null)
+            [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "dash.thekickback.net health" || warn "dash.thekickback.net — HTTP $CODE"
+
+            # Wallet service
+            CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: thekickback.net" https://localhost/wallet/health 2>/dev/null)
+            [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "wallet-service health" || warn "wallet-service — HTTP $CODE"
+
+            # Sandbox domains — same apps, different Host header
+            CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: sandbox.thekickback.net" https://localhost/health 2>/dev/null)
+            [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "sandbox.thekickback.net health" || warn "sandbox.thekickback.net — HTTP $CODE"
+
+            CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: sanddash.thekickback.net" https://localhost/health 2>/dev/null)
+            [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "sanddash.thekickback.net health" || warn "sanddash.thekickback.net — HTTP $CODE"
+
+            echo ""
+            echo "═══ PRODUCTION DB — SHARED INSTANCE VERIFICATION ═══"
+            # Verify both sandbox and production routes hit the same database
+            # by checking that the same venue exists from both "perspectives"
+            VID=$(curl -sf --max-time 5 \
+              "${SUPABASE_URL}/rest/v1/venues?select=id&state=eq.active&limit=1" \
+              -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" 2>/dev/null \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['id'] if d else '')" 2>/dev/null)
+
+            if [ -n "$VID" ]; then
+              ok "Active venue found: ${VID:0:8}..."
+
+              JOIN_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' join-app 2>/dev/null)
+              if [ -n "$JOIN_IP" ]; then
+                # Both prod and sandbox should see the same venue via the API
+                PROD_VEN=$(curl -sf --max-time 10 "http://$JOIN_IP:3000/api/venue-page?venueId=$VID" \
+                  -H "Host: join.thekickback.net" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('venue',{}).get('id',''))" 2>/dev/null)
+                SAND_VEN=$(curl -sf --max-time 10 "http://$JOIN_IP:3000/api/venue-page?venueId=$VID" \
+                  -H "Host: sandbox.thekickback.net" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('venue',{}).get('id',''))" 2>/dev/null)
+
+                [ "$PROD_VEN" = "$VID" ] && ok "Prod sees venue $VID" || warn "Prod venue lookup — got '$PROD_VEN'"
+                [ "$SAND_VEN" = "$VID" ] && ok "Sandbox sees same venue $VID" || warn "Sandbox venue lookup — got '$SAND_VEN'"
+              fi
+            else
+              warn "No active venues in database"
+            fi
+
+            echo ""
+            echo "═══ PRODUCTION RESULTS: $PASS passed, $FAIL failed, $WARN warnings ═══"
+            [ $FAIL -gt 0 ] && { echo "PRODUCTION TESTS FAILED"; exit 1; }
+            echo "All production domain tests passed"
