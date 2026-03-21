@@ -12,6 +12,35 @@ interface Env {
   STRIPE_TEST_SECRET_KEY: string;
   OPENCLAW_GATEWAY_URL: string;
   OPENCLAW_GATEWAY_TOKEN: string;
+  RESEND_API_KEY: string;
+}
+
+// ─── Email helpers (Cloudflare Worker — no process.env) ─────────
+
+const EMAIL_FROM = "theKickBack <hub@thekickback.net>";
+
+function wrapEmail(content: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#000;">
+  <div style="max-width:480px;margin:0 auto;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#fff;">
+    ${content}
+    <p style="margin-top:32px;font-size:11px;color:rgba(255,255,255,0.2);text-align:center;">
+      theKickBack &mdash; tap in, text in, you're in
+    </p>
+  </div>
+</body>
+</html>`;
+}
+
+function sendWorkerEmail(env: Env, to: string, subject: string, html: string) {
+  if (!env.RESEND_API_KEY || !to) return;
+  fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
+  }).catch((err) => console.error(`Email to ${to} failed:`, err));
 }
 
 interface Membership {
@@ -123,6 +152,23 @@ async function chargeCard(
   return { ok: false, error: pi.error?.message || `Payment ${pi.status || "failed"}` };
 }
 
+// ─── User email lookup ──────────────────────────────────────────
+
+async function getUserEmail(env: Env, userId: string): Promise<string | null> {
+  const rows = (await supabaseGet(env, `profiles?id=eq.${userId}&select=email`)) as { email?: string }[];
+  return rows?.[0]?.email || null;
+}
+
+async function getVenueName(env: Env, venueId: string): Promise<string> {
+  const rows = (await supabaseGet(env, `venues?id=eq.${venueId}&select=name,slug`)) as { name?: string; slug?: string }[];
+  return rows?.[0]?.name || "Venue";
+}
+
+async function getVenueSlug(env: Env, venueId: string): Promise<string> {
+  const rows = (await supabaseGet(env, `venues?id=eq.${venueId}&select=slug`)) as { slug?: string }[];
+  return rows?.[0]?.slug || venueId;
+}
+
 // ─── Renew a single membership ──────────────────────────────────
 
 async function renewMembership(env: Env, membership: Membership): Promise<{ renewed: boolean; method?: string; error?: string }> {
@@ -167,6 +213,31 @@ async function renewMembership(env: Env, membership: Membership): Promise<{ rene
       });
 
       console.log(`✓ Renewed ${offering.name} for ${membership.user_id} via wallet`);
+
+      // ─── Email 3: Membership Renewed (wallet) ──────────────────
+      try {
+        const email = await getUserEmail(env, membership.user_id);
+        if (email) {
+          const vName = await getVenueName(env, membership.venue_id);
+          const priceDollars = (offering.price_cents / 100).toFixed(2);
+          const expiryStr = new Date(newExpiry).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+          const nextRenewal = new Date(newExpiry);
+          const nextRenewalStr = nextRenewal.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+          sendWorkerEmail(env, email, `Renewed — ${offering.name}`, wrapEmail(`
+            <div style="text-align:center;margin-bottom:24px;">
+              <h1 style="margin:0;font-size:28px;color:#fff;">Renewed.</h1>
+              <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.5);">${offering.name} at ${vName}</p>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Membership</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${offering.name}</td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Charged</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">$${priceDollars} &middot; Wallet</td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Valid until</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#4ADE80;font-weight:600;">${expiryStr}</td></tr>
+              <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Next renewal</td><td style="text-align:right;padding:10px 0;color:#fff;">${nextRenewalStr}</td></tr>
+            </table>
+          `));
+        }
+      } catch (e) { console.error("Renewal email failed:", e); }
+
       return { renewed: true, method: "wallet" };
     }
   }
@@ -221,6 +292,31 @@ async function renewMembership(env: Env, membership: Membership): Promise<{ rene
       });
 
       console.log(`✓ Renewed ${offering.name} for ${membership.user_id} via card`);
+
+      // ─── Email 3: Membership Renewed (card) ────────────────────
+      try {
+        const email = await getUserEmail(env, membership.user_id);
+        if (email) {
+          const vName = await getVenueName(env, membership.venue_id);
+          const priceDollars = (offering.price_cents / 100).toFixed(2);
+          const expiryStr = new Date(newExpiry).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+          const nextRenewal = new Date(newExpiry);
+          const nextRenewalStr = nextRenewal.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+          sendWorkerEmail(env, email, `Renewed — ${offering.name}`, wrapEmail(`
+            <div style="text-align:center;margin-bottom:24px;">
+              <h1 style="margin:0;font-size:28px;color:#fff;">Renewed.</h1>
+              <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.5);">${offering.name} at ${vName}</p>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Membership</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${offering.name}</td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Charged</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">$${priceDollars} &middot; Card</td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Valid until</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#4ADE80;font-weight:600;">${expiryStr}</td></tr>
+              <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Next renewal</td><td style="text-align:right;padding:10px 0;color:#fff;">${nextRenewalStr}</td></tr>
+            </table>
+          `));
+        }
+      } catch (e) { console.error("Renewal email failed:", e); }
+
       return { renewed: true, method: "card" };
     } else {
       console.error(`✗ Card charge failed for ${membership.user_id}: ${chargeResult.error}`);
@@ -232,6 +328,36 @@ async function renewMembership(env: Env, membership: Membership): Promise<{ rene
     auto_renew: false,
   });
   console.log(`✗ Renewal failed for ${membership.user_id} — auto_renew disabled`);
+
+  // ─── Email 4: Renewal Failed ──────────────────────────────────
+  try {
+    const email = await getUserEmail(env, membership.user_id);
+    if (email) {
+      const vName = await getVenueName(env, membership.venue_id);
+      const slug = await getVenueSlug(env, membership.venue_id);
+      const reason = (!wallet || wallet.balance_cents < offering.price_cents)
+        ? "Insufficient wallet balance"
+        : "Card declined";
+      sendWorkerEmail(env, email, `Renewal failed — ${offering.name}`, wrapEmail(`
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="width:56px;height:56px;border-radius:50%;background:#EF4444;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:28px;color:#fff;line-height:56px;">!</span>
+          </div>
+          <h1 style="margin:0;font-size:24px;color:#fff;">Renewal failed.</h1>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Venue</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${vName}</td></tr>
+          <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Membership</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${offering.name}</td></tr>
+          <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Reason</td><td style="text-align:right;padding:10px 0;color:#EF4444;font-weight:600;">${reason}</td></tr>
+        </table>
+        <p style="margin:16px 0 0;font-size:13px;color:rgba(255,255,255,0.4);text-align:center;">Auto-renew has been turned off. Update your payment to keep your membership.</p>
+        <div style="text-align:center;margin-top:20px;">
+          <a href="https://join.thekickback.net/${slug}" style="display:inline-block;padding:12px 28px;background:#EF4444;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Update Payment</a>
+        </div>
+      `));
+    }
+  } catch (e) { console.error("Renewal failed email failed:", e); }
+
   return { renewed: false, error: "Wallet insufficient, card failed or missing" };
 }
 
@@ -249,7 +375,7 @@ function getNextExpiry(currentExpiry: string, interval: string | null): string {
 
 export default {
   // Cron trigger — process all expiring memberships
-  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
+  async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext) {
     console.log("─── Membership renewal cron started ───");
 
     // Find memberships expiring in the next 24 hours
@@ -270,6 +396,58 @@ export default {
     }
 
     console.log(`─── Done: ${renewed} renewed, ${failed} failed ───`);
+
+    // ─── Email 5: Booking Reminders (24h before) ────────────────
+    console.log("─── Booking reminder check started ───");
+    try {
+      const now = new Date();
+      const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      // Bookings starting in the next 24 hours that haven't been reminder-sent
+      const bookings = (await supabaseGet(
+        env,
+        `venue_bookings?cal_status=in.(confirmed,accepted)&starts_at=gt.${now.toISOString()}&starts_at=lt.${in24h.toISOString()}&reminder_sent=is.null&select=id,venue_id,offering_name,guest_name,guest_email,starts_at,duration_minutes`
+      )) as {
+        id: string; venue_id: string; offering_name: string;
+        guest_name: string; guest_email: string;
+        starts_at: string; duration_minutes: number;
+      }[];
+
+      console.log(`Found ${(bookings || []).length} bookings needing reminders`);
+
+      for (const b of bookings || []) {
+        if (!b.guest_email) continue;
+        try {
+          const vName = await getVenueName(env, b.venue_id);
+          const slug = await getVenueSlug(env, b.venue_id);
+          const startDate = new Date(b.starts_at);
+          const dateStr = startDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+          const timeStr = startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+          sendWorkerEmail(env, b.guest_email, `Tomorrow — ${b.offering_name} at ${vName}`, wrapEmail(`
+            <div style="background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
+              <div style="font-size:36px;margin-bottom:8px;">&#128197;</div>
+              <h1 style="margin:0;font-size:28px;color:#fff;">Tomorrow.</h1>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Venue</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${vName}</td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Service</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${b.offering_name}</td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Date</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${dateStr}</td></tr>
+              <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Time</td><td style="text-align:right;padding:10px 0;color:#8B5CF6;font-weight:600;">${timeStr}</td></tr>
+            </table>
+            <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:12px;padding:12px 16px;margin-top:20px;text-align:center;">
+              <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.6);">Your pass is ready. Don't be late.</p>
+            </div>
+            <div style="text-align:center;margin-top:20px;">
+              <a href="https://join.thekickback.net/${slug}" style="display:inline-block;padding:12px 28px;background:#8B5CF6;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">View venue</a>
+            </div>
+          `));
+
+          // Mark reminder as sent
+          await supabasePatch(env, "venue_bookings", b.id, { reminder_sent: true });
+        } catch (e) { console.error(`Booking reminder failed for ${b.id}:`, e); }
+      }
+      console.log("─── Booking reminders done ───");
+    } catch (e) { console.error("Booking reminder check failed:", e); }
   },
 
   // HTTP trigger — OpenClaw can POST /renew to renew a specific user's membership
