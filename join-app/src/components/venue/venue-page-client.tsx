@@ -546,11 +546,10 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
                 onClick={() => {
                   onAddWithMeta({
                     date: selectedDateLabel,
-                    time: selectedTime,
+                    time: selectedTime!,
                     staffId: selectedStaff || undefined,
                     staffName: selectedStaffName || undefined,
                   });
-                  onClose();
                 }}
                 className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
                 style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
@@ -591,7 +590,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const pct = Math.round((venue.occupancy / venue.max_occupancy) * 100);
   /* ── Chat state ── */
   const [chatOpen, setChatOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("chat");
+  const activeTab: Tab = "chat";
   const controls = useAnimationControls();
   const welcomeMsg: Message = { id: "welcome", sender: "ai", body: `Hey! ${vl(venue.vibe)} vibes right now, ${venue.occupancy} people in. Ask me anything about ${venue.name}.`, timestamp: Date.now() };
   const [messages, setMessages] = useState<Message[]>([welcomeMsg]);
@@ -602,6 +601,8 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const [drawerOfferId, setDrawerOfferId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
   const walletStatus = useWalletStatus();
   const [pointsData, setPointsData] = useState<{
     balance: number; total_earned: number; tier: string; kickback_score: number;
@@ -617,7 +618,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const hasSentTabCommand = useRef<Set<Tab>>(new Set(["chat"]));
+  const _hasSentTabCommand = useRef<Set<Tab>>(new Set(["chat"]));
 
   // Fetch balance + history
   useEffect(() => {
@@ -669,7 +670,8 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
   useEffect(() => {
     controls.start({
-      height: chatOpen ? "70dvh" : 0,
+      height: chatOpen ? "70dvh" : "56px",
+      borderRadius: chatOpen ? "24px 24px 0 0" : "28px",
       transition: { type: "spring", damping: 30, stiffness: 300 },
     });
   }, [chatOpen, controls]);
@@ -712,15 +714,6 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
       inputRef.current?.focus();
     }
   }, [input, loading, venue, table, chatOpen, activeTab]);
-
-  function handleTabTap(tab: Tab) {
-    setActiveTab(tab);
-    const cmd = TAB_COMMANDS[tab];
-    if (cmd && !hasSentTabCommand.current.has(tab)) {
-      hasSentTabCommand.current.add(tab);
-      send(cmd);
-    }
-  }
 
   function addToCart(id: string, name: string, priceCents: number, metadata?: CartItem["metadata"]) {
     // Bookable offerings without metadata must go through the scheduler first
@@ -1163,7 +1156,10 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               setDrawerOfferId(null);
             }}
             onAddWithMeta={(metadata) => {
-              if (drawerOffer) addToCart(drawerOffer.id, drawerOffer.name, drawerOffer.price, metadata);
+              if (drawerOffer) {
+                addToCart(drawerOffer.id, drawerOffer.name, drawerOffer.price, metadata);
+                setDrawerOfferId(null);
+              }
             }}
             linkedStaff={drawerOfferId ? staffByOffering[drawerOfferId] : undefined}
             venueId={venue.id}
@@ -1172,17 +1168,14 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         )}
       </AnimatePresence>
 
-      {/* ═══ CART INDICATOR — floats above dock when items in cart ═══ */}
+      {/* ═══ CART FAB — floats above dock ═══ */}
       <AnimatePresence>
         {cartCount > 0 && !chatOpen && (
           <motion.button
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            onClick={() => {
-              setChatOpen(true);
-              send(`I'd like to check out. I have ${cartCount} item${cartCount > 1 ? "s" : ""} in my cart.`);
-            }}
+            onClick={() => setCartOpen(true)}
             className="fixed z-[35] left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full px-5 py-3 font-sans text-[14px] font-bold text-black active:scale-95"
             style={{
               bottom: "max(72px, calc(env(safe-area-inset-bottom) + 72px))",
@@ -1196,26 +1189,135 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         )}
       </AnimatePresence>
 
-      {/* ═══ CHAT DOCK — fixed bottom ═══ */}
-      <div className="fixed inset-x-0 bottom-0 z-30" style={{ paddingBottom: "max(4px, env(safe-area-inset-bottom, 4px))" }}>
-
-        {/* Expanded chat panel */}
-        <AnimatePresence>
-          {chatOpen && (
+      {/* ═══ CART DRAWER — slides from right ═══ */}
+      <AnimatePresence>
+        {cartOpen && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCartOpen(false)} className="fixed inset-0 z-[80]" style={{ backgroundColor: "rgba(0,0,0,0.6)" }} />
             <motion.div
-              initial={{ height: 0 }}
-              animate={{ height: "70dvh" }}
-              exit={{ height: 0 }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="mx-2 mb-1 flex flex-col overflow-hidden rounded-3xl"
-              style={{
-                background: "rgba(12, 12, 15, 0.95)",
-                backdropFilter: "blur(40px) saturate(1.8)",
-                WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-                boxShadow: "0 -8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08)",
-              }}
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed inset-y-0 right-0 z-[85] w-[85vw] max-w-sm flex flex-col"
+              style={{ backgroundColor: "rgba(12,12,15,0.97)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: "1px solid rgba(255,255,255,0.08)" }}
             >
-              {/* Chat header */}
+              <div className="flex items-center justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] pb-4">
+                <h2 className="font-sans text-[16px] font-bold text-white">Your Cart</h2>
+                <button onClick={() => setCartOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5">
+                {cart.map((item, i) => (
+                  <div key={`${item.id}-${i}`} className="mb-2 flex items-center gap-3 rounded-xl px-3 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-sans text-[13px] font-medium text-white/80">{item.name} {item.quantity > 1 ? `x${item.quantity}` : ""}</p>
+                      {item.metadata?.date && (
+                        <p className="font-sans text-[11px] text-white/30">{item.metadata.date} at {item.metadata.time}{item.metadata.staffName ? ` · ${item.metadata.staffName}` : ""}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0 font-mono text-[13px] font-bold" style={{ color: theme }}>${((item.price_cents * item.quantity) / 100).toFixed(2)}</span>
+                    <button onClick={() => setCart((prev) => prev.filter((_, j) => j !== i))} className="shrink-0 text-white/20 active:text-white/50">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t px-5 py-4" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="font-sans text-[14px] text-white/50">Total</span>
+                  <span className="font-mono text-[18px] font-bold text-white">${(cartTotal / 100).toFixed(2)}</span>
+                </div>
+                {!user ? (
+                  <a href="/login" className="flex w-full items-center justify-center rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black" style={{ backgroundColor: theme }}>Log in to checkout</a>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      setCheckingOut(true);
+                      try {
+                        const orderItems = cart.map((item) => ({
+                          offering_id: item.id,
+                          name: item.name,
+                          description: item.metadata?.date ? `${item.metadata.date} at ${item.metadata.time}${item.metadata.staffName ? ` with ${item.metadata.staffName}` : ""}` : null,
+                          quantity: item.quantity,
+                          unit_price_cents: item.price_cents,
+                          metadata: { ...(item.metadata || {}), type: offeringsMap[item.id]?.type },
+                        }));
+                        const res = await fetch("/api/orders", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ venueId: venue.id, items: orderItems }),
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                          setCart([]);
+                          setCartOpen(false);
+                          setMessages((prev) => [...prev, { id: `order-${Date.now()}`, sender: "ai", body: `Order confirmed! ${cart.length} item${cart.length > 1 ? "s" : ""} — $${(cartTotal / 100).toFixed(2)}. Check your email for the receipt.`, timestamp: Date.now() }]);
+                        } else {
+                          alert(data.error || "Checkout failed");
+                        }
+                      } catch { alert("Something went wrong"); }
+                      finally { setCheckingOut(false); }
+                    }}
+                    disabled={checkingOut}
+                    className="w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98] disabled:opacity-50"
+                    style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+                  >
+                    {checkingOut ? "Processing..." : `Checkout — $${(cartTotal / 100).toFixed(2)}`}
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ UNIFIED DOCK — matches main app dock ═══ */}
+      <div className="fixed inset-x-0 bottom-0 z-40" style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}>
+        <motion.div
+          animate={controls}
+          className="relative mx-3 flex flex-col overflow-hidden"
+          style={{
+            height: 56,
+            borderRadius: 28,
+            background: "rgba(12, 12, 14, 0.92)",
+            backdropFilter: "blur(40px) saturate(1.8)",
+            WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+            boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 -4px 30px rgba(0,0,0,0.3)",
+          }}
+        >
+          {/* Collapsed: input bar (shown when not expanded) */}
+          {!chatOpen && (
+            <div className="flex h-[56px] items-center gap-2 px-3">
+              <button onClick={() => setChatOpen(true)} className="flex items-center gap-2 pl-1 shrink-0">
+                <motion.div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }} transition={{ duration: 2, repeat: Infinity }} />
+                <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-white/90">{venue.name}</span>
+              </button>
+              <input
+                type="text" value={input} onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { setChatOpen(true); send(); } }}
+                onFocus={() => setChatOpen(true)}
+                placeholder="Ask anything..." enterKeyHint="send" autoComplete="off" autoCorrect="off"
+                className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
+              />
+              <motion.button
+                onClick={() => { setChatOpen(true); send(); }}
+                disabled={!input.trim() || loading} whileTap={{ scale: 0.9 }}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+                style={{ backgroundColor: theme, boxShadow: `0 2px 10px ${theme}40` }}
+              >
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
+                </svg>
+              </motion.button>
+            </div>
+          )}
+
+          {/* Expanded: chat panel */}
+          {chatOpen && (
+            <>
+              {/* Header */}
               <div className="flex items-center justify-between px-4 pt-3 pb-1">
                 <div className="flex items-center gap-2">
                   <motion.div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }} transition={{ duration: 2, repeat: Infinity }} />
@@ -1227,60 +1329,31 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                 </motion.button>
               </div>
 
-              {/* Tabs */}
-              <div className="flex gap-1 overflow-x-auto px-3 pb-2 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
-                {TABS.map((tab) => {
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <motion.button key={tab.id} onClick={() => handleTabTap(tab.id)} whileTap={{ scale: 0.92 }}
-                      className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium transition-colors"
-                      style={{
-                        backgroundColor: isActive ? `${theme}20` : "rgba(255,255,255,0.04)",
-                        color: isActive ? theme : "rgba(255,255,255,0.35)",
-                        border: `1px solid ${isActive ? `${theme}30` : "rgba(255,255,255,0.06)"}`,
-                      }}
-                    >
-                      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={tab.icon} /></svg>
-                      {tab.label}
-                    </motion.button>
-                  );
-                })}
-              </div>
-
               <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
 
               {/* Messages */}
               <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
                 <div className="flex flex-col gap-2.5">
-                  {messages.map((msg) => {
-                    if (msg.sender === "guest") {
-                      return (
-                        <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-end">
-                          <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5" style={{ backgroundColor: theme, color: "#000", boxShadow: `0 2px 12px ${theme}33` }}>
-                            <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
-                          </div>
-                        </motion.div>
-                      );
-                    }
-                    return (
-                      <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                        <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                          <AiMessageBody
-                            body={msg.body} theme={theme} offeringsMap={offeringsMap}
-                            onTapOffer={(id) => setDrawerOfferId(id)}
-                            onAddToCart={(id, name, price) => { addToCart(id, name, price); }}
-                          />
+                  {messages.map((msg) => (
+                    msg.sender === "guest" ? (
+                      <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-end">
+                        <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5" style={{ backgroundColor: theme, color: "#000", boxShadow: `0 2px 12px ${theme}33` }}>
+                          <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
                         </div>
                       </motion.div>
-                    );
-                  })}
+                    ) : (
+                      <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
+                        <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                          <AiMessageBody body={msg.body} theme={theme} offeringsMap={offeringsMap} onTapOffer={(id) => setDrawerOfferId(id)} onAddToCart={(id, name, price) => addToCart(id, name, price)} />
+                        </div>
+                      </motion.div>
+                    )
+                  ))}
                   {loading && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                       <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }}>
                         <div className="flex gap-1.5">
-                          <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} />
-                          <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }} />
-                          <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }} />
+                          {[0, 0.15, 0.3].map((d, i) => <motion.div key={i} className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: d }} />)}
                         </div>
                       </div>
                     </motion.div>
@@ -1301,64 +1374,24 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               )}
 
               {/* Input */}
-              <div className="flex items-center gap-2 px-3 pb-3 pt-1">
+              <div className="flex items-center gap-2 px-3 pb-2 pt-1">
                 <input ref={inputRef} type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
                   placeholder="Ask anything..." enterKeyHint="send" autoComplete="off" autoCorrect="off"
-                  className="min-w-0 flex-1 rounded-full px-4 font-sans text-[14px] text-white placeholder:text-white/25 focus:outline-none"
-                  style={{ height: 44, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                  style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
                 />
                 <motion.button onClick={() => send()} disabled={!input.trim() || loading} whileTap={{ scale: 0.9 }}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
                   style={{ backgroundColor: theme, boxShadow: `0 2px 10px ${theme}40` }}
                 >
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
                   </svg>
                 </motion.button>
               </div>
-            </motion.div>
+            </>
           )}
-        </AnimatePresence>
-
-        {/* Dock bar — always visible */}
-        <div
-          className="mx-3 flex items-center gap-2 rounded-full px-3"
-          style={{
-            height: 56,
-            background: "rgba(15, 15, 18, 0.9)",
-            backdropFilter: "blur(40px) saturate(1.8)",
-            WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-            boxShadow: "0 0 0 1px rgba(255,255,255,0.1), 0 -4px 30px rgba(0,0,0,0.3)",
-          }}
-        >
-          <button onClick={() => setChatOpen(!chatOpen)} className="flex items-center gap-2 pl-1 shrink-0">
-            <motion.div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }} transition={{ duration: 2, repeat: Infinity }} />
-            <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-white/90">{venue.name}</span>
-          </button>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { if (!chatOpen) setChatOpen(true); send(); } }}
-            onFocus={() => { if (!chatOpen) setChatOpen(true); }}
-            placeholder="Ask anything..."
-            enterKeyHint="send"
-            autoComplete="off"
-            autoCorrect="off"
-            className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
-          />
-          <motion.button
-            onClick={() => { if (!chatOpen) setChatOpen(true); send(); }}
-            disabled={!input.trim() || loading}
-            whileTap={{ scale: 0.9 }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
-            style={{ backgroundColor: theme, boxShadow: `0 2px 10px ${theme}40` }}
-          >
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
-            </svg>
-          </motion.button>
-        </div>
+        </motion.div>
       </div>
 
       {/* Powered by */}
