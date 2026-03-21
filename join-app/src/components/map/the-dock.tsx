@@ -2465,8 +2465,7 @@ export function TheDock({
                                   transition={{ delay: Math.min(i * 0.03, 0.15) }}
                                   onClick={() => {
                                     if (venue) {
-                                      handleExploreVenueTap(venue);
-                                      setTimeout(() => send(`Tell me about ${item.name}`), 300);
+                                      onVenueSelect(venue);
                                     }
                                   }}
                                   className="flex shrink-0 flex-col overflow-hidden rounded-2xl text-left active:scale-[0.97]"
