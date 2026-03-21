@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject } from "react";
+import { type RefObject, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Venue, getVibeHexColor, getVibeLabel, getOccupancyPercent } from "@/lib/venues";
 import { type UserProfile, VIBE_COLORS, CATEGORY_ICONS } from "./the-drawer";
@@ -31,6 +31,13 @@ export function DrawerVenue({
   const catIcon = CATEGORY_ICONS[venue.category] || CATEGORY_ICONS.venue;
   const catLabel = venue.category === "coworking" ? "Cowork" : venue.category;
   const pct = venue.capacity > 0 ? Math.round((venue.occupancy / venue.capacity) * 100) : 0;
+
+  // Always scroll to top when venue changes
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: 0 });
+    });
+  }, [venue.id, scrollRef]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
