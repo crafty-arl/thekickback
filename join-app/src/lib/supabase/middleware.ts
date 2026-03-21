@@ -45,25 +45,9 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
-
-  // Allow /login, /health, and API routes without auth
-  const isPublic = pathname === "/login" || pathname === "/health" || pathname.startsWith("/api/");
-
-  // Redirect authenticated users away from /login
-  if (user && pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
-  }
-
-  // Redirect unauthenticated users to /login
-  if (!user && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("returnTo", pathname);
-    return NextResponse.redirect(url);
-  }
+  // join-app is public — no auth redirects needed.
+  // Auth gating happens at the action level (booking, wallet, checkout),
+  // not at the page level. The dock has inline login for when it's needed.
 
   return supabaseResponse;
 }
