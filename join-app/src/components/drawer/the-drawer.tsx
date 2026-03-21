@@ -204,10 +204,15 @@ export function getDistance(lat1: number, lon1: number, lat2: number, lon2: numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function snapToHeight(snap: DrawerSnap): string {
-  if (snap === "peek") return "80px";
-  if (snap === "mid") return "45dvh";
-  return "92dvh";
+function snapToHeight(snap: DrawerSnap, vpHeight?: number): string | number {
+  if (snap === "peek") return 80;
+  if (vpHeight && vpHeight > 0) {
+    // Use actual viewport pixels — stable even with keyboard open
+    if (snap === "mid") return Math.round(vpHeight * 0.45);
+    return Math.round(vpHeight * 0.92);
+  }
+  if (snap === "mid") return "45vh";
+  return "92vh";
 }
 
 function buildVenueFromApi(av: ApiVenue): Venue {
@@ -507,25 +512,36 @@ export function TheDrawer({
 
   useEffect(() => { if (!selectedVenue) clearNav(); }, [selectedVenue, clearNav]);
 
+  // ── Keyboard resize handler ──
+  const [viewportHeight, setViewportHeight] = useState(0);
+
   // ── Animate drawer on snap change ──
   useEffect(() => {
     controls.start({
-      height: snapToHeight(snap),
-      borderRadius: "20px 20px 0 0",
+      height: snapToHeight(snap, viewportHeight),
+      borderRadius: 0,
       transition: { type: "spring", damping: 30, stiffness: 300 },
     });
-  }, [snap, controls]);
+  }, [snap, controls, viewportHeight]);
 
   // ── Scroll to bottom on new messages ──
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [conciergeMessages, venueThreads, selectedVenue]);
-
-  // ── Keyboard resize handler ──
   useEffect(() => {
-    const handleResize = () => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-    window.visualViewport?.addEventListener("resize", handleResize);
-    return () => window.visualViewport?.removeEventListener("resize", handleResize);
+    const updateVH = () => {
+      const vh = window.visualViewport?.height || window.innerHeight;
+      setViewportHeight(vh);
+      // Scroll chat to bottom when keyboard changes viewport
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    };
+    updateVH();
+    window.visualViewport?.addEventListener("resize", updateVH);
+    window.addEventListener("resize", updateVH);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateVH);
+      window.removeEventListener("resize", updateVH);
+    };
   }, []);
 
   // ── Load thread history ──
@@ -914,7 +930,7 @@ export function TheDrawer({
           className="relative flex flex-col overflow-hidden"
           style={{
             height: 80,
-            borderRadius: "20px 20px 0 0",
+            borderRadius: 0,
             background: "rgba(10, 10, 14, 0.97)",
             backdropFilter: "blur(40px) saturate(1.8)",
             WebkitBackdropFilter: "blur(40px) saturate(1.8)",
@@ -1070,7 +1086,7 @@ export function TheDrawer({
 
               {/* Input bar (explore + chat) */}
               {(view === "explore" || view === "chat") && user && (
-                <div className="flex items-center gap-2 px-3 pb-2 pt-1">
+                <div className="flex items-center gap-2 px-3 pt-1" style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom, 8px))" }}>
                   <input
                     ref={inputRef}
                     type="text"
