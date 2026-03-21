@@ -1,8 +1,32 @@
 "use client";
 
-import { type RefObject, useEffect } from "react";
+import { type RefObject, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Venue, getVibeHexColor, getVibeLabel, getOccupancyPercent } from "@/lib/venues";
+
+interface VenuePerk {
+  id: string;
+  name: string;
+  description: string | null;
+  point_cost: number;
+  category: string;
+}
+
+interface VenueXp {
+  xp: number;
+  visits: number;
+}
+
+interface VenueOffering {
+  id: string;
+  type: string;
+  name: string;
+  description: string | null;
+  price_cents: number;
+  recurring: boolean;
+  interval: string | null;
+  duration_minutes: number | null;
+}
 import { type UserProfile, VIBE_COLORS, CATEGORY_ICONS } from "./the-drawer";
 import { PointsBadge } from "../map/points-badge";
 
@@ -31,6 +55,32 @@ export function DrawerVenue({
   const catIcon = CATEGORY_ICONS[venue.category] || CATEGORY_ICONS.venue;
   const catLabel = venue.category === "coworking" ? "Cowork" : venue.category;
   const pct = venue.capacity > 0 ? Math.round((venue.occupancy / venue.capacity) * 100) : 0;
+
+  const [perks, setPerks] = useState<VenuePerk[]>([]);
+  const [venueXp, setVenueXp] = useState<VenueXp | null>(null);
+  const [offerings, setOfferings] = useState<VenueOffering[]>([]);
+  const [selectedPerk, setSelectedPerk] = useState<VenuePerk | null>(null);
+
+  // Fetch venue data
+  useEffect(() => {
+    setPerks([]);
+    setVenueXp(null);
+    setOfferings([]);
+    setSelectedPerk(null);
+
+    fetch(`/api/points?venueId=${venue.id}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.perks) setPerks(d.perks);
+        if (d?.venueXp) setVenueXp(d.venueXp);
+      })
+      .catch(() => {});
+
+    fetch(`/api/offerings?venueId=${venue.id}`)
+      .then((r) => r.ok ? r.json() : { offerings: [] })
+      .then((d) => setOfferings(d.offerings || []))
+      .catch(() => {});
+  }, [venue.id]);
 
   // Always scroll to top when venue changes
   useEffect(() => {
@@ -170,9 +220,82 @@ export function DrawerVenue({
           </div>
         )}
 
+        {/* Your XP at this venue */}
+        {user && venueXp && venueXp.xp > 0 && (
+          <div className="mt-5 px-4">
+            <span className="font-sans text-[12px] font-semibold tracking-[2px] text-white/25">YOUR XP HERE</span>
+            <div className="mt-2 flex items-center gap-4">
+              <div className="flex flex-col items-center">
+                <span className="font-mono text-[24px] font-bold" style={{ color: vibeColor }}>{venueXp.xp}</span>
+                <span className="font-sans text-[11px] text-white/30">XP</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="font-mono text-[24px] font-bold text-white/60">{venueXp.visits}</span>
+                <span className="font-sans text-[11px] text-white/30">visits</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Offerings */}
+        {offerings.length > 0 && (
+          <div className="mt-5 px-4">
+            <span className="font-sans text-[12px] font-semibold tracking-[2px] text-white/25">OFFERINGS</span>
+            <div className="mt-2 flex flex-col gap-2">
+              {offerings.slice(0, 6).map((o) => (
+                <div key={o.id} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-sans text-[14px] font-semibold text-white/80">{o.name}</span>
+                    {o.description && <p className="truncate font-sans text-[12px] text-white/30">{o.description}</p>}
+                  </div>
+                  <span className="shrink-0 font-mono text-[15px] font-bold" style={{ color: vibeColor }}>
+                    {o.price_cents === 0 ? "Free" : `$${(o.price_cents / 100).toFixed(0)}`}
+                    {o.recurring && <span className="text-[11px] font-normal text-white/25">/{o.interval || "mo"}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Perks */}
+        {perks.length > 0 && (
+          <div className="mt-5 px-4">
+            <span className="font-sans text-[12px] font-semibold tracking-[2px] text-white/25">PERKS</span>
+            <div className="mt-2 flex flex-col gap-2">
+              {perks.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedPerk(selectedPerk?.id === p.id ? null : p)}
+                  className="w-full text-left rounded-xl px-3 py-2.5 active:scale-[0.98] transition"
+                  style={{ backgroundColor: selectedPerk?.id === p.id ? `${vibeColor}10` : "rgba(255,255,255,0.03)", border: `1px solid ${selectedPerk?.id === p.id ? `${vibeColor}25` : "rgba(255,255,255,0.06)"}` }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-sans text-[14px] font-semibold text-white/80">{p.name}</span>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 font-mono text-[12px] font-bold" style={{ backgroundColor: `${vibeColor}15`, color: vibeColor }}>{p.point_cost} pts</span>
+                  </div>
+                  {selectedPerk?.id === p.id && (
+                    <div className="mt-2 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                      {p.description && <p className="font-sans text-[13px] leading-[1.5] text-white/45 mb-2">{p.description}</p>}
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold capitalize text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>{p.category}</span>
+                        {user && venueXp && venueXp.xp >= p.point_cost ? (
+                          <span className="font-sans text-[11px] font-semibold" style={{ color: "#4ADE80" }}>You can claim this</span>
+                        ) : user && venueXp ? (
+                          <span className="font-sans text-[11px] text-white/25">{p.point_cost - venueXp.xp} more XP needed</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Ghost venue CTA */}
         {venue.claimed === false && (
-          <div className="mt-5 rounded-2xl px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.1)" }}>
+          <div className="mt-5 mx-4 rounded-2xl px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.1)" }}>
             <div className="flex items-center justify-between">
               <span className="font-sans text-[12px] text-white/25">This venue hasn&apos;t claimed their page yet</span>
               <a href="https://dash.thekickback.net" target="_blank" rel="noopener noreferrer" className="rounded-full px-3 py-1.5 font-sans text-[12px] font-bold text-black" style={{ backgroundColor: "#F97316" }}>Claim</a>
