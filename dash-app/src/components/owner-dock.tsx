@@ -4,11 +4,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { OwnerMessageBody } from "./owner-message-body";
 import { HubPreviewEditable } from "./hub-preview-editable";
-import { OnboardingChecklist } from "./onboarding-checklist";
 import type { ChecklistState } from "./onboarding-checklist";
 import type { HubData } from "./hub-preview";
 import { updateVenue, updateVenuePage } from "@/app/settings/actions";
 import { uploadGalleryImage } from "@/app/edit/gallery-actions";
+import { OrdersPanel } from "@/components/dashboard/orders-panel";
 import Link from "next/link";
 
 import type { VenueStats, GuestSession, VenueRequest, ChatMessage, VenuePerk, PerkRedemption, VenueMultiplier, PointLeaderboardEntry } from "@/lib/dashboard";
@@ -59,6 +59,8 @@ interface OwnerDockProps {
   checklist?: Record<string, boolean>;
 }
 
+type ActiveView = "hub" | "chat" | "orders" | "guests";
+
 const DEFAULT_CHECKLIST: ChecklistState = {
   basics: false, location: false, hours: false, branding: false,
   offerings: false, knowledge: false, photos: false, xp: false, stripe: false,
@@ -79,6 +81,64 @@ function getItemPrompt(key: keyof ChecklistState): string {
   return prompts[key];
 }
 
+function relativeTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+const tierColors: Record<string, string> = {
+  explorer: "#94a3b8",
+  regular: "#4ade80",
+  member: "#f97316",
+  vip: "#a78bfa",
+};
+
+// ─── Nav items ──────────────────────────────────────────────────────
+
+const NAV_ITEMS: { id: ActiveView; label: string; icon: (active: boolean) => React.ReactNode }[] = [
+  {
+    id: "hub",
+    label: "Hub",
+    icon: (active) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+  },
+  {
+    id: "chat",
+    label: "Chat",
+    icon: (active) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+  },
+  {
+    id: "orders",
+    label: "Orders",
+    icon: (active) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+      </svg>
+    ),
+  },
+  {
+    id: "guests",
+    label: "Guests",
+    icon: (active) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+];
+
 // ─── Component ──────────────────────────────────────────────────────
 
 export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, offerings: initialOfferings, gallery: initialGallery, xpActions: initialXpActions, xpMilestones: initialXpMilestones, checklist: initialChecklist }: OwnerDockProps) {
@@ -88,12 +148,10 @@ export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, of
   const [conversationPhase, setConversationPhase] = useState<
     "fresh" | "stats_shown" | "bookings_shown" | "mutation_done"
   >("fresh");
-  const [showPreview, setShowPreview] = useState(false);
-  const [checklistOpen, setChecklistOpen] = useState(true);
+  const [activeView, setActiveView] = useState<ActiveView>("hub");
   const [checklistState, setChecklistState] = useState<ChecklistState>(
     initialChecklist ? { ...DEFAULT_CHECKLIST, ...initialChecklist } as ChecklistState : DEFAULT_CHECKLIST
   );
-  const [currentItem, setCurrentItem] = useState<keyof ChecklistState | null>(null);
 
   // Editable preview state
   const [hubData, setHubData] = useState<HubData>(() => {
@@ -125,6 +183,13 @@ export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, of
   const checklistTotal = Object.keys(checklistState).length;
   const checklistPercent = Math.round((checklistCompleted / checklistTotal) * 100);
 
+  const feeRate = initialData.revenueStats?.platformFeeRate || 0.10;
+  const todayEarnings = Math.round((initialData.revenueStats?.todayRevenue || 0) * (1 - feeRate));
+  const pendingBookings = initialData.bookings.filter(
+    (b) => new Date(b.starts_at) > new Date() && b.cal_status === "pending"
+  ).length;
+  const occupancyPct = venue.max_occupancy > 0 ? Math.round((initialData.stats.currentOccupancy / venue.max_occupancy) * 100) : 0;
+
   // ─── Scroll helper ──────────────────────────────────────────────
 
   const scrollToBottom = useCallback(() => {
@@ -139,9 +204,6 @@ export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, of
     if (isApproved) {
       const hour = new Date().getHours();
       const greeting = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
-      const pendingBookings = initialData.bookings.filter(
-        (b) => new Date(b.starts_at) > new Date() && b.cal_status === "pending"
-      ).length;
       const statsJson = JSON.stringify({
         occupancy: initialData.stats.currentOccupancy,
         capacity: initialData.stats.capacity,
@@ -160,11 +222,9 @@ export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, of
         },
       ]);
     } else {
-      // Pre-approval welcome
       const statusLabel = reviewStatus === "pending" ? "under review" : reviewStatus === "rejected" ? "needs updates" : "in draft";
       const completed = Object.values(checklistState).filter(Boolean).length;
       const firstIncomplete = (Object.keys(checklistState) as (keyof ChecklistState)[]).find((k) => !checklistState[k]);
-      setCurrentItem(firstIncomplete || null);
 
       const welcome = `Your hub is ${statusLabel}. Setup is ${Math.round((completed / 9) * 100)}% complete. ${firstIncomplete ? getItemPrompt(firstIncomplete) : "Looking good!"}`;
       setMessages([
@@ -197,6 +257,11 @@ export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, of
       const msg = (text ?? input).trim();
       if (!msg) return;
 
+      // Auto-switch to chat when sending from another view
+      if (activeView !== "chat") {
+        setActiveView("chat");
+      }
+
       const ownerMsg: OwnerMessage = {
         id: `owner-${Date.now()}`,
         sender: "owner",
@@ -228,7 +293,6 @@ export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, of
 
         setMessages((prev) => [...prev, agentMsg]);
 
-        // Update conversation phase based on response tags
         if (agentBody.includes("[[STATS:")) setConversationPhase("stats_shown");
         if (agentBody.includes("[[BOOKINGS:")) setConversationPhase("bookings_shown");
         if (agentBody.includes("[[GUESTS:")) setConversationPhase("stats_shown");
@@ -248,7 +312,7 @@ export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, of
         scrollToBottom();
       }
     },
-    [input, venue.id, scrollToBottom]
+    [input, venue.id, scrollToBottom, activeView]
   );
 
   // ─── Booking actions ───────────────────────────────────────────
@@ -373,7 +437,6 @@ export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, of
     if (key in checklistState) {
       const newState = { ...checklistState, [key]: true };
       setChecklistState(newState as ChecklistState);
-      // Persist to API
       fetch("/api/onboarding/checklist", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -382,34 +445,9 @@ export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, of
     }
   }, [checklistState]);
 
-  // ─── Checklist item click ───────────────────────────────────────
-
-  const handleChecklistItemClick = useCallback((key: keyof ChecklistState) => {
-    setCurrentItem(key);
-    if (checklistState[key]) return; // already done
-
-    const prompt = getItemPrompt(key);
-    const msg: OwnerMessage = {
-      id: `guide-${key}-${Date.now()}`,
-      sender: "agent",
-      body: prompt,
-      timestamp: Date.now(),
-    };
-    setMessages((prev) => [...prev, msg]);
-    scrollToBottom();
-  }, [checklistState, scrollToBottom]);
-
-  const handleChecklistSubmit = useCallback(async () => {
-    // Submit for review — navigate to settings for now
-    window.location.href = "/settings";
-  }, []);
-
   // ─── Quick replies ─────────────────────────────────────────────
 
   function getQuickReplies(): string[] {
-    const pendingBookings = initialData.bookings.filter(
-      (b) => new Date(b.starts_at) > new Date() && b.cal_status === "pending"
-    ).length;
     const activeSessions = initialData.sessions.length;
 
     switch (conversationPhase) {
@@ -442,381 +480,434 @@ export function OwnerDock({ initialData, venue, reviewStatus, user, pageData, of
     }
   }
 
-  // ─── Review status banner (for pre-approval, shown at top of chat) ──
+  // ─── Format cents helper ─────────────────────────────────────────
 
-  const ReviewBanner = () => {
-    if (!isPreApproval) return null;
-    return (
-      <div
-        className="mx-4 mb-3 flex items-center gap-3 rounded-xl px-4 py-3"
-        style={{
-          backgroundColor: reviewStatus === "pending" ? "rgba(249,115,22,0.08)" : reviewStatus === "rejected" ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.04)",
-          border: `1px solid ${reviewStatus === "pending" ? "rgba(249,115,22,0.15)" : reviewStatus === "rejected" ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.06)"}`,
-        }}
-      >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{
-          backgroundColor: reviewStatus === "pending" ? "rgba(249,115,22,0.15)" : reviewStatus === "rejected" ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.08)",
-        }}>
-          {reviewStatus === "pending" && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
-          {reviewStatus === "rejected" && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>}
-          {reviewStatus === "draft" && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-sans text-[13px] font-semibold text-white/80">
-            {reviewStatus === "pending" && "Under Review"}
-            {reviewStatus === "rejected" && "Not Approved"}
-            {reviewStatus === "draft" && "Draft"}
-          </p>
-          <p className="font-sans text-[11px] text-white/35 truncate">
-            {reviewStatus === "pending" && "We\u2019ll email you once approved."}
-            {reviewStatus === "rejected" && "Update your hub and resubmit."}
-            {reviewStatus === "draft" && "Finish setup and submit for review."}
-          </p>
-        </div>
-        <Link
-          href="/settings"
-          className="shrink-0 rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold text-black"
-          style={{ backgroundColor: "#F97316" }}
-        >
-          Settings
-        </Link>
-      </div>
-    );
+  function fmtCents(cents: number): string {
+    return `$${(cents / 100).toFixed(2)}`;
+  }
+
+  // ─── Canvas content ─────────────────────────────────────────────
+
+  const renderCanvas = () => {
+    switch (activeView) {
+      case "hub":
+        return (
+          <div className="h-full overflow-y-auto no-scrollbar">
+            <HubPreviewEditable
+              data={hubData}
+              venueId={venue.id}
+              offerings={offeringsState}
+              galleryImages={galleryImages}
+              xpActions={initialXpActions}
+              xpMilestones={initialXpMilestones}
+              onFieldSave={handleFieldSave}
+              onPhotoUpload={handlePhotoUpload}
+              onSectionEdited={handleSectionEdited}
+            />
+          </div>
+        );
+
+      case "chat":
+        return (
+          <div className="flex h-full flex-col">
+            {/* Messages */}
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 no-scrollbar"
+              style={{ touchAction: "pan-y" }}
+            >
+              <AnimatePresence initial={false}>
+                {messages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                    className={`mb-3 flex ${msg.sender === "owner" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                        msg.sender === "owner"
+                          ? "rounded-br-sm bg-orange/15 text-white/90"
+                          : "rounded-bl-sm"
+                      }`}
+                      style={
+                        msg.sender === "agent"
+                          ? {
+                              backgroundColor: "rgba(255,255,255,0.07)",
+                              border: "1px solid rgba(255,255,255,0.05)",
+                            }
+                          : undefined
+                      }
+                    >
+                      {msg.sender === "agent" ? (
+                        <OwnerMessageBody
+                          body={msg.body}
+                          onApproveBooking={handleApproveBooking}
+                          onDeclineBooking={handleDeclineBooking}
+                        />
+                      ) : (
+                        <p className="font-sans text-[14px] leading-[1.6]">{msg.body}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {loading && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start mb-3">
+                  <div
+                    className="rounded-2xl rounded-bl-sm px-4 py-3"
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.07)",
+                      border: "1px solid rgba(255,255,255,0.05)",
+                    }}
+                  >
+                    <div className="flex gap-1.5">
+                      <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} />
+                      <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }} />
+                      <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }} />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Quick replies */}
+            <div className="flex gap-2 overflow-x-auto px-4 py-2.5 no-scrollbar">
+              {getQuickReplies().map((reply) => (
+                <button
+                  key={reply}
+                  onClick={() => sendMessage(reply)}
+                  className="shrink-0 rounded-full px-3.5 py-1.5 font-sans text-[12px] font-medium text-white/50 active:scale-95 transition"
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "orders":
+        return (
+          <div className="h-full overflow-y-auto p-4 lg:p-6 no-scrollbar">
+            <OrdersPanel
+              orders={initialData.orders}
+              revenue={initialData.revenueStats}
+              transactions={initialData.transactions}
+            />
+          </div>
+        );
+
+      case "guests":
+        return (
+          <div className="h-full overflow-y-auto p-4 lg:p-6 no-scrollbar">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-sans text-[16px] font-semibold text-white/80">
+                Active Guests
+              </h2>
+              <span className="font-sans text-[13px] text-white/30">
+                {initialData.sessions.length} checked in
+              </span>
+            </div>
+
+            {initialData.sessions.length === 0 ? (
+              <div
+                className="rounded-2xl px-6 py-12 text-center"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <p className="font-sans text-[15px] font-medium text-white/40">No active guests</p>
+                <p className="mt-1 font-sans text-[13px] text-white/25">When guests check in, they show up here</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {initialData.sessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className="flex items-center gap-3 rounded-xl px-4 py-3"
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-sans text-[14px] font-medium text-white/85 truncate">
+                          {session.profiles?.display_name ?? "Guest"}
+                        </p>
+                        {session.tier && (
+                          <span
+                            className="shrink-0 rounded-full px-2 py-0.5 font-sans text-[10px] font-medium"
+                            style={{
+                              backgroundColor: `${tierColors[session.tier] ?? tierColors.explorer}20`,
+                              color: tierColors[session.tier] ?? tierColors.explorer,
+                            }}
+                          >
+                            {session.tier}
+                          </span>
+                        )}
+                      </div>
+                      <p className="font-sans text-[11px] text-white/35">
+                        {session.venue_xp ?? 0} XP
+                        {session.started_at && <> &middot; checked in {relativeTime(session.started_at)}</>}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+    }
   };
 
   // ─── Render ────────────────────────────────────────────────────
 
   return (
-    <main className="flex h-dvh bg-black">
-      {/* Left: Chat panel */}
-      <div className={`flex w-full flex-col lg:w-1/2 ${showPreview ? "hidden lg:flex" : ""}`}>
-        {/* Header */}
-        <header className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-          <div className="flex items-center gap-3">
-            <div className={`h-2 w-2 rounded-full ${isApproved ? "bg-green-400 animate-pulse" : "bg-orange"}`} />
-            <span className="font-sans text-[15px] font-semibold text-white/90">
-              {venue.name}
-            </span>
+    <main className="flex h-dvh flex-col bg-black">
+      {/* ═══ Header ═══ */}
+      <header
+        className="flex h-12 shrink-0 items-center justify-between px-4"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`h-2 w-2 rounded-full ${isApproved ? "bg-green-400 animate-pulse" : "bg-orange"}`} />
+          <span className="font-sans text-[15px] font-semibold text-white/90">{venue.name}</span>
+          <span className="font-sans text-[11px] text-white/30">
+            {isApproved ? (venue.state === "active" ? "Live" : "Closed") : (reviewStatus === "pending" ? "In Review" : reviewStatus === "rejected" ? "Needs Updates" : "Draft")}
+          </span>
+          {isApproved && initialData.stats.currentOccupancy > 0 && (
             <span className="font-sans text-[11px] text-white/30">
-              {isApproved ? (venue.state === "active" ? "Open" : "Closed") : (reviewStatus === "pending" ? "In Review" : reviewStatus === "rejected" ? "Needs Updates" : "Draft")}
+              &middot; {initialData.stats.currentOccupancy} in
             </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {isApproved && (
-              <Link
-                href="/scan"
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-black"
-                style={{ backgroundColor: "#F97316" }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-                </svg>
-                Scan
-              </Link>
-            )}
-            <Link
-              href="/settings"
-              className="rounded-lg px-3 py-1.5 text-[12px] font-medium text-white/40 hover:text-white/60"
+          )}
+          {/* Review status badge */}
+          {isPreApproval && (
+            <span
+              className="rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold"
               style={{
-                backgroundColor: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.06)",
+                backgroundColor: reviewStatus === "pending" ? "rgba(249,115,22,0.12)" : reviewStatus === "rejected" ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.06)",
+                color: reviewStatus === "pending" ? "#F97316" : reviewStatus === "rejected" ? "#EF4444" : "rgba(255,255,255,0.5)",
               }}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+              {reviewStatus === "pending" ? "Under Review" : reviewStatus === "rejected" ? "Not Approved" : "Draft"}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {isApproved && (
+            <Link
+              href="/scan"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-black"
+              style={{ backgroundColor: "#F97316" }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+              </svg>
+              QR
+            </Link>
+          )}
+          <Link
+            href="/settings"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/40 hover:text-white/60"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </Link>
+        </div>
+      </header>
+
+      {/* ═══ Body: sidebar + canvas ═══ */}
+      <div className="flex flex-1 min-h-0">
+        {/* ── Sidebar (desktop only) ── */}
+        <aside
+          className="hidden lg:flex w-[240px] shrink-0 flex-col"
+          style={{
+            backgroundColor: "rgba(255,255,255,0.02)",
+            borderRight: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          {/* Stats section */}
+          <div className="px-4 py-4 space-y-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            {/* Today's earnings */}
+            <div>
+              <p className="font-sans text-[10px] font-medium text-white/30 uppercase tracking-wider">Today&apos;s earnings</p>
+              <p className="font-mono text-[24px] font-bold tracking-tight" style={{ color: "#16a34a" }}>
+                {fmtCents(todayEarnings)}
+              </p>
+            </div>
+
+            {/* Occupancy bar */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <p className="font-sans text-[10px] font-medium text-white/30 uppercase tracking-wider">Occupancy</p>
+                <p className="font-sans text-[11px] text-white/50">{initialData.stats.currentOccupancy}/{venue.max_occupancy}</p>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${occupancyPct}%`, backgroundColor: "#F97316" }}
+                />
+              </div>
+            </div>
+
+            {/* Compact stats */}
+            <div className="flex items-center justify-between">
+              <span className="font-sans text-[11px] text-white/30">Bookings today</span>
+              <span className="font-sans text-[13px] font-semibold text-white/70" style={{ color: "#F97316" }}>{pendingBookings}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-sans text-[11px] text-white/30">Members</span>
+              <span className="font-sans text-[13px] font-semibold text-white/70">{initialData.stats.members}</span>
+            </div>
+          </div>
+
+          {/* Nav section */}
+          <nav className="flex-1 px-2 py-3 space-y-1">
+            {NAV_ITEMS.map((item) => {
+              const isActive = activeView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveView(item.id)}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 font-sans text-[13px] font-medium transition ${
+                    isActive ? "text-orange" : "text-white/40 hover:text-white/60"
+                  }`}
+                  style={{
+                    backgroundColor: isActive ? "rgba(249,115,22,0.1)" : "transparent",
+                    borderLeft: isActive ? "2px solid #F97316" : "2px solid transparent",
+                  }}
+                >
+                  {item.icon(isActive)}
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Setup progress (if < 100%) */}
+          {checklistPercent < 100 && (
+            <div className="px-4 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <button
+                onClick={() => setActiveView("hub")}
+                className="w-full text-left"
               >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-sans text-[11px] font-semibold text-white/40">Setup</span>
+                  <span className="font-sans text-[11px] font-bold text-orange">{checklistPercent}%</span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${checklistPercent}%`, backgroundColor: "#F97316" }}
+                  />
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Settings link */}
+          <div className="px-4 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <Link
+              href="/settings"
+              className="flex items-center gap-2 font-sans text-[12px] text-white/30 hover:text-white/50 transition"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
+              Settings
             </Link>
           </div>
-        </header>
+        </aside>
 
-        {/* Collapsible checklist */}
-        {checklistPercent < 100 && (
-          <div className="border-b border-white/[0.06]">
-            {/* Collapse toggle + progress bar */}
-            <button
-              onClick={() => setChecklistOpen(!checklistOpen)}
-              className="flex w-full items-center gap-3 px-4 py-2.5"
-            >
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-sans text-[11px] font-semibold text-white/40">Setup Progress</span>
-                  <span className="font-sans text-[11px] font-bold text-orange">{checklistCompleted} of {checklistTotal}</span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  <motion.div
-                    className="h-full rounded-full bg-orange"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${checklistPercent}%` }}
-                    transition={{ type: "spring", damping: 20, stiffness: 100 }}
-                  />
-                </div>
-              </div>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="rgba(255,255,255,0.3)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className={`shrink-0 transition-transform ${checklistOpen ? "rotate-180" : ""}`}
-              >
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
-
-            {/* Checklist items */}
-            <AnimatePresence>
-              {checklistOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="max-h-[35vh] overflow-y-auto">
-                    <OnboardingChecklist
-                      checklist={checklistState}
-                      currentItem={currentItem}
-                      onItemClick={handleChecklistItemClick}
-                      onSubmit={handleChecklistSubmit}
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
-
-        {/* Review status banner (pre-approval) */}
-        {isPreApproval && (
-          <div className="pt-3">
-            <ReviewBanner />
-          </div>
-        )}
-
-        {/* Messages area */}
-        <div
-          ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 no-scrollbar"
-          style={{ touchAction: "pan-y" }}
-        >
-          <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className={`mb-3 flex ${
-                  msg.sender === "owner" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                    msg.sender === "owner"
-                      ? "rounded-br-sm bg-orange/15 text-white/90"
-                      : "rounded-bl-sm"
-                  }`}
-                  style={
-                    msg.sender === "agent"
-                      ? {
-                          backgroundColor: "rgba(255,255,255,0.07)",
-                          border: "1px solid rgba(255,255,255,0.05)",
-                        }
-                      : undefined
-                  }
-                >
-                  {msg.sender === "agent" ? (
-                    <OwnerMessageBody
-                      body={msg.body}
-                      onApproveBooking={handleApproveBooking}
-                      onDeclineBooking={handleDeclineBooking}
-                    />
-                  ) : (
-                    <p className="font-sans text-[14px] leading-[1.6]">
-                      {msg.body}
-                    </p>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {loading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex justify-start mb-3"
-            >
-              <div
-                className="rounded-2xl rounded-bl-sm px-4 py-3"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                }}
-              >
-                <div className="flex gap-1.5">
-                  <motion.div
-                    className="h-2 w-2 rounded-full bg-white/30"
-                    animate={{ y: [0, -6, 0] }}
-                    transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                  />
-                  <motion.div
-                    className="h-2 w-2 rounded-full bg-white/30"
-                    animate={{ y: [0, -6, 0] }}
-                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }}
-                  />
-                  <motion.div
-                    className="h-2 w-2 rounded-full bg-white/30"
-                    animate={{ y: [0, -6, 0] }}
-                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Quick replies + Input */}
-        <div
-          className="border-t border-white/[0.06]"
-          style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
-        >
-          {/* Quick replies */}
-          <div className="flex gap-2 overflow-x-auto px-4 py-2.5 no-scrollbar">
-            {getQuickReplies().map((reply) => (
-              <button
-                key={reply}
-                onClick={() => sendMessage(reply)}
-                className="shrink-0 rounded-full px-3.5 py-1.5 font-sans text-[12px] font-medium text-white/50 active:scale-95 transition"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                {reply}
-              </button>
-            ))}
-          </div>
-
-          {/* Input bar */}
-          <div className="flex items-end gap-2 px-4 pb-2">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder="Message your agent..."
-              enterKeyHint="send"
-              autoComplete="off"
-              autoCorrect="off"
-              className="flex-1 rounded-2xl px-4 py-3 font-sans text-[14px] text-white/90 placeholder:text-white/25 outline-none"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
-            />
-            <button
-              onClick={() => sendMessage()}
-              disabled={!input.trim() || loading}
-              className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-orange transition active:scale-95 disabled:opacity-30"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 19V5M5 12l7-7 7 7" />
-              </svg>
-            </button>
-          </div>
+        {/* ── Main Canvas ── */}
+        <div className="flex-1 min-w-0 min-h-0">
+          {renderCanvas()}
         </div>
       </div>
 
-      {/* Right: Live editable preview (desktop only) */}
-      <div className="hidden w-1/2 border-l border-white/[0.06] lg:block">
-        <HubPreviewEditable
-          data={hubData}
-          venueId={venue.id}
-          offerings={offeringsState}
-          galleryImages={galleryImages}
-          xpActions={initialXpActions}
-          xpMilestones={initialXpMilestones}
-          onFieldSave={handleFieldSave}
-          onPhotoUpload={handlePhotoUpload}
-          onSectionEdited={handleSectionEdited}
-        />
-      </div>
-
-      {/* Mobile: Preview FAB */}
-      <button
-        onClick={() => setShowPreview(true)}
-        className="fixed bottom-24 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-orange shadow-lg lg:hidden"
+      {/* ═══ Input bar (always visible) ═══ */}
+      <div
+        className="shrink-0"
+        style={{
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+        }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-        </svg>
-      </button>
+        <div className="flex items-end gap-2 px-4 py-2">
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            placeholder="Message your agent..."
+            enterKeyHint="send"
+            autoComplete="off"
+            autoCorrect="off"
+            className="flex-1 rounded-2xl px-4 py-3 font-sans text-[14px] text-white/90 placeholder:text-white/25 outline-none"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          />
+          <button
+            onClick={() => sendMessage()}
+            disabled={!input.trim() || loading}
+            className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-orange transition active:scale-95 disabled:opacity-30"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
 
-      {/* Mobile: Preview sheet */}
-      <AnimatePresence>
-        {showPreview && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-30 lg:hidden" onClick={() => setShowPreview(false)}>
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-            <motion.div
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="absolute inset-x-0 bottom-0 top-16 rounded-t-3xl bg-black"
-              onClick={(e) => e.stopPropagation()}
+      {/* ═══ Mobile Bottom Tab Bar ═══ */}
+      <div
+        className="flex h-12 shrink-0 items-stretch lg:hidden"
+        style={{
+          backgroundColor: "rgba(255,255,255,0.04)",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
+        {NAV_ITEMS.map((item) => {
+          const isActive = activeView === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveView(item.id)}
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 font-sans text-[10px] font-medium transition ${
+                isActive ? "text-orange" : "text-white/30"
+              }`}
             >
-              <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
-                <span className="font-sans text-[14px] font-semibold text-white/80">Hub Preview</span>
-                <button onClick={() => setShowPreview(false)} className="text-white/40">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 6 6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <HubPreviewEditable
-                data={hubData}
-                venueId={venue.id}
-                offerings={offeringsState}
-                galleryImages={galleryImages}
-                xpActions={initialXpActions}
-                xpMilestones={initialXpMilestones}
-                onFieldSave={handleFieldSave}
-                onPhotoUpload={handlePhotoUpload}
-                onSectionEdited={handleSectionEdited}
-              />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              {item.icon(isActive)}
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
     </main>
   );
 }
