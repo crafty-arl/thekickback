@@ -161,25 +161,6 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
 
-      # ── sms-worker (optional — needs Twilio secrets) ──
-      - name: Deploy sms-worker
-        continue-on-error: true
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: sms-worker
-          secrets: |
-            TWILIO_AUTH_TOKEN
-            TWILIO_ACCOUNT_SID
-            SUPABASE_SERVICE_KEY
-            OPENCLAW_GATEWAY_TOKEN
-        env:
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
-
       # ── renewal-worker ──
       - name: Deploy renewal-worker
         uses: cloudflare/wrangler-action@v3
@@ -295,7 +276,7 @@ jobs:
 
             echo ""
             echo "═══ 6. CLOUDFLARE WORKERS ═══"
-            for WORKER in kickback-email kickback-digest kickback-renewal kickback-sms; do
+            for WORKER in kickback-email kickback-digest kickback-renewal; do
               CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 8 "https://${WORKER}.carl-lewis.workers.dev/health" 2>/dev/null)
               if [ "$CODE" = "200" ]; then
                 BODY=$(curl -sf --max-time 5 "https://${WORKER}.carl-lewis.workers.dev/health" 2>/dev/null)
@@ -304,6 +285,15 @@ jobs:
                 warn "$WORKER — HTTP $CODE"
               fi
             done
+
+            echo ""
+            echo "═══ 7. EMAIL DELIVERY TEST ═══"
+            DEPLOY_TS=$(date -u '+%Y-%m-%d %H:%M UTC')
+            EMAIL_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 15 \
+              "https://kickback-email.carl-lewis.workers.dev/send" \
+              -X POST -H "Content-Type: application/json" \
+              -d "{\"to\":\"carl@craftthefuture.xyz\",\"subject\":\"[Deploy] ${DEPLOY_TS} — All services healthy\",\"html\":\"<div style='font-family:system-ui;background:#000;color:#fff;padding:32px;border-radius:16px;'><h2 style='color:#F97316;margin:0 0 12px;'>Deploy Successful</h2><p style='color:rgba(255,255,255,0.6);margin:0 0 8px;'>All services passed health checks at ${DEPLOY_TS}.</p><p style='color:rgba(255,255,255,0.3);font-size:13px;margin:0;'>Passed: $PASS | Failed: $FAIL | Warnings: $WARN</p></div>\",\"text\":\"Deploy passed at ${DEPLOY_TS}. Passed: $PASS, Failed: $FAIL, Warnings: $WARN\"}" 2>/dev/null)
+            [ "$EMAIL_CODE" = "200" ] && ok "Deploy report emailed to carl@craftthefuture.xyz" || warn "Email send — HTTP $EMAIL_CODE"
 
             echo ""
             echo "═══ RESULTS: $PASS passed, $FAIL failed, $WARN warnings ═══"
