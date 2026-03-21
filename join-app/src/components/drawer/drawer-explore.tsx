@@ -141,6 +141,11 @@ export function DrawerExplore({
           </div>
         )}
 
+        {/* All Hubs */}
+        <Shelf title="HUBS" count={venues.length}>
+          {venues.slice(0, 20).map((v, i) => <VenueCard key={v.id} venue={v} onClick={() => onVenueSelect(v)} delay={Math.min(i * 0.03, 0.15)} xp={yourSpots.find((s) => s.venue.id === v.id)?.xp} />)}
+        </Shelf>
+
         {/* Offerings by category */}
         {exploreOfferings.length > 0 && (() => {
           const OFFER_CATEGORIES: { key: string; label: string; types: string[]; icon: string }[] = [
@@ -194,14 +199,14 @@ export function DrawerExplore({
         })()}
 
         {/* Venue shelves */}
-        {yourSpots.length > 0 && (
-          <Shelf title="YOUR SPOTS">
-            {yourSpots.map(({ venue, xp }, i) => <VenueCard key={venue.id} venue={venue} onClick={() => onVenueSelect(venue)} delay={Math.min(i * 0.04, 0.2)} xp={xp} />)}
-          </Shelf>
-        )}
         {recommended.length > 0 && (
           <Shelf title="RECOMMENDED" count={recommended.length}>
             {recommended.map((v, i) => <VenueCard key={v.id} venue={v} onClick={() => onVenueSelect(v)} delay={Math.min(i * 0.04, 0.2)} />)}
+          </Shelf>
+        )}
+        {yourSpots.length > 0 && (
+          <Shelf title="YOUR SPOTS">
+            {yourSpots.map(({ venue, xp }, i) => <VenueCard key={venue.id} venue={venue} onClick={() => onVenueSelect(venue)} delay={Math.min(i * 0.04, 0.2)} xp={xp} />)}
           </Shelf>
         )}
         {happeningNow.length > 0 && (
