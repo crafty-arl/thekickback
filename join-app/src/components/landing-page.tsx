@@ -353,9 +353,9 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
               The higher your score, the more the city gives back
             </h3>
             <p className="mx-auto mt-3 max-w-lg text-sm text-white/40 leading-relaxed">
-              Unlock exclusive stickers and 3D pins to decorate your neighborhood on the map.
-              Earn venue perks. Gain VIP access. Your score is your passport to the city&apos;s
-              best-kept secrets — and when you spend at venues, they earn promotion too. Everyone wins.
+              Collect stickers and 3D pins to decorate your neighborhood on the map.
+              Earn perks from the spots you love. Hit VIP and the people behind the counter know your name.
+              When you support a venue, they get seen by more people too. That&apos;s the whole point.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
               {["🏷️ Stickers", "🏅 Badges", "📌 3D Pins", "🎁 Perks", "👑 VIP Access"].map((item) => (
@@ -386,7 +386,8 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
               Where scores are earned
             </h2>
             <p className="mt-3 max-w-lg text-base text-white/50">
-              Real venues. Real vibes. Every visit builds your reputation and unlocks rewards.
+              Real spots run by real people. Every visit builds your reputation —
+              and helps the places you love get discovered by more people like you.
             </p>
           </motion.div>
 
@@ -485,13 +486,70 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
       </motion.section>
 
       {/* ════════════════════════════════════════
-          SECTION 4 — CTA: Find out your score
+          SECTION 4 — RUN A SPOT? (operator voice)
+          ════════════════════════════════════════ */}
+      <section className="relative z-10 px-6 py-24 sm:px-12">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute right-1/4 top-1/2 h-[500px] w-[500px] rounded-full bg-orange-500/8 blur-[180px]" />
+        </div>
+        <div className="relative mx-auto max-w-4xl">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.7 }}
+            className="text-center"
+          >
+            <h2 className="font-[family-name:var(--font-fraunces)] text-3xl font-semibold tracking-tight sm:text-5xl">
+              Run a spot?
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-base text-white/50 leading-relaxed">
+              You already pour your heart into your place. KickBack just makes sure people know about it.
+              When your guests build their score at your venue, your spot shows up on the map,
+              in conversations, and in their neighborhood. No ad budget needed — just happy regulars doing what they do.
+            </p>
+          </motion.div>
+
+          <div className="mt-12 grid gap-4 sm:grid-cols-3">
+            {[
+              { emoji: "📊", title: "See who shows up", desc: "Real-time vibes, not guesswork. Know when you're busy, quiet, or trending." },
+              { emoji: "🎨", title: "Make it yours", desc: "Create custom badges, stickers, and perks your guests actually want to collect." },
+              { emoji: "📣", title: "Free word of mouth", desc: "Every sticker placed on the map is a shoutout. Your regulars become your marketing team." },
+            ].map((card, i) => (
+              <motion.div
+                key={card.title}
+                initial={{ opacity: 0, y: 25 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                className="rounded-2xl border border-white/8 bg-white/[0.03] p-6 text-center backdrop-blur-sm"
+              >
+                <span className="text-3xl">{card.emoji}</span>
+                <h3 className="mt-3 text-sm font-semibold text-white/80">{card.title}</h3>
+                <p className="mt-1.5 text-xs text-white/35 leading-relaxed">{card.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="mt-8 text-center text-sm text-white/30 italic"
+          >
+            &ldquo;We didn&apos;t run a single ad. Our guests just kept putting stickers on the map and people started showing up.&rdquo;
+          </motion.p>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════
+          SECTION 5 — CTA: Dual path
           ════════════════════════════════════════ */}
       <motion.section
         style={{ y: ctaY, opacity: ctaOpacity }}
         className="relative z-10 flex flex-col items-center justify-center px-6 py-32 text-center"
       >
-        {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute left-1/2 bottom-0 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-orange-500/15 blur-[200px]" />
           <div className="absolute left-1/3 top-1/3 h-[400px] w-[400px] rounded-full bg-purple-600/10 blur-[180px]" />
@@ -514,15 +572,16 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
           transition={{ duration: 0.7, delay: 0.15 }}
           className="relative mt-4 max-w-md text-lg text-white/50"
         >
-          Tap into the map. Visit venues. Build your score. No app download needed.
+          Whether you&apos;re exploring the city or running a favorite spot — this is where it starts.
         </motion.p>
 
+        {/* Dual buttons */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.3, type: "spring", stiffness: 200 }}
-          className="relative mt-10"
+          className="relative mt-10 flex flex-col items-center gap-4 sm:flex-row"
         >
           <Link
             href="/map"
@@ -531,19 +590,20 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
             <span className="bg-gradient-to-r from-[#a78bfa] to-white bg-clip-text text-transparent">
               Find out your score
             </span>
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#a78bfa"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="transition-transform group-hover:translate-x-1"
-            >
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1">
+              <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+            </svg>
+          </Link>
+
+          <Link
+            href="/login"
+            className="group inline-flex items-center gap-3 rounded-full border border-[#f97316]/25 bg-[#f97316]/10 px-8 py-4 text-lg font-semibold backdrop-blur-md transition-all hover:border-[#f97316]/40 hover:bg-[#f97316]/20 hover:scale-[1.03] active:scale-[0.98]"
+          >
+            <span className="bg-gradient-to-r from-[#f97316] to-white bg-clip-text text-transparent">
+              Bring your spot on
+            </span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
             </svg>
           </Link>
         </motion.div>
@@ -558,7 +618,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
         >
           <div className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
           <span className="text-sm text-white/40">
-            {displayStats.totalVenues} venues streaming live data
+            {displayStats.totalVenues} spots already on the map
           </span>
         </motion.div>
       </motion.section>
