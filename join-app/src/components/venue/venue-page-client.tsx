@@ -221,14 +221,24 @@ function AiMessageBody({ body, theme, onTapOffer, onAddToCart, offeringsMap }: {
                   {meta?.recurring && <span className="text-[10px] font-normal text-white/30">/{meta.interval || "mo"}</span>}
                 </span>
               </button>
-              {/* Add button */}
-              <button
-                onClick={() => onAddToCart(offer.id, offer.name, offer.price * 100)}
-                className="flex h-full shrink-0 items-center px-3 font-sans text-[11px] font-bold active:scale-90"
-                style={{ color: theme }}
-              >
-                + Add
-              </button>
+              {/* Add / Book button */}
+              {meta?.duration_minutes ? (
+                <button
+                  onClick={() => onTapOffer(offer.id)}
+                  className="flex h-full shrink-0 items-center px-3 font-sans text-[11px] font-bold active:scale-90"
+                  style={{ color: theme }}
+                >
+                  Book
+                </button>
+              ) : (
+                <button
+                  onClick={() => onAddToCart(offer.id, offer.name, offer.price * 100)}
+                  className="flex h-full shrink-0 items-center px-3 font-sans text-[11px] font-bold active:scale-90"
+                  style={{ color: theme }}
+                >
+                  + Add
+                </button>
+              )}
             </div>
           );
         })}
