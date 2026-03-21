@@ -18,6 +18,8 @@ import { VenueContact } from "./venue-contact";
 import { type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
 import { WalletSheet, useWalletStatus } from "./wallet-sheet";
 import { usePasskey } from "@/lib/use-passkey";
+import { sendOtp, verifyOtp } from "@/app/login/actions";
+import { getDeviceId } from "@/lib/device-id";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -892,6 +894,100 @@ function DeviceManager() {
           <p className="font-sans text-[11px] text-white/30">No devices registered yet. They appear after you sign in.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Inline Login ───────────────────────────────────────────────
+
+function DockLogin({ onSuccess }: { onSuccess: () => void }) {
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<"email" | "otp">("email");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSend = async () => {
+    if (!email || loading) return;
+    setError("");
+    setLoading(true);
+    const r = await sendOtp(email);
+    if (r.error) { setError(r.error); setLoading(false); return; }
+    setStep("otp");
+    setLoading(false);
+  };
+
+  const handleVerify = async () => {
+    if (otp.length < 6 || loading) return;
+    setError("");
+    setLoading(true);
+    const did = await getDeviceId();
+    const ua = navigator.userAgent;
+    const browser = /Chrome/i.test(ua) ? "Chrome" : /Safari/i.test(ua) ? "Safari" : "Browser";
+    const os = /iPhone|iPad/i.test(ua) ? "iOS" : /Android/i.test(ua) ? "Android" : /Mac/i.test(ua) ? "Mac" : "Device";
+    const r = await verifyOtp(email, otp, did, `${browser} on ${os}`);
+    if (r?.error) { setError(r.error); setLoading(false); return; }
+    onSuccess();
+  };
+
+  return (
+    <div className="flex flex-col items-center px-6 py-8">
+      <h2 className="mb-1 font-sans text-[18px] font-bold text-white">Sign in to theKickBack</h2>
+      <p className="mb-5 font-sans text-[12px] text-white/35">
+        {step === "email" ? "Enter your email to get a code" : `Code sent to ${email}`}
+      </p>
+      {step === "email" ? (
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="you@email.com"
+            autoComplete="email"
+            className="w-full rounded-xl px-4 py-3 font-sans text-[14px] text-white outline-none placeholder:text-white/20"
+            style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={loading || !email}
+            className="w-full rounded-xl py-3 font-sans text-[14px] font-bold text-black active:scale-[0.97] disabled:opacity-50"
+            style={{ backgroundColor: "#F97316" }}
+          >
+            {loading ? "Sending..." : "Send Code"}
+          </button>
+        </div>
+      ) : (
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onKeyDown={(e) => e.key === "Enter" && handleVerify()}
+            placeholder="000000"
+            autoComplete="one-time-code"
+            className="w-full rounded-xl px-4 py-3 text-center font-mono text-[24px] tracking-[0.3em] text-white outline-none"
+            style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+          />
+          <button
+            onClick={handleVerify}
+            disabled={loading || otp.length < 6}
+            className="w-full rounded-xl py-3 font-sans text-[14px] font-bold text-black active:scale-[0.97] disabled:opacity-50"
+            style={{ backgroundColor: "#F97316" }}
+          >
+            {loading ? "Verifying..." : "Verify"}
+          </button>
+          <button
+            onClick={() => { setStep("email"); setOtp(""); setError(""); }}
+            className="font-sans text-[12px] text-white/30"
+          >
+            Use a different email
+          </button>
+        </div>
+      )}
+      {error && <p className="mt-3 font-sans text-[12px] text-red-400">{error}</p>}
     </div>
   );
 }
@@ -2386,7 +2482,10 @@ export function TheDock({
               </button>
 
               {/* Scrollable content (half + full) */}
-              {exploreSnap !== "peek" && (
+              {exploreSnap !== "peek" && !user && (
+                <DockLogin onSuccess={() => window.location.reload()} />
+              )}
+              {exploreSnap !== "peek" && user && (
                 <div
                   ref={scrollRef}
                   className="flex-1 overflow-y-auto overscroll-contain"
