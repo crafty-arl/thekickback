@@ -157,17 +157,13 @@ export async function POST(request: Request) {
             const endM = (m + dur) % 60;
             const endDT = `${isoDate.replace(/-/g, "")}T${String(endH).padStart(2, "0")}${String(endM).padStart(2, "0")}00`;
             const itemName = scheduledItem?.name || "Appointment";
-            const icsContent = [
-              "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//theKickBack//EN",
-              "BEGIN:VEVENT",
-              `DTSTART:${startDT}`, `DTEND:${endDT}`,
-              `SUMMARY:${itemName} at ${vName}`,
-              `LOCATION:${venueAddr}`,
-              `DESCRIPTION:${staffName ? `With ${staffName}. ` : ""}Booked via theKickBack.`,
-              "END:VEVENT", "END:VCALENDAR"
-            ].join("\n");
-            const icsBase64 = Buffer.from(icsContent).toString("base64");
-            icsLink = `<a href="data:text/calendar;base64,${icsBase64}" download="${itemName.replace(/\s+/g, "-")}.ics" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#8B5CF6;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;">Add to Calendar</a>`;
+            const gcalStart = startDT;
+            const gcalEnd = endDT;
+            const gcalTitle = encodeURIComponent(`${itemName} at ${vName}`);
+            const gcalLocation = encodeURIComponent(venueAddr);
+            const gcalDetails = encodeURIComponent(`${staffName ? `With ${staffName}. ` : ""}Booked via theKickBack.`);
+            const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${gcalTitle}&dates=${gcalStart}/${gcalEnd}&location=${gcalLocation}&details=${gcalDetails}`;
+            icsLink = `<a href="${gcalUrl}" target="_blank" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#8B5CF6;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;">Add to Calendar</a>`;
           }
         }
 

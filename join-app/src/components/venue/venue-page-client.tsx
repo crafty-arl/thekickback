@@ -692,7 +692,8 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         body: "Here's your order — review and confirm when ready.",
         timestamp: Date.now(), checkout: checkoutData,
       };
-      setMessages((prev) => [...prev, checkoutMsg]);
+      // Remove any existing checkout messages (only one active at a time)
+      setMessages((prev) => [...prev.filter((m) => !m.checkout), checkoutMsg]);
       setCartExpanded(false);
       return;
     }
@@ -818,9 +819,11 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
       const confirmMsg: Message = result.orderId
         ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed: ${itemNames}. Total: $${(subtotal / 100).toFixed(2)}.${method === "wallet" ? " Paid from AI Credit." : " Charged to card on file."}${pointsToSpend > 0 ? ` Used ${pointsToSpend} points.` : ""}${bonusPts > 0 ? ` +${bonusPts} XP earned!` : ""} Show this to the host when you arrive.`, timestamp: Date.now() }
         : { id: `err-${Date.now()}`, sender: "ai", body: result.error || "Something went wrong with the order.", timestamp: Date.now() };
-      setMessages((prev) => [...prev, confirmMsg]);
+      // Remove checkout messages (prevent double-pay) then add confirmation
+      setMessages((prev) => [...prev.filter((m) => !m.checkout), confirmMsg]);
       if (result.orderId) {
         setCart([]);
+        setCartExpanded(false);
         walletStatus?.refresh?.();
         fetch(`/api/points?venueId=${venue.id}`).then((r) => r.ok ? r.json() : null).then((data) => {
           if (data?.balance) setPointsData(data.balance);
