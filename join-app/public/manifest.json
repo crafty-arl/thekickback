@@ -4,15 +4,44 @@
   "description": "Tap into any venue. No app needed.",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#000000",
   "theme_color": "#F97316",
   "orientation": "portrait",
+  "scope": "/",
+  "id": "/",
+  "categories": ["food", "entertainment", "lifestyle"],
   "icons": [
     {
       "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Discover Venues",
+      "short_name": "Discover",
+      "url": "/",
+      "icons": [{ "src": "/logo.png", "sizes": "512x512" }]
+    },
+    {
+      "name": "Venue Map",
+      "short_name": "Map",
+      "url": "/map",
+      "icons": [{ "src": "/logo.png", "sizes": "512x512" }]
+    }
+  ],
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }

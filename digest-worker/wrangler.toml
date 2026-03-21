@@ -5,7 +5,8 @@ compatibility_date = "2024-12-01"
 [triggers]
 crons = [
   "0 14 * * *",    # Daily digest at 2 PM UTC (8 AM CT / 9 AM ET)
-  "0 14 * * 1"     # Weekly roundup on Mondays (same time)
+  "0 14 * * 1",    # Weekly roundup on Mondays (same time)
+  "0 15 * * *"     # Onboarding reminders at 3 PM UTC (9 AM CT)
 ]
 
 [vars]

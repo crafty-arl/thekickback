@@ -322,10 +322,174 @@ async function sendEmail(
 interface ScheduledEvent { cron: string; scheduledTime: number; }
 interface ExecutionContext { waitUntil(promise: Promise<unknown>): void; passThroughOnException(): void; }
 
+// ─── Onboarding Reminder Emails ─────────────────────────────────
+
+interface DraftVenue {
+  venue_id: string;
+  onboarding_checklist: Record<string, boolean>;
+  onboarding_email_state: {
+    welcome_sent: boolean;
+    created_at: string | null;
+    day2_sent: boolean;
+    day5_sent: boolean;
+    day14_sent: boolean;
+  };
+}
+
+async function sendOnboardingReminders(env: Env): Promise<{ sent: number; skipped: number }> {
+  // Get all draft venues with incomplete checklists
+  const pages = (await supabaseGet(env, "venue_pages?review_status=eq.draft&select=venue_id,onboarding_checklist,onboarding_email_state")) as DraftVenue[];
+
+  if (!pages || pages.length === 0) return { sent: 0, skipped: 0 };
+
+  let sent = 0;
+  let skipped = 0;
+
+  for (const page of pages) {
+    const checklist = page.onboarding_checklist;
+    const emailState = page.onboarding_email_state;
+    if (!checklist || !emailState || !emailState.created_at) { skipped++; continue; }
+
+    // Check how many items are complete
+    const totalItems = Object.keys(checklist).length;
+    const completedItems = Object.values(checklist).filter(Boolean).length;
+    if (completedItems >= totalItems) { skipped++; continue; } // All done
+
+    const daysSinceCreation = Math.floor(
+      (Date.now() - new Date(emailState.created_at).getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    // Determine which email to send
+    let emailType: "day2" | "day5" | "day14" | null = null;
+    if (daysSinceCreation >= 14 && !emailState.day14_sent) emailType = "day14";
+    else if (daysSinceCreation >= 5 && !emailState.day5_sent) emailType = "day5";
+    else if (daysSinceCreation >= 2 && !emailState.day2_sent) emailType = "day2";
+
+    if (!emailType) { skipped++; continue; }
+
+    // Get owner email
+    const owners = (await supabaseGet(env, `venue_owners?venue_id=eq.${page.venue_id}&select=user_id`)) as { user_id: string }[];
+    if (!owners || owners.length === 0) { skipped++; continue; }
+
+    const profiles = (await supabaseGet(env, `profiles?id=eq.${owners[0].user_id}&select=email,phone`)) as { email?: string; phone?: string }[];
+    const ownerEmail = profiles?.[0]?.email || (profiles?.[0]?.phone?.includes("@") ? profiles[0].phone : null);
+    if (!ownerEmail) { skipped++; continue; }
+
+    // Get venue name
+    const venues = (await supabaseGet(env, `venues?id=eq.${page.venue_id}&select=name`)) as { name: string }[];
+    const venueName = venues?.[0]?.name || "Your hub";
+
+    const remaining = Object.entries(checklist).filter(([, v]) => !v).map(([k]) => k);
+    const percent = Math.round((completedItems / totalItems) * 100);
+
+    // Build email
+    const { subject, html } = buildOnboardingReminderEmail(emailType, venueName, percent, remaining);
+    const success = await sendEmail(env, ownerEmail, subject, html, subject);
+
+    if (success) {
+      sent++;
+      // Update email state
+      const updatedState = { ...emailState, [`${emailType}_sent`]: true };
+      await fetch(`${env.SUPABASE_URL}/rest/v1/venue_pages?venue_id=eq.${page.venue_id}`, {
+        method: "PATCH",
+        headers: {
+          apikey: env.SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ onboarding_email_state: updatedState }),
+      });
+    } else {
+      skipped++;
+    }
+  }
+
+  return { sent, skipped };
+}
+
+function buildOnboardingReminderEmail(
+  type: "day2" | "day5" | "day14",
+  venueName: string,
+  percent: number,
+  remaining: string[]
+): { subject: string; html: string } {
+  const itemLabels: Record<string, string> = {
+    basics: "Hub Basics", location: "Location", hours: "Hours",
+    branding: "Look & Feel", offerings: "Offerings", knowledge: "AI Knowledge",
+    photos: "Photos", xp: "Loyalty & XP", stripe: "Payments",
+  };
+
+  const remainingList = remaining.map((k) => itemLabels[k] || k).join(", ");
+
+  const configs = {
+    day2: {
+      subject: `${venueName} is ${percent}% done — let's finish`,
+      heading: "You're off to a great start.",
+      body: `<strong style="color:#fff;">${venueName}</strong> is ${percent}% set up. Just a few more items to go: ${remainingList}.`,
+      cta: "Continue Setup",
+    },
+    day5: {
+      subject: `Just ${remaining.length} item${remaining.length === 1 ? "" : "s"} left to go live`,
+      heading: "Almost there.",
+      body: `<strong style="color:#fff;">${venueName}</strong> needs ${remaining.length} more thing${remaining.length === 1 ? "" : "s"}: ${remainingList}. Finish up and submit for review.`,
+      cta: "Finish Setup",
+    },
+    day14: {
+      subject: `${venueName} is waiting`,
+      heading: "Your hub misses you.",
+      body: `<strong style="color:#fff;">${venueName}</strong> is still waiting to go live. When you're ready, pick up where you left off — it only takes a few minutes.`,
+      cta: "Pick Up Where You Left Off",
+    },
+  };
+
+  const c = configs[type];
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:480px;margin:0 auto;padding:32px 24px;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <span style="font-size:11px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.4);">THEKICKBACK</span>
+    </div>
+    <h1 style="margin:0 0 16px;font-size:22px;color:#fff;text-align:center;">${c.heading}</h1>
+    <p style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.6;text-align:center;">${c.body}</p>
+    <div style="margin:24px 0;padding:16px;background:rgba(255,255,255,0.04);border-radius:12px;border:1px solid rgba(255,255,255,0.08);">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:11px;letter-spacing:1.5px;color:rgba(255,255,255,0.3);font-weight:600;">PROGRESS</span>
+        <span style="font-size:14px;font-weight:700;color:#F97316;">${percent}%</span>
+      </div>
+      <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${percent}%;background:#F97316;border-radius:3px;"></div>
+      </div>
+    </div>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="https://dash.thekickback.net/onboarding" style="display:inline-block;padding:12px 32px;background:#F97316;color:#000;font-size:14px;font-weight:700;text-decoration:none;border-radius:50px;">${c.cta}</a>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;margin-top:24px;text-align:center;">
+      <p style="font-size:11px;color:rgba(255,255,255,0.15);margin:0;">
+        theKickBack &mdash; tap in, text in, you're in
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return { subject: c.subject, html };
+}
+
 // ─── Main handler ────────────────────────────────────────────────
 
 export default {
   async scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
+    // Onboarding reminders (9 AM CT daily)
+    if (event.cron === "0 15 * * *") {
+      console.log(`Onboarding reminders triggered at ${new Date().toISOString()}`);
+      const result = await sendOnboardingReminders(env);
+      console.log(`Onboarding reminders: ${result.sent} sent, ${result.skipped} skipped`);
+      return;
+    }
+
     const isMonday = new Date().getUTCDay() === 1;
     const isWeekly = isMonday && event.cron === "0 14 * * 1";
 

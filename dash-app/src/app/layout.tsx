@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import { SandboxBanner } from "@/components/sandbox-banner";
+import Script from "next/script";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -16,8 +17,23 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "theKickBack — Venue Dashboard",
-  description: "Manage your venue, view live sessions, and handle guest requests.",
+  title: "theKickBack — Hub Dashboard",
+  description: "Manage your hub, view live sessions, and handle guest requests.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "KickBack Dash",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({
@@ -27,9 +43,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <link rel="apple-touch-icon" href="/logo.png" />
+      </head>
       <body className={`${dmSans.variable} ${fraunces.variable} antialiased`}>
         <SandboxBanner />
         {children}
+        <Script id="sw-register" strategy="afterInteractive">
+          {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js',{scope:'/'})}`}
+        </Script>
       </body>
     </html>
   );

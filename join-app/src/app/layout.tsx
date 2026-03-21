@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import Script from "next/script";
 import { SandboxBanner } from "@/components/sandbox-banner";
+import { PwaInstallPrompt, PwaUpdatePrompt } from "@/components/pwa-prompt";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -52,8 +53,10 @@ export default function RootLayout({
       <body className={`${dmSans.variable} ${fraunces.variable} antialiased`}>
         <SandboxBanner />
         {children}
+        <PwaInstallPrompt />
+        <PwaUpdatePrompt />
         <Script id="sw-register" strategy="afterInteractive">
-          {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}`}
+          {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js',{scope:'/'})}`}
         </Script>
       </body>
     </html>

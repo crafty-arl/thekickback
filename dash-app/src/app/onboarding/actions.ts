@@ -112,6 +112,71 @@ export async function createVenue(formData: VenueFormData) {
   redirect("/");
 }
 
+export async function getOnboardingState() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const service = createServiceClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+
+  const { data: ownership } = await service
+    .from("venue_owners")
+    .select("venue_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .single();
+
+  if (!ownership) return { hasVenue: false };
+
+  const venueId = ownership.venue_id;
+
+  const { data: venue } = await service
+    .from("venues")
+    .select("id, name, type, address, neighborhood, max_occupancy")
+    .eq("id", venueId)
+    .single();
+
+  const { data: page } = await service
+    .from("venue_pages")
+    .select("slug, tagline, description, theme_color, hours, review_status, onboarding_checklist, hero_image")
+    .eq("venue_id", venueId)
+    .single();
+
+  const { data: offerings } = await service
+    .from("venue_offerings")
+    .select("id, name, type, price_cents, description")
+    .eq("venue_id", venueId)
+    .eq("active", true)
+    .order("sort_order");
+
+  const { data: gallery } = await service
+    .from("venue_gallery")
+    .select("id, image_url, caption")
+    .eq("venue_id", venueId)
+    .order("sort_order");
+
+  const { data: stripeAccount } = await service
+    .from("venue_stripe_accounts")
+    .select("stripe_account_id, charges_enabled")
+    .eq("venue_id", venueId)
+    .single();
+
+  return {
+    hasVenue: true,
+    venueId,
+    venue,
+    page,
+    offerings: offerings || [],
+    gallery: gallery || [],
+    checklist: page?.onboarding_checklist || null,
+    reviewStatus: page?.review_status,
+    stripeConnected: stripeAccount?.charges_enabled || false,
+  };
+}
+
 export async function submitHubForReview() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

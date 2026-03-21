@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAiConfig } from "@/lib/ai-config";
+import { sendEmail, wrap } from "@/lib/email";
 
 const CF_ACCOUNT_ID = "6c235bb622d4bca66876392df398234b";
 const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || "";
@@ -46,28 +47,104 @@ Generate 3-4 contextual reply suggestions that would naturally move the conversa
   - For summary confirmation: "Looks good, let's go!", "Change the hours to 4pm-2am", "Update the tagline"
 Make them feel like real answers a real owner would give. Vary them based on the venue type if known.`;
 
+function buildChecklistPrompt(currentItem: string | null, checklist: Record<string, boolean>) {
+  const completed = Object.entries(checklist).filter(([, v]) => v).map(([k]) => k);
+  const remaining = Object.entries(checklist).filter(([, v]) => !v).map(([k]) => k);
+
+  return `You are guiding a venue owner through their setup checklist. They already created their hub. Now walk them through each remaining item.
+
+Current item: ${currentItem || "none"}
+Completed: ${completed.join(", ") || "none"}
+Remaining: ${remaining.join(", ") || "none"}
+
+For each item, explain it briefly (1-2 sentences) and help them complete it. Be casual and encouraging.
+
+When a checklist item is completed through your conversation, output:
+<<<CHECKLIST_UPDATE>>>{"item":"${currentItem}","completed":true}<<<END_UPDATE>>>
+
+Item descriptions:
+- basics: Hub name and type
+- location: Address confirmation
+- hours: Operating hours
+- branding: Tagline, description, and theme color
+- offerings: Review auto-generated offerings
+- knowledge: AI knowledge base — what should the AI know about this spot?
+- photos: Upload at least one photo
+- xp: Review loyalty/XP program
+- stripe: Tell them to tap the Connect Stripe button below
+
+For "knowledge", ask them to share insider tips, signature items, parking info, dress code, etc. When they share info, mark it complete.
+For "offerings" and "xp", ask if the auto-generated items look good. If they say yes, mark complete.
+For "stripe", tell them to tap the Connect Stripe button — you can't do it for them.
+
+Keep it encouraging. Celebrate progress. Keep responses under 3 sentences.
+
+ALWAYS output smart reply suggestions:
+<<<REPLIES>>>["suggestion 1","suggestion 2"]<<<END_REPLIES>>>`;
+}
+
 interface Message {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
 export async function POST(request: NextRequest) {
-  // Get authenticated user
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const userId = user?.id;
 
-  const body = await request.json() as { messages: { role: "user" | "assistant"; content: string }[] };
+  const body = await request.json() as {
+    messages: { role: "user" | "assistant"; content: string }[];
+    phase?: "chat" | "checklist";
+    currentItem?: string | null;
+    checklist?: Record<string, boolean>;
+  };
+
+  const isChecklist = body.phase === "checklist";
+  const systemPrompt = isChecklist
+    ? buildChecklistPrompt(body.currentItem || null, body.checklist || {})
+    : SYSTEM_PROMPT;
 
   const messages: Message[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: systemPrompt },
     ...body.messages,
   ];
 
-  // Fetch configured model
+  // For Phase 1 exchange 1, try OSM search to pre-fill data
+  let osmContext = "";
+  if (!isChecklist && body.messages.length === 1) {
+    try {
+      const userMsg = body.messages[0].content;
+      // Extract name + city heuristically
+      const parts = userMsg.match(/called\s+(.+?)(?:\s+(?:in|on|at)\s+(.+))?$/i)
+        || userMsg.match(/(.+?)(?:\s+(?:in|on|at)\s+(.+))$/i);
+      if (parts && parts[2]) {
+        const searchRes = await fetch(new URL("/api/onboarding/search", request.url).toString(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: parts[1].trim(), city: parts[2].trim() }),
+        });
+        if (searchRes.ok) {
+          const osmData = await searchRes.json();
+          if (osmData.found) {
+            osmContext = `\n\nI found this venue on OpenStreetMap — use this data if it matches what the owner described:
+Address: ${osmData.address}
+Coordinates: ${osmData.lat}, ${osmData.lng}
+${osmData.hours ? `Hours: ${osmData.hours}` : ""}
+${osmData.type ? `Type: ${osmData.type}` : ""}
+${osmData.neighborhood ? `Neighborhood: ${osmData.neighborhood}` : ""}
+Include this info in your <<<HUB_PARTIAL>>> block. Confirm the address with the owner naturally.`;
+            messages[0].content += osmContext;
+          }
+        }
+      }
+    } catch {
+      // OSM search is best effort
+    }
+  }
+
   const aiModelConfig = await getAiConfig();
 
-  // Call Workers AI
   const aiRes = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`,
     {
@@ -95,7 +172,7 @@ export async function POST(request: NextRequest) {
 
   const reply = aiData.choices?.[0]?.message?.content || "I didn't catch that. Try again.";
 
-  // Check if the reply contains venue data (submission step)
+  // Check for venue creation (Phase 1)
   const dataMatch = reply.match(/<<<VENUE_DATA>>>([\s\S]*?)<<<END_DATA>>>/);
   let venueCreated = false;
 
@@ -109,36 +186,36 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Extract partial hub data for live preview
+  // Extract partial hub data
   let hubData = null;
   const partialMatch = reply.match(/<<<HUB_PARTIAL>>>([\s\S]*?)<<<END_PARTIAL>>>/);
   if (partialMatch) {
-    try {
-      hubData = JSON.parse(partialMatch[1]);
-    } catch (err) {
-      console.error("Failed to parse hub partial:", err);
-    }
+    try { hubData = JSON.parse(partialMatch[1]); } catch { /* best effort */ }
   }
 
-  // Extract AI-generated smart replies
+  // Extract smart replies
   let smartReplies: string[] = [];
   const repliesMatch = reply.match(/<<<REPLIES>>>([\s\S]*?)<<<END_REPLIES>>>/);
   if (repliesMatch) {
-    try {
-      smartReplies = JSON.parse(repliesMatch[1]);
-    } catch {
-      // best effort
-    }
+    try { smartReplies = JSON.parse(repliesMatch[1]); } catch { /* best effort */ }
   }
 
-  // Clean the reply — remove data blocks from what the user sees
+  // Extract checklist update (Phase 2)
+  let checklistUpdate = null;
+  const checklistMatch = reply.match(/<<<CHECKLIST_UPDATE>>>([\s\S]*?)<<<END_UPDATE>>>/);
+  if (checklistMatch) {
+    try { checklistUpdate = JSON.parse(checklistMatch[1]); } catch { /* best effort */ }
+  }
+
+  // Clean reply
   const cleanReply = reply
     .replace(/<<<VENUE_DATA>>>[\s\S]*?<<<END_DATA>>>/g, "")
     .replace(/<<<HUB_PARTIAL>>>[\s\S]*?<<<END_PARTIAL>>>/g, "")
     .replace(/<<<REPLIES>>>[\s\S]*?<<<END_REPLIES>>>/g, "")
+    .replace(/<<<CHECKLIST_UPDATE>>>[\s\S]*?<<<END_UPDATE>>>/g, "")
     .trim();
 
-  return NextResponse.json({ reply: cleanReply, venueCreated, hubData, smartReplies });
+  return NextResponse.json({ reply: cleanReply, venueCreated, hubData, smartReplies, checklistUpdate });
 }
 
 async function createVenueFromAI(data: {
@@ -177,6 +254,28 @@ async function createVenueFromAI(data: {
     console.error("Geocoding error:", err);
   }
 
+  // Determine which checklist items are already complete
+  const hasHours = Boolean(data.hours && data.hours.trim());
+  const onboardingChecklist = {
+    basics: true,
+    location: true,
+    hours: hasHours,
+    branding: false,
+    offerings: false,
+    knowledge: false,
+    photos: false,
+    xp: false,
+    stripe: false,
+  };
+
+  const onboardingEmailState = {
+    welcome_sent: true,
+    created_at: new Date().toISOString(),
+    day2_sent: false,
+    day5_sent: false,
+    day14_sent: false,
+  };
+
   // Create venue
   const venueRes = await fetch(`${SUPABASE_URL}/rest/v1/venues`, {
     method: "POST",
@@ -210,13 +309,10 @@ async function createVenueFromAI(data: {
   const venueId = venues[0]?.id;
   if (!venueId) return;
 
-  // Parse hours into structured format
   const hours = [{ day: "See venue", open: data.hours, close: "" }];
-
-  // Parse menu into sections
   const menuSections = [{ name: "Highlights", items: data.menu.split(",").map((i: string) => i.trim()) }];
 
-  // Create venue page
+  // Create venue page with checklist
   await fetch(`${SUPABASE_URL}/rest/v1/venue_pages`, {
     method: "POST",
     headers: {
@@ -234,6 +330,8 @@ async function createVenueFromAI(data: {
       menu_sections: menuSections,
       published: false,
       review_status: "draft",
+      onboarding_checklist: onboardingChecklist,
+      onboarding_email_state: onboardingEmailState,
     }),
   });
 
@@ -252,6 +350,33 @@ async function createVenueFromAI(data: {
         role: "owner",
       }),
     });
+  }
+
+  // Send welcome email
+  if (userId) {
+    try {
+      const profileRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=email,phone`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+      });
+      if (profileRes.ok) {
+        const profiles = await profileRes.json() as { email?: string; phone?: string }[];
+        const ownerEmail = profiles[0]?.email || (profiles[0]?.phone?.includes("@") ? profiles[0].phone : null);
+        if (ownerEmail) {
+          sendEmail(ownerEmail, `Welcome to theKickBack, ${data.name}!`, wrap(`
+            <div style="text-align:center;margin-bottom:24px;">
+              <h1 style="margin:0;font-size:24px;color:#fff;">Your hub is taking shape.</h1>
+            </div>
+            <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.5;">
+              <strong style="color:#fff;">${data.name}</strong> has been created on theKickBack.
+              Head back to your dashboard to finish setting it up — add photos, connect Stripe, and fine-tune your offerings.
+            </p>
+            <div style="text-align:center;margin-top:20px;">
+              <a href="https://dash.thekickback.net/onboarding" style="display:inline-block;background:#F97316;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:600;font-size:14px;">Continue Setup</a>
+            </div>
+          `));
+        }
+      }
+    } catch { /* best effort */ }
   }
 
   // Auto-generate offerings, XP, milestones, perks via AI
@@ -293,7 +418,6 @@ Rules: 6-8 offerings matching venue type/menu. Reservations need duration_minute
       try {
         const setup = JSON.parse(jsonStr);
 
-        // Insert offerings
         for (let i = 0; i < (setup.offerings || []).length; i++) {
           const o = setup.offerings[i];
           await fetch(`${SUPABASE_URL}/rest/v1/venue_offerings`, {
@@ -308,7 +432,6 @@ Rules: 6-8 offerings matching venue type/menu. Reservations need duration_minute
           });
         }
 
-        // Insert XP actions
         for (let i = 0; i < (setup.xp_actions || []).length; i++) {
           const a = setup.xp_actions[i];
           await fetch(`${SUPABASE_URL}/rest/v1/venue_xp_actions`, {
@@ -322,7 +445,6 @@ Rules: 6-8 offerings matching venue type/menu. Reservations need duration_minute
           });
         }
 
-        // Insert milestones
         for (let i = 0; i < (setup.xp_milestones || []).length; i++) {
           const m = setup.xp_milestones[i];
           await fetch(`${SUPABASE_URL}/rest/v1/venue_xp_milestones`, {
@@ -336,7 +458,6 @@ Rules: 6-8 offerings matching venue type/menu. Reservations need duration_minute
           });
         }
 
-        // Insert perks
         for (let i = 0; i < (setup.perks || []).length; i++) {
           const p = setup.perks[i];
           await fetch(`${SUPABASE_URL}/rest/v1/venue_perks`, {

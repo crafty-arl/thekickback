@@ -1,0 +1,41 @@
+{
+  "name": "theKickBack Dashboard",
+  "short_name": "KickBack Dash",
+  "description": "Manage your hub, view live sessions, and handle guest requests.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#F97316",
+  "orientation": "portrait",
+  "scope": "/",
+  "id": "/",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Settings",
+      "short_name": "Settings",
+      "url": "/settings"
+    },
+    {
+      "name": "Edit Hub",
+      "short_name": "Edit",
+      "url": "/edit"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}
