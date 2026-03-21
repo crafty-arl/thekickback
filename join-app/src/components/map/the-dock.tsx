@@ -1444,16 +1444,16 @@ export function TheDock({
         return;
       }
 
-      // C — concierge
-      if (e.key === "c" || e.key === "C") {
+      // C — concierge (logged in only)
+      if ((e.key === "c" || e.key === "C") && user) {
         e.preventDefault();
         if (mode === "concierge") setMode("idle");
         else setMode("concierge");
         return;
       }
 
-      // P — profile
-      if (e.key === "p" || e.key === "P") {
+      // P — profile (logged in only)
+      if ((e.key === "p" || e.key === "P") && user) {
         e.preventDefault();
         if (mode === "profile") { setMode(previousMode); }
         else { setPreviousMode(mode); setMode("profile"); }
@@ -1794,6 +1794,7 @@ export function TheDock({
   // ─── Send message ──────────────────────────────────────────────
 
   const send = useCallback(async (text?: string) => {
+    if (!user) return; // Must be logged in to chat
     const msg = (text || input).trim();
     if (!msg || loading) return;
 
@@ -2896,7 +2897,7 @@ export function TheDock({
           )}
 
           {/* ═══ CONCIERGE MODE ═══ */}
-          {mode === "concierge" && (
+          {mode === "concierge" && user && (
             <>
               {/* Header */}
               <div className="flex items-center justify-between px-4 pt-3 pb-2">
