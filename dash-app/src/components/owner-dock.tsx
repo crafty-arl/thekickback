@@ -331,14 +331,25 @@ export function OwnerDock({ initialData, venue, reviewStatus, user }: OwnerDockP
             {venue.state === "active" ? "Open" : "Closed"}
           </span>
         </div>
-        <Link
-          href="/settings"
-          className="rounded-lg px-3 py-1.5 text-[12px] font-medium text-white/40 hover:text-white/60"
-          style={{
-            backgroundColor: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
+        <div className="flex items-center gap-2">
+          <Link
+            href="/scan"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-black"
+            style={{ backgroundColor: "#F97316" }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+            </svg>
+            Scan
+          </Link>
+          <Link
+            href="/settings"
+            className="rounded-lg px-3 py-1.5 text-[12px] font-medium text-white/40 hover:text-white/60"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
           <svg
             width="14"
             height="14"
@@ -353,6 +364,7 @@ export function OwnerDock({ initialData, venue, reviewStatus, user }: OwnerDockP
             <circle cx="12" cy="12" r="3" />
           </svg>
         </Link>
+        </div>
       </header>
 
       {/* Messages area */}
