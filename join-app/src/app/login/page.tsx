@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { LoginForm } from "./login-form";
+import { redirect } from "next/navigation";
 
 export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
-  );
+  redirect("/");
 }

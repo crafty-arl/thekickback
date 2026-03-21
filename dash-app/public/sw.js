@@ -1,5 +1,5 @@
 // ─── theKickBack Dashboard Service Worker ───────────────────────
-const CACHE_NAME = "kickback-dash-v1";
+const CACHE_NAME = "kickback-dash-v2";
 const PRECACHE = ["/", "/logo.png", "/manifest.json"];
 
 self.addEventListener("install", (event) => {

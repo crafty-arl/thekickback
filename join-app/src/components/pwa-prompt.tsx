@@ -156,35 +156,37 @@ export function PwaUpdatePrompt() {
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ y: -60, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: -60, opacity: 0 }}
-        className="fixed inset-x-0 top-0 z-50 px-4 pt-[max(12px,env(safe-area-inset-top))]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md"
       >
-        <div
-          className="mx-auto flex max-w-md items-center gap-3 rounded-2xl px-4 py-3"
-          style={{
-            backgroundColor: "rgba(20,20,20,0.98)",
-            border: "1px solid rgba(74,222,128,0.2)",
-            backdropFilter: "blur(20px)",
-          }}
+        <motion.div
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{ scale: 1, y: 0 }}
+          className="mx-6 flex max-w-sm flex-col items-center rounded-3xl px-8 py-10 text-center"
+          style={{ backgroundColor: "rgba(20,20,20,0.98)", border: "1px solid rgba(255,255,255,0.08)" }}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(74,222,128,0.1)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(249,115,22,0.1)" }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
           </div>
-          <p className="flex-1 font-sans text-[13px] text-white/70">New version available</p>
+          <h2 className="mb-2 font-sans text-[20px] font-bold text-white">Update Available</h2>
+          <p className="mb-6 font-sans text-[14px] leading-relaxed text-white/45">
+            A new version of theKickBack is ready. Update now for the latest features.
+          </p>
           <button
             onClick={handleUpdate}
-            className="shrink-0 rounded-lg px-3 py-1.5 font-sans text-[12px] font-bold text-black"
-            style={{ backgroundColor: "#4ade80" }}
+            className="w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+            style={{ backgroundColor: "#F97316" }}
           >
-            Update
+            Update Now
           </button>
-        </div>
+          <p className="mt-3 font-sans text-[11px] text-white/20">This will refresh the page</p>
+        </motion.div>
       </motion.div>
     </AnimatePresence>
   );
