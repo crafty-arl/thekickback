@@ -8,6 +8,8 @@ import { VenueGallery } from "./venue-gallery";
 import { VenueStaff } from "./venue-staff";
 import type { StaffMember } from "./venue-staff";
 import { WalletSheet, useWalletStatus } from "../map/wallet-sheet";
+import { type CheckoutCardData, type CheckoutAddOn } from "../map/checkout-card";
+import { usePasskey } from "@/lib/use-passkey";
 import { isSandboxClient } from "@/lib/sandbox";
 
 /* ── Types ── */
@@ -75,6 +77,7 @@ interface Message {
   body: string;
   timestamp: number;
   tab?: Tab;
+  checkout?: CheckoutCardData;
 }
 
 interface OfferingMeta {
@@ -601,9 +604,10 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const [drawerOfferId, setDrawerOfferId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
-  const [checkingOut, setCheckingOut] = useState(false);
+  const [cartExpanded, setCartExpanded] = useState(false);
   const walletStatus = useWalletStatus();
+  const passkey = usePasskey();
+  const [paymentMode, setPaymentMode] = useState<"choose" | "processing" | null>(null);
   const [pointsData, setPointsData] = useState<{
     balance: number; total_earned: number; tier: string; kickback_score: number;
     current_streak: number; venues_visited: number;
@@ -681,6 +685,39 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
     if (!msg || loading) return;
     if (!chatOpen) setChatOpen(true);
 
+    // ── Cart special actions ──
+    if (msg === "__CHECKOUT__") {
+      setInput("");
+      if (cart.length === 0) return;
+      const checkoutData: CheckoutCardData = {
+        venue_name: venue.name,
+        venue_id: venue.id,
+        items: cart.map((item) => ({
+          offering_id: item.id,
+          slot_id: null,
+          name: item.name,
+          quantity: item.quantity,
+          unit_price_cents: item.price_cents,
+          metadata: item.metadata ? { ...item.metadata, type: offeringsMap[item.id]?.type } : { type: offeringsMap[item.id]?.type },
+        })),
+      };
+      const checkoutMsg: Message = {
+        id: `checkout-${Date.now()}`, sender: "ai",
+        body: "Here's your order — review and confirm when ready.",
+        timestamp: Date.now(), checkout: checkoutData,
+      };
+      setMessages((prev) => [...prev, checkoutMsg]);
+      setCartExpanded(false);
+      return;
+    }
+    if (msg === "__CLEAR_CART__") {
+      setInput("");
+      setCart([]);
+      setCartExpanded(false);
+      setMessages((prev) => [...prev, { id: `clear-${Date.now()}`, sender: "ai", body: "Cart cleared. What else can I help with?", timestamp: Date.now() }]);
+      return;
+    }
+
     setMessages((prev) => [...prev, { id: `user-${Date.now()}`, sender: "guest", body: msg, timestamp: Date.now() }]);
     setInput("");
     setLoading(true);
@@ -733,8 +770,127 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
     });
   }
 
+  function removeFromCart(id: string) {
+    setCart((prev) => {
+      const updated = prev
+        .map((item) => item.id === id ? { ...item, quantity: item.quantity - 1 } : item)
+        .filter((item) => item.quantity > 0);
+      return updated;
+    });
+    if (cart.length <= 1) setCartExpanded(false);
+  }
+
+  function clearCart() {
+    setCart([]);
+    setCartExpanded(false);
+  }
+
   const cartTotal = cart.reduce((sum, item) => sum + item.price_cents * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // ── Checkout handler ──
+  const processPayment = useCallback(async (
+    msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number, method: "wallet" | "card"
+  ) => {
+    if (!msg.checkout) return;
+    setPaymentMode("processing");
+
+    const itemsTotal = msg.checkout.items.reduce((sum, item) => sum + item.unit_price_cents * item.quantity, 0);
+    const addOnsTotal = addOns.reduce((sum, a) => sum + a.price_cents, 0);
+    const subtotal = itemsTotal + addOnsTotal - pointsToSpend;
+
+    try {
+      if (method === "wallet") {
+        const spendRes = await fetch("/api/wallet/spend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amountCents: subtotal,
+            venueId: venue.id,
+            description: `Order at ${venue.name}`,
+          }),
+        });
+        const spendResult = await spendRes.json();
+        if (!spendRes.ok) throw new Error(spendResult.error || "Wallet spend failed");
+      }
+
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venueId: venue.id,
+          items: msg.checkout.items,
+          addOns,
+          pointsToSpend,
+          notes: msg.checkout.notes,
+          paymentMethod: method,
+        }),
+      });
+      const result = await res.json();
+      const itemNames = msg.checkout.items.map((i) => i.quantity && i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name).join(", ");
+      const bonusPts = Math.floor(subtotal / 10);
+      const confirmMsg: Message = result.orderId
+        ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed: ${itemNames}. Total: $${(subtotal / 100).toFixed(2)}.${method === "wallet" ? " Paid from AI Credit." : " Charged to card on file."}${pointsToSpend > 0 ? ` Used ${pointsToSpend} points.` : ""}${bonusPts > 0 ? ` +${bonusPts} XP earned!` : ""} Show this to the host when you arrive.`, timestamp: Date.now() }
+        : { id: `err-${Date.now()}`, sender: "ai", body: result.error || "Something went wrong with the order.", timestamp: Date.now() };
+      setMessages((prev) => [...prev, confirmMsg]);
+      if (result.orderId) {
+        setCart([]);
+        walletStatus?.refresh?.();
+        fetch(`/api/points?venueId=${venue.id}`).then((r) => r.ok ? r.json() : null).then((data) => {
+          if (data?.balance) setPointsData(data.balance);
+          if (data?.history) setTxHistory(data.history);
+        }).catch(() => {});
+      }
+    } catch {
+      setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "ai", body: "Couldn't process the order. Try again.", timestamp: Date.now() }]);
+    } finally {
+      setPaymentMode(null);
+    }
+  }, [venue, walletStatus]);
+
+  const handleCheckoutConfirm = useCallback(async (
+    msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number, method: "wallet" | "card" = "card"
+  ) => {
+    if (!msg.checkout) return;
+
+    if (method === "wallet") {
+      let verified = false;
+      if (passkey.hasPasskey) {
+        verified = await passkey.verify();
+      }
+      if (!verified) {
+        setMessages((prev) => [...prev, {
+          id: `bio-setup-${Date.now()}`, sender: "ai",
+          body: "Setting up biometric on this device for wallet payments. Follow the prompt.",
+          timestamp: Date.now(),
+        }]);
+        const registered = await passkey.register();
+        if (!registered) {
+          setMessages((prev) => [...prev, {
+            id: `bio-${Date.now()}`, sender: "ai",
+            body: "Biometric setup cancelled. Pay with card instead — no biometric needed.",
+            timestamp: Date.now(),
+          }]);
+          return;
+        }
+        verified = await passkey.verify();
+        if (!verified) {
+          setMessages((prev) => [...prev, {
+            id: `bio-err-${Date.now()}`, sender: "ai",
+            body: "Verification failed. Try card payment instead.",
+            timestamp: Date.now(),
+          }]);
+          return;
+        }
+      }
+    }
+
+    await processPayment(msg, addOns, pointsToSpend, method);
+  }, [passkey, processPayment]);
+
+  const handleCheckoutDismiss = useCallback(() => {
+    setMessages((prev) => [...prev, { id: `cancel-${Date.now()}`, sender: "ai", body: "No worries — let me know if you change your mind.", timestamp: Date.now() }]);
+  }, []);
 
   // Drawer data
   const drawerMeta = drawerOfferId ? offeringsMap[drawerOfferId] : null;
@@ -1168,111 +1324,6 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         )}
       </AnimatePresence>
 
-      {/* ═══ CART FAB — floats above dock ═══ */}
-      <AnimatePresence>
-        {cartCount > 0 && !chatOpen && (
-          <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            onClick={() => setCartOpen(true)}
-            className="fixed z-[35] left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full px-5 py-3 font-sans text-[14px] font-bold text-black active:scale-95"
-            style={{
-              bottom: "max(72px, calc(env(safe-area-inset-bottom) + 72px))",
-              backgroundColor: theme,
-              boxShadow: `0 4px 20px ${theme}50`,
-            }}
-          >
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/20 font-mono text-[12px] text-black/80">{cartCount}</span>
-            View Cart — ${(cartTotal / 100).toFixed(2)}
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* ═══ CART DRAWER — slides from right ═══ */}
-      <AnimatePresence>
-        {cartOpen && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCartOpen(false)} className="fixed inset-0 z-[80]" style={{ backgroundColor: "rgba(0,0,0,0.6)" }} />
-            <motion.div
-              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="fixed inset-y-0 right-0 z-[85] w-[85vw] max-w-sm flex flex-col"
-              style={{ backgroundColor: "rgba(12,12,15,0.97)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: "1px solid rgba(255,255,255,0.08)" }}
-            >
-              <div className="flex items-center justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] pb-4">
-                <h2 className="font-sans text-[16px] font-bold text-white">Your Cart</h2>
-                <button onClick={() => setCartOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-5">
-                {cart.map((item, i) => (
-                  <div key={`${item.id}-${i}`} className="mb-2 flex items-center gap-3 rounded-xl px-3 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-sans text-[13px] font-medium text-white/80">{item.name} {item.quantity > 1 ? `x${item.quantity}` : ""}</p>
-                      {item.metadata?.date && (
-                        <p className="font-sans text-[11px] text-white/30">{item.metadata.date} at {item.metadata.time}{item.metadata.staffName ? ` · ${item.metadata.staffName}` : ""}</p>
-                      )}
-                    </div>
-                    <span className="shrink-0 font-mono text-[13px] font-bold" style={{ color: theme }}>${((item.price_cents * item.quantity) / 100).toFixed(2)}</span>
-                    <button onClick={() => setCart((prev) => prev.filter((_, j) => j !== i))} className="shrink-0 text-white/20 active:text-white/50">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t px-5 py-4" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="font-sans text-[14px] text-white/50">Total</span>
-                  <span className="font-mono text-[18px] font-bold text-white">${(cartTotal / 100).toFixed(2)}</span>
-                </div>
-                {!user ? (
-                  <a href="/login" className="flex w-full items-center justify-center rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black" style={{ backgroundColor: theme }}>Log in to checkout</a>
-                ) : (
-                  <button
-                    onClick={async () => {
-                      setCheckingOut(true);
-                      try {
-                        const orderItems = cart.map((item) => ({
-                          offering_id: item.id,
-                          name: item.name,
-                          description: item.metadata?.date ? `${item.metadata.date} at ${item.metadata.time}${item.metadata.staffName ? ` with ${item.metadata.staffName}` : ""}` : null,
-                          quantity: item.quantity,
-                          unit_price_cents: item.price_cents,
-                          metadata: { ...(item.metadata || {}), type: offeringsMap[item.id]?.type },
-                        }));
-                        const res = await fetch("/api/orders", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ venueId: venue.id, items: orderItems }),
-                        });
-                        const data = await res.json();
-                        if (res.ok) {
-                          setCart([]);
-                          setCartOpen(false);
-                          setMessages((prev) => [...prev, { id: `order-${Date.now()}`, sender: "ai", body: `Order confirmed! ${cart.length} item${cart.length > 1 ? "s" : ""} — $${(cartTotal / 100).toFixed(2)}. Check your email for the receipt.`, timestamp: Date.now() }]);
-                        } else {
-                          alert(data.error || "Checkout failed");
-                        }
-                      } catch { alert("Something went wrong"); }
-                      finally { setCheckingOut(false); }
-                    }}
-                    disabled={checkingOut}
-                    className="w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98] disabled:opacity-50"
-                    style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
-                  >
-                    {checkingOut ? "Processing..." : `Checkout — $${(cartTotal / 100).toFixed(2)}`}
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
       {/* ═══ UNIFIED DOCK — matches main app dock ═══ */}
       <div className="fixed inset-x-0 bottom-0 z-40" style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}>
         <motion.div
@@ -1334,21 +1385,112 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               {/* Messages */}
               <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
                 <div className="flex flex-col gap-2.5">
-                  {messages.map((msg) => (
-                    msg.sender === "guest" ? (
-                      <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-end">
-                        <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5" style={{ backgroundColor: theme, color: "#000", boxShadow: `0 2px 12px ${theme}33` }}>
-                          <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
-                        </div>
-                      </motion.div>
-                    ) : (
+                  {messages.map((msg) => {
+                    if (msg.sender === "guest") {
+                      return (
+                        <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-end">
+                          <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5" style={{ backgroundColor: theme, color: "#000", boxShadow: `0 2px 12px ${theme}33` }}>
+                            <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
+                          </div>
+                        </motion.div>
+                      );
+                    }
+
+                    if (msg.checkout) {
+                      const subtotal = msg.checkout.items.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0);
+                      const hasWallet = walletStatus?.active && walletStatus.balanceCents > 0;
+                      const canUseWallet = hasWallet && walletStatus.balanceCents >= subtotal;
+                      const stripeFee = Math.round(subtotal * 0.029 + 30);
+                      const platformFee = Math.round(subtotal * 0.05);
+                      const cardTotal = subtotal + stripeFee + platformFee;
+
+                      return (
+                        <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
+                          {msg.body && (
+                            <div className="flex justify-start">
+                              <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                <AiMessageBody body={msg.body} theme={theme} offeringsMap={offeringsMap} onTapOffer={(id) => setDrawerOfferId(id)} onAddToCart={(id, name, price) => addToCart(id, name, price)} />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Order summary */}
+                          <div className="w-full rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${theme}15` }}>
+                            <div className="px-3.5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                                </svg>
+                                <span className="font-sans text-[13px] font-bold text-white/80">Order at {venue.name}</span>
+                              </div>
+                              {msg.checkout.items.map((item, i) => (
+                                <div key={i} className="flex items-center justify-between py-0.5">
+                                  <span className="font-sans text-[12px] text-white/60">
+                                    {item.name}{item.quantity > 1 ? ` x${item.quantity}` : ""}
+                                  </span>
+                                  <span className="font-mono text-[12px] text-white/50">${((item.unit_price_cents * item.quantity) / 100).toFixed(2)}</span>
+                                </div>
+                              ))}
+                              <div className="flex items-center justify-between mt-1 pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                                <span className="font-sans text-[12px] font-semibold text-white/70">Subtotal</span>
+                                <span className="font-mono text-[13px] font-bold text-white/80">${(subtotal / 100).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Compact payment buttons */}
+                          <div className="flex gap-2 w-full">
+                            {/* AI Credit */}
+                            <button
+                              onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
+                              disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
+                              className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                              style={{ backgroundColor: canUseWallet ? "rgba(99,91,255,0.12)" : "rgba(99,91,255,0.05)", border: `1px solid ${canUseWallet ? "rgba(99,91,255,0.3)" : "rgba(99,91,255,0.1)"}` }}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
+                              <span className="font-mono text-[14px] font-bold" style={{ color: "#a78bfa" }}>${(subtotal / 100).toFixed(2)}</span>
+                              <span className="font-sans text-[10px] font-semibold" style={{ color: "#a78bfa" }}>
+                                {passkey.verifying || paymentMode === "processing" ? "Verifying..." : "AI Credit"}
+                              </span>
+                              {walletStatus?.active && <span className="font-mono text-[9px] text-white/25">Bal: ${(walletStatus.balanceCents / 100).toFixed(2)}</span>}
+                              <span className="font-sans text-[8px]" style={{ color: "#4ade80" }}>No fees</span>
+                            </button>
+                            {/* Card */}
+                            <button
+                              onClick={() => handleCheckoutConfirm(msg, [], 0, "card")}
+                              disabled={paymentMode === "processing" || passkey.verifying}
+                              className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                              style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
+                              <span className="font-mono text-[14px] font-bold text-white/80">${(cardTotal / 100).toFixed(2)}</span>
+                              <span className="font-sans text-[10px] font-semibold text-white/50">
+                                {passkey.verifying || paymentMode === "processing" ? "Verifying..." : "Card"}
+                              </span>
+                              <span className="font-mono text-[8px] text-white/20">+${((stripeFee + platformFee) / 100).toFixed(2)} fees</span>
+                            </button>
+                          </div>
+
+                          {/* Cancel */}
+                          <button
+                            onClick={handleCheckoutDismiss}
+                            className="w-full rounded-xl py-2.5 font-sans text-[12px] font-medium text-white/30 transition hover:bg-white/[0.04]"
+                            style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                          >
+                            Cancel
+                          </button>
+                        </motion.div>
+                      );
+                    }
+
+                    return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
                         <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
                           <AiMessageBody body={msg.body} theme={theme} offeringsMap={offeringsMap} onTapOffer={(id) => setDrawerOfferId(id)} onAddToCart={(id, name, price) => addToCart(id, name, price)} />
                         </div>
                       </motion.div>
-                    )
-                  ))}
+                    );
+                  })}
                   {loading && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                       <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }}>
@@ -1360,6 +1502,82 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                   )}
                 </div>
               </div>
+
+              {/* Cart pill */}
+              {cartCount > 0 && (
+                <div className="px-3 pb-1">
+                  <AnimatePresence>
+                    {cartExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mb-1.5 overflow-hidden rounded-xl"
+                        style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${theme}20` }}
+                      >
+                        <div className="flex flex-col gap-1 px-3 py-2">
+                          {cart.map((item, i) => (
+                            <div key={`${item.id}-${i}`} className="flex items-center justify-between gap-2">
+                              <span className="min-w-0 flex-1 truncate font-sans text-[12px] text-white/70">
+                                {item.name}
+                                {item.metadata?.date && <span className="text-white/30"> · {item.metadata.date} {item.metadata.time}</span>}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => removeFromCart(item.id)}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full active:scale-90"
+                                  style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                                >
+                                  <span className="font-mono text-[11px] font-bold text-white/50">-</span>
+                                </button>
+                                <span className="w-4 text-center font-mono text-[11px] font-bold text-white/60">{item.quantity}</span>
+                                <button
+                                  onClick={() => addToCart(item.id, item.name, item.price_cents)}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full active:scale-90"
+                                  style={{ backgroundColor: `${theme}20` }}
+                                >
+                                  <span className="font-mono text-[11px] font-bold" style={{ color: theme }}>+</span>
+                                </button>
+                                <span className="w-12 text-right font-mono text-[11px] font-semibold text-white/50">${((item.price_cents * item.quantity) / 100).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2 border-t px-3 py-2" style={{ borderColor: `${theme}15` }}>
+                          <button
+                            onClick={() => clearCart()}
+                            className="rounded-full px-2.5 py-1 font-sans text-[10px] font-medium text-white/30 active:scale-95"
+                            style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+                          >
+                            Clear
+                          </button>
+                          <div className="flex-1" />
+                          <button
+                            onClick={() => { setCartExpanded(false); send("__CHECKOUT__"); }}
+                            className="rounded-full px-4 py-1.5 font-sans text-[11px] font-bold text-black active:scale-95"
+                            style={{ backgroundColor: theme }}
+                          >
+                            Checkout ${(cartTotal / 100).toFixed(2)}
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <button
+                    onClick={() => setCartExpanded(!cartExpanded)}
+                    className="flex w-full items-center justify-between rounded-full px-3 py-1.5 active:scale-[0.98]"
+                    style={{ backgroundColor: `${theme}12`, border: `1px solid ${theme}25` }}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={theme} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                      </svg>
+                      <span className="font-sans text-[11px] font-semibold" style={{ color: theme }}>{cartCount} {cartCount === 1 ? "item" : "items"}</span>
+                    </div>
+                    <span className="font-mono text-[12px] font-bold" style={{ color: theme }}>${(cartTotal / 100).toFixed(2)}</span>
+                  </button>
+                </div>
+              )}
 
               {/* Quick replies */}
               {messages.length <= 2 && (
