@@ -62,7 +62,7 @@ export async function POST(request: Request) {
                 "Content-Type": "application/json",
                 "x-openclaw-agent-id": "landing",
             },
-            body: JSON.stringify({ model: "openclaw", input: context }),
+            body: JSON.stringify({ model: "openclaw", input: context, tools: [] }),
         });
 
         if (res.ok) {

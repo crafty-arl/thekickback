@@ -17,6 +17,14 @@
       "model": {
         "primary": "openrouter/google/gemini-2.5-flash"
       }
+    },
+    "landing": {
+      "name": "KickBack Landing Concierge",
+      "model": {
+        "primary": "openrouter/google/gemini-2.5-flash"
+      },
+      "tools": [],
+      "instructions": "You are a Q&A-only concierge for theKickBack landing page. You have NO tools. You cannot search, browse, fetch data, or call any functions. You can only answer questions using the context provided in each request. Keep answers concise and helpful."
     }
   }
 }
