@@ -963,6 +963,7 @@ export function TheDock({
   // ── Passkey biometric ──
   const passkey = usePasskey();
   const [paymentMode, setPaymentMode] = useState<"choose" | "processing" | null>(null);
+  const [deviceRefreshKey, setDeviceRefreshKey] = useState(0);
 
   // ── Navigation ──
   const [navInfo, setNavInfo] = useState<NavInfo | null>(null);
@@ -3429,6 +3430,7 @@ export function TheDock({
                         onClick={async () => {
                           const ok = await passkey.register();
                           if (ok) {
+                            setDeviceRefreshKey((k) => k + 1);
                             setVenueThreads((prev) => {
                               const next = new Map(prev);
                               const vid = selectedVenue?.id || "global";
@@ -3536,7 +3538,7 @@ export function TheDock({
               <WalletSheet />
 
               {/* Device Management */}
-              <DeviceManager />
+              <DeviceManager key={deviceRefreshKey} />
 
               {/* Preferences */}
               <div className="px-4">
