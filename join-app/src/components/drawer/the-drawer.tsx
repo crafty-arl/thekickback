@@ -582,11 +582,11 @@ export function TheDrawer({
       scrollRef.current?.scrollTo({ top: 0 });
       if (!user) {
         setView("venue");
-        setSnap("mid");
+        if (snap === "peek") setSnap("mid");
         return;
       }
       setView("venue");
-      setSnap("mid");
+      if (snap === "peek") setSnap("mid");
       setActiveTab("chat");
       if (venueThreads.has(selectedVenue.id)) return;
       const isGhost = selectedVenue.claimed === false;
