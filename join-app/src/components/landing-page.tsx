@@ -27,7 +27,6 @@ function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string
     const tick = (now: number) => {
       const elapsed = now - start;
       const progress = Math.min(elapsed / duration, 1);
-      // ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
       if (ref.current) {
         ref.current.textContent = Math.round(eased * end) + suffix;
@@ -50,6 +49,14 @@ function vibeColor(vibe: string) {
     default: return "#9ca3af";
   }
 }
+
+/* ─── Tier definitions for the about section ─── */
+const TIERS = [
+  { name: "Explorer", range: "0 – 499", color: "#94a3b8", emoji: "🧭", description: "You've just arrived. Start visiting venues to grow your score." },
+  { name: "Regular", range: "500 – 1,999", color: "#4ade80", emoji: "🎯", description: "The city knows you. Unlocks venue perks, collectibles, and priority check-ins." },
+  { name: "Member", range: "2,000 – 4,999", color: "#f97316", emoji: "⚡", description: "You're a fixture. VIP access, exclusive badges, and hub owner attention." },
+  { name: "VIP", range: "5,000+", color: "#a78bfa", emoji: "👑", description: "You define the vibe. Shape neighborhoods. The map literally shows your influence." },
+];
 
 /* ─── Main Component ─── */
 export function LandingPage({ venues }: { venues: VenueData[] }) {
@@ -75,18 +82,20 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
   const { scrollYProgress } = useScroll();
   const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
-  // Hero parallax layers — different speeds
-  const heroY1 = useTransform(smoothProgress, [0, 0.3], [0, -120]); // slowest — far bg
-  const heroY2 = useTransform(smoothProgress, [0, 0.3], [0, -200]); // mid
-  const heroY3 = useTransform(smoothProgress, [0, 0.3], [0, -300]); // foreground
-  const heroScale = useTransform(smoothProgress, [0, 0.15], [1, 1.05]);
-  const heroOpacity = useTransform(smoothProgress, [0.15, 0.3], [1, 0]);
+  // Hero parallax layers
+  const heroY1 = useTransform(smoothProgress, [0, 0.15], [0, -120]);
+  const heroY2 = useTransform(smoothProgress, [0, 0.15], [0, -200]);
+  const heroY3 = useTransform(smoothProgress, [0, 0.15], [0, -300]);
+  const heroScale = useTransform(smoothProgress, [0, 0.08], [1, 1.05]);
+  const heroOpacity = useTransform(smoothProgress, [0.08, 0.18], [1, 0]);
 
   // Section reveals
-  const venuesSectionY = useTransform(smoothProgress, [0.15, 0.35], [100, 0]);
-  const venuesSectionOpacity = useTransform(smoothProgress, [0.15, 0.3], [0, 1]);
-  const ctaY = useTransform(smoothProgress, [0.6, 0.8], [80, 0]);
-  const ctaOpacity = useTransform(smoothProgress, [0.6, 0.75], [0, 1]);
+  const aboutY = useTransform(smoothProgress, [0.12, 0.25], [100, 0]);
+  const aboutOpacity = useTransform(smoothProgress, [0.12, 0.22], [0, 1]);
+  const venuesSectionY = useTransform(smoothProgress, [0.35, 0.5], [100, 0]);
+  const venuesSectionOpacity = useTransform(smoothProgress, [0.35, 0.45], [0, 1]);
+  const ctaY = useTransform(smoothProgress, [0.7, 0.85], [80, 0]);
+  const ctaOpacity = useTransform(smoothProgress, [0.7, 0.8], [0, 1]);
 
   const displayStats = {
     totalVenues: stats?.totalVenues ?? venues.length,
@@ -99,31 +108,27 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
   return (
     <div ref={containerRef} className="relative bg-black text-white">
       {/* ════════════════════════════════════════
-          SECTION 1 — HERO with parallax layers
+          SECTION 1 — HERO: "So what's your KickBack Score?"
           ════════════════════════════════════════ */}
-      <section className="relative h-[200vh] overflow-hidden">
-        {/* Sticky container */}
+      <section className="relative h-[180vh] overflow-hidden">
         <div className="sticky top-0 h-dvh overflow-hidden">
 
-          {/* Layer 1 — Deep background gradient (slowest) */}
+          {/* Layer 1 — Deep background gradient */}
           <motion.div
             style={{ y: heroY1, scale: heroScale }}
             className="absolute inset-0"
           >
             <div className="absolute inset-0 bg-gradient-to-b from-[#0a0012] via-[#1a0030] to-[#0d001a]" />
-            {/* Glow orbs */}
             <div className="absolute left-1/4 top-1/3 h-[600px] w-[600px] rounded-full bg-purple-600/20 blur-[150px]" />
             <div className="absolute right-1/4 top-1/2 h-[400px] w-[400px] rounded-full bg-orange-500/15 blur-[120px]" />
           </motion.div>
 
-          {/* Layer 2 — City silhouette (mid speed) */}
+          {/* Layer 2 — City silhouette */}
           <motion.div
             style={{ y: heroY2 }}
             className="absolute inset-x-0 bottom-0"
           >
-            {/* Stylized skyline using CSS shapes */}
             <div className="relative h-[45vh]">
-              {/* Buildings — using box shadows and gradients */}
               <div className="absolute bottom-0 left-[5%] h-[70%] w-[8%] bg-gradient-to-t from-[#1a1a2e] to-[#16162a] rounded-t-sm opacity-80" />
               <div className="absolute bottom-0 left-[15%] h-[85%] w-[5%] bg-gradient-to-t from-[#1a1a2e] to-[#0f0f23] rounded-t-sm opacity-70">
                 <div className="absolute right-0 top-[10%] h-[15%] w-[40%] bg-gradient-to-t from-[#1a1a2e] to-[#0f0f23] rounded-t-sm" />
@@ -136,7 +141,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
               <div className="absolute bottom-0 right-[8%] h-[75%] w-[6%] bg-gradient-to-t from-[#1a1a2e] to-[#111128] rounded-t-sm opacity-80" />
               <div className="absolute bottom-0 right-[0%] h-[65%] w-[9%] bg-gradient-to-t from-[#1a1a2e] to-[#0e0e25] rounded-t-sm opacity-70" />
 
-              {/* Window lights — scattered dots on buildings */}
+              {/* Window lights */}
               {Array.from({ length: 40 }).map((_, i) => (
                 <div
                   key={i}
@@ -153,7 +158,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
             </div>
           </motion.div>
 
-          {/* Layer 3 — Foreground content (fastest parallax) */}
+          {/* Layer 3 — Foreground content */}
           <motion.div
             style={{ y: heroY3, opacity: heroOpacity }}
             className="absolute inset-0 flex flex-col items-center justify-center px-6"
@@ -169,27 +174,40 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                 alt="theKickBack"
                 width={500}
                 height={250}
-                className="h-24 w-auto drop-shadow-2xl sm:h-32 md:h-40"
+                className="h-20 w-auto drop-shadow-2xl sm:h-28 md:h-32"
                 style={{ filter: "invert(1)" }}
                 priority
               />
             </motion.div>
 
-            {/* Tagline */}
-            <motion.p
+            {/* Hero tagline */}
+            <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-              className="mt-4 max-w-md text-center font-sans text-lg font-light tracking-wide text-white/70 sm:text-xl"
+              className="mt-6 max-w-lg text-center font-[family-name:var(--font-fraunces)] text-3xl font-bold tracking-tight sm:text-5xl"
             >
-              Discover what&apos;s happening right now
+              So what&apos;s your{" "}
+              <span className="bg-gradient-to-r from-[#a78bfa] via-[#f97316] to-[#4ade80] bg-clip-text text-transparent">
+                KickBack Score
+              </span>
+              ?
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
+              className="mt-3 max-w-sm text-center font-sans text-base font-light text-white/50 sm:text-lg"
+            >
+              Your reputation across every venue, neighborhood, and vibe in the city.
             </motion.p>
 
             {/* Live stats pills */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
+              transition={{ duration: 0.8, delay: 0.7, ease: "easeOut" }}
               className="mt-8 flex flex-wrap items-center justify-center gap-3"
             >
               <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-md">
@@ -200,17 +218,9 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
               </div>
               <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-md">
                 <span className="text-sm text-white/80">
-                  <strong className="text-white"><AnimatedNumber value={displayStats.totalPeopleOut} /></strong> people out
+                  <strong className="text-white"><AnimatedNumber value={displayStats.totalPeopleOut} /></strong> building their score
                 </span>
               </div>
-              {displayStats.recentCheckins > 0 && (
-                <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-md">
-                  <div className="h-2 w-2 animate-pulse rounded-full bg-orange-400" />
-                  <span className="text-sm text-white/80">
-                    <strong className="text-white"><AnimatedNumber value={displayStats.recentCheckins} /></strong> check-ins this hour
-                  </span>
-                </div>
-              )}
             </motion.div>
 
             {/* Scroll hint */}
@@ -220,7 +230,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
               transition={{ delay: 1.5, duration: 1 }}
               className="absolute bottom-8 flex flex-col items-center gap-2"
             >
-              <span className="text-xs font-light tracking-[0.3em] uppercase text-white/30">Scroll</span>
+              <span className="text-xs font-light tracking-[0.3em] uppercase text-white/30">What is it?</span>
               <motion.div
                 animate={{ y: [0, 8, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
@@ -232,14 +242,140 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
       </section>
 
       {/* ════════════════════════════════════════
-          SECTION 2 — VENUE SHOWCASE (live data)
+          SECTION 2 — ABOUT: What your KickBack Score defines
+          ════════════════════════════════════════ */}
+      <motion.section
+        style={{ y: aboutY, opacity: aboutOpacity }}
+        className="relative z-10 px-6 py-24 sm:px-12"
+      >
+        {/* Background glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-600/10 blur-[200px]" />
+        </div>
+
+        <div className="relative mx-auto max-w-4xl">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.7 }}
+            className="text-center"
+          >
+            <h2 className="font-[family-name:var(--font-fraunces)] text-3xl font-semibold tracking-tight sm:text-5xl">
+              Your score is your <span className="text-[#a78bfa]">place</span> in the city
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-base text-white/50 sm:text-lg leading-relaxed">
+              Every check-in, every event, every venue you support adds to your KickBack Score.
+              It&apos;s not just a number — it defines your tier, unlocks collectibles, and shapes the
+              neighborhoods you care about.
+            </p>
+          </motion.div>
+
+          {/* How it builds */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="mt-16"
+          >
+            <h3 className="text-center text-sm font-medium uppercase tracking-[0.25em] text-white/30">
+              How your score builds
+            </h3>
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+              {[
+                { icon: "📍", label: "Check in", detail: "Visit venues IRL" },
+                { icon: "⭐", label: "Earn XP", detail: "Every action counts" },
+                { icon: "🔥", label: "Keep streaks", detail: "Consistency rewards" },
+                { icon: "🏅", label: "Collect badges", detail: "Show your status" },
+              ].map((item, i) => (
+                <motion.div
+                  key={item.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.08 }}
+                  className="flex flex-col items-center rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-5 text-center backdrop-blur-sm"
+                >
+                  <span className="text-2xl">{item.icon}</span>
+                  <span className="mt-2 text-sm font-semibold text-white/80">{item.label}</span>
+                  <span className="mt-0.5 text-xs text-white/30">{item.detail}</span>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Tier breakdown */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mt-16"
+          >
+            <h3 className="text-center text-sm font-medium uppercase tracking-[0.25em] text-white/30">
+              What your score unlocks
+            </h3>
+            <div className="mt-6 space-y-3">
+              {TIERS.map((tier, i) => (
+                <motion.div
+                  key={tier.name}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.1 }}
+                  className="flex items-center gap-4 rounded-2xl border border-white/8 bg-white/[0.03] px-5 py-4 backdrop-blur-sm"
+                >
+                  <span className="text-2xl">{tier.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold" style={{ color: tier.color }}>{tier.name}</span>
+                      <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium text-white/30">{tier.range}</span>
+                    </div>
+                    <p className="mt-0.5 text-sm text-white/40">{tier.description}</p>
+                  </div>
+                  {/* Progress glow */}
+                  <div className="h-8 w-1 rounded-full" style={{ backgroundColor: `${tier.color}30`, boxShadow: `0 0 12px ${tier.color}20` }} />
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* The flywheel */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.25 }}
+            className="mt-16 rounded-2xl border border-[#a78bfa]/15 bg-[#a78bfa]/[0.04] px-6 py-8 text-center sm:px-10"
+          >
+            <h3 className="font-[family-name:var(--font-fraunces)] text-xl font-semibold tracking-tight sm:text-2xl">
+              The higher your score, the more the city gives back
+            </h3>
+            <p className="mx-auto mt-3 max-w-lg text-sm text-white/40 leading-relaxed">
+              Unlock exclusive stickers and 3D pins to decorate your neighborhood on the map.
+              Earn venue perks. Gain VIP access. Your score is your passport to the city&apos;s
+              best-kept secrets — and when you spend at venues, they earn promotion too. Everyone wins.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
+              {["🏷️ Stickers", "🏅 Badges", "📌 3D Pins", "🎁 Perks", "👑 VIP Access"].map((item) => (
+                <span key={item} className="rounded-full border border-[#a78bfa]/20 bg-[#a78bfa]/10 px-3 py-1.5 text-xs font-medium text-[#a78bfa]">
+                  {item}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </motion.section>
+
+      {/* ════════════════════════════════════════
+          SECTION 3 — VENUE SHOWCASE: Where scores are earned
           ════════════════════════════════════════ */}
       <motion.section
         style={{ y: venuesSectionY, opacity: venuesSectionOpacity }}
         className="relative z-10 px-6 py-24 sm:px-12"
       >
         <div className="mx-auto max-w-6xl">
-          {/* Section header */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -247,14 +383,14 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
             transition={{ duration: 0.7 }}
           >
             <h2 className="font-[family-name:var(--font-fraunces)] text-3xl font-semibold tracking-tight sm:text-5xl">
-              The city is alive
+              Where scores are earned
             </h2>
             <p className="mt-3 max-w-lg text-base text-white/50">
-              Real venues. Real vibes. Real-time occupancy from people actually there.
+              Real venues. Real vibes. Every visit builds your reputation and unlocks rewards.
             </p>
           </motion.div>
 
-          {/* Venue cards — horizontal scroll */}
+          {/* Venue cards */}
           <div className="mt-12 -mx-6 px-6 overflow-x-auto no-scrollbar">
             <div className="flex gap-4 pb-4" style={{ width: "max-content" }}>
               {venues.map((venue, i) => (
@@ -311,7 +447,6 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                     </p>
                   )}
 
-                  {/* Theme color accent line */}
                   <div
                     className="absolute bottom-0 left-5 right-5 h-[2px] rounded-full opacity-0 transition-opacity group-hover:opacity-100"
                     style={{ backgroundColor: venue.themeColor }}
@@ -320,35 +455,9 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
               ))}
             </div>
           </div>
-        </div>
-      </motion.section>
 
-      {/* ════════════════════════════════════════
-          SECTION 3 — ACTIVITY PULSE
-          ════════════════════════════════════════ */}
-      <section className="relative z-10 overflow-hidden px-6 py-24 sm:px-12">
-        {/* Background glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-600/10 blur-[200px]" />
-        </div>
-
-        <div className="relative mx-auto max-w-6xl">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.7 }}
-          >
-            <h2 className="font-[family-name:var(--font-fraunces)] text-3xl font-semibold tracking-tight sm:text-5xl">
-              Right now
-            </h2>
-            <p className="mt-3 max-w-lg text-base text-white/50">
-              Live pulse from the city. Updated in real time.
-            </p>
-          </motion.div>
-
-          {/* Stats grid */}
-          <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
+          {/* Live stats row */}
+          <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {[
               { label: "Venues Live", value: displayStats.totalVenues, color: "#4ade80" },
               { label: "People Out", value: displayStats.totalPeopleOut, color: "#f97316" },
@@ -361,120 +470,22 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="rounded-2xl border border-white/8 bg-white/[0.03] p-5 backdrop-blur-sm"
+                className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 backdrop-blur-sm"
               >
-                <div
-                  className="text-3xl font-bold tracking-tight sm:text-4xl"
-                  style={{ color: stat.color }}
-                >
+                <div className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: stat.color }}>
                   <AnimatedNumber value={stat.value} />
                 </div>
-                <p className="mt-1 text-xs font-medium uppercase tracking-wider text-white/40">
+                <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-white/40">
                   {stat.label}
                 </p>
               </motion.div>
             ))}
           </div>
-
-          {/* Trending venues */}
-          {displayStats.trending.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="mt-10"
-            >
-              <h3 className="text-sm font-medium uppercase tracking-wider text-white/40">
-                Trending now
-              </h3>
-              <div className="mt-4 space-y-2">
-                {displayStats.trending.map((venue, i) => (
-                  <div
-                    key={venue.id}
-                    className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-white/20">{i + 1}</span>
-                      <div>
-                        <p className="font-medium">{venue.name}</p>
-                        <p className="text-xs text-white/40">{venue.neighborhood}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-2 w-2 rounded-full animate-pulse"
-                        style={{ backgroundColor: vibeColor(venue.vibe) }}
-                      />
-                      <span className="text-sm text-white/60">{venue.occupancy}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Vibe breakdown bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-10"
-          >
-            <h3 className="text-sm font-medium uppercase tracking-wider text-white/40">
-              City vibe
-            </h3>
-            <div className="mt-3 flex h-3 w-full overflow-hidden rounded-full bg-white/5">
-              {(() => {
-                const total = displayStats.vibeBreakdown.quiet + displayStats.vibeBreakdown.moderate + displayStats.vibeBreakdown.busy + displayStats.vibeBreakdown.lit;
-                if (total === 0) return null;
-                return (
-                  <>
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${(displayStats.vibeBreakdown.quiet / total) * 100}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      className="h-full bg-green-400"
-                    />
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${(displayStats.vibeBreakdown.moderate / total) * 100}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1, delay: 0.1, ease: "easeOut" }}
-                      className="h-full bg-yellow-400"
-                    />
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${(displayStats.vibeBreakdown.busy / total) * 100}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
-                      className="h-full bg-orange-500"
-                    />
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${(displayStats.vibeBreakdown.lit / total) * 100}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
-                      className="h-full bg-red-400"
-                    />
-                  </>
-                );
-              })()}
-            </div>
-            <div className="mt-2 flex justify-between text-[10px] uppercase tracking-wider text-white/30">
-              <span>Quiet</span>
-              <span>Moderate</span>
-              <span>Busy</span>
-              <span>Lit</span>
-            </div>
-          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ════════════════════════════════════════
-          SECTION 4 — CTA → Enter the map
+          SECTION 4 — CTA: Find out your score
           ════════════════════════════════════════ */}
       <motion.section
         style={{ y: ctaY, opacity: ctaOpacity }}
@@ -483,6 +494,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
         {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute left-1/2 bottom-0 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-orange-500/15 blur-[200px]" />
+          <div className="absolute left-1/3 top-1/3 h-[400px] w-[400px] rounded-full bg-purple-600/10 blur-[180px]" />
         </div>
 
         <motion.h2
@@ -492,7 +504,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
           transition={{ duration: 0.7 }}
           className="relative font-[family-name:var(--font-fraunces)] text-4xl font-bold tracking-tight sm:text-6xl"
         >
-          Pull up
+          Ready to find out?
         </motion.h2>
 
         <motion.p
@@ -502,7 +514,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
           transition={{ duration: 0.7, delay: 0.15 }}
           className="relative mt-4 max-w-md text-lg text-white/50"
         >
-          Tap into any venue. See who&apos;s there. No app download needed.
+          Tap into the map. Visit venues. Build your score. No app download needed.
         </motion.p>
 
         <motion.div
@@ -514,15 +526,17 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
         >
           <Link
             href="/map"
-            className="group inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-8 py-4 text-lg font-semibold backdrop-blur-md transition-all hover:border-white/30 hover:bg-white/15 hover:scale-[1.03] active:scale-[0.98]"
+            className="group inline-flex items-center gap-3 rounded-full border border-[#a78bfa]/30 bg-[#a78bfa]/15 px-8 py-4 text-lg font-semibold backdrop-blur-md transition-all hover:border-[#a78bfa]/50 hover:bg-[#a78bfa]/25 hover:scale-[1.03] active:scale-[0.98]"
           >
-            <span>Enter the map</span>
+            <span className="bg-gradient-to-r from-[#a78bfa] to-white bg-clip-text text-transparent">
+              Find out your score
+            </span>
             <svg
               width="20"
               height="20"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="currentColor"
+              stroke="#a78bfa"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
