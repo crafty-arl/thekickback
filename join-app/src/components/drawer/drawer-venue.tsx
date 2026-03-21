@@ -59,50 +59,41 @@ export function DrawerVenue({
       </div>
 
       {/* Scrollable content */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
-        {/* Hero area */}
-        <div className="relative mb-4 overflow-hidden rounded-2xl" style={{ height: 160, background: `linear-gradient(135deg, ${vibeColor}25 0%, ${vibeColor}08 60%, rgba(0,0,0,0.4) 100%)` }}>
-          {venue.heroImage ? (
-            <img src={venue.heroImage} alt={venue.name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={`${vibeColor}40`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
+        {/* Venue name + info — FIRST, always visible at mid snap */}
+        <div className="px-4 pb-3">
+          <div className="flex items-start gap-3">
+            {/* Venue pic */}
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl" style={{ backgroundColor: `${vibeColor}15`, border: `2px solid ${vibeColor}30` }}>
+              {venue.heroImage ? (
+                <img src={venue.heroImage} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <span className="font-sans text-[22px] font-bold" style={{ color: vibeColor }}>{venue.name.charAt(0)}</span>
+                </div>
+              )}
             </div>
-          )}
-          {/* Vibe badge */}
-          <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
-            <div className="h-2 w-2 rounded-full" style={{ backgroundColor: vibeColor, boxShadow: `0 0 6px ${vibeColor}` }} />
-            <span className="font-sans text-[12px] font-semibold" style={{ color: vibeColor }}>{getVibeLabel(venue.vibe)}</span>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-sans text-[22px] font-bold text-white leading-tight">{venue.name}</h2>
+              <div className="mt-0.5 flex items-center gap-2">
+                {catLabel && catLabel !== "venue" && (
+                  <span className="font-sans text-[14px] capitalize text-white/40">{catLabel}</span>
+                )}
+                {venue.neighborhood && <span className="font-sans text-[14px] text-white/30">{catLabel && catLabel !== "venue" ? `· ${venue.neighborhood}` : venue.neighborhood}</span>}
+              </div>
+              {venue.occupancy > 0 && (
+                <span className="font-sans text-[13px] text-white/25">{venue.occupancy} checked in</span>
+              )}
+            </div>
           </div>
-          {/* Occupancy */}
-          {venue.occupancy > 0 && (
-            <div className="absolute right-3 top-3 rounded-full px-2.5 py-1" style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
-              <span className="font-mono text-[12px] font-semibold text-white/60">{venue.occupancy} / {venue.capacity}</span>
-            </div>
-          )}
-          {/* Progress bar */}
-          <div className="absolute inset-x-4 bottom-3">
-            <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: vibeColor }} />
-            </div>
-          </div>
+          {venue.tagline && <p className="mt-2 font-sans text-[15px] text-white/40">{venue.tagline}</p>}
         </div>
-
-        {/* Venue name + info */}
-        <h2 className="font-sans text-[20px] font-bold text-white/90">{venue.name}</h2>
-        <div className="mt-1 flex items-center gap-2">
-          {catLabel && catLabel !== "venue" && (
-            <span className="rounded-md px-2 py-0.5 font-sans text-[12px] font-semibold capitalize text-white/35" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{catLabel}</span>
-          )}
-          {venue.neighborhood && <span className="font-sans text-[15px] text-white/35">{venue.neighborhood}</span>}
-        </div>
-        {venue.tagline && <p className="mt-2 font-sans text-[15px] italic text-white/30">&ldquo;{venue.tagline}&rdquo;</p>}
 
         {/* Action row */}
-        <div className="mt-4 flex items-center gap-3" style={{ gap: 12 }}>
+        <div className="flex items-center gap-3 px-4 pb-4">
           <button onClick={onChat} className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-2xl font-sans text-[15px] font-bold text-black active:scale-[0.97]" style={{ backgroundColor: vibeColor }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-            {user ? "Chat" : "Sign in to chat"} &#9656;
+            {user ? "Chat" : "Sign in to chat"}
           </button>
           <button className="flex h-[48px] w-[48px] items-center justify-center rounded-2xl active:scale-95" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" /></svg>
@@ -111,6 +102,13 @@ export function DrawerVenue({
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
           </button>
         </div>
+
+        {/* Hero image — below the fold, scrollable */}
+        {venue.heroImage && (
+          <div className="mx-4 mb-4 overflow-hidden rounded-2xl" style={{ height: 140 }}>
+            <img src={venue.heroImage} alt={venue.name} className="h-full w-full object-cover" />
+          </div>
+        )}
 
         {/* Navigation directions */}
         <AnimatePresence>
