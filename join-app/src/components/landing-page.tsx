@@ -622,7 +622,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
           </span>
         </motion.div>
 
-        {/* Blog link */}
+        {/* Blog link — lives on landing page (thekickback.net/blog) */}
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -630,12 +630,12 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
           transition={{ duration: 0.7, delay: 0.65 }}
           className="relative mt-6"
         >
-          <Link
-            href="/blog"
+          <a
+            href="https://thekickback.net/blog"
             className="text-sm text-white/30 underline underline-offset-4 decoration-white/10 hover:text-[#f97316]/70 hover:decoration-[#f97316]/30 transition-all"
           >
             Read the research →
-          </Link>
+          </a>
         </motion.div>
       </motion.section>
 
