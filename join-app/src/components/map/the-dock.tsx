@@ -20,6 +20,8 @@ import { WalletSheet, useWalletStatus } from "./wallet-sheet";
 import { usePasskey } from "@/lib/use-passkey";
 import { sendOtp, verifyOtp } from "@/app/login/actions";
 import { getDeviceId } from "@/lib/device-id";
+import { APP_VERSION, BUILD_NUMBER, BUILD_DATE } from "@/lib/version";
+import Image from "next/image";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -1080,6 +1082,7 @@ export function TheDock({
   const [exploreSnap, setExploreSnap] = useState<SnapPoint>("peek");
   const [venueChatSnap, setVenueChatSnap] = useState<VenueChatSnap>("collapsed");
   const [showVenueContact, setShowVenueContact] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   // ── Chat state (persisted across mode switches) ──
   const [conciergeMessages, setConciergeMessages] = useState<Message[]>([
@@ -2374,18 +2377,12 @@ export function TheDock({
                 {isDesktop && <span className="absolute -bottom-1 -right-1 hidden h-4 min-w-[16px] items-center justify-center rounded bg-white/[0.08] px-0.5 font-mono text-[8px] font-bold text-white/40 group-hover:flex" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>P</span>}
               </button>
 
-              {/* Center: pulsing dot + input */}
+              {/* Center: KB logo + input */}
               <button
                 onClick={() => { setMode("explore"); setExploreSnap("half"); }}
-                className="group relative flex items-center gap-1.5 pl-1"
+                className="group relative flex items-center gap-1.5 pl-0.5"
               >
-                <motion.div
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: ACCENT }}
-                  animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                />
-                {isDesktop && <span className="absolute -bottom-1 -right-2 hidden h-4 min-w-[16px] items-center justify-center rounded bg-white/[0.08] px-0.5 font-mono text-[8px] font-bold text-white/40 group-hover:flex" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>E</span>}
+                <Image src="/logo.png" alt="KB" width={80} height={26} className="h-5 w-auto opacity-80" />
               </button>
 
               <input
@@ -2433,6 +2430,14 @@ export function TheDock({
                   </svg>
                 </button>
               )}
+
+              {/* Version badge */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowAbout(true); }}
+                className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[8px] text-white/15 active:scale-95"
+              >
+                v{APP_VERSION}
+              </button>
             </div>
           )}
 
@@ -3979,6 +3984,69 @@ export function TheDock({
           )}
         </motion.div>
       </motion.div>
+
+      {/* ═══ ABOUT SHEET ═══ */}
+      <AnimatePresence>
+        {showAbout && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAbout(false)}
+              className="fixed inset-0 z-[100]"
+              style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed inset-x-0 bottom-0 z-[101] rounded-t-3xl"
+              style={{ backgroundColor: "#0A0A0A", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "70dvh" }}
+            >
+              <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                <span className="font-sans text-[14px] font-bold text-white/80">About</span>
+                <button onClick={() => setShowAbout(false)} className="flex h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="overflow-y-auto px-5 pb-8" style={{ maxHeight: "calc(70dvh - 60px)" }}>
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <Image src="/logo.png" alt="theKickBack" width={160} height={53} className="h-10 w-auto" />
+                  <span className="font-mono text-[12px] text-white/30">v{APP_VERSION}</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {[
+                    ["Version", APP_VERSION],
+                    ["Build", `#${BUILD_NUMBER}`],
+                    ["Built", BUILD_DATE],
+                    ["Platform", "Progressive Web App"],
+                    ["Runtime", "Next.js 16 + React 19"],
+                    ["AI", "OpenClaw (OpenRouter)"],
+                    ["Payments", "Stripe Connect"],
+                    ["Auth", "Supabase OTP + WebAuthn"],
+                    ["Maps", "Mapbox GL"],
+                    ["Wallet", "Apple Wallet + Google Wallet"],
+                    ["Email", "Resend (hub@thekickback.net)"],
+                    ["Hosting", "Docker + Caddy on VPS"],
+                    ["Workers", "Cloudflare Workers"],
+                    ["Database", "Supabase (PostgreSQL)"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                      <span className="font-sans text-[11px] text-white/30">{label}</span>
+                      <span className="font-mono text-[11px] text-white/50">{value}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-6 text-center font-sans text-[10px] text-white/15">
+                  theKickBack Protocol &mdash; tap in, text in, you&rsquo;re in
+                </p>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }
