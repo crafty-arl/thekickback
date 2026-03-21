@@ -144,7 +144,7 @@ export async function submitHubForReview() {
   // Send notification emails via Resend
   const resendKey = process.env.RESEND_API_KEY;
   if (resendKey) {
-    const from = "theKickBack <onboarding@resend.dev>";
+    const from = "theKickBack <hub@thekickback.net>";
     const adminEmail = "carl@craftthefuture.xyz";
     const ownerEmail = user.email;
 
