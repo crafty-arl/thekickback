@@ -1946,36 +1946,44 @@ export function TheDock({
 
     // ── Biometric verification required ──
     if (!passkey.hasPasskey) {
-      // First-time: register a passkey
+      // First-time: register a passkey, then auto-continue to verify
+      setVenueThreads((prev) => {
+        const next = new Map(prev);
+        next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
+          id: `bio-setup-${Date.now()}`, sender: "ai",
+          body: "Setting up biometric security for purchases. Follow the Face ID / Touch ID prompt.",
+          timestamp: Date.now(),
+        }]);
+        return next;
+      });
       const registered = await passkey.register();
       if (!registered) {
         setVenueThreads((prev) => {
           const next = new Map(prev);
           next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
             id: `bio-${Date.now()}`, sender: "ai",
-            body: "Biometric setup is required to make purchases. Please try again and complete the Face ID / Touch ID setup.",
+            body: "Biometric setup was cancelled. Tap pay again to try.",
             timestamp: Date.now(),
           }]);
           return next;
         });
         return;
       }
+      // Registration succeeded — continue directly to verify
     }
 
     // Verify biometric
     const verified = await passkey.verify();
     if (!verified) {
-      if (passkey.error) {
-        setVenueThreads((prev) => {
-          const next = new Map(prev);
-          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
-            id: `bio-err-${Date.now()}`, sender: "ai",
-            body: "Biometric verification failed. Payment cancelled for your safety.",
-            timestamp: Date.now(),
-          }]);
-          return next;
-        });
-      }
+      setVenueThreads((prev) => {
+        const next = new Map(prev);
+        next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
+          id: `bio-err-${Date.now()}`, sender: "ai",
+          body: passkey.error || "Biometric verification failed. Tap pay to try again.",
+          timestamp: Date.now(),
+        }]);
+        return next;
+      });
       return;
     }
 
