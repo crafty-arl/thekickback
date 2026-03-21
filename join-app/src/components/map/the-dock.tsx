@@ -1944,50 +1944,55 @@ export function TheDock({
   ) => {
     if (!selectedVenue || !msg.checkout) return;
 
-    // ── Biometric verification (optional — skip if not registered) ──
-    if (passkey.hasPasskey) {
-      const verified = await passkey.verify();
+    // ── Biometric: only attempt for wallet, never block card ──
+    if (method === "wallet") {
+      // Try verify first (may fail if passkey is on another device)
+      let verified = false;
+      if (passkey.hasPasskey) {
+        verified = await passkey.verify();
+      }
+
+      // If verify failed or no passkey, try to register on this device
       if (!verified) {
         setVenueThreads((prev) => {
           const next = new Map(prev);
           next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
-            id: `bio-err-${Date.now()}`, sender: "ai",
-            body: passkey.error || "Biometric verification failed. Tap pay to try again.",
+            id: `bio-setup-${Date.now()}`, sender: "ai",
+            body: "Setting up biometric on this device for wallet payments. Follow the prompt.",
             timestamp: Date.now(),
           }]);
           return next;
         });
-        return;
+        const registered = await passkey.register();
+        if (!registered) {
+          setVenueThreads((prev) => {
+            const next = new Map(prev);
+            next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
+              id: `bio-${Date.now()}`, sender: "ai",
+              body: "Biometric setup cancelled. Pay with card instead — no biometric needed.",
+              timestamp: Date.now(),
+            }]);
+            return next;
+          });
+          return;
+        }
+        // Just registered — verify now
+        verified = await passkey.verify();
+        if (!verified) {
+          setVenueThreads((prev) => {
+            const next = new Map(prev);
+            next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
+              id: `bio-err-${Date.now()}`, sender: "ai",
+              body: "Verification failed. Try card payment instead.",
+              timestamp: Date.now(),
+            }]);
+            return next;
+          });
+          return;
+        }
       }
-    } else if (method === "wallet") {
-      // Wallet requires biometric — prompt registration
-      setVenueThreads((prev) => {
-        const next = new Map(prev);
-        next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
-          id: `bio-setup-${Date.now()}`, sender: "ai",
-          body: "AI Credit requires biometric security. Setting up now — follow the prompt.",
-          timestamp: Date.now(),
-        }]);
-        return next;
-      });
-      const registered = await passkey.register();
-      if (!registered) {
-        setVenueThreads((prev) => {
-          const next = new Map(prev);
-          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
-            id: `bio-${Date.now()}`, sender: "ai",
-            body: "Biometric setup cancelled. You can set it up from your profile, or pay with card instead.",
-            timestamp: Date.now(),
-          }]);
-          return next;
-        });
-        return;
-      }
-      // Registered — verify immediately
-      const verified = await passkey.verify();
-      if (!verified) return;
     }
-    // Card payments without biometric proceed directly (Stripe handles auth)
+    // Card payments skip biometric entirely — Stripe handles auth
 
     // Process payment
     await processPayment(msg, addOns, pointsToSpend, method);
@@ -3410,30 +3415,28 @@ export function TheDock({
                           {passkey.hasPasskey ? "Biometric enabled" : "Biometric not set up"}
                         </span>
                       </div>
-                      {!passkey.hasPasskey && (
-                        <button
-                          onClick={async () => {
-                            const ok = await passkey.register();
-                            if (ok) {
-                              setVenueThreads((prev) => {
-                                const next = new Map(prev);
-                                const vid = selectedVenue?.id || "global";
-                                next.set(vid, [...(next.get(vid) || []), { id: `bio-ok-${Date.now()}`, sender: "ai", body: "Biometric security enabled. You can now use Face ID / Touch ID for purchases.", timestamp: Date.now() }]);
-                                return next;
-                              });
-                            }
-                          }}
-                          disabled={passkey.verifying}
-                          className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold active:scale-95 disabled:opacity-50"
-                          style={{ backgroundColor: "#F97316", color: "#000" }}
-                        >
-                          {passkey.verifying ? "Setting up..." : "Enable"}
-                        </button>
-                      )}
+                      <button
+                        onClick={async () => {
+                          const ok = await passkey.register();
+                          if (ok) {
+                            setVenueThreads((prev) => {
+                              const next = new Map(prev);
+                              const vid = selectedVenue?.id || "global";
+                              next.set(vid, [...(next.get(vid) || []), { id: `bio-ok-${Date.now()}`, sender: "ai", body: "Biometric registered on this device. Wallet payments are now enabled.", timestamp: Date.now() }]);
+                              return next;
+                            });
+                          }
+                        }}
+                        disabled={passkey.verifying}
+                        className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold active:scale-95 disabled:opacity-50"
+                        style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "#F97316", color: passkey.hasPasskey ? "#4ADE80" : "#000" }}
+                      >
+                        {passkey.verifying ? "Setting up..." : passkey.hasPasskey ? "Add this device" : "Enable"}
+                      </button>
                     </div>
-                    {!passkey.hasPasskey && (
-                      <p className="mt-1.5 font-sans text-[9px] text-white/25">Required for wallet purchases. Uses Face ID / Touch ID.</p>
-                    )}
+                    <p className="mt-1.5 font-sans text-[9px] text-white/25">
+                      {passkey.hasPasskey ? "Wallet not working? Tap \"Add this device\" to register biometric here." : "Required for wallet purchases. Uses Face ID / Touch ID."}
+                    </p>
                   </div>
 
                   {/* KickBack Score */}
