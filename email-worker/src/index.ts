@@ -274,29 +274,9 @@ async function gatherAskContext(fromEmail: string, userMessage: string, env: Env
     }));
   }
 
-  // Get thread history (last 10 messages in the ask channel for this email)
-  const messages = (await supa(env, `chat_messages?venue_id=eq.${ASK_CHANNEL_ID}&sender_phone=eq.${encodeURIComponent(fromEmail)}&order=created_at.desc&limit=10&select=sender_type,body`)) as {
-    sender_type: string; body: string;
-  }[] | null;
-
-  // Also get AI replies in this thread
-  const aiReplies = (await supa(env, `chat_messages?venue_id=eq.${ASK_CHANNEL_ID}&sender_type=eq.ai&order=created_at.desc&limit=10&select=sender_type,body,created_at`)) as {
-    sender_type: string; body: string; created_at: string;
-  }[] | null;
-
-  // Merge and sort by time (most recent last)
-  const allMessages = [
-    ...(messages || []).map((m) => ({ role: m.sender_type === "guest" ? "user" : "assistant", body: m.body })),
-    ...(aiReplies || []).filter((r) => r.body).map((r) => ({ role: "assistant", body: r.body })),
-  ];
-  // Deduplicate and take last 10
-  const seen = new Set<string>();
-  const threadHistory = allMessages.filter((m) => {
-    const key = `${m.role}:${m.body.slice(0, 100)}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).slice(-10);
+  // Thread history — skip for now since chat_messages.venue_id is UUID
+  // TODO: create a dedicated ask_threads table or use a real UUID for the ask channel
+  const threadHistory: { role: string; body: string }[] = [];
 
   return {
     isRegistered,
@@ -333,25 +313,11 @@ async function handleAskDigest(fromEmail: string, userMessage: string, env: Env)
     return `${o.name} (${o.type}${vName ? ` at ${vName}` : ""})`.trim();
   }).join("; ");
 
-  // Get available digital assets
-  const assets = (await supa(env, "digital_assets?is_active=eq.true&select=name,asset_type,xp_cost,venues(name)&limit=10")) as {
-    name: string; asset_type: string; xp_cost: number; venues: { name: string } | { name: string }[];
-  }[] | null;
-  const assetsStr = (assets || []).map((a) => {
-    const vName = Array.isArray(a.venues) ? a.venues[0]?.name : a.venues?.name || "";
-    return `${a.name} (${a.asset_type}, ${a.xp_cost} XP${vName ? ` from ${vName}` : ""})`.trim();
-  }).join("; ");
+  // Digital assets — table may not exist yet, skip gracefully
+  const assetsStr = "";
 
-  // Log user message
-  await supa(env, "chat_messages", {
-    method: "POST",
-    body: JSON.stringify({
-      venue_id: ASK_CHANNEL_ID,
-      sender_type: "guest",
-      sender_phone: fromEmail,
-      body: userMessage,
-    }),
-  });
+  // Log user message — skipped until ask_threads table exists
+  console.log(`[ASK] User (${fromEmail}): ${userMessage.slice(0, 200)}`);
 
   // Build OpenClaw prompt
   const isFirstMessage = ctx.threadHistory.length === 0;
@@ -442,16 +408,8 @@ async function handleAskDigest(fromEmail: string, userMessage: string, env: Env)
   // Call OpenClaw
   const aiReply = await askClaw(prompt, fromEmail, ASK_CHANNEL_ID, env);
 
-  // Log AI reply
-  await supa(env, "chat_messages", {
-    method: "POST",
-    body: JSON.stringify({
-      venue_id: ASK_CHANNEL_ID,
-      sender_type: "ai",
-      sender_phone: fromEmail,
-      body: aiReply,
-    }),
-  });
+  // Log AI reply — skipped until ask_threads table exists
+  console.log(`[ASK] AI reply (${aiReply.length} chars): ${aiReply.slice(0, 200)}`);
 
   // Build HTML email
   const askFrom = `ask@${env.VENUE_EMAIL_DOMAIN}`;

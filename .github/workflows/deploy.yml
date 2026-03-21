@@ -21,6 +21,73 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  # ── Deploy Cloudflare Workers ────────────────────────────
+  deploy-workers:
+    needs: lint-and-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # ── email-worker ──
+      - name: Deploy email-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: email-worker
+          secrets: |
+            RESEND_API_KEY
+            SUPABASE_SERVICE_KEY
+            OPENCLAW_HOOKS_TOKEN
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OPENCLAW_HOOKS_TOKEN: ${{ secrets.OPENCLAW_HOOKS_TOKEN }}
+
+      # ── digest-worker ──
+      - name: Deploy digest-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: digest-worker
+          secrets: |
+            SUPABASE_SERVICE_KEY
+            RESEND_API_KEY
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+
+      # ── sms-worker ──
+      - name: Deploy sms-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: sms-worker
+          secrets: |
+            TWILIO_AUTH_TOKEN
+            TWILIO_ACCOUNT_SID
+            SUPABASE_SERVICE_KEY
+            OPENCLAW_HOOKS_TOKEN
+        env:
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OPENCLAW_HOOKS_TOKEN: ${{ secrets.OPENCLAW_HOOKS_TOKEN }}
+
+      # ── renewal-worker ──
+      - name: Deploy renewal-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: renewal-worker
+          secrets: |
+            SUPABASE_SERVICE_KEY
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+
   deploy:
     needs: lint-and-build
     runs-on: ubuntu-latest
