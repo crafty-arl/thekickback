@@ -186,10 +186,11 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
   # ═══════════════════════════════════════════════════════════
-  # 3. TEST — runs after BOTH deploys succeed
+  # 3. TEST — runs after VPS deploy succeeds
+  #    (workers deploy runs independently, won't block tests)
   # ═══════════════════════════════════════════════════════════
   test-services:
-    needs: [deploy-vps, deploy-workers]
+    needs: [deploy-vps]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
