@@ -20,7 +20,7 @@ export async function POST(request: Request) {
         );
     }
 
-    // Get venue's Cal.com API key
+    // Get venue info
     const { data: venue } = await supabase
         .from("venues")
         .select("cal_api_key, name")
@@ -28,9 +28,6 @@ export async function POST(request: Request) {
         .single();
 
     const calKey = venue?.cal_api_key || process.env.CAL_API_KEY;
-    if (!calKey) {
-        return Response.json({ error: "No Cal.com API key configured for this venue" }, { status: 400 });
-    }
 
     // Get the offering with capacity and duration
     const { data: offering } = await supabase
@@ -40,18 +37,15 @@ export async function POST(request: Request) {
         .eq("venue_id", venueId)
         .single();
 
-    if (!offering?.cal_event_type_id) {
-        return Response.json({ error: "This offering has no linked Cal.com event type" }, { status: 400 });
+    if (!offering) {
+        return Response.json({ error: "Offering not found" }, { status: 404 });
     }
 
-    // ─── Overbooking check ───────────────────────────────────────
-    // Check how many confirmed bookings already exist for this offering
-    // during the requested time window
     const duration = offering.duration_minutes || 30;
     const requestedStart = new Date(start);
     const requestedEnd = new Date(requestedStart.getTime() + duration * 60000);
 
-    // If a specific staff member is requested, check THEIR schedule for conflicts
+    // ─── Overbooking check ───────────────────────────────────────
     if (staffId) {
         const { count: staffConflicts } = await supabase
             .from("venue_bookings")
@@ -78,7 +72,7 @@ export async function POST(request: Request) {
         }
     }
 
-    // Also check offering-level capacity (for non-staff or shared-capacity offerings)
+    // Offering-level capacity check
     const { count: overlapping } = await supabase
         .from("venue_bookings")
         .select("id", { count: "exact", head: true })
@@ -86,13 +80,8 @@ export async function POST(request: Request) {
         .eq("offering_id", offeringId)
         .in("cal_status", ["confirmed", "accepted", "pending"])
         .lt("starts_at", requestedEnd.toISOString())
-        .gte(
-            "ends_at",
-            requestedStart.toISOString()
-        );
+        .gte("ends_at", requestedStart.toISOString());
 
-    // If no ends_at stored, also check bookings that start during our window
-    // (covers bookings where ends_at wasn't returned by Cal.com)
     const { count: overlappingByStart } = await supabase
         .from("venue_bookings")
         .select("id", { count: "exact", head: true })
@@ -115,26 +104,43 @@ export async function POST(request: Request) {
         }, { status: 409 });
     }
 
-    // ─── Create booking on Cal.com ───────────────────────────────
-    const result = await createCalBooking(calKey, {
-        eventTypeId: offering.cal_event_type_id,
-        start,
-        attendeeName,
-        attendeeEmail,
-        attendeeTimezone: attendeeTimezone || "America/Chicago",
-        metadata: {
-            venueId,
-            venueName: venue?.name,
-            offeringName: offering.name,
-            source: "kickback-ai",
-        },
-    });
+    // ─── Determine booking mode: Cal.com or native ───────────────
+    const useCalcom = calKey && offering.cal_event_type_id;
+    let bookingResult: { id?: number; uid: string; status: string; start: string; end: string };
 
-    if ("error" in result) {
-        return Response.json({ error: result.error }, { status: 502 });
+    if (useCalcom) {
+        // ─── Cal.com booking ─────────────────────────────────────
+        const result = await createCalBooking(calKey, {
+            eventTypeId: offering.cal_event_type_id!,
+            start,
+            attendeeName,
+            attendeeEmail,
+            attendeeTimezone: attendeeTimezone || "America/Chicago",
+            metadata: {
+                venueId,
+                venueName: venue?.name,
+                offeringName: offering.name,
+                source: "kickback-ai",
+            },
+        });
+
+        if ("error" in result) {
+            return Response.json({ error: result.error }, { status: 502 });
+        }
+
+        bookingResult = result;
+    } else {
+        // ─── Native booking (no Cal.com) ─────────────────────────
+        const uid = crypto.randomUUID();
+        bookingResult = {
+            uid,
+            status: "confirmed",
+            start: requestedStart.toISOString(),
+            end: requestedEnd.toISOString(),
+        };
     }
 
-    // Look up staff name if staffId provided (for email + record)
+    // Look up staff name
     let staffName: string | null = null;
     if (staffId) {
         const { data: staffMember } = await supabase
@@ -145,20 +151,20 @@ export async function POST(request: Request) {
         staffName = staffMember?.display_name || null;
     }
 
-    // Save booking locally for dashboard visibility
+    // Save booking locally
     const h = await headers();
     const mode = isSandboxServer(h) ? "test" : "live";
     await supabase.from("venue_bookings").insert({
         venue_id: venueId,
         offering_id: offeringId,
-        cal_booking_id: result.id,
-        cal_booking_uid: result.uid,
-        cal_status: result.status || "confirmed",
+        cal_booking_id: useCalcom ? bookingResult.id : null,
+        cal_booking_uid: bookingResult.uid,
+        cal_status: bookingResult.status,
         offering_name: offering.name,
         guest_name: attendeeName,
         guest_email: attendeeEmail,
-        starts_at: result.start,
-        ends_at: result.end,
+        starts_at: bookingResult.start,
+        ends_at: bookingResult.end,
         duration_minutes: duration,
         staff_id: staffId || null,
         mode,
@@ -168,48 +174,48 @@ export async function POST(request: Request) {
 
     // Insert pending fulfillment for wallet pass
     if (body.userId) {
-      await supabase.from("pending_fulfillments").insert({
-        user_id: body.userId,
-        venue_id: venueId,
-        type: "booking",
-        reference_id: result.uid || result.id?.toString() || "",
-        label: `${offering.name} @ ${venue?.name || "Venue"}`,
-      });
+        await supabase.from("pending_fulfillments").insert({
+            user_id: body.userId,
+            venue_id: venueId,
+            type: "booking",
+            reference_id: bookingResult.uid || bookingResult.id?.toString() || "",
+            label: `${offering.name} @ ${venue?.name || "Venue"}`,
+        });
     }
 
     // Send booking confirmation email
     if (attendeeEmail) {
-      try {
-        const vName = venue?.name || "Venue";
-        const oName = offering.name || "Booking";
-        const startDate = new Date(result.start);
-        const endDate = new Date(result.end);
-        const dateStr = startDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-        const startTime = startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-        const endTime = endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-        sendEmail(attendeeEmail, `You're booked — ${oName} at ${vName}`, wrap(`
-          <div style="background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
-            <div style="font-size:36px;margin-bottom:8px;">&#128197;</div>
-            <h1 style="margin:0;font-size:24px;color:#fff;">You're booked.</h1>
-          </div>
-          <table style="width:100%;border-collapse:collapse;font-size:14px;">
-            <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Venue</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${vName}</td></tr>
-            <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Service</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${oName}</td></tr>
-            <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Date</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${dateStr}</td></tr>
-            <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Time</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${startTime} &ndash; ${endTime}</td></tr>
-            <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Duration</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${duration} min</td></tr>
-            ${staffName ? `<tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">With</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${staffName}</td></tr>` : ""}
-            <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Guest</td><td style="text-align:right;padding:10px 0;color:#fff;">${attendeeName}</td></tr>
-          </table>
-          <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:12px;padding:12px 16px;margin-top:20px;text-align:center;">
-            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.6);">We'll hold your spot for 15 minutes. Don't be late.</p>
-          </div>
-        `));
-      } catch (e) { console.error("Booking email failed:", e); }
+        try {
+            const vName = venue?.name || "Venue";
+            const oName = offering.name || "Booking";
+            const startDate = new Date(bookingResult.start);
+            const endDate = new Date(bookingResult.end);
+            const dateStr = startDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+            const startTime = startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+            const endTime = endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+            sendEmail(attendeeEmail, `You're booked — ${oName} at ${vName}`, wrap(`
+              <div style="background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
+                <div style="font-size:36px;margin-bottom:8px;">&#128197;</div>
+                <h1 style="margin:0;font-size:24px;color:#fff;">You're booked.</h1>
+              </div>
+              <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Venue</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${vName}</td></tr>
+                <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Service</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${oName}</td></tr>
+                <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Date</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${dateStr}</td></tr>
+                <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Time</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${startTime} &ndash; ${endTime}</td></tr>
+                <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Duration</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${duration} min</td></tr>
+                ${staffName ? `<tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">With</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${staffName}</td></tr>` : ""}
+                <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Guest</td><td style="text-align:right;padding:10px 0;color:#fff;">${attendeeName}</td></tr>
+              </table>
+              <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:12px;padding:12px 16px;margin-top:20px;text-align:center;">
+                <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.6);">We'll hold your spot for 15 minutes. Don't be late.</p>
+              </div>
+            `));
+        } catch (e) { console.error("Booking email failed:", e); }
     }
 
     return Response.json({
-        booking: result,
+        booking: bookingResult,
         message: `Booked "${offering.name}" at ${venue?.name}${staffName ? ` with ${staffName}` : ""}`,
         staffName,
         availability: {

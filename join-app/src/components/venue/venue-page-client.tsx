@@ -286,9 +286,9 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [booking, setBooking] = useState(false);
   const [bookingResult, setBookingResult] = useState<string | null>(null);
-  const [showScheduler, setShowScheduler] = useState(false);
-
-  const isBookable = meta && ["service", "reservation", "event"].includes(meta.type) && meta.duration_minutes && linkedStaff && linkedStaff.length > 0;
+  // Bookable = has duration, regardless of whether staff are linked
+  const isBookable = meta && ["service", "reservation", "event"].includes(meta.type) && meta.duration_minutes;
+  const hasStaff = linkedStaff && linkedStaff.length > 0;
   const dates = getBookingDates();
 
   // Fetch availability when offering/date/staff changes
@@ -313,7 +313,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
   // Get displayable time slots
   const displaySlots: string[] = (() => {
     if (!slots) return [];
-    if (selectedStaff) {
+    if (selectedStaff && hasStaff) {
       const staffSlots = slots.staff.find((s) => s.id === selectedStaff);
       return staffSlots?.slots || [];
     }
@@ -335,7 +335,8 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
 
   async function handleBook() {
     const startISO = buildStartISO();
-    if (!startISO || booking) return;
+    if (!startISO || booking || !user) return;
+
     setBooking(true);
     try {
       const res = await fetch("/api/book", {
@@ -345,10 +346,10 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
           venueId,
           offeringId: offer!.id,
           start: startISO,
-          attendeeName: user?.email?.split("@")[0] || "Guest",
-          attendeeEmail: user?.email || "guest@kickback.app",
+          attendeeName: user.email?.split("@")[0] || "Guest",
+          attendeeEmail: user.email,
           staffId: selectedStaff || undefined,
-          userId: user?.id,
+          userId: user.id,
         }),
       });
       const data = await res.json();
@@ -433,29 +434,19 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
             <p className="mt-4 font-sans text-[14px] leading-[1.7] text-white/50">{meta.description}</p>
           )}
 
-          {/* ── Booking UI: optional scheduling toggle ── */}
+          {/* ── Booking UI: always shown for bookable offerings ── */}
           {isBookable && !bookingResult && (
             <>
-              {/* Schedule toggle */}
-              <button
-                onClick={() => setShowScheduler((v) => !v)}
-                className="mt-5 flex w-full items-center justify-between rounded-xl px-3.5 py-3 active:scale-[0.98]"
-                style={{ backgroundColor: showScheduler ? `${theme}12` : "rgba(255,255,255,0.04)", border: `1px solid ${showScheduler ? `${theme}30` : "rgba(255,255,255,0.08)"}` }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showScheduler ? theme : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round">
-                    <rect width="18" height="18" x="3" y="4" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                  <span className="font-sans text-[13px] font-medium" style={{ color: showScheduler ? theme : "rgba(255,255,255,0.6)" }}>Schedule a time</span>
-                </div>
-                <div className="flex h-5 w-9 items-center rounded-full px-0.5 transition-colors" style={{ backgroundColor: showScheduler ? theme : "rgba(255,255,255,0.15)" }}>
-                  <div className="h-4 w-4 rounded-full bg-white shadow-sm transition-transform" style={{ transform: showScheduler ? "translateX(14px)" : "translateX(0)" }} />
-                </div>
-              </button>
+              {/* Section header */}
+              <div className="mt-5 flex items-center gap-2.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme} strokeWidth="2" strokeLinecap="round">
+                  <rect width="18" height="18" x="3" y="4" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                <span className="font-sans text-[13px] font-semibold" style={{ color: theme }}>Pick a date & time</span>
+              </div>
 
-              {showScheduler && <>
-              {/* Staff picker */}
-              <div className="mt-4">
+              {/* Staff picker — only when staff linked */}
+              {hasStaff && <div className="mt-4">
                 <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">CHOOSE STAFF</p>
                 <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
                   {/* Anyone option */}
@@ -505,7 +496,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
                     </button>
                   ))}
                 </div>
-              </div>
+              </div>}
 
               {/* Date picker */}
               <div className="mt-4">
@@ -560,7 +551,6 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
                   </div>
                 )}
               </div>
-              </>}
             </>
           )}
 
@@ -599,23 +589,35 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
 
           {/* Action button */}
           {!bookingResult && (
-            showScheduler && selectedTime ? (
-              <button
-                onClick={handleBook}
-                disabled={booking}
-                className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98] disabled:opacity-50"
-                style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
-              >
-                {booking ? "Booking..." : `Book — ${selectedTime}`}
-              </button>
-            ) : showScheduler && !selectedTime ? (
-              <div
-                className="mt-6 w-full rounded-2xl py-3.5 text-center font-sans text-[14px] font-bold"
-                style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.25)" }}
-              >
-                Pick a time above
-              </div>
+            isBookable ? (
+              // ── Bookable offering: must pick time, must be logged in ──
+              !user ? (
+                <a
+                  href="/login"
+                  className="mt-6 flex w-full items-center justify-center rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+                  style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+                >
+                  Log in to book
+                </a>
+              ) : selectedTime ? (
+                <button
+                  onClick={handleBook}
+                  disabled={booking}
+                  className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98] disabled:opacity-50"
+                  style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+                >
+                  {booking ? "Booking..." : `Book — ${selectedTime}`}
+                </button>
+              ) : (
+                <div
+                  className="mt-6 w-full rounded-2xl py-3.5 text-center font-sans text-[14px] font-bold"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.25)" }}
+                >
+                  Pick a date & time above
+                </div>
+              )
             ) : (
+              // ── Non-bookable offering: add to cart ──
               <button
                 onClick={onAdd}
                 className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
