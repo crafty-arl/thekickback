@@ -576,6 +576,8 @@ export function TheDrawer({
   // ── Sync selectedVenue → view ──
   useEffect(() => {
     if (selectedVenue) {
+      // Reset scroll to top when switching venues
+      scrollRef.current?.scrollTo({ top: 0 });
       if (!user) {
         setView("venue");
         setSnap("mid");
