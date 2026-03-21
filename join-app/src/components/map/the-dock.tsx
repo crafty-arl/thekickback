@@ -1108,10 +1108,12 @@ export function TheDock({
     // After checkout (last AI message mentions "confirmed" or "all set")
     const lastAi = [...currentVenueMessages].reverse().find((m) => m.sender === "ai");
     if (lastAi && (/confirmed|all set|order.*placed/i.test(lastAi.body))) {
-      return [
+      const replies = [
         { label: "Anything else?", action: "anything else?" },
         { label: "What's happening later?", action: "what's happening later?" },
       ];
+      if (user) replies.unshift({ label: "Add to Wallet", action: "__WALLET_PASS__" });
+      return replies;
     }
 
     // Cart has items
@@ -1621,6 +1623,11 @@ export function TheDock({
         setCartExpanded(false);
         return;
       }
+      if (msg === "__WALLET_PASS__") {
+        setInput("");
+        if (user) window.open(`https://thekickback.net/wallet/pass/${user.authId}`, "_blank");
+        return;
+      }
       if (msg === "__CLEAR_CART__") {
         setInput("");
         clearCart(selectedVenue.id);
@@ -1684,6 +1691,17 @@ export function TheDock({
         };
         if (data.checkout) {
           aiMsg.checkout = { ...data.checkout, venue_name: selectedVenue.name, venue_id: selectedVenue.id };
+        }
+        // If a booking was confirmed, enrich the reply with details
+        if (data.booking?.booking) {
+          const bk = data.booking.booking;
+          const bkStart = bk.start ? new Date(bk.start) : null;
+          const bkEnd = bk.end ? new Date(bk.end) : null;
+          const dateStr = bkStart ? bkStart.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
+          const timeStr = bkStart ? bkStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+          const endTimeStr = bkEnd ? bkEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+          const bookingDetails = `\n\nBooking confirmed: ${data.booking.message || ""}${dateStr ? `\nDate: ${dateStr}` : ""}${timeStr ? `\nTime: ${timeStr}${endTimeStr ? ` - ${endTimeStr}` : ""}` : ""}${user ? `\n\nAdd to Apple Wallet: https://thekickback.net/wallet/pass/${user.authId}` : ""}`;
+          aiMsg.body = aiMsg.body + bookingDetails;
         }
         setVenueThreads((prev) => {
           const next = new Map(prev);
@@ -1897,8 +1915,12 @@ export function TheDock({
         }),
       });
       const result = await res.json();
+      const walletPassNote = result.orderId && user ? `\n\nAdd your pass to Apple Wallet: https://thekickback.net/wallet/pass/${user.authId}` : "";
+      // Build item summary for confirmation
+      const itemNames = msg.checkout.items.map((i: { name: string; quantity?: number }) => i.quantity && i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name).join(", ");
+      const bonusPts = Math.floor(subtotal / 10);
       const confirmMsg: Message = result.orderId
-        ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed.${method === "wallet" ? ` Paid $${(subtotal / 100).toFixed(2)} from AI Credit.` : " Charged to card on file."} ${pointsToSpend > 0 ? `Used ${pointsToSpend} points. ` : ""}Show this to the host when you arrive.`, timestamp: Date.now() }
+        ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed: ${itemNames}. Total: $${(subtotal / 100).toFixed(2)}.${method === "wallet" ? " Paid from AI Credit." : " Charged to card on file."}${pointsToSpend > 0 ? ` Used ${pointsToSpend} points.` : ""}${bonusPts > 0 ? ` +${bonusPts} XP earned!` : ""} Show this to the host when you arrive.${walletPassNote}`, timestamp: Date.now() }
         : { id: `err-${Date.now()}`, sender: "ai", body: result.error || "Something went wrong with the order.", timestamp: Date.now() };
       setVenueThreads((prev) => {
         const next = new Map(prev);

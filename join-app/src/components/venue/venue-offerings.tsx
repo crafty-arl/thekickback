@@ -19,6 +19,7 @@ interface Props {
     themeColor: string;
     venueName: string;
     staffByOffering?: Record<string, { name: string; avatar_url: string | null }[]>;
+    onTapOffering?: (offeringId: string) => void;
 }
 
 const TYPE_ICONS: Record<string, string> = {
@@ -35,7 +36,7 @@ function formatPrice(cents: number, recurring: boolean, interval: string | null)
     return `$${dollars}`;
 }
 
-export function VenueOfferings({ offerings, themeColor, venueName, staffByOffering = {} }: Props) {
+export function VenueOfferings({ offerings, themeColor, venueName, staffByOffering = {}, onTapOffering }: Props) {
     const active = offerings.filter((o) => o.active);
     if (active.length === 0) return null;
 
@@ -87,6 +88,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
 
                         {/* CTA */}
                         <button
+                            onClick={() => onTapOffering?.(membership.id)}
                             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-sans text-[14px] font-bold text-black active:scale-[0.97]"
                             style={{ backgroundColor: themeColor }}
                         >
@@ -135,6 +137,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                                 )}
                             </div>
                             <button
+                                onClick={() => onTapOffering?.(o.id)}
                                 className="mt-3 flex w-full items-center justify-center rounded-lg py-2 font-sans text-[12px] font-semibold active:scale-[0.97]"
                                 style={{
                                     backgroundColor: `${themeColor}20`,

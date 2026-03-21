@@ -377,6 +377,11 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const [txHistory, setTxHistory] = useState<{
     id: string; amount: number; reason: string; venues?: { name: string }; created_at: string;
   }[]>([]);
+  const [myBookings, setMyBookings] = useState<{
+    id: string; offeringName: string; startsAt: string; endsAt: string | null;
+    durationMinutes: number | null; status: string;
+  }[]>([]);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasSentTabCommand = useRef<Set<Tab>>(new Set(["chat"]));
@@ -389,6 +394,13 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
       .then((data) => {
         if (data?.balance) setPointsData(data.balance);
         if (data?.history) setTxHistory(data.history);
+      })
+      .catch(() => {});
+    // Fetch bookings
+    fetch(`/api/bookings?venueId=${venue.id}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.bookings) setMyBookings(data.bookings);
       })
       .catch(() => {});
   }, [user, venue.id]);
@@ -446,7 +458,20 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
       });
       const data = await res.json();
       if (data.offerings) setOfferingsMap((prev) => ({ ...prev, ...data.offerings }));
-      setMessages((prev) => [...prev, { id: `ai-${Date.now()}`, sender: "ai", body: data.reply || "Couldn't reach the venue right now.", timestamp: Date.now(), tab: activeTab }]);
+      let replyBody: string = data.reply || "Couldn't reach the venue right now.";
+      // Enrich booking confirmations with details
+      if (data.booking?.booking) {
+        const bk = data.booking.booking;
+        const bkStart = bk.start ? new Date(bk.start) : null;
+        const bkEnd = bk.end ? new Date(bk.end) : null;
+        const dateStr = bkStart ? bkStart.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
+        const timeStr = bkStart ? bkStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+        const endTimeStr = bkEnd ? bkEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+        replyBody += `\n\nBooking confirmed: ${data.booking.message || ""}${dateStr ? `\nDate: ${dateStr}` : ""}${timeStr ? `\nTime: ${timeStr}${endTimeStr ? ` - ${endTimeStr}` : ""}` : ""}`;
+        // Refresh bookings list
+        fetch(`/api/bookings?venueId=${venue.id}`).then((r) => r.ok ? r.json() : null).then((d) => { if (d?.bookings) setMyBookings(d.bookings); }).catch(() => {});
+      }
+      setMessages((prev) => [...prev, { id: `ai-${Date.now()}`, sender: "ai", body: replyBody, timestamp: Date.now(), tab: activeTab }]);
     } catch {
       setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "ai", body: "Something went wrong. Try again.", timestamp: Date.now() }]);
     } finally {
@@ -631,7 +656,14 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         {/* Offerings */}
         {offerings.length > 0 && (
           <div className="px-5 pb-5">
-            <VenueOfferings offerings={offerings} themeColor={theme} venueName={venue.name} staffByOffering={staffByOffering} />
+            <VenueOfferings offerings={offerings} themeColor={theme} venueName={venue.name} staffByOffering={staffByOffering} onTapOffering={(id) => {
+              // Populate offeringsMap for the drawer if not already present
+              const o = offerings.find((off) => off.id === id);
+              if (o && !offeringsMap[id]) {
+                setOfferingsMap((prev) => ({ ...prev, [id]: { name: o.name, description: o.description, price_cents: o.price_cents, image_url: null, type: o.type, recurring: o.recurring, interval: o.interval } }));
+              }
+              setDrawerOfferId(id);
+            }} />
           </div>
         )}
 
@@ -769,6 +801,62 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                   </div>
                 )}
               </div>
+
+              {/* My Bookings */}
+              {myBookings.length > 0 && (
+                <div className="mt-5 px-5 pb-8">
+                  <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MY BOOKINGS</p>
+                  <div className="flex flex-col gap-1.5">
+                    {myBookings.map((b) => {
+                      const start = b.startsAt ? new Date(b.startsAt) : null;
+                      const isPast = start ? start.getTime() < Date.now() : false;
+                      const isCancelled = b.status === "cancelled";
+                      const dateStr = start ? start.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+                      const timeStr = start ? start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+                      const muted = isPast || isCancelled;
+
+                      return (
+                        <div key={b.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", opacity: muted ? 0.5 : 1 }}>
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: isCancelled ? "rgba(239,68,68,0.12)" : "rgba(139,92,246,0.12)" }}>
+                            <span className="text-[14px]">{isCancelled ? "\u2715" : "\uD83D\uDCC5"}</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-sans text-[13px] font-medium text-white/70">{b.offeringName}</p>
+                            <p className="font-sans text-[10px] text-white/25">
+                              {dateStr}{timeStr ? ` at ${timeStr}` : ""}{b.durationMinutes ? ` \u00B7 ${b.durationMinutes} min` : ""}
+                              {isCancelled ? " \u00B7 Cancelled" : isPast ? " \u00B7 Past" : ""}
+                            </p>
+                          </div>
+                          {!isPast && !isCancelled && (
+                            <button
+                              onClick={async () => {
+                                if (cancellingId) return;
+                                setCancellingId(b.id);
+                                try {
+                                  const res = await fetch("/api/book/cancel", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ bookingId: b.id }),
+                                  });
+                                  if (res.ok) {
+                                    setMyBookings((prev) => prev.map((bk) => bk.id === b.id ? { ...bk, status: "cancelled" } : bk));
+                                  }
+                                } catch { /* ignore */ }
+                                finally { setCancellingId(null); }
+                              }}
+                              disabled={cancellingId === b.id}
+                              className="shrink-0 rounded-lg px-2.5 py-1.5 font-sans text-[10px] font-semibold active:scale-95 disabled:opacity-50"
+                              style={{ backgroundColor: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
+                            >
+                              {cancellingId === b.id ? "..." : "Cancel"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </motion.div>
           </>
         )}
