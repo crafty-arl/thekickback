@@ -41,6 +41,31 @@ interface Session {
   status: string;
 }
 
+interface AskUserContext {
+  isRegistered: boolean;
+  email: string;
+  displayName: string | null;
+  tier: string;
+  kickbackScore: number;
+  streak: number;
+  venueProfiles: { venueName: string; xp: number; visits: number }[];
+  threadHistory: { role: string; body: string }[];
+}
+
+interface VenueOffering {
+  name: string;
+  type: string;
+  price_cents: number | null;
+  venue_name: string;
+}
+
+interface DigitalAssetRow {
+  name: string;
+  asset_type: string;
+  xp_cost: number;
+  venue_name: string;
+}
+
 // ─── Worker Entry (HTTP only — no CF Email handler) ──────────────
 
 export default {
@@ -54,6 +79,11 @@ export default {
     // Resend inbound webhook
     if (request.method === "POST" && url.pathname === "/inbound") {
       return handleInbound(request, env);
+    }
+
+    // Manual test trigger for ask@ digest
+    if (request.method === "POST" && url.pathname === "/trigger-ask") {
+      return handleTriggerAsk(request, env);
     }
 
     // Send a welcome email (called from join-app or API)
@@ -79,7 +109,7 @@ async function resolveVenueFromTo(toAddresses: string[], env: Env): Promise<Venu
     // venue-slug@thekickback.net → look up venue by slug
     if (lower.endsWith(`@${env.VENUE_EMAIL_DOMAIN}`)) {
       const slug = lower.split("@")[0];
-      if (slug && slug !== "join" && slug !== "noreply") {
+      if (slug && slug !== "join" && slug !== "noreply" && slug !== "ask") {
         const venue = await getVenueBySlug(slug, env);
         if (venue) return venue;
       }
@@ -128,7 +158,23 @@ async function handleInbound(request: Request, env: Env): Promise<Response> {
 
   console.log(`Inbound from: ${fromEmail} | To: ${toAddresses.join(", ")} | Subject: "${subject}" | ID: ${emailId}`);
 
-  // Resolve which venue this email is for
+  // ── Check if this is an ask@thekickback.net email ──
+  const isAsk = toAddresses.some((addr) => addr.toLowerCase().trim().startsWith("ask@"));
+  if (isAsk) {
+    // Fetch full email body
+    let body = subject;
+    const emailRes = await fetch(`https://api.resend.com/emails/${emailId}`, {
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` },
+    });
+    if (emailRes.ok) {
+      const emailData = await emailRes.json() as { text?: string; subject?: string };
+      body = (emailData.text || emailData.subject || subject).trim();
+    }
+    body = body.split("\n").filter((l: string) => !l.startsWith(">") && !l.startsWith("On ") && l.trim() !== "").join("\n").trim();
+    return handleAskDigest(fromEmail, body, env);
+  }
+
+  // ── Regular venue email flow ──
   const venue = await resolveVenueFromTo(toAddresses, env);
 
   // Fetch full email content from Resend API
@@ -189,6 +235,345 @@ async function handleInbound(request: Request, env: Env): Promise<Response> {
 
   console.log(`Reply sent to ${fromEmail} from ${fromAddr}`);
   return Response.json({ ok: true, from: fromEmail, venue: venue?.name, command });
+}
+
+// ─── ask@thekickback.net — KickBack Score Digest Channel ─────────
+
+const ASK_CHANNEL_ID = "ask-channel";
+
+async function gatherAskContext(fromEmail: string, userMessage: string, env: Env): Promise<AskUserContext> {
+  // Look up user by email
+  const profiles = (await supa(env, `profiles?email=eq.${encodeURIComponent(fromEmail)}&limit=1`)) as {
+    id: string; display_name: string | null; email: string;
+  }[] | null;
+
+  const isRegistered = !!(profiles && profiles.length > 0);
+  const profile = profiles?.[0];
+
+  let tier = "explorer";
+  let kickbackScore = 0;
+  let streak = 0;
+  let venueProfiles: { venueName: string; xp: number; visits: number }[] = [];
+
+  if (isRegistered && profile) {
+    // Get score/tier
+    const balances = (await supa(env, `point_balances?user_id=eq.${profile.id}&select=tier,kickback_score,current_streak`)) as {
+      tier: string; kickback_score: number; current_streak: number;
+    }[] | null;
+    const b = balances?.[0];
+    if (b) { tier = b.tier; kickbackScore = b.kickback_score; streak = b.current_streak; }
+
+    // Get top venues
+    const venueXp = (await supa(env, `user_venue_xp?user_id=eq.${profile.id}&select=xp,visits,venues(name)&order=xp.desc&limit=5`)) as {
+      xp: number; visits: number; venues: { name: string } | { name: string }[];
+    }[] | null;
+    venueProfiles = (venueXp || []).map((v) => ({
+      venueName: Array.isArray(v.venues) ? v.venues[0]?.name : v.venues?.name || "Venue",
+      xp: v.xp,
+      visits: v.visits,
+    }));
+  }
+
+  // Get thread history (last 10 messages in the ask channel for this email)
+  const messages = (await supa(env, `chat_messages?venue_id=eq.${ASK_CHANNEL_ID}&sender_phone=eq.${encodeURIComponent(fromEmail)}&order=created_at.desc&limit=10&select=sender_type,body`)) as {
+    sender_type: string; body: string;
+  }[] | null;
+
+  // Also get AI replies in this thread
+  const aiReplies = (await supa(env, `chat_messages?venue_id=eq.${ASK_CHANNEL_ID}&sender_type=eq.ai&order=created_at.desc&limit=10&select=sender_type,body,created_at`)) as {
+    sender_type: string; body: string; created_at: string;
+  }[] | null;
+
+  // Merge and sort by time (most recent last)
+  const allMessages = [
+    ...(messages || []).map((m) => ({ role: m.sender_type === "guest" ? "user" : "assistant", body: m.body })),
+    ...(aiReplies || []).filter((r) => r.body).map((r) => ({ role: "assistant", body: r.body })),
+  ];
+  // Deduplicate and take last 10
+  const seen = new Set<string>();
+  const threadHistory = allMessages.filter((m) => {
+    const key = `${m.role}:${m.body.slice(0, 100)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(-10);
+
+  return {
+    isRegistered,
+    email: fromEmail,
+    displayName: profile?.display_name || null,
+    tier,
+    kickbackScore,
+    streak,
+    venueProfiles,
+    threadHistory,
+  };
+}
+
+async function handleAskDigest(fromEmail: string, userMessage: string, env: Env): Promise<Response> {
+  console.log(`[ASK] Inbound from: ${fromEmail} | Message: "${userMessage.slice(0, 100)}"`);
+
+  // Gather user context
+  const ctx = await gatherAskContext(fromEmail, userMessage, env);
+
+  // Get city snapshot — active venues
+  const venues = (await supa(env, "venues?state=eq.active&select=name,vibe,occupancy,max_occupancy,neighborhood&limit=20")) as {
+    name: string; vibe: string; occupancy: number; max_occupancy: number; neighborhood: string | null;
+  }[] | null;
+  const venueSnapshot = (venues || []).map((v) =>
+    `${v.name} (${v.vibe}, ${v.occupancy}/${v.max_occupancy}${v.neighborhood ? `, ${v.neighborhood}` : ""})`
+  ).join("; ");
+
+  // Get active offerings across all venues
+  const offerings = (await supa(env, "venue_offerings?active=eq.true&select=name,type,price_cents,venues(name)&limit=15")) as {
+    name: string; type: string; price_cents: number | null; venues: { name: string } | { name: string }[];
+  }[] | null;
+  const offeringsStr = (offerings || []).map((o) => {
+    const vName = Array.isArray(o.venues) ? o.venues[0]?.name : o.venues?.name || "";
+    return `${o.name} (${o.type}${vName ? ` at ${vName}` : ""})`.trim();
+  }).join("; ");
+
+  // Get available digital assets
+  const assets = (await supa(env, "digital_assets?is_active=eq.true&select=name,asset_type,xp_cost,venues(name)&limit=10")) as {
+    name: string; asset_type: string; xp_cost: number; venues: { name: string } | { name: string }[];
+  }[] | null;
+  const assetsStr = (assets || []).map((a) => {
+    const vName = Array.isArray(a.venues) ? a.venues[0]?.name : a.venues?.name || "";
+    return `${a.name} (${a.asset_type}, ${a.xp_cost} XP${vName ? ` from ${vName}` : ""})`.trim();
+  }).join("; ");
+
+  // Log user message
+  await supa(env, "chat_messages", {
+    method: "POST",
+    body: JSON.stringify({
+      venue_id: ASK_CHANNEL_ID,
+      sender_type: "guest",
+      sender_phone: fromEmail,
+      body: userMessage,
+    }),
+  });
+
+  // Build OpenClaw prompt
+  const isFirstMessage = ctx.threadHistory.length === 0;
+  const threadStr = ctx.threadHistory.map((m) => `${m.role === "user" ? "User" : "KickBack"}: ${m.body}`).join("\n");
+
+  let prompt: string;
+  if (ctx.isRegistered) {
+    const firstName = ctx.displayName || fromEmail.split("@")[0];
+    const venueXpStr = ctx.venueProfiles.length > 0
+      ? ctx.venueProfiles.map((v) => `${v.venueName}: ${v.xp} XP, ${v.visits} visits`).join("; ")
+      : "No venues visited yet";
+
+    if (isFirstMessage) {
+      prompt = [
+        "You are theKickBack — a city discovery platform. Write a personalized KickBack Score digest for this user.",
+        `User: ${firstName}`,
+        `Tier: ${ctx.tier} | Score: ${ctx.kickbackScore} | Streak: ${ctx.streak} weeks`,
+        `Their top venues: ${venueXpStr}`,
+        `Active spots right now: ${venueSnapshot}`,
+        offeringsStr ? `Available offerings & events: ${offeringsStr}` : "",
+        assetsStr ? `Collectibles they could earn: ${assetsStr}` : "",
+        "",
+        "Write an email that:",
+        userMessage && userMessage.length > 3 ? `- Answers their question: "${userMessage}"` : "- Gives them a rundown of what's happening",
+        "- Frames EVERYTHING around how it grows their KickBack Score",
+        "- Suggests 2-3 specific things they could do right now to earn XP",
+        "- Mentions specific venues by name with what's happening there",
+        "- Tells them how close they are to the next tier",
+        "- Keep it under 200 words. Warm, conversational, like a friend who knows the city inside out.",
+        "- No emojis. No HTML. Just plain text paragraphs.",
+        "- End with 'Reply to this email if you want to know more about anything.'",
+      ].filter(Boolean).join("\n");
+    } else {
+      prompt = [
+        "You are theKickBack. Continue this conversation about growing KickBack Score.",
+        `User: ${firstName} | Tier: ${ctx.tier} | Score: ${ctx.kickbackScore}`,
+        `Their venues: ${venueXpStr}`,
+        `Active spots: ${venueSnapshot}`,
+        offeringsStr ? `Offerings: ${offeringsStr}` : "",
+        assetsStr ? `Collectibles: ${assetsStr}` : "",
+        "",
+        "Previous conversation:",
+        threadStr,
+        "",
+        `User's new message: "${userMessage}"`,
+        "",
+        "Go deeper on what they're asking. Be specific about XP opportunities, venues, and how it impacts their score.",
+        "Keep it under 150 words. Conversational. No emojis. No HTML.",
+        "End with an invitation to keep the thread going.",
+      ].filter(Boolean).join("\n");
+    }
+  } else {
+    // Guest — unregistered email
+    if (isFirstMessage) {
+      prompt = [
+        "You are theKickBack — a city discovery platform. Someone who isn't on the platform yet just emailed ask@thekickback.net.",
+        `Their email: ${fromEmail}`,
+        `Active spots right now: ${venueSnapshot}`,
+        offeringsStr ? `Offerings happening: ${offeringsStr}` : "",
+        "",
+        "Write a warm, intriguing email that:",
+        userMessage && userMessage.length > 3 ? `- Addresses their question: "${userMessage}"` : "- Gives them a taste of what's happening in the city",
+        "- Explains what KickBack Score is (your reputation across venues — check in, earn XP, unlock perks)",
+        "- Highlights 2-3 interesting things happening at specific venues",
+        "- Makes them curious enough to start exploring",
+        "- Keep it under 150 words. Conversational, not salesy. Like a friend giving the lowdown.",
+        "- No emojis. No HTML. Plain text.",
+        "- End with: 'Start building your score at join.thekickback.net — or just reply here and ask me anything.'",
+      ].filter(Boolean).join("\n");
+    } else {
+      prompt = [
+        "You are theKickBack. Continue this conversation with someone who hasn't signed up yet.",
+        `Active spots: ${venueSnapshot}`,
+        offeringsStr ? `Offerings: ${offeringsStr}` : "",
+        "",
+        "Previous conversation:",
+        threadStr,
+        "",
+        `Their new message: "${userMessage}"`,
+        "",
+        "Answer their question. Give specific venue and event details.",
+        "Gently remind them they could be earning XP for all this if they had an account.",
+        "Under 150 words. Conversational. No emojis. No HTML.",
+      ].filter(Boolean).join("\n");
+    }
+  }
+
+  // Call OpenClaw
+  const aiReply = await askClaw(prompt, fromEmail, ASK_CHANNEL_ID, env);
+
+  // Log AI reply
+  await supa(env, "chat_messages", {
+    method: "POST",
+    body: JSON.stringify({
+      venue_id: ASK_CHANNEL_ID,
+      sender_type: "ai",
+      sender_phone: fromEmail,
+      body: aiReply,
+    }),
+  });
+
+  // Build HTML email
+  const askFrom = `ask@${env.VENUE_EMAIL_DOMAIN}`;
+  const subject = ctx.isRegistered
+    ? (isFirstMessage ? `Your KickBack Score ✦ ${ctx.tier}` : "Re: Your KickBack Score ✦")
+    : (isFirstMessage ? "What's happening in the city ✦" : "Re: What's happening in the city ✦");
+
+  const html = ctx.isRegistered
+    ? buildAskRegisteredHtml(aiReply, ctx, askFrom)
+    : buildAskGuestHtml(aiReply, askFrom);
+
+  await sendViaResend(env, fromEmail, subject, html, aiReply, askFrom, "theKickBack");
+
+  console.log(`[ASK] Reply sent to ${fromEmail} (${ctx.isRegistered ? ctx.tier : "guest"})`);
+  return Response.json({ ok: true, channel: "ask", from: fromEmail, registered: ctx.isRegistered });
+}
+
+// ─── Ask Channel HTML Templates ──────────────────────────────────
+
+function buildAskRegisteredHtml(body: string, ctx: AskUserContext, replyTo: string): string {
+  const tierColors: Record<string, string> = {
+    explorer: "#94a3b8", regular: "#4ade80", member: "#f97316", vip: "#a78bfa",
+  };
+  const tierColor = tierColors[ctx.tier] || "#94a3b8";
+  const firstName = ctx.displayName || ctx.email.split("@")[0];
+
+  const paragraphs = body.split("\n").filter((l) => l.trim()).map((p) =>
+    `<p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#e0e0e0;">${esc(p)}</p>`
+  ).join("");
+
+  const venueBadges = ctx.venueProfiles.length > 0
+    ? ctx.venueProfiles.map((v) =>
+      `<span style="display:inline-block;margin:0 6px 6px 0;padding:5px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:11px;color:#fff;">${esc(v.venueName)} <span style="color:rgba(255,255,255,0.3);">${v.xp} XP</span></span>`
+    ).join("")
+    : "";
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"></head>
+<body style="margin:0;padding:0;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<div style="max-width:520px;margin:0 auto;padding:32px 24px;">
+
+  <div style="text-align:center;margin-bottom:24px;">
+    <span style="font-size:11px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.4);">THEKICKBACK</span>
+  </div>
+
+  <div style="margin-bottom:20px;padding:16px;background:rgba(255,255,255,0.04);border-radius:12px;border:1px solid rgba(255,255,255,0.08);">
+    <div style="margin-bottom:8px;">
+      <span style="font-size:11px;letter-spacing:1.5px;color:rgba(255,255,255,0.3);font-weight:600;">KICKBACK SCORE</span>
+      <span style="float:right;font-size:18px;font-weight:700;color:${tierColor};">${ctx.kickbackScore.toLocaleString()}</span>
+    </div>
+    <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+      <div style="height:100%;width:${Math.min((ctx.kickbackScore / 5000) * 100, 100)}%;background:${tierColor};border-radius:3px;"></div>
+    </div>
+    <div style="margin-top:6px;">
+      <span style="font-size:10px;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:1px;">${ctx.tier}</span>
+      ${ctx.streak > 0 ? `<span style="float:right;font-size:10px;color:#f97316;">streak: ${ctx.streak}w</span>` : ""}
+    </div>
+  </div>
+
+  ${paragraphs}
+
+  ${venueBadges ? `<div style="margin:16px 0;">
+    <div style="font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,0.2);font-weight:600;margin-bottom:6px;">YOUR SPOTS</div>
+    ${venueBadges}
+  </div>` : ""}
+
+  <div style="text-align:center;margin:28px 0;">
+    <a href="https://join.thekickback.net/map" style="display:inline-block;padding:12px 32px;background:#a78bfa;color:#000;font-size:14px;font-weight:700;text-decoration:none;border-radius:50px;">Open KickBack</a>
+  </div>
+
+  <div style="text-align:center;margin:16px 0;">
+    <p style="font-size:12px;color:rgba(255,255,255,0.25);">Reply to keep the conversation going</p>
+  </div>
+
+  <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;margin-top:24px;text-align:center;">
+    <p style="font-size:11px;color:rgba(255,255,255,0.15);margin:0;">powered by theKickBack<br/>
+    <a href="mailto:${replyTo}" style="color:rgba(255,255,255,0.25);text-decoration:underline;">ask@thekickback.net</a></p>
+  </div>
+
+</div></body></html>`;
+}
+
+function buildAskGuestHtml(body: string, replyTo: string): string {
+  const paragraphs = body.split("\n").filter((l) => l.trim()).map((p) =>
+    `<p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#e0e0e0;">${esc(p)}</p>`
+  ).join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"></head>
+<body style="margin:0;padding:0;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<div style="max-width:520px;margin:0 auto;padding:32px 24px;">
+
+  <div style="text-align:center;margin-bottom:24px;">
+    <span style="font-size:11px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,0.4);">THEKICKBACK</span>
+  </div>
+
+  ${paragraphs}
+
+  <div style="margin:24px 0;padding:16px;background:rgba(167,139,250,0.06);border-radius:12px;border:1px solid rgba(167,139,250,0.15);text-align:center;">
+    <p style="margin:0 0 8px;font-size:14px;color:#a78bfa;font-weight:600;">What's your KickBack Score?</p>
+    <p style="margin:0 0 16px;font-size:13px;color:rgba(255,255,255,0.4);line-height:1.5;">Every venue you visit builds your score. Unlock perks, collect badges, and shape your neighborhood.</p>
+    <a href="https://join.thekickback.net/map" style="display:inline-block;padding:12px 32px;background:#a78bfa;color:#000;font-size:14px;font-weight:700;text-decoration:none;border-radius:50px;">Start exploring</a>
+  </div>
+
+  <div style="text-align:center;margin:16px 0;">
+    <p style="font-size:12px;color:rgba(255,255,255,0.25);">Reply to keep asking — no account needed</p>
+  </div>
+
+  <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;margin-top:24px;text-align:center;">
+    <p style="font-size:11px;color:rgba(255,255,255,0.15);margin:0;">powered by theKickBack<br/>
+    <a href="mailto:${replyTo}" style="color:rgba(255,255,255,0.25);text-decoration:underline;">ask@thekickback.net</a></p>
+  </div>
+
+</div></body></html>`;
+}
+
+// ─── Test trigger for ask@ digest ────────────────────────────────
+
+async function handleTriggerAsk(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const email = url.searchParams.get("email");
+  const message = url.searchParams.get("message") || "What's happening in the city?";
+  if (!email) return Response.json({ error: "email param required" }, { status: 400 });
+  return handleAskDigest(email, message, env);
 }
 
 // ─── Send Welcome Email (called from join-app) ──────────────────
