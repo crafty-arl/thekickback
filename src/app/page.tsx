@@ -149,7 +149,7 @@ export default function Home() {
               "I own a small business",
               "What hubs are on the platform?",
               "How does the AI Wallet work?",
-              "I want to list my venue",
+              "I want to list my hub",
             ].map((q) => (
               <button key={q} onClick={() => sendChat(q)}
                 className="rounded-full px-3 py-1.5 text-[12px] font-medium transition hover:bg-white/10"
