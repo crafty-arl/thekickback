@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Venue } from "@/lib/venues";
-import { TheDock, type Tag } from "@/components/map/the-dock";
+import { TheDrawer, type Tag } from "@/components/drawer/the-drawer";
 import type { MapRef } from "react-map-gl";
 import type { RouteData } from "@/components/map/map-view";
 
@@ -205,8 +205,8 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 )}
             </AnimatePresence>
 
-            {/* The Dock — single unified bottom component */}
-            <TheDock
+            {/* The Drawer — unified bottom component */}
+            <TheDrawer
                 venues={venues}
                 selectedVenue={selectedVenue}
                 onVenueSelect={setSelectedVenue}
