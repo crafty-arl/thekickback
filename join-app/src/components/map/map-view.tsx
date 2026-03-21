@@ -193,9 +193,9 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, ma
       ref={mapRef}
       mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
       initialViewState={{
-        longitude: -97.743,
-        latitude: 30.267,
-        zoom: 13,
+        longitude: userLocation?.longitude ?? (venues.length > 0 ? venues.reduce((s, v) => s + v.longitude, 0) / venues.length : -97.743),
+        latitude: userLocation?.latitude ?? (venues.length > 0 ? venues.reduce((s, v) => s + v.latitude, 0) / venues.length : 30.267),
+        zoom: 12,
         pitch: 40,
         bearing: -10,
       }}
