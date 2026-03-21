@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   // Check if user has a venue
   const { data: ownership } = await supabase
     .from("venue_owners")
-    .select("venue_id, role, venues(id, name, state, occupancy, max_occupancy, vibe)")
+    .select("venue_id, role, venues(id, name, state, occupancy, max_occupancy, vibe, type, address)")
     .eq("user_id", user.id)
     .limit(1)
     .single();
@@ -42,6 +42,8 @@ export default async function DashboardPage() {
     occupancy: number;
     max_occupancy: number;
     vibe: string;
+    type: string;
+    address: string;
   };
 
   const sandboxMode = await isSandbox();
@@ -59,6 +61,44 @@ export default async function DashboardPage() {
     .single();
 
   const reviewStatus = venuePage?.review_status || "draft";
+
+  // ─── Fetch preview data for hub preview ────────────────────────
+  const [pageDataRes, offeringsRes, galleryRes, xpActionsRes, xpMilestonesRes] = await Promise.all([
+    serviceEarly
+      .from("venue_pages")
+      .select("slug, tagline, description, theme_color, hours, hero_image, onboarding_checklist")
+      .eq("venue_id", venue.id)
+      .single(),
+    serviceEarly
+      .from("venue_offerings")
+      .select("id, name, type, price_cents, description")
+      .eq("venue_id", venue.id)
+      .eq("active", true)
+      .order("sort_order", { ascending: true }),
+    serviceEarly
+      .from("venue_gallery")
+      .select("id, image_url")
+      .eq("venue_id", venue.id)
+      .order("sort_order", { ascending: true }),
+    serviceEarly
+      .from("venue_xp_actions")
+      .select("label, points")
+      .eq("venue_id", venue.id),
+    serviceEarly
+      .from("venue_xp_milestones")
+      .select("name, threshold")
+      .eq("venue_id", venue.id),
+  ]);
+
+  const pageData = pageDataRes.data as {
+    slug: string; tagline: string | null; description: string | null;
+    theme_color: string; hours: { day: string; open: string; close: string }[];
+    hero_image: string | null; onboarding_checklist: Record<string, boolean> | null;
+  } | null;
+  const previewOfferings = (offeringsRes.data || []) as { id: string; name: string; type: string; price_cents: number; description?: string }[];
+  const previewGallery = (galleryRes.data || []) as { id: string; image_url: string }[];
+  const previewXpActions = (xpActionsRes.data || []) as { label: string; points: number }[];
+  const previewXpMilestones = (xpMilestonesRes.data || []) as { name: string; threshold: number }[];
 
   // ─── Use service client for data queries (bypasses RLS) ──────────
   const service = createServiceClient(
@@ -324,6 +364,19 @@ export default async function DashboardPage() {
       venue={venue}
       reviewStatus={reviewStatus}
       user={{ id: user.id, email: user.email || "" }}
+      pageData={pageData ? {
+        slug: pageData.slug,
+        tagline: pageData.tagline,
+        description: pageData.description,
+        theme_color: pageData.theme_color,
+        hours: pageData.hours,
+        hero_image: pageData.hero_image,
+      } : undefined}
+      offerings={previewOfferings}
+      gallery={previewGallery}
+      xpActions={previewXpActions}
+      xpMilestones={previewXpMilestones}
+      checklist={pageData?.onboarding_checklist || undefined}
     />
   );
 }
