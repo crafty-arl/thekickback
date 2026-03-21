@@ -67,3 +67,30 @@ export async function createCalBooking(
         return { error: String(err) };
     }
 }
+
+export async function cancelCalBooking(
+    apiKey: string,
+    bookingUid: string,
+    reason?: string
+): Promise<{ ok: boolean } | { error: string }> {
+    try {
+        const res = await fetch(`${CAL_API_BASE}/bookings/${bookingUid}/cancel`, {
+            method: "POST",
+            headers: calHeaders(apiKey),
+            body: JSON.stringify({
+                cancellationReason: reason || "Cancelled by guest via Kickback",
+            }),
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            console.error("Cal.com cancel booking error:", res.status, text);
+            return { error: `Cal.com error ${res.status}: ${text}` };
+        }
+
+        return { ok: true };
+    } catch (err) {
+        console.error("Cal.com cancel booking fetch error:", err);
+        return { error: String(err) };
+    }
+}
