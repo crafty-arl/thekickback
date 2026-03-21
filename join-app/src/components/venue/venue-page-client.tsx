@@ -94,6 +94,7 @@ interface CartItem {
   name: string;
   price_cents: number;
   quantity: number;
+  metadata?: { date?: string; time?: string; staffId?: string; staffName?: string };
 }
 
 /* ── Helpers ── */
@@ -268,24 +269,22 @@ function getBookingDates(): { label: string; value: string }[] {
 
 /* ── Product Detail Drawer — slides in from left ── */
 
-function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueId, user, onBookingConfirm }: {
+function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, linkedStaff, venueId, user }: {
   offer: { id: string; name: string; price: number } | null;
   meta: OfferingMeta | null;
   theme: string;
   onClose: () => void;
   onAdd: () => void;
+  onAddWithMeta: (metadata: { date: string; time: string; staffId?: string; staffName?: string }) => void;
   linkedStaff?: { id: string; name: string; avatar_url: string | null }[];
   venueId: string;
   user?: { id: string; email: string } | null;
-  onBookingConfirm?: (msg: string) => void;
 }) {
   const [selectedStaff, setSelectedStaff] = useState<string | null>(null); // null = "Anyone"
   const [selectedDate, setSelectedDate] = useState<string>(getBookingDates()[0]?.value || "");
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [slots, setSlots] = useState<{ staff: { id: string; name: string; avatar_url: string | null; slots: string[] }[]; anyone_slots: string[] } | null>(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [booking, setBooking] = useState(false);
-  const [bookingResult, setBookingResult] = useState<string | null>(null);
   // Bookable = has duration, regardless of whether staff are linked
   const isBookable = meta && ["service", "reservation", "event"].includes(meta.type) && meta.duration_minutes;
   const hasStaff = linkedStaff && linkedStaff.length > 0;
@@ -320,52 +319,11 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
     return slots.anyone_slots || [];
   })();
 
-  // Build ISO start time from selected date + time label like "9:00 AM"
-  function buildStartISO(): string | null {
-    if (!selectedDate || !selectedTime) return null;
-    const match = selectedTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (!match) return null;
-    let h = parseInt(match[1]);
-    const m = parseInt(match[2]);
-    const ampm = match[3].toUpperCase();
-    if (ampm === "PM" && h !== 12) h += 12;
-    if (ampm === "AM" && h === 12) h = 0;
-    return `${selectedDate}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
-  }
-
-  async function handleBook() {
-    const startISO = buildStartISO();
-    if (!startISO || booking || !user) return;
-
-    setBooking(true);
-    try {
-      const res = await fetch("/api/book", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          venueId,
-          offeringId: offer!.id,
-          start: startISO,
-          attendeeName: user.email?.split("@")[0] || "Guest",
-          attendeeEmail: user.email,
-          staffId: selectedStaff || undefined,
-          userId: user.id,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        const msg = data.message || "Booking confirmed!";
-        setBookingResult(msg);
-        onBookingConfirm?.(msg);
-      } else {
-        setBookingResult(data.error || "Booking failed. Try another time.");
-      }
-    } catch {
-      setBookingResult("Something went wrong. Please try again.");
-    } finally {
-      setBooking(false);
-    }
-  }
+  // Get the selected date label for cart metadata
+  const selectedDateLabel = dates.find((d) => d.value === selectedDate)?.label || selectedDate;
+  const selectedStaffName = hasStaff && selectedStaff
+    ? linkedStaff!.find((s) => s.id === selectedStaff)?.name || null
+    : null;
 
   return (
     <>
@@ -435,7 +393,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
           )}
 
           {/* ── Booking UI: always shown for bookable offerings ── */}
-          {isBookable && !bookingResult && (
+          {isBookable && (
             <>
               {/* Section header */}
               <div className="mt-5 flex items-center gap-2.5">
@@ -554,23 +512,8 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
             </>
           )}
 
-          {/* Booking result message */}
-          {bookingResult && (
-            <div className="mt-5 rounded-2xl p-4 text-center" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}>
-              <p className="text-[24px] mb-2">&#9989;</p>
-              <p className="font-sans text-[14px] font-semibold text-white">{bookingResult}</p>
-              <button
-                onClick={onClose}
-                className="mt-3 rounded-xl px-4 py-2 font-sans text-[12px] font-bold active:scale-95"
-                style={{ backgroundColor: theme, color: "#000" }}
-              >
-                Done
-              </button>
-            </div>
-          )}
-
           {/* Add-ons */}
-          {meta?.add_ons && meta.add_ons.length > 0 && !bookingResult && (
+          {meta?.add_ons && meta.add_ons.length > 0 && (
             <div className="mt-5">
               <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">ADD-ONS</p>
               <div className="flex flex-col gap-1.5">
@@ -588,44 +531,49 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueI
           <div className="flex-1" />
 
           {/* Action button */}
-          {!bookingResult && (
-            isBookable ? (
-              // ── Bookable offering: must pick time, must be logged in ──
-              !user ? (
-                <a
-                  href="/login"
-                  className="mt-6 flex w-full items-center justify-center rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
-                  style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
-                >
-                  Log in to book
-                </a>
-              ) : selectedTime ? (
-                <button
-                  onClick={handleBook}
-                  disabled={booking}
-                  className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98] disabled:opacity-50"
-                  style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
-                >
-                  {booking ? "Booking..." : `Book — ${selectedTime}`}
-                </button>
-              ) : (
-                <div
-                  className="mt-6 w-full rounded-2xl py-3.5 text-center font-sans text-[14px] font-bold"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.25)" }}
-                >
-                  Pick a date & time above
-                </div>
-              )
-            ) : (
-              // ── Non-bookable offering: add to cart ──
+          {isBookable ? (
+            // ── Bookable offering: must pick date+time, must be logged in ──
+            !user ? (
+              <a
+                href="/login"
+                className="mt-6 flex w-full items-center justify-center rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+                style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+              >
+                Log in to book
+              </a>
+            ) : selectedTime ? (
               <button
-                onClick={onAdd}
+                onClick={() => {
+                  onAddWithMeta({
+                    date: selectedDateLabel,
+                    time: selectedTime,
+                    staffId: selectedStaff || undefined,
+                    staffName: selectedStaffName || undefined,
+                  });
+                  onClose();
+                }}
                 className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
                 style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
               >
-                Add to cart — ${price % 1 === 0 ? price : price.toFixed(2)}
+                Add to cart — {selectedDateLabel} {selectedTime}
               </button>
+            ) : (
+              <div
+                className="mt-6 w-full rounded-2xl py-3.5 text-center font-sans text-[14px] font-bold"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.25)" }}
+              >
+                Pick a date & time to continue
+              </div>
             )
+          ) : (
+            // ── Non-bookable offering: add to cart directly ──
+            <button
+              onClick={onAdd}
+              className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+              style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+            >
+              Add to cart — ${price % 1 === 0 ? price : price.toFixed(2)}
+            </button>
           )}
         </div>
       </motion.div>
@@ -774,14 +722,18 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
     }
   }
 
-  function addToCart(id: string, name: string, priceCents: number) {
-    // Block bookable offerings from being added to cart — they must go through the scheduler
+  function addToCart(id: string, name: string, priceCents: number, metadata?: CartItem["metadata"]) {
+    // Bookable offerings without metadata must go through the scheduler first
     const meta = offeringsMap[id];
-    if (meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type)) {
+    if (meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type) && !metadata?.date) {
       setDrawerOfferId(id);
       return;
     }
     setCart((prev) => {
+      // Bookable items with different times are separate line items
+      if (metadata?.date) {
+        return [...prev, { id, name, price_cents: priceCents, quantity: 1, metadata }];
+      }
       const existing = prev.find((item) => item.id === id);
       if (existing) return prev.map((item) => item.id === id ? { ...item, quantity: item.quantity + 1 } : item);
       return [...prev, { id, name, price_cents: priceCents, quantity: 1 }];
@@ -1210,14 +1162,12 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               if (drawerOffer) addToCart(drawerOffer.id, drawerOffer.name, drawerOffer.price);
               setDrawerOfferId(null);
             }}
+            onAddWithMeta={(metadata) => {
+              if (drawerOffer) addToCart(drawerOffer.id, drawerOffer.name, drawerOffer.price, metadata);
+            }}
             linkedStaff={drawerOfferId ? staffByOffering[drawerOfferId] : undefined}
             venueId={venue.id}
             user={user}
-            onBookingConfirm={(msg) => {
-              setMessages((prev) => [...prev, { id: `booking-${Date.now()}`, sender: "ai", body: msg, timestamp: Date.now() }]);
-              // Refresh bookings list
-              fetch(`/api/bookings?venueId=${venue.id}`).then((r) => r.ok ? r.json() : null).then((d) => { if (d?.bookings) setMyBookings(d.bookings); }).catch(() => {});
-            }}
           />
         )}
       </AnimatePresence>
