@@ -118,6 +118,7 @@ export default async function DashboardPage() {
     perksRes, redemptionsRes, multipliersRes,
     leaderboardRes, pointsTodayRes, perksTodayRes,
     bookingsRes, ordersRes, walletTxRes,
+    xpActivityRes,
   ] = await Promise.all([
     // Active sessions with profile info
     service
@@ -234,6 +235,15 @@ export default async function DashboardPage() {
       .eq("status", "completed")
       .order("created_at", { ascending: false })
       .limit(100),
+
+    // Recent XP activity
+    service
+      .from("point_ledger")
+      .select("amount, reason, created_at, profiles(display_name)")
+      .eq("venue_id", venue.id)
+      .gt("amount", 0)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   // Supabase joins return related records as arrays — extract first element
@@ -368,6 +378,14 @@ export default async function DashboardPage() {
     pendingBalance: 0,
   };
 
+  // ─── XP Activity ────────────────────────────────────────────────
+  const xpActivity = (xpActivityRes.data || []).map((e: Record<string, unknown>) => ({
+    amount: e.amount as number,
+    reason: e.reason as string,
+    created_at: e.created_at as string,
+    profiles: Array.isArray(e.profiles) ? e.profiles[0] as { display_name: string | null } : e.profiles as { display_name: string | null } | null,
+  }));
+
   const stats: VenueStats = {
     currentOccupancy: venue.occupancy,
     capacity: venue.max_occupancy,
@@ -410,6 +428,7 @@ export default async function DashboardPage() {
       xpActions={previewXpActions}
       xpMilestones={previewXpMilestones}
       checklist={pageData?.onboarding_checklist || undefined}
+      xpActivity={xpActivity}
     />
   );
 }

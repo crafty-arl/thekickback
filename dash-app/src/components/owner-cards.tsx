@@ -8,8 +8,8 @@ import Link from "next/link";
 /* ------------------------------------------------------------------ */
 
 const glass = {
-  backgroundColor: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.06)",
+  backgroundColor: "rgba(0,0,0,0.03)",
+  border: "1px solid rgba(0,0,0,0.06)",
 };
 
 const enter = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } };
@@ -65,8 +65,8 @@ export function StatsCard({
     <motion.div {...enter} style={glass} className="rounded-2xl p-4 space-y-3">
       {/* Occupancy bar */}
       <div>
-        <p className="text-[10px] text-white/40 mb-1">Occupancy</p>
-        <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+        <p className="text-[10px] text-gray-400 mb-1">Occupancy</p>
+        <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
           <motion.div
             className="h-full rounded-full"
             style={{ backgroundColor: "#F97316" }}
@@ -75,9 +75,9 @@ export function StatsCard({
             transition={{ duration: 0.6, ease: "easeOut" }}
           />
         </div>
-        <p className="text-[20px] font-bold text-white/90 mt-1">
+        <p className="text-[20px] font-bold text-gray-900 mt-1">
           {occupancy}
-          <span className="text-[10px] text-white/40 font-normal"> / {capacity}</span>
+          <span className="text-[10px] text-gray-400 font-normal"> / {capacity}</span>
         </p>
       </div>
 
@@ -95,8 +95,8 @@ export function StatsCard({
 function StatBox({ label, value }: { label: string; value: string }) {
   return (
     <div style={glass} className="rounded-xl p-3">
-      <p className="text-[10px] text-white/40">{label}</p>
-      <p className="text-[20px] font-bold text-white/90">{value}</p>
+      <p className="text-[10px] text-gray-400">{label}</p>
+      <p className="text-[20px] font-bold text-gray-900">{value}</p>
     </div>
   );
 }
@@ -122,10 +122,10 @@ export function BookingsCard({
 }) {
   return (
     <motion.div {...enter} style={glass} className="rounded-2xl p-4 space-y-2">
-      <p className="text-[10px] text-white/40 mb-1">Bookings</p>
+      <p className="text-[10px] text-gray-400 mb-1">Bookings</p>
 
       {bookings.length === 0 && (
-        <p className="text-white/40 text-sm">No bookings</p>
+        <p className="text-gray-400 text-sm">No bookings</p>
       )}
 
       {bookings.map((b) => (
@@ -135,8 +135,8 @@ export function BookingsCard({
           className="rounded-xl p-3 flex items-center justify-between gap-3"
         >
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-white/85 truncate">{b.guest_name}</p>
-            <p className="text-[10px] text-white/40 truncate">
+            <p className="font-medium text-gray-700 truncate">{b.guest_name}</p>
+            <p className="text-[10px] text-gray-400 truncate">
               {b.offering_name} &middot; {formatTime(b.starts_at)}
             </p>
           </div>
@@ -147,13 +147,13 @@ export function BookingsCard({
             <div className="flex gap-1.5 shrink-0">
               <button
                 onClick={() => onApprove(b.id)}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
               >
                 Approve
               </button>
               <button
                 onClick={() => onDecline(b.id)}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
               >
                 Decline
               </button>
@@ -167,10 +167,10 @@ export function BookingsCard({
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    pending: "bg-yellow-500/20 text-yellow-400",
-    confirmed: "bg-green-500/20 text-green-400",
-    declined: "bg-red-500/20 text-red-400",
-    cancelled: "bg-white/10 text-white/40",
+    pending: "bg-yellow-50 text-yellow-600",
+    confirmed: "bg-green-50 text-green-600",
+    declined: "bg-red-50 text-red-600",
+    cancelled: "bg-gray-100 text-gray-400",
   };
   return (
     <span
@@ -198,12 +198,12 @@ export function GuestsCard({
 }) {
   return (
     <motion.div {...enter} style={glass} className="rounded-2xl p-4 space-y-2">
-      <p className="text-[10px] text-white/40 mb-1">
+      <p className="text-[10px] text-gray-400 mb-1">
         Active Guests ({guests.length})
       </p>
 
       {guests.length === 0 && (
-        <p className="text-white/40 text-sm">No active guests</p>
+        <p className="text-gray-400 text-sm">No active guests</p>
       )}
 
       {guests.map((g) => (
@@ -214,7 +214,7 @@ export function GuestsCard({
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p className="font-medium text-white/85 truncate">
+              <p className="font-medium text-gray-700 truncate">
                 {g.display_name ?? "Guest"}
               </p>
               <span
@@ -227,7 +227,7 @@ export function GuestsCard({
                 {g.tier}
               </span>
             </div>
-            <p className="text-[10px] text-white/40">
+            <p className="text-[10px] text-gray-400">
               {g.venue_xp} XP &middot; checked in {relativeTime(g.started_at)}
             </p>
           </div>
@@ -252,22 +252,22 @@ export function RevenueCard({
 }) {
   return (
     <motion.div {...enter} style={glass} className="rounded-2xl p-4">
-      <p className="text-[10px] text-white/40 mb-3">Revenue</p>
+      <p className="text-[10px] text-gray-400 mb-3">Revenue</p>
 
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <p className="text-[10px] text-white/40">Today</p>
+          <p className="text-[10px] text-gray-400">Today</p>
           <p className="text-[20px] font-bold" style={{ color: "#F97316" }}>
             {fmt$(today)}
           </p>
         </div>
         <div>
-          <p className="text-[10px] text-white/40">This Week</p>
-          <p className="text-[20px] font-bold text-white/90">{fmt$(thisWeek)}</p>
+          <p className="text-[10px] text-gray-400">This Week</p>
+          <p className="text-[20px] font-bold text-gray-900">{fmt$(thisWeek)}</p>
         </div>
         <div>
-          <p className="text-[10px] text-white/40">Pending</p>
-          <p className="text-[20px] font-bold text-white/90">
+          <p className="text-[10px] text-gray-400">Pending</p>
+          <p className="text-[20px] font-bold text-gray-900">
             {fmt$(pendingPayouts)}
           </p>
         </div>
@@ -301,7 +301,7 @@ export function ActionConfirmCard({
       {/* Icon */}
       <div
         className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-        style={{ backgroundColor: `rgba(${accent}, 0.15)` }}
+        style={{ backgroundColor: `rgba(${accent}, 0.1)` }}
       >
         {success ? (
           <svg
@@ -338,7 +338,7 @@ export function ActionConfirmCard({
         )}
       </div>
 
-      <p className="text-white/85 text-sm">{message}</p>
+      <p className="text-gray-700 text-sm">{message}</p>
     </motion.div>
   );
 }
@@ -359,12 +359,12 @@ export function SettingsLinkCard({
       <Link
         href={`/settings#${section}`}
         style={glass}
-        className="rounded-2xl p-4 flex items-center justify-between gap-3 hover:bg-white/[0.06] transition-colors block"
+        className="rounded-2xl p-4 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors block"
       >
-        <span className="text-white/85 text-sm font-medium">{label}</span>
+        <span className="text-gray-700 text-sm font-medium">{label}</span>
 
         <svg
-          className="shrink-0 text-white/40"
+          className="shrink-0 text-gray-400"
           width="16"
           height="16"
           viewBox="0 0 16 16"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -34,7 +34,7 @@ import type {
   PointLeaderboardEntry,
 } from "@/lib/dashboard";
 import type { Booking } from "@/components/dashboard/bookings-panel";
-import type { Order, RevenueStats, VenueTransaction } from "@/components/dashboard/orders-panel";
+import type { Order, OrderItem, RevenueStats, VenueTransaction } from "@/components/dashboard/orders-panel";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -43,6 +43,13 @@ interface OwnerMessage {
   sender: "owner" | "agent";
   body: string;
   timestamp: number;
+}
+
+interface XpActivityEntry {
+  amount: number;
+  reason: string;
+  created_at: string;
+  profiles: { display_name: string | null } | null;
 }
 
 interface DashboardData {
@@ -93,6 +100,7 @@ interface OwnerDockProps {
   xpActions?: { label: string; points: number }[];
   xpMilestones?: { name: string; threshold: number }[];
   checklist?: Record<string, boolean>;
+  xpActivity?: XpActivityEntry[];
 }
 
 const DEFAULT_CHECKLIST: ChecklistState = {
@@ -128,11 +136,24 @@ function fmtCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+// ─── Topic extraction from guest messages ────────────────────────────
+
+function extractTopics(messages: ChatMessage[]): { topic: string; count: number }[] {
+  const guestMsgs = messages.filter(m => m.sender_type === "guest");
+  const words: Record<string, number> = {};
+  const stopWords = new Set(["the","a","an","is","it","to","in","for","of","and","or","my","i","me","what","how","can","do","this","that","your","you","are","was","be","have","has","with","at","on","from","but","not","all","just","get","got","like","want","would","could","should","there","here","about","been","will","they","them","than","more","some","any","also","very","too","much","well","back","out","let","know","see","thing","things","going","really","right","make","need","take","give","come","look","think","tell","ask","try","use","way","did","said","say","had","put","still","does","done","went","made","work"]);
+  for (const m of guestMsgs) {
+    const tokens = m.body.toLowerCase().replace(/[^a-z\s]/g, "").split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+    for (const t of tokens) words[t] = (words[t] || 0) + 1;
+  }
+  return Object.entries(words).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([topic, count]) => ({ topic, count }));
+}
+
 // ─── Tab icon components ────────────────────────────────────────────
 
 function HubIcon({ active }: { active: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
       <polyline points="9 22 9 12 15 12 15 22" />
     </svg>
@@ -141,7 +162,7 @@ function HubIcon({ active }: { active: boolean }) {
 
 function OrdersIcon({ active }: { active: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
       <line x1="16" y1="13" x2="8" y2="13" />
@@ -152,7 +173,7 @@ function OrdersIcon({ active }: { active: boolean }) {
 
 function GuestsIcon({ active }: { active: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
       <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -163,7 +184,7 @@ function GuestsIcon({ active }: { active: boolean }) {
 
 function MoreIcon({ active }: { active: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="1" />
       <circle cx="12" cy="5" r="1" />
       <circle cx="12" cy="19" r="1" />
@@ -198,15 +219,15 @@ function MoreMenuItem({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition hover:bg-white/[0.04]"
-      style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition hover:bg-gray-50"
+      style={{ border: "1px solid rgba(0,0,0,0.06)" }}
     >
       <span className="text-[18px]">{icon}</span>
       <div className="min-w-0 flex-1">
-        <p className="font-sans text-[14px] font-medium text-white/80">{label}</p>
-        <p className="font-sans text-[11px] text-white/30">{desc}</p>
+        <p className="font-sans text-[14px] font-medium text-gray-700">{label}</p>
+        <p className="font-sans text-[11px] text-gray-400">{desc}</p>
       </div>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.2)" strokeWidth="2" strokeLinecap="round">
         <polyline points="9 18 15 12 9 6" />
       </svg>
     </button>
@@ -226,6 +247,7 @@ export function OwnerDock({
   xpActions: initialXpActions,
   xpMilestones: initialXpMilestones,
   checklist: initialChecklist,
+  xpActivity,
 }: OwnerDockProps) {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -282,6 +304,84 @@ export function OwnerDock({
   const pendingBookings = initialData.bookings.filter(
     (b) => new Date(b.starts_at) > new Date() && b.cal_status === "pending"
   ).length;
+
+  // ─── Insights: Top Selling Items ──────────────────────────────────
+
+  const topSellingItems = useMemo(() => {
+    const itemMap = new Map<string, { name: string; count: number; revenue: number }>();
+    for (const order of initialData.orders) {
+      if (order.status === "cancelled") continue;
+      for (const item of (order.order_items || []) as OrderItem[]) {
+        const key = item.name || "Unknown";
+        const existing = itemMap.get(key);
+        const qty = item.quantity || 1;
+        const price = item.unit_price_cents || 0;
+        if (existing) {
+          existing.count += qty;
+          existing.revenue += price * qty;
+        } else {
+          itemMap.set(key, { name: key, count: qty, revenue: price * qty });
+        }
+      }
+    }
+    return Array.from(itemMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [initialData.orders]);
+
+  // ─── Insights: Recent Purchases ───────────────────────────────────
+
+  const recentPurchases = useMemo(() => {
+    return initialData.orders
+      .filter((o) => o.status !== "cancelled")
+      .slice(0, 5)
+      .map((o) => ({
+        id: o.id,
+        guestName: (o.profiles as Record<string, unknown> | null)?.display_name as string || "Guest",
+        items: ((o.order_items || []) as OrderItem[]).map((i) => i.name || "Item").join(", "),
+        total: o.total_cents || 0,
+        time: o.created_at,
+      }));
+  }, [initialData.orders]);
+
+  // ─── Insights: XP Activity ────────────────────────────────────────
+
+  const xpBreakdown = useMemo(() => {
+    if (!xpActivity || xpActivity.length === 0) return [];
+    const reasonMap = new Map<string, { reason: string; count: number; totalXp: number }>();
+    for (const entry of xpActivity) {
+      const reason = entry.reason || "other";
+      const existing = reasonMap.get(reason);
+      if (existing) {
+        existing.count += 1;
+        existing.totalXp += entry.amount;
+      } else {
+        reasonMap.set(reason, { reason, count: 1, totalXp: entry.amount });
+      }
+    }
+    return Array.from(reasonMap.values()).sort((a, b) => b.count - a.count);
+  }, [xpActivity]);
+
+  const recentXp = useMemo(() => {
+    if (!xpActivity || xpActivity.length === 0) return [];
+    return xpActivity.slice(0, 5).map((e) => ({
+      name: e.profiles?.display_name || "Guest",
+      reason: e.reason || "activity",
+      amount: e.amount,
+      time: e.created_at,
+    }));
+  }, [xpActivity]);
+
+  const maxXpCount = useMemo(() => {
+    if (xpBreakdown.length === 0) return 1;
+    return Math.max(...xpBreakdown.map((x) => x.count));
+  }, [xpBreakdown]);
+
+  // ─── Insights: Bot Conversation Topics ────────────────────────────
+
+  const topics = useMemo(() => {
+    return extractTopics(initialData.messages as ChatMessage[]);
+  }, [initialData.messages]);
 
   // ─── Scroll helper ──────────────────────────────────────────────
 
@@ -554,26 +654,23 @@ export function OwnerDock({
       ? "#F97316"
       : reviewStatus === "rejected"
         ? "#EF4444"
-        : "rgba(255,255,255,0.5)";
+        : "rgba(0,0,0,0.4)";
 
   // ─── Render ───────────────────────────────────────────────────
 
   return (
-    <main className="flex h-dvh flex-col bg-black">
-      {/* ═══ Header ═══ */}
+    <main className="flex h-dvh flex-col bg-gray-50">
+      {/* Header */}
       <header
-        className="flex h-14 shrink-0 items-center justify-between px-4"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+        className="flex h-14 shrink-0 items-center justify-between bg-white px-4"
+        style={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}
       >
         <div className="flex items-center gap-3">
-          {/* Logo */}
-          <span className="font-sans text-[14px] font-bold tracking-tight text-white/90">
+          <span className="font-sans text-[14px] font-bold tracking-tight text-gray-900">
             <span style={{ color: "#F97316" }}>the</span>KickBack
           </span>
-          {/* Separator */}
-          <div className="h-4 w-px bg-white/10" />
-          {/* Venue name + status */}
-          <span className="font-sans text-[14px] font-semibold text-white/70">{venue.name}</span>
+          <div className="h-4 w-px bg-gray-200" />
+          <span className="font-sans text-[14px] font-semibold text-gray-700">{venue.name}</span>
           <Badge
             className="h-5 rounded-full border-0 px-2 text-[10px] font-semibold"
             style={{ backgroundColor: `${statusColor}18`, color: statusColor }}
@@ -586,18 +683,18 @@ export function OwnerDock({
           {isApproved && (
             <Link
               href="/scan"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-black transition active:scale-95"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-white transition active:scale-95"
               style={{ backgroundColor: "#F97316" }}
             >
               <ScanIcon />
               Scan
             </Link>
           )}
-          <span className="font-mono text-[10px] text-white/20">v1.0.0</span>
+          <span className="font-mono text-[10px] text-gray-300">v1.0.0</span>
         </div>
       </header>
 
-      {/* ═══ Tab Content Area ═══ */}
+      {/* Tab Content Area */}
       <Tabs
         defaultValue={0}
         value={activeTab}
@@ -606,8 +703,8 @@ export function OwnerDock({
       >
         {/* Desktop top tab bar */}
         <div
-          className="hidden lg:block shrink-0 px-4"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+          className="hidden lg:block shrink-0 bg-white px-4"
+          style={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}
         >
           <TabsList
             variant="line"
@@ -615,28 +712,28 @@ export function OwnerDock({
           >
             <TabsTrigger
               value={0}
-              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-white/40 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
+              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
             >
               <HubIcon active={activeTab === 0} />
               Hub
             </TabsTrigger>
             <TabsTrigger
               value={1}
-              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-white/40 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
+              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
             >
               <OrdersIcon active={activeTab === 1} />
               Orders
             </TabsTrigger>
             <TabsTrigger
               value={2}
-              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-white/40 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
+              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
             >
               <GuestsIcon active={activeTab === 2} />
               Guests
             </TabsTrigger>
             <TabsTrigger
               value={3}
-              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-white/40 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
+              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
             >
               <MoreIcon active={activeTab === 3} />
               More
@@ -644,7 +741,7 @@ export function OwnerDock({
           </TabsList>
         </div>
 
-        {/* ── Tab 1: Hub ── */}
+        {/* Tab 1: Hub */}
         <TabsContent value={0} className="flex-1 min-h-0 flex flex-col">
           <div className="flex flex-1 min-h-0">
             {/* Edit fields */}
@@ -656,12 +753,12 @@ export function OwnerDock({
                   style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-sans text-[11px] font-semibold text-white/50">Setup Progress</span>
+                    <span className="font-sans text-[11px] font-semibold text-gray-500">Setup Progress</span>
                     <span className="font-sans text-[11px] font-bold" style={{ color: "#F97316" }}>
                       {checklistPercent}%
                     </span>
                   </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(0,0,0,0.06)" }}>
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{ width: `${checklistPercent}%`, backgroundColor: "#F97316" }}
@@ -687,9 +784,9 @@ export function OwnerDock({
 
               {/* AI chat at bottom of Hub */}
               <div
-                className="shrink-0"
+                className="shrink-0 bg-white"
                 style={{
-                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                  borderTop: "1px solid rgba(0,0,0,0.08)",
                   paddingBottom: "max(4px, env(safe-area-inset-bottom))",
                 }}
               >
@@ -709,13 +806,13 @@ export function OwnerDock({
                             <div
                               className={`max-w-[85%] rounded-2xl px-3 py-2 ${
                                 msg.sender === "owner"
-                                  ? "rounded-br-sm bg-orange/15 text-white/90"
+                                  ? "rounded-br-sm text-gray-900"
                                   : "rounded-bl-sm"
                               }`}
                               style={
                                 msg.sender === "agent"
-                                  ? { backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }
-                                  : undefined
+                                  ? { backgroundColor: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)" }
+                                  : { backgroundColor: "rgba(249,115,22,0.08)" }
                               }
                             >
                               {msg.sender === "agent" ? (
@@ -735,12 +832,12 @@ export function OwnerDock({
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start mb-2">
                           <div
                             className="rounded-2xl rounded-bl-sm px-3 py-2"
-                            style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }}
+                            style={{ backgroundColor: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)" }}
                           >
                             <div className="flex gap-1.5">
-                              <motion.div className="h-1.5 w-1.5 rounded-full bg-white/30" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} />
-                              <motion.div className="h-1.5 w-1.5 rounded-full bg-white/30" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }} />
-                              <motion.div className="h-1.5 w-1.5 rounded-full bg-white/30" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }} />
+                              <motion.div className="h-1.5 w-1.5 rounded-full bg-gray-300" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} />
+                              <motion.div className="h-1.5 w-1.5 rounded-full bg-gray-300" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }} />
+                              <motion.div className="h-1.5 w-1.5 rounded-full bg-gray-300" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }} />
                             </div>
                           </div>
                         </motion.div>
@@ -756,8 +853,7 @@ export function OwnerDock({
                     <button
                       key={reply}
                       onClick={() => sendMessage(reply)}
-                      className="shrink-0 rounded-full px-3 py-1 font-sans text-[11px] font-medium text-white/50 active:scale-95 transition"
-                      style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                      className="shrink-0 rounded-full bg-gray-100 border border-gray-200 px-3 py-1 font-sans text-[11px] font-medium text-gray-500 active:scale-95 transition"
                     >
                       {reply}
                     </button>
@@ -780,8 +876,7 @@ export function OwnerDock({
                     enterKeyHint="send"
                     autoComplete="off"
                     autoCorrect="off"
-                    className="flex-1 rounded-2xl px-4 py-2.5 font-sans text-[13px] text-white/90 placeholder:text-white/25 outline-none"
-                    style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    className="flex-1 rounded-2xl bg-gray-100 border border-gray-200 px-4 py-2.5 font-sans text-[13px] text-gray-900 placeholder:text-gray-400 outline-none"
                   />
                   <button
                     onClick={() => sendMessage()}
@@ -799,30 +894,30 @@ export function OwnerDock({
 
             {/* Desktop: live preview iframe */}
             <div
-              className="hidden lg:flex w-[420px] shrink-0 items-center justify-center"
-              style={{ borderLeft: "1px solid rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.02)" }}
+              className="hidden lg:flex w-[420px] shrink-0 items-center justify-center bg-gray-50"
+              style={{ borderLeft: "1px solid rgba(0,0,0,0.08)" }}
             >
               {hubData.slug ? (
                 <div className="flex flex-col items-center gap-3">
                   <div
                     className="overflow-hidden rounded-[32px]"
-                    style={{ width: 375, height: 680, border: "2px solid rgba(255,255,255,0.08)" }}
+                    style={{ width: 375, height: 680, border: "2px solid rgba(0,0,0,0.08)" }}
                   >
                     <iframe
                       src={`https://join.thekickback.net/${hubData.slug}`}
                       className="h-full w-full"
-                      style={{ border: "none", background: "#000" }}
+                      style={{ border: "none", background: "#fff" }}
                       title="Hub Preview"
                     />
                   </div>
-                  <span className="font-mono text-[10px] text-white/20">
+                  <span className="font-mono text-[10px] text-gray-300">
                     join.thekickback.net/{hubData.slug}
                   </span>
                 </div>
               ) : (
                 <div className="text-center">
-                  <p className="font-sans text-[14px] text-white/30">Preview will appear here</p>
-                  <p className="mt-1 font-sans text-[12px] text-white/15">Complete setup to see your live page</p>
+                  <p className="font-sans text-[14px] text-gray-400">Preview will appear here</p>
+                  <p className="mt-1 font-sans text-[12px] text-gray-300">Complete setup to see your live page</p>
                 </div>
               )}
             </div>
@@ -835,8 +930,7 @@ export function OwnerDock({
                 href={`https://join.thekickback.net/${hubData.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[13px] font-semibold text-white/60 transition active:scale-[0.98]"
-                style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 border border-gray-200 py-2.5 font-sans text-[13px] font-semibold text-gray-500 transition active:scale-[0.98]"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -849,45 +943,93 @@ export function OwnerDock({
           )}
         </TabsContent>
 
-        {/* ── Tab 2: Orders ── */}
+        {/* Tab 2: Orders */}
         <TabsContent value={1} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
           <div className="p-4 lg:p-6 space-y-6">
             {/* Stripe Connect */}
             <div
-              className="rounded-2xl p-4"
-              style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="rounded-2xl bg-white p-4"
+              style={{ border: "1px solid rgba(0,0,0,0.08)" }}
             >
               <StripeConnect />
             </div>
 
-            {/* Revenue stat cards (dark themed) */}
+            {/* Revenue stat cards */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
                 { label: "Today", value: fmtCents(Math.round(initialData.revenueStats.todayRevenue * (1 - feeRate))), sub: `${fmtCents(initialData.revenueStats.todayRevenue)} gross`, color: "#16a34a" },
                 { label: "This Week", value: fmtCents(Math.round(initialData.revenueStats.weekRevenue * (1 - feeRate))), sub: `${fmtCents(initialData.revenueStats.weekRevenue)} gross`, color: "#F97316" },
                 { label: "All-time", value: fmtCents(initialData.revenueStats.totalEarnings || 0), sub: null, color: "#8B5CF6" },
-                { label: "Total Orders", value: String(initialData.revenueStats.totalOrders), sub: `${Math.round(feeRate * 100)}% platform fee`, color: "rgba(255,255,255,0.8)" },
+                { label: "Total Orders", value: String(initialData.revenueStats.totalOrders), sub: `${Math.round(feeRate * 100)}% platform fee`, color: "rgba(0,0,0,0.7)" },
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="rounded-2xl px-4 py-3"
-                  style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}
+                  className="rounded-2xl bg-white px-4 py-3"
+                  style={{ border: "1px solid rgba(0,0,0,0.08)" }}
                 >
                   <p className="font-mono text-[24px] font-bold tracking-tight" style={{ color: stat.color }}>
                     {stat.value}
                   </p>
-                  <p className="font-sans text-[12px] text-white/40">{stat.label}</p>
-                  {stat.sub && <p className="font-sans text-[10px] text-white/20">{stat.sub}</p>}
+                  <p className="font-sans text-[12px] text-gray-400">{stat.label}</p>
+                  {stat.sub && <p className="font-sans text-[10px] text-gray-300">{stat.sub}</p>}
                 </div>
               ))}
             </div>
 
+            {/* Top Selling Items */}
+            {topSellingItems.length > 0 && (
+              <div
+                className="rounded-2xl bg-white p-4"
+                style={{ border: "1px solid rgba(0,0,0,0.08)" }}
+              >
+                <h3 className="mb-3 font-sans text-[15px] font-semibold text-gray-700">Top Selling Items</h3>
+                <div className="space-y-2">
+                  {topSellingItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-50 font-mono text-[11px] font-bold text-orange-600">{idx + 1}</span>
+                        <span className="font-sans text-[13px] font-medium text-gray-700">{item.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-mono text-[13px] font-semibold text-gray-900">{item.count}x</span>
+                        <span className="ml-2 font-mono text-[11px] text-gray-400">{fmtCents(item.revenue)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent Purchases */}
+            {recentPurchases.length > 0 && (
+              <div
+                className="rounded-2xl bg-white p-4"
+                style={{ border: "1px solid rgba(0,0,0,0.08)" }}
+              >
+                <h3 className="mb-3 font-sans text-[15px] font-semibold text-gray-700">Recent Purchases</h3>
+                <div className="space-y-2">
+                  {recentPurchases.map((purchase) => (
+                    <div key={purchase.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-sans text-[13px] font-medium text-gray-700 truncate">{purchase.guestName}</p>
+                        <p className="font-sans text-[11px] text-gray-400 truncate">{purchase.items}</p>
+                      </div>
+                      <div className="text-right shrink-0 ml-3">
+                        <p className="font-mono text-[13px] font-semibold" style={{ color: "#16a34a" }}>{fmtCents(purchase.total)}</p>
+                        <p className="font-sans text-[10px] text-gray-400">{relativeTime(purchase.time)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Orders list */}
             <div
-              className="rounded-2xl p-4"
-              style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="rounded-2xl bg-white p-4"
+              style={{ border: "1px solid rgba(0,0,0,0.08)" }}
             >
-              <h3 className="mb-4 font-sans text-[15px] font-semibold text-white/80">Orders</h3>
+              <h3 className="mb-4 font-sans text-[15px] font-semibold text-gray-700">Orders</h3>
               <OrdersPanel
                 orders={initialData.orders}
                 revenue={initialData.revenueStats}
@@ -897,7 +1039,7 @@ export function OwnerDock({
           </div>
         </TabsContent>
 
-        {/* ── Tab 3: Guests ── */}
+        {/* Tab 3: Guests */}
         <TabsContent value={2} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
           <div className="p-4 lg:p-6 space-y-6">
             {/* Stat row */}
@@ -906,33 +1048,108 @@ export function OwnerDock({
                 { label: "Active Now", value: String(initialData.sessions.length), color: "#4ade80" },
                 { label: "Today", value: String(initialData.stats.totalToday), color: "#F97316" },
                 { label: "Members", value: String(initialData.stats.members), color: "#8B5CF6" },
-                { label: "Bookings", value: String(initialData.bookings.length), color: "rgba(255,255,255,0.8)" },
+                { label: "Bookings", value: String(initialData.bookings.length), color: "rgba(0,0,0,0.7)" },
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="rounded-2xl px-4 py-3"
-                  style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}
+                  className="rounded-2xl bg-white px-4 py-3"
+                  style={{ border: "1px solid rgba(0,0,0,0.08)" }}
                 >
                   <p className="font-mono text-[28px] font-bold tracking-tight" style={{ color: stat.color }}>
                     {stat.value}
                   </p>
-                  <p className="font-sans text-[12px] text-white/40">{stat.label}</p>
+                  <p className="font-sans text-[12px] text-gray-400">{stat.label}</p>
                 </div>
               ))}
             </div>
 
+            {/* XP Breakdown */}
+            {xpBreakdown.length > 0 && (
+              <div
+                className="rounded-2xl bg-white p-4"
+                style={{ border: "1px solid rgba(0,0,0,0.08)" }}
+              >
+                <h3 className="mb-3 font-sans text-[15px] font-semibold text-gray-700">XP Breakdown</h3>
+                <div className="space-y-2">
+                  {xpBreakdown.map((item) => (
+                    <div key={item.reason} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-sans text-[12px] font-medium text-gray-600 capitalize">{item.reason.replace(/_/g, " ")}</span>
+                        <span className="font-mono text-[11px] text-gray-400">{item.count}x &middot; {item.totalXp} XP</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${Math.round((item.count / maxXpCount) * 100)}%`,
+                            backgroundColor: "#F97316",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent XP */}
+            {recentXp.length > 0 && (
+              <div
+                className="rounded-2xl bg-white p-4"
+                style={{ border: "1px solid rgba(0,0,0,0.08)" }}
+              >
+                <h3 className="mb-3 font-sans text-[15px] font-semibold text-gray-700">Recent XP</h3>
+                <div className="space-y-2">
+                  {recentXp.map((entry, idx) => (
+                    <div key={idx} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-sans text-[13px] font-medium text-gray-700 truncate">{entry.name}</p>
+                        <p className="font-sans text-[11px] text-gray-400 capitalize">{entry.reason.replace(/_/g, " ")}</p>
+                      </div>
+                      <div className="text-right shrink-0 ml-3">
+                        <p className="font-sans text-[13px] font-semibold text-green-600">+{entry.amount} XP</p>
+                        <p className="font-sans text-[10px] text-gray-400">{relativeTime(entry.time)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Bot Conversation Topics */}
+            {topics.length > 0 && (
+              <div
+                className="rounded-2xl bg-white p-4"
+                style={{ border: "1px solid rgba(0,0,0,0.08)" }}
+              >
+                <h3 className="mb-3 font-sans text-[15px] font-semibold text-gray-700">Popular Topics</h3>
+                <p className="mb-2 font-sans text-[11px] text-gray-400">What guests are asking the bot about</p>
+                <div className="flex flex-wrap gap-2">
+                  {topics.map((t) => (
+                    <span
+                      key={t.topic}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 font-sans text-[12px] font-medium text-blue-600"
+                    >
+                      {t.topic}
+                      <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">{t.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Active sessions */}
             <div>
-              <h3 className="mb-3 font-sans text-[15px] font-semibold text-white/80">
+              <h3 className="mb-3 font-sans text-[15px] font-semibold text-gray-700">
                 Active Sessions
               </h3>
               {initialData.sessions.length === 0 ? (
                 <div
-                  className="rounded-2xl px-6 py-12 text-center"
-                  style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}
+                  className="rounded-2xl bg-white px-6 py-12 text-center"
+                  style={{ border: "1px solid rgba(0,0,0,0.08)" }}
                 >
-                  <p className="font-sans text-[15px] font-medium text-white/40">No active guests</p>
-                  <p className="mt-1 font-sans text-[13px] text-white/25">
+                  <p className="font-sans text-[15px] font-medium text-gray-400">No active guests</p>
+                  <p className="mt-1 font-sans text-[13px] text-gray-300">
                     When guests check in, they show up here
                   </p>
                 </div>
@@ -941,12 +1158,12 @@ export function OwnerDock({
                   {initialData.sessions.map((session) => (
                     <div
                       key={session.id}
-                      className="flex items-center gap-3 rounded-xl px-4 py-3"
-                      style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}
+                      className="flex items-center gap-3 rounded-xl bg-white px-4 py-3"
+                      style={{ border: "1px solid rgba(0,0,0,0.08)" }}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="font-sans text-[14px] font-medium text-white/85 truncate">
+                          <p className="font-sans text-[14px] font-medium text-gray-700 truncate">
                             {session.profiles?.display_name ?? "Guest"}
                           </p>
                           {session.tier && (
@@ -961,12 +1178,12 @@ export function OwnerDock({
                             </span>
                           )}
                           {session.is_member && (
-                            <span className="shrink-0 rounded-full px-2 py-0.5 font-sans text-[10px] font-medium" style={{ backgroundColor: "rgba(249,115,22,0.15)", color: "#F97316" }}>
+                            <span className="shrink-0 rounded-full px-2 py-0.5 font-sans text-[10px] font-medium" style={{ backgroundColor: "rgba(249,115,22,0.1)", color: "#F97316" }}>
                               Member
                             </span>
                           )}
                         </div>
-                        <p className="font-sans text-[11px] text-white/35">
+                        <p className="font-sans text-[11px] text-gray-400">
                           {session.venue_xp ?? 0} XP &middot; {session.venue_visits ?? 0} visits
                           {session.started_at && <> &middot; checked in {relativeTime(session.started_at)}</>}
                         </p>
@@ -980,7 +1197,7 @@ export function OwnerDock({
             {/* Upcoming bookings */}
             {initialData.bookings.length > 0 && (
               <div>
-                <h3 className="mb-3 font-sans text-[15px] font-semibold text-white/80">
+                <h3 className="mb-3 font-sans text-[15px] font-semibold text-gray-700">
                   Upcoming Bookings
                 </h3>
                 <div className="flex flex-col gap-2">
@@ -990,12 +1207,12 @@ export function OwnerDock({
                     .map((booking) => (
                       <div
                         key={booking.id}
-                        className="flex items-center gap-3 rounded-xl px-4 py-3"
-                        style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}
+                        className="flex items-center gap-3 rounded-xl bg-white px-4 py-3"
+                        style={{ border: "1px solid rgba(0,0,0,0.08)" }}
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="font-sans text-[14px] font-medium text-white/80">{booking.guest_name}</p>
-                          <p className="font-sans text-[11px] text-white/35">
+                          <p className="font-sans text-[14px] font-medium text-gray-700">{booking.guest_name}</p>
+                          <p className="font-sans text-[11px] text-gray-400">
                             {booking.offering_name} &middot;{" "}
                             {new Date(booking.starts_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}{" "}
                             {new Date(booking.starts_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
@@ -1009,13 +1226,13 @@ export function OwnerDock({
                                 ? "rgba(250,204,21,0.12)"
                                 : booking.cal_status === "accepted"
                                   ? "rgba(74,222,128,0.12)"
-                                  : "rgba(255,255,255,0.06)",
+                                  : "rgba(0,0,0,0.04)",
                             color:
                               booking.cal_status === "pending"
-                                ? "#FACC15"
+                                ? "#CA8A04"
                                 : booking.cal_status === "accepted"
-                                  ? "#4ade80"
-                                  : "rgba(255,255,255,0.5)",
+                                  ? "#16a34a"
+                                  : "rgba(0,0,0,0.4)",
                           }}
                         >
                           {booking.cal_status}
@@ -1028,7 +1245,7 @@ export function OwnerDock({
           </div>
         </TabsContent>
 
-        {/* ── Tab 4: More ── */}
+        {/* Tab 4: More */}
         <TabsContent value={3} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
           <div className="p-4 lg:p-6 space-y-3">
             {/* Offerings */}
@@ -1042,22 +1259,22 @@ export function OwnerDock({
                   />
                 }
               />
-              <SheetContent side="right" className="w-full sm:max-w-md bg-black border-white/10">
+              <SheetContent side="right" className="w-full sm:max-w-md bg-white border-gray-200">
                 <SheetHeader>
-                  <SheetTitle className="text-white">Offerings</SheetTitle>
-                  <SheetDescription className="text-white/40">Manage your products, services, and memberships</SheetDescription>
+                  <SheetTitle className="text-gray-900">Offerings</SheetTitle>
+                  <SheetDescription className="text-gray-400">Manage your products, services, and memberships</SheetDescription>
                 </SheetHeader>
                 <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
                   {offeringsState.length === 0 ? (
-                    <p className="text-center py-8 font-sans text-[13px] text-white/30">No offerings yet</p>
+                    <p className="text-center py-8 font-sans text-[13px] text-gray-400">No offerings yet</p>
                   ) : (
                     offeringsState.map((o) => (
-                      <div key={o.id} className="rounded-xl px-4 py-3" style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <div key={o.id} className="rounded-xl bg-gray-50 px-4 py-3" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
                         <div className="flex items-center justify-between">
-                          <span className="font-sans text-[13px] font-medium text-white/80">{o.name}</span>
-                          <span className="font-mono text-[12px] text-white/40">{fmtCents(o.price_cents)}</span>
+                          <span className="font-sans text-[13px] font-medium text-gray-700">{o.name}</span>
+                          <span className="font-mono text-[12px] text-gray-400">{fmtCents(o.price_cents)}</span>
                         </div>
-                        <p className="mt-0.5 font-sans text-[11px] text-white/25">{o.type}{o.description ? ` — ${o.description}` : ""}</p>
+                        <p className="mt-0.5 font-sans text-[11px] text-gray-400">{o.type}{o.description ? ` — ${o.description}` : ""}</p>
                       </div>
                     ))
                   )}
@@ -1083,10 +1300,10 @@ export function OwnerDock({
                   />
                 }
               />
-              <SheetContent side="right" className="w-full sm:max-w-md bg-black border-white/10">
+              <SheetContent side="right" className="w-full sm:max-w-md bg-white border-gray-200">
                 <SheetHeader>
-                  <SheetTitle className="text-white">Staff Management</SheetTitle>
-                  <SheetDescription className="text-white/40">Add and manage your team</SheetDescription>
+                  <SheetTitle className="text-gray-900">Staff Management</SheetTitle>
+                  <SheetDescription className="text-gray-400">Add and manage your team</SheetDescription>
                 </SheetHeader>
                 <div className="flex-1 overflow-y-auto px-4 pb-4">
                   <Link
@@ -1111,10 +1328,10 @@ export function OwnerDock({
                   />
                 }
               />
-              <SheetContent side="right" className="w-full sm:max-w-md bg-black border-white/10">
+              <SheetContent side="right" className="w-full sm:max-w-md bg-white border-gray-200">
                 <SheetHeader>
-                  <SheetTitle className="text-white">AI Knowledge Base</SheetTitle>
-                  <SheetDescription className="text-white/40">Add info your AI should know about your venue</SheetDescription>
+                  <SheetTitle className="text-gray-900">AI Knowledge Base</SheetTitle>
+                  <SheetDescription className="text-gray-400">Add info your AI should know about your venue</SheetDescription>
                 </SheetHeader>
                 <div className="flex-1 overflow-y-auto px-4 pb-4">
                   <Link
@@ -1139,20 +1356,20 @@ export function OwnerDock({
                   />
                 }
               />
-              <SheetContent side="right" className="w-full sm:max-w-md bg-black border-white/10">
+              <SheetContent side="right" className="w-full sm:max-w-md bg-white border-gray-200">
                 <SheetHeader>
-                  <SheetTitle className="text-white">XP & Loyalty</SheetTitle>
-                  <SheetDescription className="text-white/40">Configure how guests earn and redeem points</SheetDescription>
+                  <SheetTitle className="text-gray-900">XP & Loyalty</SheetTitle>
+                  <SheetDescription className="text-gray-400">Configure how guests earn and redeem points</SheetDescription>
                 </SheetHeader>
                 <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
                   {/* XP Actions */}
                   {initialXpActions && initialXpActions.length > 0 && (
                     <div>
-                      <p className="mb-2 font-sans text-[11px] font-semibold text-white/30 uppercase tracking-wider">Actions</p>
+                      <p className="mb-2 font-sans text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Actions</p>
                       {initialXpActions.map((a, i) => (
-                        <div key={i} className="mb-1.5 flex items-center justify-between rounded-lg px-3 py-2" style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}>
-                          <span className="font-sans text-[13px] text-white/70">{a.label}</span>
-                          <span className="font-sans text-[12px] font-medium text-green-400/70">+{a.points} XP</span>
+                        <div key={i} className="mb-1.5 flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                          <span className="font-sans text-[13px] text-gray-600">{a.label}</span>
+                          <span className="font-sans text-[12px] font-medium text-green-600">+{a.points} XP</span>
                         </div>
                       ))}
                     </div>
@@ -1160,11 +1377,11 @@ export function OwnerDock({
                   {/* Milestones */}
                   {initialXpMilestones && initialXpMilestones.length > 0 && (
                     <div>
-                      <p className="mb-2 font-sans text-[11px] font-semibold text-white/30 uppercase tracking-wider">Milestones</p>
+                      <p className="mb-2 font-sans text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Milestones</p>
                       {initialXpMilestones.map((m, i) => (
-                        <div key={i} className="mb-1.5 flex items-center justify-between rounded-lg px-3 py-2" style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}>
-                          <span className="font-sans text-[13px] text-white/60">{m.name}</span>
-                          <span className="font-sans text-[11px] text-white/30">{m.threshold} XP</span>
+                        <div key={i} className="mb-1.5 flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                          <span className="font-sans text-[13px] text-gray-500">{m.name}</span>
+                          <span className="font-sans text-[11px] text-gray-400">{m.threshold} XP</span>
                         </div>
                       ))}
                     </div>
@@ -1181,18 +1398,18 @@ export function OwnerDock({
             </Sheet>
 
             {/* Divider */}
-            <div className="h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
+            <div className="h-px bg-gray-200" />
 
             {/* Account section */}
             <div
-              className="rounded-xl px-4 py-4 space-y-3"
-              style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}
+              className="rounded-xl bg-white px-4 py-4 space-y-3"
+              style={{ border: "1px solid rgba(0,0,0,0.08)" }}
             >
-              <p className="font-sans text-[11px] font-semibold text-white/30 uppercase tracking-wider">Account</p>
+              <p className="font-sans text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Account</p>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-sans text-[13px] text-white/70">{user.email}</p>
-                  <p className="font-sans text-[11px] text-white/30">Owner</p>
+                  <p className="font-sans text-[13px] text-gray-600">{user.email}</p>
+                  <p className="font-sans text-[11px] text-gray-400">Owner</p>
                 </div>
                 <SignOutButton />
               </div>
@@ -1205,8 +1422,8 @@ export function OwnerDock({
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-sans text-[13px] font-medium text-yellow-500/80">Seed Demo Data</p>
-                  <p className="font-sans text-[11px] text-yellow-500/40">Populate sandbox with sample data</p>
+                  <p className="font-sans text-[13px] font-medium text-yellow-600">Seed Demo Data</p>
+                  <p className="font-sans text-[11px] text-yellow-500/60">Populate sandbox with sample data</p>
                 </div>
                 <button
                   onClick={handleSeedDemo}
@@ -1222,8 +1439,7 @@ export function OwnerDock({
             {/* Full settings link */}
             <Link
               href="/settings"
-              className="flex w-full items-center justify-center gap-2 rounded-xl py-3 font-sans text-[13px] font-medium text-white/40 transition hover:text-white/60"
-              style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-50 border border-gray-200 py-3 font-sans text-[13px] font-medium text-gray-400 transition hover:text-gray-600"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -1234,12 +1450,11 @@ export function OwnerDock({
           </div>
         </TabsContent>
 
-        {/* ═══ Mobile Bottom Tab Bar ═══ */}
+        {/* Mobile Bottom Tab Bar */}
         <div
-          className="flex shrink-0 items-stretch lg:hidden"
+          className="flex shrink-0 items-stretch lg:hidden bg-white"
           style={{
-            backgroundColor: "rgba(0,0,0,0.95)",
-            borderTop: "1px solid rgba(255,255,255,0.08)",
+            borderTop: "1px solid rgba(0,0,0,0.08)",
             paddingBottom: "env(safe-area-inset-bottom)",
           }}
         >
@@ -1257,7 +1472,7 @@ export function OwnerDock({
                 key={idx}
                 onClick={() => setActiveTab(idx)}
                 className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 font-sans text-[10px] font-medium transition ${
-                  isActive ? "text-[#F97316]" : "text-white/30"
+                  isActive ? "text-[#F97316]" : "text-gray-400"
                 }`}
               >
                 <Icon active={isActive} />
