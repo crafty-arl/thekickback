@@ -142,16 +142,15 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 route={navRoute}
             />
 
-            {/* Header overlay — logo only */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
-                <header className="pointer-events-auto flex items-center justify-center px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2">
+            {/* Header overlay — logo */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)", paddingBottom: 20 }}>
+                <header className="pointer-events-auto flex items-center justify-center px-4 pt-[max(16px,env(safe-area-inset-top))] pb-2">
                     <Image
                         src="/logo.png"
                         alt="theKickBack"
-                        width={400}
-                        height={200}
-                        className="h-20 w-auto drop-shadow-2xl sm:h-24"
-                        style={{ filter: "invert(1)" }}
+                        width={500}
+                        height={250}
+                        className="h-12 w-auto drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:h-14"
                         priority
                     />
                 </header>

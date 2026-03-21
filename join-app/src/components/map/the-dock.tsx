@@ -2383,13 +2383,13 @@ export function TheDock({
                 {isDesktop && <span className="absolute -bottom-1 -right-1 hidden h-4 min-w-[16px] items-center justify-center rounded bg-white/[0.08] px-0.5 font-mono text-[8px] font-bold text-white/40 group-hover:flex" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>P</span>}
               </button>
 
-              {/* Center: KB logo + input */}
-              <button
-                onClick={() => { setMode("explore"); setExploreSnap("half"); }}
-                className="group relative flex items-center gap-1.5 pl-0.5"
-              >
-                <Image src="/logo.png" alt="KB" width={80} height={26} className="h-5 w-auto opacity-80" />
-              </button>
+              {/* Center: pulsing dot + input/sign-in */}
+              <motion.div
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: ACCENT }}
+                animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
+                transition={{ duration: 3, repeat: Infinity }}
+              />
 
               {user ? (
                 <input
@@ -3018,7 +3018,7 @@ export function TheDock({
           )}
 
           {/* ═══ VENUE CHAT EXPANDED ═══ */}
-          {mode === "venueChat" && venueChatExpanded && selectedVenue && !showVenueContact && (
+          {mode === "venueChat" && venueChatExpanded && selectedVenue && !showVenueContact && user && (
             <>
               {/* Header */}
               <div className="px-4 pt-3 pb-1">
@@ -3575,7 +3575,7 @@ export function TheDock({
           )}
 
           {/* ═══ VENUE CHAT — UNCLAIMED (Ghost Agent) ═══ */}
-          {mode === "venueChat" && selectedVenue && selectedVenue.claimed === false && venueChatExpanded && (
+          {mode === "venueChat" && selectedVenue && selectedVenue.claimed === false && venueChatExpanded && user && (
             <div className="flex flex-1 flex-col overflow-hidden">
               {/* Header */}
               <div className="px-4 pt-3 pb-1">
