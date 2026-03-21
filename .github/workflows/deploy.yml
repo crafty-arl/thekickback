@@ -10,6 +10,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ═══════════════════════════════════════════════════════════
+  # 1. LINT & BUILD — gate for all downstream jobs
+  # ═══════════════════════════════════════════════════════════
   lint-and-build:
     runs-on: ubuntu-latest
     steps:
@@ -21,74 +24,10 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  # ── Deploy Cloudflare Workers ────────────────────────────
-  deploy-workers:
-    needs: lint-and-build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      # ── email-worker ──
-      - name: Deploy email-worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: email-worker
-          secrets: |
-            RESEND_API_KEY
-            SUPABASE_SERVICE_KEY
-            OPENCLAW_HOOKS_TOKEN
-        env:
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          OPENCLAW_HOOKS_TOKEN: ${{ secrets.OPENCLAW_HOOKS_TOKEN }}
-
-      # ── digest-worker ──
-      - name: Deploy digest-worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: digest-worker
-          secrets: |
-            SUPABASE_SERVICE_KEY
-            RESEND_API_KEY
-        env:
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-
-      # ── sms-worker ──
-      - name: Deploy sms-worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: sms-worker
-          secrets: |
-            TWILIO_AUTH_TOKEN
-            TWILIO_ACCOUNT_SID
-            SUPABASE_SERVICE_KEY
-            OPENCLAW_HOOKS_TOKEN
-        env:
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          OPENCLAW_HOOKS_TOKEN: ${{ secrets.OPENCLAW_HOOKS_TOKEN }}
-
-      # ── renewal-worker ──
-      - name: Deploy renewal-worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: renewal-worker
-          secrets: |
-            SUPABASE_SERVICE_KEY
-        env:
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-
-
-  deploy:
+  # ═══════════════════════════════════════════════════════════
+  # 2a. DEPLOY VPS — Docker containers (parallel with workers)
+  # ═══════════════════════════════════════════════════════════
+  deploy-vps:
     needs: lint-and-build
     runs-on: ubuntu-latest
     steps:
@@ -175,7 +114,84 @@ jobs:
 
             # ── Caddy ──
             docker compose up -d --force-recreate caddy
-            echo "Deploy complete"
+            echo "VPS deploy complete"
+
+  # ═══════════════════════════════════════════════════════════
+  # 2b. DEPLOY WORKERS — Cloudflare (parallel with VPS)
+  # ═══════════════════════════════════════════════════════════
+  deploy-workers:
+    needs: lint-and-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # ── email-worker ──
+      - name: Deploy email-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: email-worker
+          secrets: |
+            RESEND_API_KEY
+            SUPABASE_SERVICE_KEY
+            OPENCLAW_HOOKS_TOKEN
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OPENCLAW_HOOKS_TOKEN: ${{ secrets.OPENCLAW_HOOKS_TOKEN }}
+
+      # ── digest-worker ──
+      - name: Deploy digest-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: digest-worker
+          secrets: |
+            SUPABASE_SERVICE_KEY
+            RESEND_API_KEY
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+
+      # ── sms-worker ──
+      - name: Deploy sms-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: sms-worker
+          secrets: |
+            TWILIO_AUTH_TOKEN
+            TWILIO_ACCOUNT_SID
+            SUPABASE_SERVICE_KEY
+            OPENCLAW_HOOKS_TOKEN
+        env:
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OPENCLAW_HOOKS_TOKEN: ${{ secrets.OPENCLAW_HOOKS_TOKEN }}
+
+      # ── renewal-worker ──
+      - name: Deploy renewal-worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: renewal-worker
+          secrets: |
+            SUPABASE_SERVICE_KEY
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+  # ═══════════════════════════════════════════════════════════
+  # 3. TEST — runs after BOTH deploys succeed
+  # ═══════════════════════════════════════════════════════════
+  test-services:
+    needs: [deploy-vps, deploy-workers]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Test all services
         uses: appleboy/ssh-action@v1
@@ -223,7 +239,6 @@ jobs:
             echo ""
             echo "═══ 4. AI AGENT ═══"
             if [ -n "$CLAW_IP" ]; then
-              # Wait for claw healthy (up to 45s)
               for i in $(seq 1 9); do
                 S=$(docker inspect claw --format '{{.State.Health.Status}}' 2>/dev/null)
                 [ "$S" = "healthy" ] && break
@@ -270,6 +285,12 @@ jobs:
             fi
 
             echo ""
+            echo "═══ 6. CLOUDFLARE WORKERS ═══"
+            # email-worker health
+            CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 5 "https://kickback-email.carl-lewis.workers.dev/health" 2>/dev/null)
+            [ "$CODE" = "200" ] && ok "email-worker" || warn "email-worker — HTTP $CODE"
+
+            echo ""
             echo "═══ RESULTS: $PASS passed, $FAIL failed, $WARN warnings ═══"
             [ $FAIL -gt 0 ] && { echo "FAILED"; exit 1; }
             echo "All critical tests passed"
@@ -291,7 +312,6 @@ jobs:
             warn() { WARN=$((WARN + 1)); echo "  ⚠ $1"; }
 
             echo "═══ SANDBOX DOMAIN ROUTING ═══"
-            # Verify sandbox domains resolve to the same app instances
             for D in sandbox.thekickback.net sanddash.thekickback.net; do
               CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 8 -Lk -H "Host: $D" https://localhost/health 2>/dev/null)
               [ "$CODE" = "000" ] && CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 8 -H "Host: $D" http://localhost:80/health 2>/dev/null)
@@ -303,16 +323,7 @@ jobs:
             JOIN_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' join-app 2>/dev/null)
             DASH_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' dash-app 2>/dev/null)
 
-            # Test: sandbox wallet GET returns sandbox data (mode=test context)
             if [ -n "$JOIN_IP" ]; then
-              # Production request (Host: join.thekickback.net)
-              PROD_RESP=$(curl -sf --max-time 10 "http://$JOIN_IP:3000/api/wallet" \
-                -H "Host: join.thekickback.net" 2>/dev/null)
-              # Sandbox request (Host: sandbox.thekickback.net)
-              SAND_RESP=$(curl -sf --max-time 10 "http://$JOIN_IP:3000/api/wallet" \
-                -H "Host: sandbox.thekickback.net" 2>/dev/null)
-
-              # Both should return (even if 401 for unauthenticated — that's fine, means the route works)
               PROD_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$JOIN_IP:3000/api/wallet" \
                 -H "Host: join.thekickback.net" 2>/dev/null)
               SAND_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$JOIN_IP:3000/api/wallet" \
@@ -325,22 +336,18 @@ jobs:
             fi
 
             if [ -n "$DASH_IP" ]; then
-              # Production dashboard
               PROD_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$DASH_IP:3000/health" \
                 -H "Host: dash.thekickback.net" 2>/dev/null)
-              # Sandbox dashboard
               SAND_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$DASH_IP:3000/health" \
                 -H "Host: sanddash.thekickback.net" 2>/dev/null)
 
               [ "$PROD_CODE" = "200" ] && ok "dash prod health ($PROD_CODE)" || fail "dash prod — HTTP $PROD_CODE"
               [ "$SAND_CODE" = "200" ] && ok "dash sandbox health ($SAND_CODE)" || fail "dash sandbox — HTTP $SAND_CODE"
 
-              # Seed-demo should reject on production host
               SEED_PROD=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$DASH_IP:3000/api/seed-demo" \
                 -X POST -H "Host: dash.thekickback.net" 2>/dev/null)
               [ "$SEED_PROD" = "403" ] && ok "seed-demo blocked on production ($SEED_PROD)" || warn "seed-demo on prod — HTTP $SEED_PROD (expected 403)"
 
-              # Seed-demo should be allowed on sandbox host (will fail auth but not 403)
               SEED_SAND=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "http://$DASH_IP:3000/api/seed-demo" \
                 -X POST -H "Host: sanddash.thekickback.net" 2>/dev/null)
               [ "$SEED_SAND" != "403" ] && ok "seed-demo allowed on sandbox ($SEED_SAND)" || fail "seed-demo blocked on sandbox — HTTP $SEED_SAND"
@@ -371,24 +378,18 @@ jobs:
 
             echo "═══ PRODUCTION DOMAIN VERIFICATION ═══"
 
-            # Verify each production domain resolves and serves the correct app
-            # Landing page
             CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: thekickback.net" https://localhost/ 2>/dev/null)
             [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "thekickback.net landing" || warn "thekickback.net — HTTP $CODE"
 
-            # Join app — check health + verify it serves venue pages
             CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: join.thekickback.net" https://localhost/health 2>/dev/null)
             [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "join.thekickback.net health" || warn "join.thekickback.net — HTTP $CODE"
 
-            # Dashboard — health
             CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: dash.thekickback.net" https://localhost/health 2>/dev/null)
             [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "dash.thekickback.net health" || warn "dash.thekickback.net — HTTP $CODE"
 
-            # Wallet service
             CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: thekickback.net" https://localhost/wallet/health 2>/dev/null)
             [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "wallet-service health" || warn "wallet-service — HTTP $CODE"
 
-            # Sandbox domains — same apps, different Host header
             CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 10 -Lk -H "Host: sandbox.thekickback.net" https://localhost/health 2>/dev/null)
             [ "$CODE" = "200" ] || [ "$CODE" = "308" ] && ok "sandbox.thekickback.net health" || warn "sandbox.thekickback.net — HTTP $CODE"
 
@@ -397,8 +398,6 @@ jobs:
 
             echo ""
             echo "═══ PRODUCTION DB — SHARED INSTANCE VERIFICATION ═══"
-            # Verify both sandbox and production routes hit the same database
-            # by checking that the same venue exists from both "perspectives"
             VID=$(curl -sf --max-time 5 \
               "${SUPABASE_URL}/rest/v1/venues?select=id&state=eq.active&limit=1" \
               -H "apikey: ${SUPABASE_SERVICE_KEY}" \
@@ -410,7 +409,6 @@ jobs:
 
               JOIN_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' join-app 2>/dev/null)
               if [ -n "$JOIN_IP" ]; then
-                # Both prod and sandbox should see the same venue via the API
                 PROD_VEN=$(curl -sf --max-time 10 "http://$JOIN_IP:3000/api/venue-page?venueId=$VID" \
                   -H "Host: join.thekickback.net" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('venue',{}).get('id',''))" 2>/dev/null)
                 SAND_VEN=$(curl -sf --max-time 10 "http://$JOIN_IP:3000/api/venue-page?venueId=$VID" \
