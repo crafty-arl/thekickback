@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { type Venue, getVibeHexColor, getVibeLabel, getOccupancyPercent } from "@/lib/venues";
+import { type Venue } from "@/lib/venues";
 
 interface Thread {
   id: string;
@@ -49,8 +49,7 @@ export function VenueContact({ venue, onClose, onChat }: VenueContactProps) {
   const [page, setPage] = useState<{ tagline: string | null; description: string | null; theme_color: string; hero_image: string | null; hours: { day: string; open: string; close: string }[] } | null>(null);
   const [thread, setThread] = useState<Thread | null>(null);
   const [offerings, setOfferings] = useState<OfferingData[]>([]);
-  const vibeColor = venue.themeColor || getVibeHexColor(venue.vibe);
-  const pct = getOccupancyPercent(venue);
+  const vibeColor = venue.themeColor || "#F97316";
 
   useEffect(() => {
     fetch(`/api/venue-page?venueId=${venue.id}`)
@@ -126,13 +125,14 @@ export function VenueContact({ venue, onClose, onChat }: VenueContactProps) {
         >
           {page?.hero_image && <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.85) 100%)" }} />}
           <div className="relative z-10 w-full">
-            <div className="mb-1.5 flex items-center gap-2">
-              <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-                <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getVibeHexColor(venue.vibe) }} />
-                <span className="font-sans text-[9px] font-semibold" style={{ color: getVibeHexColor(venue.vibe) }}>{getVibeLabel(venue.vibe)}</span>
+            {venue.occupancy > 0 && (
+              <div className="mb-1.5 flex items-center gap-2">
+                <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
+                  <span className="font-sans text-[9px] font-semibold text-white/50">{venue.occupancy} checked in</span>
+                </div>
               </div>
-              <span className="font-mono text-[9px] text-white/40">{venue.occupancy}/{venue.capacity} · {pct}%</span>
-            </div>
+            )}
             <h2 className="font-sans text-[20px] font-bold text-white leading-tight">{venue.name}</h2>
             {page?.tagline && <p className="mt-0.5 font-sans text-[11px] text-white/45">{page.tagline}</p>}
           </div>

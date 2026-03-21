@@ -2845,18 +2845,14 @@ export function TheDock({
                   <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor }} />
                   <span className="font-sans text-[9px] font-semibold" style={{ color: vibeColor }}>{getVibeLabel(selectedVenue.vibe)}</span>
                 </div>
-                <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/[0.04] px-2 py-0.5" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-                  </svg>
-                  <span className="font-mono text-[9px] font-semibold text-white/40">{selectedVenue.occupancy}/{selectedVenue.capacity}</span>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <div className="h-1.5 w-12 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                    <div className="h-full rounded-full" style={{ width: `${getOccupancyPercent(selectedVenue)}%`, backgroundColor: vibeColor }} />
+                {selectedVenue.occupancy > 0 && (
+                  <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/[0.04] px-2 py-0.5" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                    </svg>
+                    <span className="font-mono text-[9px] font-semibold text-white/40">{selectedVenue.occupancy} in</span>
                   </div>
-                  <span className="font-mono text-[8px] text-white/20">{getOccupancyPercent(selectedVenue)}%</span>
-                </div>
+                )}
                 {selectedVenue.category && selectedVenue.category !== "venue" && (
                   <span className="shrink-0 rounded-full bg-white/[0.04] px-2 py-0.5 font-sans text-[8px] font-medium capitalize text-white/25" style={{ border: "1px solid rgba(255,255,255,0.04)" }}>{selectedVenue.category}</span>
                 )}

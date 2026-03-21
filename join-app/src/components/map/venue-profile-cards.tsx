@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { type Venue, getVibeHexColor, getVibeLabel, getOccupancyPercent } from "@/lib/venues";
+import { type Venue } from "@/lib/venues";
 
 interface VenuePageData {
   tagline: string | null;
@@ -48,8 +48,7 @@ export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
   const [page, setPage] = useState<VenuePageData | null>(null);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [offerings, setOfferings] = useState<OfferingData[]>([]);
-  const vibeColor = venue.themeColor || getVibeHexColor(venue.vibe);
-  const pct = getOccupancyPercent(venue);
+  const vibeColor = venue.themeColor || "#F97316";
 
   useEffect(() => {
     Promise.all([
@@ -123,13 +122,11 @@ export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
                 <div className="h-1 w-1 rounded-full bg-black animate-pulse" />
                 <span className="font-sans text-[8px] font-bold tracking-[1px] text-black">LIVE</span>
               </div>
-              <div className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}>
-                <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getVibeHexColor(venue.vibe) }} />
-                <span className="font-sans text-[9px] font-semibold" style={{ color: getVibeHexColor(venue.vibe) }}>{getVibeLabel(venue.vibe)}</span>
-              </div>
-              <span className="rounded-full px-2 py-0.5 font-mono text-[9px] text-white/50" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
-                {venue.occupancy}/{venue.capacity}
-              </span>
+              {venue.occupancy > 0 && (
+                <span className="rounded-full px-2 py-0.5 font-mono text-[9px] text-white/50" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+                  {venue.occupancy} in
+                </span>
+              )}
             </div>
             <h2 className="font-sans text-[18px] font-bold text-white leading-tight">{venue.name}</h2>
             {page?.tagline && <p className="mt-0.5 font-sans text-[11px] text-white/50">{page.tagline}</p>}
@@ -139,16 +136,6 @@ export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
           </div>
         </div>
 
-        {/* Capacity bar */}
-        <div className="px-4 py-2" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-sans text-[8px] font-semibold tracking-[1px] text-white/20">CAPACITY</span>
-            <span className="font-mono text-[9px] text-white/30">{pct}%</span>
-          </div>
-          <div className="h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: vibeColor }} />
-          </div>
-        </div>
       </motion.div>
 
       {/* ── Membership Cards (featured) ── */}

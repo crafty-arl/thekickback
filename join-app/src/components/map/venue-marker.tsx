@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { getVibeHexColor, type Venue } from "@/lib/venues";
+import { type Venue } from "@/lib/venues";
 
 interface VenueMarkerProps {
   venue: Venue;
@@ -11,7 +11,7 @@ interface VenueMarkerProps {
 
 export function VenueMarker({ venue, selected, onClick }: VenueMarkerProps) {
   const isClaimed = venue.claimed !== false;
-  const color = isClaimed ? getVibeHexColor(venue.vibe) : "#6b7280";
+  const color = isClaimed ? (venue.themeColor || "#F97316") : "#6b7280";
 
   return (
     <motion.button
