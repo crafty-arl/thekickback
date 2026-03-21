@@ -2070,9 +2070,15 @@ export function TheDock({
   // ─── Profile ───────────────────────────────────────────────────
 
   const handleAvatarTap = useCallback(() => {
+    if (!user) {
+      // Not logged in — open explore with login form
+      setMode("explore");
+      setExploreSnap("half");
+      return;
+    }
     setPreviousMode(mode);
     setMode("profile");
-  }, [mode]);
+  }, [mode, user]);
 
   const handleProfileBack = useCallback(() => {
     setMode(previousMode);
@@ -2385,19 +2391,27 @@ export function TheDock({
                 <Image src="/logo.png" alt="KB" width={80} height={26} className="h-5 w-auto opacity-80" />
               </button>
 
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && send()}
-                onFocus={user ? handleInputFocus : () => { setExploreSnap("half"); }}
-                placeholder={user ? (isDesktop ? `Explore or ask anything...  ${isMac ? "\u2318" : "Ctrl+"}K` : "Explore or ask anything...") : "Sign in to explore..."}
-                readOnly={!user}
-                enterKeyHint="send"
-                autoComplete="off"
-                autoCorrect="off"
-                className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
-              />
+              {user ? (
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && send()}
+                  onFocus={handleInputFocus}
+                  placeholder={isDesktop ? `Explore or ask anything...  ${isMac ? "\u2318" : "Ctrl+"}K` : "Explore or ask anything..."}
+                  enterKeyHint="send"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
+                />
+              ) : (
+                <button
+                  onClick={() => { setMode("explore"); setExploreSnap("half"); }}
+                  className="min-w-0 flex-1 text-left font-sans text-[13px] text-white/25"
+                >
+                  Sign in to explore...
+                </button>
+              )}
 
               {/* Streak */}
               {user && user.streak > 0 && (
