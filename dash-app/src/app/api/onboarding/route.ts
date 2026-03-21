@@ -428,7 +428,7 @@ async function createVenueFromAI(data: {
       });
       if (profileRes.ok) {
         const profiles = await profileRes.json() as { email?: string; phone?: string }[];
-        const ownerEmail = profiles[0]?.email || (profiles[0]?.phone?.includes("@") ? profiles[0].phone : null);
+        const ownerEmail = profiles[0]?.email || null;
         if (ownerEmail) {
           sendEmail(ownerEmail, `Welcome to theKickBack, ${data.name}!`, wrap(`
             <div style="text-align:center;margin-bottom:24px;">

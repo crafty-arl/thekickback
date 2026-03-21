@@ -170,55 +170,24 @@ async function handleAction(
         };
       }
 
+      // Legacy menu_item actions — alias to offerings
       case "add_menu_item": {
         if (!action.data) throw new Error("Missing menu item data");
-        const mi = action.data as { category: string; name: string; description?: string; price_cents: number; inventory_count?: number };
-        const { error } = await svc.from("venue_menu_items").insert({
-          venue_id: venueId,
-          category: mi.category || "General",
-          name: (mi.name || "").trim(),
-          description: mi.description?.trim() || null,
-          price_cents: mi.price_cents || 0,
-          inventory_count: mi.inventory_count ?? null,
-          in_stock: true,
-        });
-        if (error) throw new Error(error.message);
-        revalidatePath("/settings");
-        return {
-          reply: `Done -- menu item added. [[ACTION_CONFIRM:{"success":true,"message":"Menu item added"}]]`,
-          actionResult: { success: true, message: "Menu item added" },
-        };
+        const mi = action.data as { category?: string; name: string; description?: string; price_cents: number };
+        return handleAction({
+          type: "add_offering",
+          data: { name: mi.name, type: "product", description: mi.description || null, price_cents: mi.price_cents || 0, category: mi.category || "General" },
+        }, venueId);
       }
 
       case "delete_menu_item": {
-        if (!action.id) throw new Error("Missing menu item id");
-        const { error } = await svc
-          .from("venue_menu_items")
-          .delete()
-          .eq("id", action.id)
-          .eq("venue_id", venueId);
-        if (error) throw new Error(error.message);
-        revalidatePath("/settings");
-        return {
-          reply: `Done -- menu item removed. [[ACTION_CONFIRM:{"success":true,"message":"Menu item deleted"}]]`,
-          actionResult: { success: true, message: "Menu item deleted" },
-        };
+        return handleAction({ type: "delete_offering", id: action.id }, venueId);
       }
 
       case "toggle_menu_stock": {
         if (!action.id) throw new Error("Missing menu item id");
         const inStock = action.data?.in_stock !== false;
-        const { error } = await svc
-          .from("venue_menu_items")
-          .update({ in_stock: inStock })
-          .eq("id", action.id)
-          .eq("venue_id", venueId);
-        if (error) throw new Error(error.message);
-        revalidatePath("/settings");
-        return {
-          reply: `Done -- item marked ${inStock ? "in stock" : "out of stock"}. [[ACTION_CONFIRM:{"success":true,"message":"Stock updated"}]]`,
-          actionResult: { success: true, message: "Stock updated" },
-        };
+        return handleAction({ type: "update_offering", id: action.id, data: { active: inStock } }, venueId);
       }
 
       case "update_venue": {
@@ -515,14 +484,11 @@ WRITE ACTIONS — you can execute these when the owner asks:
 |--------|-------------|
 | update_venue | Change name, type, address, capacity, vibe, rules |
 | update_page | Change tagline, description, theme_color, hours, slug |
-| add_offering | Create a product, service, event, membership, reservation, or package |
+| add_offering | Create a product, service, event, membership, reservation, or package. To add menu items, use add_offering with type='product'. |
 | update_offering | Change an offering's name, description, price, perks |
-| delete_offering | Remove an offering |
+| delete_offering | Remove an offering. To remove menu items, use delete_offering. |
 | add_knowledge | Add venue knowledge (menu info, hours, FAQ, events, etc.) |
 | delete_knowledge | Remove a knowledge entry |
-| add_menu_item | Add a menu item with category, price |
-| delete_menu_item | Remove a menu item |
-| toggle_menu_stock | Mark a menu item in/out of stock |
 | add_xp_action | Create a loyalty action (e.g. "check_in" +50pts) |
 | delete_xp_action | Remove an XP action |
 | add_xp_milestone | Create a loyalty milestone (e.g. "Regular" at 500XP) |
@@ -532,6 +498,36 @@ WRITE ACTIONS — you can execute these when the owner asks:
 | approve_booking | Accept a pending booking |
 | decline_booking | Decline a pending booking |
 | submit_for_review | Submit hub for admin review (required before going live) |
+
+TOOL INSTRUCTIONS:
+When the owner asks you to change, update, add, or delete something, respond conversationally AND include an action tag at the END of your message:
+
+<<<ACTION>>>{"type":"update_venue","data":{"name":"New Name"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"update_page","data":{"tagline":"New tagline","hours":[{"day":"Daily","open":"9am","close":"5pm"}]}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"add_offering","data":{"name":"Happy Hour","type":"event","price_cents":0,"description":"Weekly happy hour"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"update_offering","id":"uuid","data":{"price_cents":1500}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"delete_offering","id":"uuid"}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"toggle_offering","id":"uuid","data":{"active":false}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"add_knowledge","data":{"content":"We have free parking behind the building","category":"location"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"delete_knowledge","id":"uuid"}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"add_xp_action","data":{"action":"check_in","label":"Check In","points":50}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"delete_xp_action","id":"uuid"}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"add_xp_milestone","data":{"name":"Regular","threshold":500,"color":"#4ade80"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"delete_xp_milestone","id":"uuid"}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"update_ai_limits","data":{"free_messages_per_day":20,"require_membership":false,"gate_message":"Join to keep chatting"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"add_multiplier","data":{"multiplier":2,"reason":"Happy Hour","starts_at":"...","ends_at":"..."}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"approve_booking","id":"uuid"}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"decline_booking","id":"uuid"}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"submit_for_review"}<<<END_ACTION>>>
+
+RULES:
+- ONLY execute actions the owner explicitly asks for.
+- When the owner asks to change something, first confirm what you're about to do. If they say "yes", "do it", "go ahead", or clearly confirm, THEN include the action tag.
+- If the owner's intent is unambiguous and direct (e.g. "change my hours to 9am-5pm"), you may include the action tag immediately.
+- For dangerous actions (delete), always double-confirm before including the tag.
+- Never modify data without the owner's clear intent.
+- You can include at most ONE action tag per response.
+- The action tag must be valid JSON between the <<<ACTION>>> and <<<END_ACTION>>> delimiters.
 
 BEHAVIOR:
 - When the owner asks to change something, propose the specific action and ask for confirmation.
@@ -599,7 +595,43 @@ BEHAVIOR:
       }
     }
 
-    return NextResponse.json({ reply });
+    // ─── Parse and execute AI-generated action tags ──────────
+    // SECURITY: venueId comes from getOwnerVenueId() which derives
+    // the venue from the authenticated user's ownership record,
+    // NOT from the request body. The AI can only modify the
+    // venue the authenticated owner is linked to.
+
+    let actionResult: ActionResult | null = null;
+    const actionMatch = reply.match(/<<<ACTION>>>([\s\S]*?)<<<END_ACTION>>>/);
+
+    if (actionMatch) {
+      try {
+        const parsed = JSON.parse(actionMatch[1].trim()) as {
+          type: string;
+          id?: string;
+          data?: Record<string, unknown>;
+        };
+        const result = await handleAction(
+          { type: parsed.type, id: parsed.id, data: parsed.data },
+          ownerVenueId,
+        );
+        actionResult = result.actionResult;
+        // Append the ACTION_CONFIRM tag so the client renders feedback
+        if (!reply.includes("[[ACTION_CONFIRM:")) {
+          reply = reply + `\n\n${result.reply.match(/\[\[ACTION_CONFIRM:.*?\]\]/)?.[0] || ""}`;
+        }
+      } catch (parseErr) {
+        console.error("Failed to parse/execute AI action tag:", parseErr);
+        // Non-fatal: still return the conversational reply
+      }
+      // Strip the raw action tags from the visible reply
+      reply = reply.replace(/<<<ACTION>>>[\s\S]*?<<<END_ACTION>>>/g, "").trim();
+    }
+
+    return NextResponse.json({
+      reply,
+      ...(actionResult ? { actionResult } : {}),
+    });
   } catch (err) {
     console.error("Owner chat error:", err);
     return NextResponse.json(

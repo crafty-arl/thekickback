@@ -132,8 +132,11 @@ export async function POST(request: Request) {
   const authClient = await createAuthClient();
   const { data: { user: authUser } } = await authClient.auth.getUser();
   const userId = authUser?.id || null;
+  const userEmail = authUser?.email || null;
+  const userName = userEmail?.split("@")[0] || "Guest";
 
-  const { message, venueId, venueName, vibe, occupancy, table, deviceId } = await request.json();
+  const { message, venueId, venueName, vibe, occupancy, table, deviceId, timezone } = await request.json();
+  const userTimezone = timezone || "America/Chicago";
 
   if (!message || !venueId) {
     return Response.json({ reply: "Missing message or venue." }, { status: 400 });
@@ -183,7 +186,7 @@ export async function POST(request: Request) {
     `A guest says: "${message}".`,
     `Venue is ${vibe}, ${occupancy} people.`,
     table ? `Guest is at Table ${table}.` : "",
-    "Keep it under 280 chars. No emojis. Be direct and helpful.",
+    "Keep it under 400 chars. No emojis. Be direct and helpful.",
     "",
     "OFFERING LINK INSTRUCTIONS:",
     "When mentioning a specific offering, link it inline using: [[OFFER:id:name:price_cents]]",
@@ -211,27 +214,26 @@ export async function POST(request: Request) {
       "- Never invent offerings that aren't in the list.",
       "",
       "BOOKING INSTRUCTIONS:",
+      "The user is authenticated. Their email is " + (userEmail || "unknown") + " and name is " + userName + ".",
       "If the guest wants to RESERVE or BOOK a time-slotted offering (service, reservation, event) and ALL of the following are true:",
       "  1. You know the specific offering_id",
       "  2. The guest gave a specific DATE and TIME (not just 'tomorrow' or 'soon' — you need an actual time like '3pm')",
-      "  3. The guest has shared their name and email",
+      "You need: offering_id, specific date AND time. Ask for the DATE and TIME only — you already have their identity.",
       "Then include a booking tag:",
-      '[[BOOKING:{"offering_id":"uuid-here","start":"2026-03-20T15:00:00Z","attendee_name":"Guest Name","attendee_email":"guest@email.com","attendee_timezone":"America/Chicago"}]]',
+      `[[BOOKING:{"offering_id":"uuid-here","start":"${new Date(Date.now() + 86400000).toISOString().split("T")[0]}T15:00:00Z","attendee_name":"${userName}","attendee_email":"${userEmail || "guest@kickback.app"}","attendee_timezone":"${userTimezone}"}]]`,
       "- Use ISO 8601 UTC for the start time.",
-      "- Only generate when the guest explicitly confirms the booking.",
+      "- Only generate when the guest explicitly confirms the booking ('yes book it', 'confirm', etc.).",
       "- If the guest hasn't given a specific date AND time, ask for both before generating the tag.",
-      "- If the guest hasn't given their name or email, ask for those too.",
+      "- Do NOT ask for name or email — the user is already authenticated.",
       "- NEVER generate [[BOOKING]] without a real date and time. If unsure, ask.",
     ].join("\n") : "",
   ].filter(Boolean).join(" ");
 
-  // Save guest message to thread (or legacy chat_messages if no user)
+  // Save guest message to thread
   if (userId) {
     await supabase.rpc("save_thread_message", {
       p_user_id: userId, p_venue_id: venueId, p_sender_type: "guest", p_body: message,
     });
-  } else {
-    await supabase.from("chat_messages").insert({ venue_id: venueId, sender_type: "guest", body: message });
   }
 
   // Forward to claw via OpenResponses API (synchronous, per-venue agent)
@@ -278,8 +280,6 @@ export async function POST(request: Request) {
     await supabase.rpc("save_thread_message", {
       p_user_id: userId, p_venue_id: venueId, p_sender_type: "ai", p_body: reply,
     });
-  } else {
-    await supabase.from("chat_messages").insert({ venue_id: venueId, sender_type: "ai", body: reply });
   }
 
   // If AI generated a booking tag, validate and execute it
@@ -303,9 +303,9 @@ export async function POST(request: Request) {
             venueId,
             offeringId: (booking as Record<string, unknown>).offering_id,
             start: (booking as Record<string, unknown>).start,
-            attendeeName: (booking as Record<string, unknown>).attendee_name,
-            attendeeEmail: (booking as Record<string, unknown>).attendee_email,
-            attendeeTimezone: (booking as Record<string, unknown>).attendee_timezone || "America/Chicago",
+            attendeeName: userName || (booking as Record<string, unknown>).attendee_name || "Guest",
+            attendeeEmail: userEmail || (booking as Record<string, unknown>).attendee_email || "guest@kickback.app",
+            attendeeTimezone: (booking as Record<string, unknown>).attendee_timezone || userTimezone,
           }),
         }
       );

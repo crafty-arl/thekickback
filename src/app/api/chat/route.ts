@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         "Hubs: barbershops, nail salons, leagues, communities, artists, musicians, cafes, bars, coworking, restaurants, clubs, groups, orgs, creators.",
         "Guests: open the map at join.thekickback.net, tap a pin, chat with the hub's AI, browse offerings, book, buy — all in the conversation.",
         "Hub owners: sign up at dash.thekickback.net, set up in 5 minutes via AI, get dashboard + storefront + AI agent. Free to start, 2% fee on AI Wallet transactions only.",
-        "No app download. Works on web, SMS, email. Email OTP login. AI Wallet for payments.",
+        "Web-first PWA. No app download needed. Email OTP login. AI Wallet for payments.",
         "Tiers: Explorer → Regular → Member → VIP. XP per venue. Points and perks.",
         "",
         "WHEN SOMEONE ASKS WHAT HUBS ARE ON THE PLATFORM:",
