@@ -181,7 +181,7 @@ export default function Home() {
           {/* Quick chips */}
           {userMsgCount === 0 && (
             <div className="flex flex-wrap gap-1.5 px-3 pb-2.5">
-              {["What is KickBack?", "I own a small business", "How does it work?", "I want to list my hub"].map((q) => (
+              {["Can AI run my barbershop?", "What's popping near me?", "I need a fade today", "My spot has no website"].map((q) => (
                 <button key={q} onClick={() => sendChat(q)}
                   className="rounded-full px-2.5 py-1 text-[11px] font-medium transition hover:bg-white/8"
                   style={{ color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.06)" }}
