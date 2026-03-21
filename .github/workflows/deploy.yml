@@ -51,8 +51,10 @@ jobs:
             grep -q '^STRIPE_TEST_SECRET_KEY=' .env 2>/dev/null && sed -i "s|^STRIPE_TEST_SECRET_KEY=.*|STRIPE_TEST_SECRET_KEY=${STRIPE_TEST_SECRET_KEY}|" .env || echo "STRIPE_TEST_SECRET_KEY=${STRIPE_TEST_SECRET_KEY}" >> .env
             grep -q '^NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=' .env 2>/dev/null && sed -i "s|^NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=.*|NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}|" .env || echo "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}" >> .env
             grep -q '^NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY=' .env 2>/dev/null && sed -i "s|^NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY=.*|NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY}|" .env || echo "NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY}" >> .env
-            grep -q '^SMTP_USER=' .env 2>/dev/null && sed -i "s|^SMTP_USER=.*|SMTP_USER='${SMTP_USER}'|" .env || echo "SMTP_USER='${SMTP_USER}'" >> .env
-            grep -q '^SMTP_PASS=' .env 2>/dev/null && sed -i "s|^SMTP_PASS=.*|SMTP_PASS='${SMTP_PASS}'|" .env || echo "SMTP_PASS='${SMTP_PASS}'" >> .env
+            grep -q '^SMTP_USER=' .env 2>/dev/null && sed -i "/^SMTP_USER=/d" .env
+            grep -q '^SMTP_PASS=' .env 2>/dev/null && sed -i "/^SMTP_PASS=/d" .env
+            printf 'SMTP_USER=%s\n' "${SMTP_USER}" >> .env
+            printf 'SMTP_PASS=%s\n' "${SMTP_PASS}" >> .env
             source .env
 
             # ── Cleanup ALL stale containers ──

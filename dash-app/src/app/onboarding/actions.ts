@@ -145,6 +145,7 @@ export async function submitHubForReview() {
   // Send notification emails via Gmail SMTP
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
+  console.log("SMTP config:", smtpUser ? `user=${smtpUser}` : "NO SMTP_USER", smtpPass ? "pass=SET" : "NO SMTP_PASS");
   if (smtpUser && smtpPass) {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
