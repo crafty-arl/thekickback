@@ -28,6 +28,18 @@ export interface RevenueStats {
   todayRevenue: number;
   weekRevenue: number;
   totalOrders: number;
+  platformFeeRate: number; // e.g. 0.10 for 10%
+  totalEarnings: number; // all-time net earnings (after platform fee)
+  pendingBalance: number; // from wallet_transactions not yet paid out
+}
+
+export interface VenueTransaction {
+  id: string;
+  amount_cents: number;
+  description: string;
+  status: string;
+  created_at: string;
+  guest_name?: string | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────
@@ -63,9 +75,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 
 // ─── Component ───────────────────────────────────────────────────
 
-export function OrdersPanel({ orders, revenue }: { orders: Order[]; revenue: RevenueStats }) {
+export function OrdersPanel({ orders, revenue, transactions = [] }: { orders: Order[]; revenue: RevenueStats; transactions?: VenueTransaction[] }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showTxHistory, setShowTxHistory] = useState(false);
+  const feeRate = revenue.platformFeeRate || 0.10;
 
   const pendingOrders = orders.filter((o) => o.status === "pending");
   const confirmedOrders = orders.filter((o) => o.status === "confirmed");
@@ -98,25 +112,77 @@ export function OrdersPanel({ orders, revenue }: { orders: Order[]; revenue: Rev
   return (
     <div className="flex flex-col gap-6">
 
-      {/* ── Revenue summary cards ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {/* ── Earnings summary ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
           <p className="font-mono text-[28px] font-bold tracking-tight" style={{ color: "#16a34a" }}>
-            {formatCents(revenue.todayRevenue)}
+            {formatCents(Math.round(revenue.todayRevenue * (1 - feeRate)))}
           </p>
-          <p className="font-sans text-[13px] text-black/40">Today&apos;s revenue</p>
+          <p className="font-sans text-[13px] text-black/40">Today&apos;s earnings</p>
+          <p className="font-sans text-[10px] text-black/20">{formatCents(revenue.todayRevenue)} gross</p>
         </div>
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
           <p className="font-mono text-[28px] font-bold tracking-tight" style={{ color: "#F97316" }}>
-            {formatCents(revenue.weekRevenue)}
+            {formatCents(Math.round(revenue.weekRevenue * (1 - feeRate)))}
           </p>
           <p className="font-sans text-[13px] text-black/40">This week</p>
+          <p className="font-sans text-[10px] text-black/20">{formatCents(revenue.weekRevenue)} gross</p>
+        </div>
+        <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
+          <p className="font-mono text-[28px] font-bold tracking-tight" style={{ color: "#8B5CF6" }}>
+            {formatCents(revenue.totalEarnings || 0)}
+          </p>
+          <p className="font-sans text-[13px] text-black/40">All-time earnings</p>
         </div>
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
           <p className="font-mono text-[28px] font-bold tracking-tight text-black">{revenue.totalOrders}</p>
           <p className="font-sans text-[13px] text-black/40">Total orders</p>
+          <p className="font-sans text-[10px] text-black/20">{Math.round(feeRate * 100)}% platform fee</p>
         </div>
       </div>
+
+      {/* ── Transaction History toggle ── */}
+      {transactions.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowTxHistory(!showTxHistory)}
+            className="flex w-full items-center justify-between rounded-2xl border border-black/5 bg-white px-5 py-3 text-left transition hover:border-black/10"
+          >
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+              <span className="font-sans text-[14px] font-semibold text-black/70">Transaction History</span>
+              <span className="rounded-full bg-black/[0.06] px-2 py-0.5 font-mono text-[11px] font-bold text-black/40">{transactions.length}</span>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="2" strokeLinecap="round" style={{ transform: showTxHistory ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          {showTxHistory && (
+            <div className="mt-2 rounded-2xl border border-black/5 bg-white overflow-hidden">
+              {transactions.map((tx, i) => (
+                <div key={tx.id} className="flex items-center gap-3 px-5 py-3" style={{ borderTop: i > 0 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: tx.status === "completed" ? "rgba(74,222,128,0.1)" : "rgba(250,204,21,0.1)" }}>
+                    <span className="font-mono text-[10px] font-bold" style={{ color: tx.status === "completed" ? "#16a34a" : "#ca8a04" }}>
+                      {tx.status === "completed" ? "+" : "?"}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-sans text-[13px] font-medium text-black/70">{tx.description || "Payment received"}</p>
+                    <p className="font-sans text-[10px] text-black/30">
+                      {tx.guest_name || "Guest"} &middot; {new Date(tx.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} {new Date(tx.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-mono text-[14px] font-bold" style={{ color: "#16a34a" }}>
+                    +{formatCents(tx.amount_cents)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Filter tabs ── */}
       <div className="flex gap-2">
@@ -252,9 +318,19 @@ export function OrdersPanel({ orders, revenue }: { orders: Order[]; revenue: Rev
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-black/[0.04] pt-2">
-                      <span className="font-sans text-[12px] font-medium text-black/40">Total</span>
-                      <span className="font-mono text-[14px] font-bold text-black">{formatCents(order.total_cents)}</span>
+                    <div className="mt-3 flex flex-col gap-1 border-t border-black/[0.04] pt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-sans text-[12px] text-black/30">Gross</span>
+                        <span className="font-mono text-[13px] text-black/40">{formatCents(order.total_cents)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-sans text-[12px] text-black/30">Platform fee ({Math.round(feeRate * 100)}%)</span>
+                        <span className="font-mono text-[13px] text-red-400/60">-{formatCents(Math.round(order.total_cents * feeRate))}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-sans text-[12px] font-medium text-black/50">You earn</span>
+                        <span className="font-mono text-[14px] font-bold" style={{ color: "#16a34a" }}>{formatCents(Math.round(order.total_cents * (1 - feeRate)))}</span>
+                      </div>
                     </div>
                   </div>
                 )}

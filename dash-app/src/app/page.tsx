@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   // Check if user has a venue
   const { data: ownership } = await supabase
     .from("venue_owners")
-    .select("venue_id, role, venues(id, name, state, occupancy, max_occupancy, vibe, type, address)")
+    .select("venue_id, role, venues(id, name, state, occupancy, max_occupancy, vibe, type, address, platform_fee_rate)")
     .eq("user_id", user.id)
     .limit(1)
     .single();
@@ -44,6 +44,7 @@ export default async function DashboardPage() {
     vibe: string;
     type: string;
     address: string;
+    platform_fee_rate: number | null;
   };
 
   const sandboxMode = await isSandbox();
@@ -116,7 +117,7 @@ export default async function DashboardPage() {
     todaySessionsRes, todayMessagesRes,
     perksRes, redemptionsRes, multipliersRes,
     leaderboardRes, pointsTodayRes, perksTodayRes,
-    bookingsRes, ordersRes,
+    bookingsRes, ordersRes, walletTxRes,
   ] = await Promise.all([
     // Active sessions with profile info
     service
@@ -222,6 +223,15 @@ export default async function DashboardPage() {
       .from("orders")
       .select("*, order_items(*), profiles(display_name, email, phone)")
       .eq("venue_id", venue.id)
+      .order("created_at", { ascending: false })
+      .limit(100),
+
+    // Wallet transactions (payments received from guests)
+    service
+      .from("wallet_transactions")
+      .select("id, amount_cents, description, status, created_at, user_id, profiles(display_name, email)")
+      .eq("venue_id", venue.id)
+      .eq("status", "completed")
       .order("created_at", { ascending: false })
       .limit(100),
   ]);
@@ -330,10 +340,32 @@ export default async function DashboardPage() {
     .filter((o) => new Date(o.created_at) >= weekStart)
     .reduce((sum, o) => sum + (o.total_cents || 0), 0);
 
+  // Process wallet transactions (payments received)
+  const feeRate = venue.platform_fee_rate ?? 0.10;
+  const rawTransactions = (walletTxRes.data || []).map((t: Record<string, unknown>) => ({
+    ...t,
+    profiles: Array.isArray(t.profiles) ? t.profiles[0] : t.profiles,
+  }));
+  const venueTransactions = rawTransactions.map((t: Record<string, unknown>) => ({
+    id: t.id as string,
+    amount_cents: t.amount_cents as number,
+    description: t.description as string,
+    status: t.status as string,
+    created_at: t.created_at as string,
+    guest_name: (t.profiles as Record<string, unknown> | null)?.display_name as string | null
+      || (t.profiles as Record<string, unknown> | null)?.email as string | null,
+  }));
+  const totalEarnings = venueTransactions.reduce(
+    (sum: number, t: { amount_cents: number }) => sum + t.amount_cents, 0
+  );
+
   const revenueStats: RevenueStats = {
     todayRevenue: todayRevenueTotal,
     weekRevenue: weekRevenueTotal,
     totalOrders: rawOrders.length,
+    platformFeeRate: feeRate,
+    totalEarnings: Math.round(totalEarnings * (1 - feeRate)),
+    pendingBalance: 0,
   };
 
   const stats: VenueStats = {
@@ -355,6 +387,7 @@ export default async function DashboardPage() {
         bookings,
         orders: rawOrders,
         revenueStats,
+        transactions: venueTransactions,
         messages,
         perks,
         redemptions,
