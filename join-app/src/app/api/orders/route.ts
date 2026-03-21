@@ -173,7 +173,6 @@ export async function POST(request: Request) {
 
         sendEmail(user.email, subjectLine, wrap(`
           <div style="text-align:center;margin-bottom:24px;">
-            <img src="https://thekickback.net/logo.png" alt="theKickBack" width="120" style="margin-bottom:12px;" />
             <h1 style="margin:0;font-size:24px;color:#fff;">${apptDate ? "You're booked" : "Order confirmed"}</h1>
             <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.5);">${vName}${venueAddr ? ` &middot; ${venueAddr}` : ""}</p>
             ${apptDate ? `<p style="margin:8px 0 0;font-size:16px;font-weight:700;color:#8B5CF6;">${apptDate} at ${apptTime}</p>` : `<p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.3);">${dateStr} at ${timeStr}</p>`}

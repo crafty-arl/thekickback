@@ -16,6 +16,9 @@ export function wrap(content: string): string {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#000;">
   <div style="max-width:480px;margin:0 auto;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#fff;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <img src="https://thekickback.net/logo.png" alt="theKickBack" width="120" style="display:inline-block;" />
+    </div>
     ${content}
     <p style="margin-top:32px;font-size:11px;color:rgba(255,255,255,0.2);text-align:center;">
       theKickBack &mdash; tap in, text in, you're in
