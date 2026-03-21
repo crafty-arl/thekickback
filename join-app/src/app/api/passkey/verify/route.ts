@@ -40,16 +40,11 @@ export async function GET() {
     return NextResponse.json({ error: "No passkeys registered", needsSetup: true }, { status: 404 });
   }
 
-  const allowCredentials = passkeys.map((p) => ({
-    id: p.credential_id,
-    type: "public-key" as const,
-    transports: p.transports || [],
-  }));
-
   const options = await generateAuthenticationOptions({
     rpID,
-    allowCredentials,
-    userVerification: "preferred", // biometric if available, password/PIN fallback on desktop
+    // Empty allowCredentials — browser picks from locally available passkeys
+    // This avoids QR code scanning when credentials are on another device
+    userVerification: "required",
   });
 
   // Store challenge

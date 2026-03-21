@@ -34,17 +34,6 @@ export async function GET() {
   const host = h.get("host") || "join.thekickback.net";
   const { rpID } = getRpConfig(host);
 
-  // Get existing passkeys to exclude
-  const { data: existing } = await supabase
-    .from("user_passkeys")
-    .select("credential_id")
-    .eq("user_id", user.id);
-
-  const excludeCredentials = (existing || []).map((p) => ({
-    id: p.credential_id,
-    type: "public-key" as const,
-  }));
-
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
     rpID,
@@ -52,12 +41,11 @@ export async function GET() {
     userID: new TextEncoder().encode(user.id),
     userDisplayName: user.email || "KickBack User",
     attestationType: "none",
-    excludeCredentials,
+    // No excludeCredentials — allow registering on multiple devices
     authenticatorSelection: {
-      // No authenticatorAttachment — allows both platform (Face ID, Touch ID,
-      // Windows Hello) and cross-platform (security keys, phone-as-authenticator)
-      userVerification: "preferred", // biometric if available, password/PIN fallback
-      residentKey: "preferred",
+      authenticatorAttachment: "platform", // Face ID / Touch ID only — no QR code scanning
+      userVerification: "required",
+      residentKey: "required",
     },
   });
 
@@ -113,10 +101,13 @@ export async function POST(req: NextRequest) {
 
     const { credential, credentialDeviceType } = verification.registrationInfo;
 
+    // credential.id is already a Base64URLString in SimpleWebAuthn v13+
+    const credId = credential.id;
+
     // Store the passkey
     await supabase.from("user_passkeys").insert({
       user_id: user.id,
-      credential_id: Buffer.from(credential.id).toString("base64url"),
+      credential_id: credId,
       public_key: Buffer.from(credential.publicKey).toString("base64url"),
       counter: credential.counter,
       device_name: body.deviceName || credentialDeviceType || "Unknown device",
@@ -131,7 +122,6 @@ export async function POST(req: NextRequest) {
 
     // Also register as a known device in user_devices
     const deviceName = body.deviceName || `Passkey device (${credentialDeviceType || "platform"})`;
-    const credId = Buffer.from(credential.id).toString("base64url");
     const { data: existingDevice } = await supabase
       .from("user_devices")
       .select("id")
