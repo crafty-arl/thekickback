@@ -533,22 +533,39 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Action button — always allows add to cart, time optional for services */}
-          {selectedTime ? (
-            <button
-              onClick={() => {
-                onAddWithMeta({
-                  date: selectedDateLabel,
-                  time: selectedTime!,
-                  staffId: selectedStaff || undefined,
-                  staffName: selectedStaffName || undefined,
-                });
-              }}
-              className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
-              style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
-            >
-              Add to cart — {selectedDateLabel} {selectedTime}
-            </button>
+          {/* Action button */}
+          {isBookable ? (
+            !user ? (
+              <a
+                href="/login"
+                className="mt-6 flex w-full items-center justify-center rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+                style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+              >
+                Log in to book
+              </a>
+            ) : selectedTime ? (
+              <button
+                onClick={() => {
+                  onAddWithMeta({
+                    date: selectedDateLabel,
+                    time: selectedTime!,
+                    staffId: selectedStaff || undefined,
+                    staffName: selectedStaffName || undefined,
+                  });
+                }}
+                className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+                style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+              >
+                Add to cart — {selectedDateLabel} {selectedTime}
+              </button>
+            ) : (
+              <div
+                className="mt-6 w-full rounded-2xl py-3.5 text-center font-sans text-[14px] font-bold"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.25)" }}
+              >
+                Pick a date & time above
+              </div>
+            )
           ) : (
             <button
               onClick={onAdd}
