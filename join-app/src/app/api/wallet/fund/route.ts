@@ -4,6 +4,7 @@ import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { getStripeSecretKey, isSandboxServer } from "@/lib/sandbox";
+import { sendEmail, wrap } from "@/lib/email";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
   // Get wallet
   const { data: wallet } = await supabase
     .from("user_wallets")
-    .select("id, stripe_customer_id, stripe_payment_method_id")
+    .select("id, stripe_customer_id, stripe_payment_method_id, card_last4")
     .eq("user_id", user.id)
     .eq("mode", mode)
     .single();
@@ -136,6 +137,32 @@ export async function POST(req: NextRequest) {
 
     // Get updated balance
     const { data: updated } = await supabase.from("user_wallets").select("balance_cents").eq("id", wallet.id).single();
+
+    // Send wallet funded email
+    if (user.email) {
+      const bal = ((updated?.balance_cents || newBalance) / 100).toFixed(2);
+      const added = (amountCents / 100).toFixed(2);
+      const sFee = (stripeFee / 100).toFixed(2);
+      const pFee = (platformFee / 100).toFixed(2);
+      const total = (totalCharge / 100).toFixed(2);
+      const last4 = wallet.card_last4 || "****";
+      sendEmail(user.email, `$${added} added to your KickBack wallet`, wrap(`
+        <div style="text-align:center;margin-bottom:24px;">
+          <p style="font-size:48px;font-weight:700;margin:0;color:#fff;">$${bal}</p>
+          <p style="font-size:15px;color:#4ADE80;margin:4px 0 0;font-weight:600;">+$${added} added</p>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;color:rgba(255,255,255,0.6);">
+          <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);">Amount</td><td style="text-align:right;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">$${added}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);">Processing fee</td><td style="text-align:right;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);">$${sFee}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);">Platform fee</td><td style="text-align:right;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);">$${pFee}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);font-weight:600;color:#fff;">Card charged</td><td style="text-align:right;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);font-weight:600;color:#fff;">$${total}</td></tr>
+          <tr><td style="padding:8px 0;">Card</td><td style="text-align:right;padding:8px 0;">**** ${last4}</td></tr>
+        </table>
+        <p style="margin-top:24px;font-size:13px;color:rgba(255,255,255,0.4);text-align:center;">
+          Your balance is ready to spend at any venue on theKickBack.
+        </p>
+      `));
+    }
 
     return NextResponse.json({
       ok: true,

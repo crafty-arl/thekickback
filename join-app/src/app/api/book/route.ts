@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { createCalBooking } from "@/lib/cal";
 import { isSandboxServer } from "@/lib/sandbox";
+import { sendEmail, wrap } from "@/lib/email";
 
 const supabase = createClient(
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -124,6 +125,36 @@ export async function POST(request: Request) {
     }).then(({ error }) => {
         if (error) console.error("Failed to save booking locally:", error.message);
     });
+
+    // Send booking confirmation email
+    if (attendeeEmail) {
+      try {
+        const vName = venue?.name || "Venue";
+        const oName = offering.name || "Booking";
+        const startDate = new Date(result.start);
+        const endDate = new Date(result.end);
+        const dateStr = startDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+        const startTime = startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+        const endTime = endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+        sendEmail(attendeeEmail, `You're booked — ${oName} at ${vName}`, wrap(`
+          <div style="background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
+            <div style="font-size:36px;margin-bottom:8px;">&#128197;</div>
+            <h1 style="margin:0;font-size:24px;color:#fff;">You're booked.</h1>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Venue</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${vName}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Service</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${oName}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Date</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${dateStr}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Time</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${startTime} &ndash; ${endTime}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Duration</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${duration} min</td></tr>
+            <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Guest</td><td style="text-align:right;padding:10px 0;color:#fff;">${attendeeName}</td></tr>
+          </table>
+          <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:12px;padding:12px 16px;margin-top:20px;text-align:center;">
+            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.6);">We'll hold your spot for 15 minutes. Don't be late.</p>
+          </div>
+        `));
+      } catch (e) { console.error("Booking email failed:", e); }
+    }
 
     return Response.json({
         booking: result,

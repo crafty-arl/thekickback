@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { sendEmail, wrap } from "@/lib/email";
 
 // ─── Admin whitelist ─────────────────────────────────────────────
 const ROOT_EMAILS: string[] = [
@@ -91,6 +92,52 @@ export async function approveVenue(venuePageId: string) {
         .eq("id", venuePageId);
 
     if (error) return { error: error.message };
+
+    // Send approval email to venue owner
+    try {
+        const { data: page } = await service
+            .from("venue_pages")
+            .select("venue_id, slug")
+            .eq("id", venuePageId)
+            .single();
+        if (page) {
+            const { data: venue } = await service.from("venues").select("name").eq("id", page.venue_id).single();
+            const { data: owner } = await service.from("venue_owners").select("user_id").eq("venue_id", page.venue_id).limit(1).single();
+            if (owner) {
+                const { data: profile } = await service.from("profiles").select("email").eq("id", owner.user_id).single();
+                const email = profile?.email;
+                const venueName = venue?.name || "Your hub";
+                const slug = page.slug;
+                if (email) {
+                    sendEmail(email, `${venueName} is live on theKickBack`, wrap(`
+                        <div style="background:linear-gradient(135deg,rgba(74,222,128,0.15),rgba(74,222,128,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
+                            <div style="font-size:48px;margin-bottom:8px;">&#10003;</div>
+                            <h1 style="margin:0;font-size:28px;color:#4ADE80;">You're live.</h1>
+                        </div>
+                        <p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.5;">
+                            <strong style="color:#fff;">${venueName}</strong> has been approved and is now visible to everyone on theKickBack.
+                        </p>
+                        <p style="color:rgba(255,255,255,0.5);font-size:13px;">Your public link:</p>
+                        <p style="margin:8px 0 24px;">
+                            <a href="https://join.thekickback.net/${slug}" style="color:#F97316;text-decoration:none;font-weight:600;">join.thekickback.net/${slug}</a>
+                        </p>
+                        <div style="background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:12px;">
+                            <strong style="color:#F97316;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Share</strong>
+                            <p style="margin:4px 0 0;color:rgba(255,255,255,0.6);font-size:13px;">Send your link to regulars. Post it on socials. Put it in your bio.</p>
+                        </div>
+                        <div style="background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:24px;">
+                            <strong style="color:#F97316;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">QR Code</strong>
+                            <p style="margin:4px 0 0;color:rgba(255,255,255,0.6);font-size:13px;">Print it. Stick it on the counter. Guests scan and they're in.</p>
+                        </div>
+                        <div style="text-align:center;">
+                            <a href="https://dash.thekickback.net" style="display:inline-block;background:#F97316;color:#fff;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:600;font-size:15px;">Open Dashboard</a>
+                        </div>
+                    `));
+                }
+            }
+        }
+    } catch (e) { console.error("Approve email failed:", e); }
+
     revalidatePath("/root");
     return { ok: true };
 }
@@ -103,6 +150,45 @@ export async function rejectVenue(venuePageId: string) {
         .eq("id", venuePageId);
 
     if (error) return { error: error.message };
+
+    // Send rejection email to venue owner
+    try {
+        const { data: page } = await service
+            .from("venue_pages")
+            .select("venue_id, slug")
+            .eq("id", venuePageId)
+            .single();
+        if (page) {
+            const { data: venue } = await service.from("venues").select("name").eq("id", page.venue_id).single();
+            const { data: owner } = await service.from("venue_owners").select("user_id").eq("venue_id", page.venue_id).limit(1).single();
+            if (owner) {
+                const { data: profile } = await service.from("profiles").select("email").eq("id", owner.user_id).single();
+                const email = profile?.email;
+                const venueName = venue?.name || "Your hub";
+                if (email) {
+                    sendEmail(email, `${venueName} needs a few changes`, wrap(`
+                        <div style="background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(239,68,68,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
+                            <div style="font-size:48px;margin-bottom:8px;color:#EF4444;">!</div>
+                            <h1 style="margin:0;font-size:28px;color:#EF4444;">Not quite yet.</h1>
+                        </div>
+                        <p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.5;">
+                            <strong style="color:#fff;">${venueName}</strong> wasn't approved this time. Here are a few things to check:
+                        </p>
+                        <ul style="color:rgba(255,255,255,0.5);font-size:13px;line-height:1.8;padding-left:20px;">
+                            <li>Add a clear tagline and description</li>
+                            <li>Upload at least one photo</li>
+                            <li>Set your hours and address</li>
+                            <li>Add at least one menu item or offering</li>
+                        </ul>
+                        <div style="text-align:center;margin-top:24px;">
+                            <a href="https://dash.thekickback.net/edit" style="display:inline-block;background:#EF4444;color:#fff;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:600;font-size:15px;">Edit &amp; Resubmit</a>
+                        </div>
+                    `));
+                }
+            }
+        }
+    } catch (e) { console.error("Reject email failed:", e); }
+
     revalidatePath("/root");
     return { ok: true };
 }

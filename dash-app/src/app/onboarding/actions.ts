@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { sendEmail, wrap } from "@/lib/email";
 
 interface VenueFormData {
   name: string;
@@ -141,36 +142,33 @@ export async function submitHubForReview() {
 
   if (error) return { error: error.message };
 
-  // Send notification emails via Resend
-  const resendKey = process.env.RESEND_API_KEY;
-  if (resendKey) {
-    const from = "theKickBack <hub@thekickback.net>";
-    const adminEmail = "carl@craftthefuture.xyz";
-    const ownerEmail = user.email;
+  // Send notification emails
+  const adminEmail = "carl@craftthefuture.xyz";
+  const ownerEmail = user.email;
 
-    const sendEmail = (to: string, subject: string, html: string) =>
-      fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to: [to], subject, html }),
-      }).catch((err) => console.error(`Email to ${to} failed:`, err));
+  sendEmail(adminEmail, `New hub submitted: ${venueName}`, wrap(`
+    <h2 style="margin:0 0 12px;font-size:20px;color:#fff;">New Hub Submission</h2>
+    <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.5;">
+      <strong style="color:#fff;">${venueName}</strong> was submitted for review by ${ownerEmail}.
+    </p>
+    <div style="text-align:center;margin-top:20px;">
+      <a href="https://dash.thekickback.net/root" style="display:inline-block;background:#F97316;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:600;font-size:14px;">Review Now</a>
+    </div>
+  `));
 
-    // Email to admin
-    sendEmail(adminEmail, `New hub submitted for review: ${venueName}`,
-      `<h2>New Hub Submission</h2>
-<p><strong>${venueName}</strong> was submitted for review by ${ownerEmail}.</p>
-<p><a href="https://dash.thekickback.net/root">Review in admin dashboard</a></p>`);
-
-    // Email to owner
-    if (ownerEmail) {
-      sendEmail(ownerEmail, `${venueName} is under review`,
-        `<h2>Your hub is under review</h2>
-<p>We received your submission for <strong>${venueName}</strong> and it's now being reviewed.</p>
-<p>You'll receive an email once it's approved. In the meantime, you can continue editing your hub from the <a href="https://dash.thekickback.net">dashboard</a>.</p>
-<p style="color:#666;">— theKickBack team</p>`);
-    }
-  } else {
-    console.log("RESEND_API_KEY not set — skipping review emails");
+  if (ownerEmail) {
+    sendEmail(ownerEmail, `${venueName} is under review`, wrap(`
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:36px;margin-bottom:8px;">&#128065;</div>
+        <h1 style="margin:0;font-size:24px;color:#fff;">We're on it.</h1>
+      </div>
+      <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.5;">
+        <strong style="color:#fff;">${venueName}</strong> is now under review. You'll get an email as soon as it's approved.
+      </p>
+      <p style="color:rgba(255,255,255,0.4);font-size:13px;">
+        In the meantime, keep editing from your <a href="https://dash.thekickback.net" style="color:#F97316;text-decoration:none;">dashboard</a>.
+      </p>
+    `));
   }
 
   return { ok: true };

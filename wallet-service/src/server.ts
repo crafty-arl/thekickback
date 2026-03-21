@@ -37,38 +37,69 @@ async function supabase(dbPath: string, options: RequestInit = {}) {
 // ─── Pass Generation ─────────────────────────────────────────────
 
 interface PassData {
-  venueName: string;
-  venueId: string;
-  vibe: string;
-  occupancy: number;
-  capacity: number;
-  userStatus: string;
-  booth: string;
-  timeIn: string;
-  pending: number;
   userId: string;
+  displayName: string;
+  balanceCents: number;
+  tier: string;
+  totalPoints: number;
+  streak: number;
+  venuesVisited: number;
+  activeItems: { label: string; venueName: string }[];
+  activeMemberships: { venueName: string; tier: string }[];
+  hmacSecret: string;
 }
 
 async function generatePass(data: PassData): Promise<Buffer> {
-  const serialNumber = `kb-${data.venueId}-${data.userId}-${Date.now()}`;
+  const serialNumber = `kb-${data.userId}`;
   const authToken = crypto.randomBytes(32).toString("hex");
 
-  // Store the pass registration in Supabase
-  await supabase("wallet_passes", {
-    method: "POST",
-    body: JSON.stringify({
-      serial_number: serialNumber,
-      auth_token: authToken,
-      user_id: data.userId,
-      venue_id: data.venueId,
-      pass_type_id: PASS_TYPE_ID,
-    }),
-  });
+  // Check if pass already exists for this user
+  const existing = await supabase(
+    `wallet_passes?serial_number=eq.${serialNumber}&limit=1`
+  ) as any[];
+
+  let hmacSecret = data.hmacSecret;
+
+  if (existing && existing.length > 0) {
+    // Update existing pass record
+    await supabase(`wallet_passes?serial_number=eq.${serialNumber}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        auth_token: authToken,
+        user_id: data.userId,
+        pass_type_id: PASS_TYPE_ID,
+        hmac_secret: hmacSecret,
+      }),
+    });
+  } else {
+    // Insert new pass record
+    await supabase("wallet_passes", {
+      method: "POST",
+      body: JSON.stringify({
+        serial_number: serialNumber,
+        auth_token: authToken,
+        user_id: data.userId,
+        pass_type_id: PASS_TYPE_ID,
+        hmac_secret: hmacSecret,
+      }),
+    });
+  }
+
+  // Build dynamic QR with HMAC
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const hmac = crypto
+    .createHmac("sha256", hmacSecret)
+    .update(`${data.userId}/${timestamp}`)
+    .digest("hex")
+    .slice(0, 8);
+  const qrPayload = `kb://${data.userId}/${timestamp}/${hmac}`;
 
   // Read certs
   const signerCert = fs.readFileSync(path.join(CERTS_DIR, "signerCert.pem"));
   const signerKey = fs.readFileSync(path.join(CERTS_DIR, "signerKey.pem"));
   const wwdr = fs.readFileSync(path.join(CERTS_DIR, "wwdr.pem"));
+
+  const balanceStr = `$${(data.balanceCents / 100).toFixed(2)}`;
 
   const pass = new PKPass(
     {},
@@ -82,7 +113,7 @@ async function generatePass(data: PassData): Promise<Buffer> {
       passTypeIdentifier: PASS_TYPE_ID,
       teamIdentifier: TEAM_ID,
       organizationName: "theKickBack",
-      description: `${data.venueName} — theKickBack`,
+      description: `theKickBack — ${data.displayName || "Member"}`,
       foregroundColor: "rgb(255, 255, 255)",
       backgroundColor: "rgb(0, 0, 0)",
       labelColor: "rgb(249, 115, 22)",
@@ -92,58 +123,75 @@ async function generatePass(data: PassData): Promise<Buffer> {
     }
   );
 
-  // Set pass type
-  pass.type = "generic";
+  // Set pass type — storeCard
+  pass.type = "storeCard";
 
-  // Header
+  // Header — balance
   pass.headerFields.push({
-    key: "vibe",
-    label: "VIBE",
-    value: capitalize(data.vibe),
+    key: "balance",
+    label: "BALANCE",
+    value: balanceStr,
   });
 
-  // Primary
+  // Primary — display name
   pass.primaryFields.push({
-    key: "venueName",
-    label: "VENUE",
-    value: data.venueName,
+    key: "name",
+    label: "MEMBER",
+    value: data.displayName || "theKickBack",
   });
 
-  // Secondary
+  // Secondary — tier + total points
   pass.secondaryFields.push(
     {
-      key: "occupancy",
-      label: "PEOPLE",
-      value: `${data.occupancy} / ${data.capacity}`,
+      key: "tier",
+      label: "TIER",
+      value: capitalize(data.tier || "Explorer"),
     },
     {
-      key: "status",
-      label: "YOUR STATUS",
-      value: capitalize(data.userStatus),
+      key: "points",
+      label: "POINTS",
+      value: `${data.totalPoints}`,
     }
   );
 
-  // Auxiliary
+  // Auxiliary — active items count + venues visited
   pass.auxiliaryFields.push(
     {
-      key: "booth",
-      label: "BOOTH",
-      value: data.booth || "—",
+      key: "activeItems",
+      label: "ACTIVE ITEMS",
+      value: `${data.activeItems.length}`,
     },
     {
-      key: "timeIn",
-      label: "TIME IN",
-      value: data.timeIn || "Just arrived",
+      key: "venues",
+      label: "VENUES VISITED",
+      value: `${data.venuesVisited}`,
     },
     {
-      key: "pending",
-      label: "REQUESTS",
-      value: `${data.pending} pending`,
+      key: "streak",
+      label: "STREAK",
+      value: `${data.streak}`,
     }
   );
 
   // Back fields
+  const itemsList = data.activeItems.length > 0
+    ? data.activeItems.map((i) => `${i.label} @ ${i.venueName}`).join("\n")
+    : "No active items";
+  const membershipsList = data.activeMemberships.length > 0
+    ? data.activeMemberships.map((m) => `${m.venueName} — ${m.tier}`).join("\n")
+    : "No active memberships";
+
   pass.backFields.push(
+    {
+      key: "items",
+      label: "ACTIVE ITEMS",
+      value: itemsList,
+    },
+    {
+      key: "memberships",
+      label: "MEMBERSHIPS",
+      value: membershipsList,
+    },
     {
       key: "commands",
       label: "COMMANDS",
@@ -161,10 +209,10 @@ async function generatePass(data: PassData): Promise<Buffer> {
     }
   );
 
-  // QR code on pass — links to venue page
+  // QR code — dynamic identity encoding
   pass.setBarcodes({
     format: "PKBarcodeFormatQR",
-    message: `https://join.thekickback.net/v/${data.venueId}`,
+    message: qrPayload,
     messageEncoding: "iso-8859-1",
   });
 
@@ -192,57 +240,73 @@ app.get("/wallet/health", (_req, res) => {
   res.json({ status: "ok", service: "wallet-service" });
 });
 
-// Generate and download a pass for a user + venue
-app.get("/wallet/pass/:venueId/:userId", async (req, res) => {
+// Generate and download a storeCard pass for a user
+app.get("/wallet/pass/:userId", async (req, res) => {
   try {
-    const { venueId, userId } = req.params;
+    const { userId } = req.params;
 
-    // Get venue data
-    const venues = await supabase(`venues?id=eq.${venueId}&limit=1`) as any[];
-    if (!venues || venues.length === 0) {
-      return res.status(404).json({ error: "Venue not found" });
-    }
-    const venue = venues[0];
+    // Get user profile
+    const profiles = await supabase(`profiles?id=eq.${userId}&limit=1`) as any[];
+    const profile = profiles?.[0];
+    if (!profile) return res.status(404).json({ error: "User not found" });
 
-    // Get user session
-    const sessions = await supabase(
-      `sessions?user_id=eq.${userId}&venue_id=eq.${venueId}&status=eq.active&limit=1`
+    // Get wallet balance (live mode)
+    const wallets = await supabase(
+      `user_wallets?user_id=eq.${userId}&mode=eq.live&limit=1`
     ) as any[];
-    const session = sessions?.[0];
+    const balanceCents = wallets?.[0]?.balance_cents || 0;
 
-    // Get membership
+    // Get point balances
+    const points = await supabase(
+      `point_balances?user_id=eq.${userId}&limit=1`
+    ) as any[];
+    const pb = points?.[0];
+
+    // Get pending fulfillments
+    const fulfillments = await supabase(
+      `pending_fulfillments?user_id=eq.${userId}&fulfilled_at=is.null&select=*,venues(name)`
+    ) as any[];
+    const activeItems = (fulfillments || []).map((f: any) => ({
+      label: f.label,
+      venueName: f.venues?.name || "Unknown",
+    }));
+
+    // Get active memberships
     const memberships = await supabase(
-      `memberships?user_id=eq.${userId}&venue_id=eq.${venueId}&limit=1`
+      `memberships?user_id=eq.${userId}&expires_at=gt.${new Date().toISOString()}&select=*,venues(name)`
     ) as any[];
-    const membership = memberships?.[0];
+    const activeMemberships = (memberships || []).map((m: any) => ({
+      venueName: m.venues?.name || "Unknown",
+      tier: m.tier || "Member",
+    }));
 
-    // Get pending requests
-    const requests = session
-      ? (await supabase(
-          `requests?user_id=eq.${userId}&session_id=eq.${session.id}&status=eq.pending`
-        ) as any[])
-      : [];
+    // Get or create hmac_secret
+    const existingPasses = await supabase(
+      `wallet_passes?serial_number=eq.kb-${userId}&limit=1`
+    ) as any[];
+    let hmacSecret = existingPasses?.[0]?.hmac_secret;
+    if (!hmacSecret) {
+      hmacSecret = crypto.randomBytes(32).toString("hex");
+    }
 
-    const timeIn = session
-      ? `${Math.round((Date.now() - new Date(session.started_at).getTime()) / 60000)} min`
-      : "—";
-
-    const passBuffer = await generatePass({
-      venueName: venue.name,
-      venueId: venue.id,
-      vibe: venue.vibe || "unknown",
-      occupancy: venue.occupancy || 0,
-      capacity: venue.max_occupancy || 60,
-      userStatus: membership?.tier || "Guest",
-      booth: "—",
-      timeIn,
-      pending: requests?.length || 0,
+    const passData: PassData = {
       userId,
-    });
+      displayName: profile.display_name || profile.name || "theKickBack",
+      balanceCents,
+      tier: pb?.tier || "Explorer",
+      totalPoints: pb?.kickback_score || 0,
+      streak: pb?.current_streak || 0,
+      venuesVisited: pb?.venues_visited || 0,
+      activeItems,
+      activeMemberships,
+      hmacSecret,
+    };
+
+    const passBuffer = await generatePass(passData);
 
     res.set({
       "Content-Type": "application/vnd.apple.pkpass",
-      "Content-Disposition": `attachment; filename=${venue.name.replace(/\s+/g, "-").toLowerCase()}.pkpass`,
+      "Content-Disposition": `attachment; filename=kickback-pass.pkpass`,
     });
     res.send(passBuffer);
   } catch (err) {
@@ -320,7 +384,7 @@ app.get("/wallet/v1/devices/:deviceId/registrations/:passTypeId", async (req, re
   });
 });
 
-// 4. Get the latest version of a pass
+// 4. Get the latest version of a pass (refresh)
 app.get("/wallet/v1/passes/:passTypeId/:serialNumber", async (req, res) => {
   const { serialNumber } = req.params;
   const authHeader = req.headers.authorization;
@@ -335,43 +399,63 @@ app.get("/wallet/v1/passes/:passTypeId/:serialNumber", async (req, res) => {
 
   if (!passes || passes.length === 0) return res.sendStatus(401);
   const passRecord = passes[0];
+  const userId = passRecord.user_id;
 
-  // Get current venue + session data
-  const venues = await supabase(`venues?id=eq.${passRecord.venue_id}&limit=1`) as any[];
-  const venue = venues?.[0];
-  if (!venue) return res.sendStatus(404);
+  // Get user profile
+  const profiles = await supabase(`profiles?id=eq.${userId}&limit=1`) as any[];
+  const profile = profiles?.[0];
+  if (!profile) return res.sendStatus(404);
 
-  const sessions = await supabase(
-    `sessions?user_id=eq.${passRecord.user_id}&venue_id=eq.${passRecord.venue_id}&status=eq.active&limit=1`
+  // Get wallet balance (live mode)
+  const wallets = await supabase(
+    `user_wallets?user_id=eq.${userId}&mode=eq.live&limit=1`
   ) as any[];
-  const session = sessions?.[0];
+  const balanceCents = wallets?.[0]?.balance_cents || 0;
 
+  // Get point balances
+  const points = await supabase(
+    `point_balances?user_id=eq.${userId}&limit=1`
+  ) as any[];
+  const pb = points?.[0];
+
+  // Get pending fulfillments
+  const fulfillments = await supabase(
+    `pending_fulfillments?user_id=eq.${userId}&fulfilled_at=is.null&select=*,venues(name)`
+  ) as any[];
+  const activeItems = (fulfillments || []).map((f: any) => ({
+    label: f.label,
+    venueName: f.venues?.name || "Unknown",
+  }));
+
+  // Get active memberships
   const memberships = await supabase(
-    `memberships?user_id=eq.${passRecord.user_id}&venue_id=eq.${passRecord.venue_id}&limit=1`
+    `memberships?user_id=eq.${userId}&expires_at=gt.${new Date().toISOString()}&select=*,venues(name)`
   ) as any[];
+  const activeMemberships = (memberships || []).map((m: any) => ({
+    venueName: m.venues?.name || "Unknown",
+    tier: m.tier || "Member",
+  }));
 
-  const requests = session
-    ? (await supabase(
-        `requests?user_id=eq.${passRecord.user_id}&session_id=eq.${session.id}&status=eq.pending`
-      ) as any[])
-    : [];
+  // Reuse existing hmac_secret
+  let hmacSecret = passRecord.hmac_secret;
+  if (!hmacSecret) {
+    hmacSecret = crypto.randomBytes(32).toString("hex");
+  }
 
-  const timeIn = session
-    ? `${Math.round((Date.now() - new Date(session.started_at).getTime()) / 60000)} min`
-    : "—";
+  const passData: PassData = {
+    userId,
+    displayName: profile.display_name || profile.name || "theKickBack",
+    balanceCents,
+    tier: pb?.tier || "Explorer",
+    totalPoints: pb?.kickback_score || 0,
+    streak: pb?.current_streak || 0,
+    venuesVisited: pb?.venues_visited || 0,
+    activeItems,
+    activeMemberships,
+    hmacSecret,
+  };
 
-  const passBuffer = await generatePass({
-    venueName: venue.name,
-    venueId: venue.id,
-    vibe: venue.vibe || "unknown",
-    occupancy: venue.occupancy || 0,
-    capacity: venue.max_occupancy || 60,
-    userStatus: memberships?.[0]?.tier || "Guest",
-    booth: "—",
-    timeIn,
-    pending: requests?.length || 0,
-    userId: passRecord.user_id,
-  });
+  const passBuffer = await generatePass(passData);
 
   res.set({ "Content-Type": "application/vnd.apple.pkpass" });
   res.send(passBuffer);
@@ -386,27 +470,27 @@ app.post("/wallet/v1/log", (req, res) => {
 // ─── Push Update Trigger ─────────────────────────────────────────
 // Call this when venue state changes to push updates to all passes
 
-app.post("/wallet/push/:venueId", async (req, res) => {
-  const { venueId } = req.params;
+app.post("/wallet/push/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const serialNumber = `kb-${userId}`;
 
-  // Get all passes for this venue
-  const passes = await supabase(`wallet_passes?venue_id=eq.${venueId}`) as any[];
+  // Get the pass for this user
+  const passes = await supabase(
+    `wallet_passes?serial_number=eq.${serialNumber}`
+  ) as any[];
   if (!passes || passes.length === 0) {
     return res.json({ pushed: 0 });
   }
 
-  // Get device tokens for these passes
-  const serialNumbers = passes.map((p: any) => p.serial_number);
+  // Get device tokens for this pass
   let totalPushed = 0;
+  const devices = await supabase(
+    `wallet_devices?serial_number=eq.${serialNumber}`
+  ) as any[];
 
-  for (const sn of serialNumbers) {
-    const devices = await supabase(`wallet_devices?serial_number=eq.${sn}`) as any[];
-    if (!devices) continue;
-
+  if (devices) {
     for (const device of devices) {
       if (device.push_token) {
-        // Send empty push notification — Apple Wallet will then call
-        // GET /v1/passes/:passTypeId/:serialNumber to fetch the updated pass
         try {
           await sendAPNsPush(device.push_token);
           totalPushed++;
@@ -417,7 +501,7 @@ app.post("/wallet/push/:venueId", async (req, res) => {
     }
   }
 
-  console.log(`Pushed updates to ${totalPushed} devices for venue ${venueId}`);
+  console.log(`Pushed updates to ${totalPushed} devices for user ${userId}`);
   res.json({ pushed: totalPushed });
 });
 
@@ -715,6 +799,102 @@ app.get("/wallet/reward/:redemptionId", async (req, res) => {
   }
 });
 
+// ─── QR Scan Verification ─────────────────────────────────────────
+// Venue staff or kiosk scans the dynamic QR from a user's storeCard pass
+
+app.get("/wallet/scan/:payload", async (req, res) => {
+  try {
+    const { payload } = req.params;
+    // payload format: {userId}/{timestamp}/{hmac}
+    // (the kb:// prefix is stripped by the scanner or passed as-is)
+    const cleaned = payload.replace(/^kb:\/\//, "");
+    const parts = cleaned.split("/");
+
+    if (parts.length !== 3) {
+      return res.status(400).json({ error: "Invalid QR payload format" });
+    }
+
+    const [userId, timestamp, hmacProvided] = parts;
+
+    // Look up the user's pass to get the hmac_secret
+    const passes = await supabase(
+      `wallet_passes?serial_number=eq.kb-${userId}&limit=1`
+    ) as any[];
+
+    if (!passes || passes.length === 0) {
+      return res.status(404).json({ error: "Pass not found" });
+    }
+
+    const passRecord = passes[0];
+    const hmacSecret = passRecord.hmac_secret;
+
+    if (!hmacSecret) {
+      return res.status(400).json({ error: "Pass not configured" });
+    }
+
+    // Verify HMAC
+    const expectedHmac = crypto
+      .createHmac("sha256", hmacSecret)
+      .update(`${userId}/${timestamp}`)
+      .digest("hex")
+      .slice(0, 8);
+
+    if (expectedHmac !== hmacProvided) {
+      return res.status(401).json({ error: "Invalid QR code" });
+    }
+
+    // Optional: check timestamp freshness (e.g., within 5 minutes)
+    const tsNum = parseInt(timestamp, 10);
+    const ageSeconds = Math.floor(Date.now() / 1000) - tsNum;
+    if (ageSeconds > 300) {
+      return res.status(410).json({ error: "QR code expired", ageSeconds });
+    }
+
+    // Look up user info
+    const profiles = await supabase(`profiles?id=eq.${userId}&limit=1`) as any[];
+    const profile = profiles?.[0];
+
+    // Get pending fulfillments
+    const fulfillments = await supabase(
+      `pending_fulfillments?user_id=eq.${userId}&fulfilled_at=is.null&select=*,venues(name)`
+    ) as any[];
+
+    // Get active memberships
+    const memberships = await supabase(
+      `memberships?user_id=eq.${userId}&expires_at=gt.${new Date().toISOString()}&select=*,venues(name)`
+    ) as any[];
+
+    // Get balance
+    const wallets = await supabase(
+      `user_wallets?user_id=eq.${userId}&mode=eq.live&limit=1`
+    ) as any[];
+
+    res.json({
+      ok: true,
+      userId,
+      displayName: profile?.display_name || profile?.name || "Unknown",
+      balanceCents: wallets?.[0]?.balance_cents || 0,
+      pendingItems: (fulfillments || []).map((f: any) => ({
+        id: f.id,
+        label: f.label,
+        type: f.type,
+        venueName: f.venues?.name || "Unknown",
+        venueId: f.venue_id,
+        status: f.status,
+      })),
+      memberships: (memberships || []).map((m: any) => ({
+        venueName: m.venues?.name || "Unknown",
+        venueId: m.venue_id,
+        tier: m.tier || "Member",
+        expiresAt: m.expires_at,
+      })),
+    });
+  } catch (err) {
+    console.error("Scan verification error:", err);
+    res.status(500).json({ error: "Failed to verify scan" });
+  }
+});
+
 // ─── Redeem verification endpoint (venue staff scans QR) ─────────
 
 app.post("/wallet/redeem/:redemptionId", async (req, res) => {
@@ -766,8 +946,9 @@ function capitalize(s: string): string {
 
 app.listen(PORT, () => {
   console.log(`Wallet service running on port ${PORT}`);
-  console.log(`Pass generation: GET /wallet/pass/:venueId/:userId`);
-  console.log(`Reward badge: GET /wallet/reward/:redemptionId`);
-  console.log(`Redeem verify: POST /wallet/redeem/:redemptionId`);
-  console.log(`Push updates:    POST /wallet/push/:venueId`);
+  console.log(`Pass generation: GET /wallet/pass/:userId`);
+  console.log(`Reward badge:    GET /wallet/reward/:redemptionId`);
+  console.log(`Redeem verify:   POST /wallet/redeem/:redemptionId`);
+  console.log(`Push updates:    POST /wallet/push/:userId`);
+  console.log(`QR scan verify:  GET /wallet/scan/:payload`);
 });
