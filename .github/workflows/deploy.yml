@@ -197,7 +197,7 @@ jobs:
   #    (workers deploy runs independently, won't block tests)
   # ═══════════════════════════════════════════════════════════
   test-services:
-    needs: [deploy-vps]
+    needs: [deploy-vps, deploy-workers]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -295,9 +295,15 @@ jobs:
 
             echo ""
             echo "═══ 6. CLOUDFLARE WORKERS ═══"
-            # email-worker health
-            CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 5 "https://kickback-email.carl-lewis.workers.dev/health" 2>/dev/null)
-            [ "$CODE" = "200" ] && ok "email-worker" || warn "email-worker — HTTP $CODE"
+            for WORKER in kickback-email kickback-digest kickback-renewal kickback-sms; do
+              CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 8 "https://${WORKER}.carl-lewis.workers.dev/health" 2>/dev/null)
+              if [ "$CODE" = "200" ]; then
+                BODY=$(curl -sf --max-time 5 "https://${WORKER}.carl-lewis.workers.dev/health" 2>/dev/null)
+                ok "$WORKER → $BODY"
+              else
+                warn "$WORKER — HTTP $CODE"
+              fi
+            done
 
             echo ""
             echo "═══ RESULTS: $PASS passed, $FAIL failed, $WARN warnings ═══"
