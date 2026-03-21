@@ -589,8 +589,9 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const color = vc(venue.vibe);
   const theme = page.theme_color;
   const pct = Math.round((venue.occupancy / venue.max_occupancy) * 100);
-  /* ── Chat state ── */
-  const [chatOpen, setChatOpen] = useState(false);
+  /* ── Chat state — starts expanded so guests see venue info immediately ── */
+  const [chatOpen, setChatOpen] = useState(true);
+  const [showGestureHint, setShowGestureHint] = useState(true);
   const activeTab: Tab = "chat";
   const controls = useAnimationControls();
   const welcomeMsg: Message = { id: "welcome", sender: "ai", body: `Hey! ${vl(venue.vibe)} vibes right now, ${venue.occupancy} people in. Ask me anything about ${venue.name}.`, timestamp: Date.now() };
@@ -640,6 +641,13 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
       })
       .catch(() => {});
   }, [user, venue.id]);
+
+  // Auto-dismiss gesture hint after 3s
+  useEffect(() => {
+    if (!showGestureHint) return;
+    const t = setTimeout(() => setShowGestureHint(false), 3000);
+    return () => clearTimeout(t);
+  }, [showGestureHint]);
 
   // Fresh chat each visit — history is saved server-side for AI context
   // but the UI always starts with a clean welcome message
@@ -906,9 +914,11 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
         {/* Nav */}
         <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-4 pt-[max(12px,env(safe-area-inset-top))]">
-          <a href="/" className="flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
-          </a>
+          {user && (
+            <a href="/" className="flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
+            </a>
+          )}
           <div className="flex items-center gap-2">
             {/* Balance pill */}
             {pointsData && (
@@ -1338,7 +1348,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                 type="text" value={input} onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { setChatOpen(true); send(); } }}
                 onFocus={() => setChatOpen(true)}
-                placeholder="Ask anything..." enterKeyHint="send" autoComplete="off" autoCorrect="off"
+                placeholder={user ? "Ask anything..." : "Swipe up for more info"} enterKeyHint="send" autoComplete="off" autoCorrect="off"
                 className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
               />
               <motion.button
@@ -1357,6 +1367,23 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
           {/* Expanded: chat panel */}
           {chatOpen && (
             <>
+              {/* Gesture hint — auto-dismiss */}
+              <AnimatePresence>
+                {showGestureHint && (
+                  <motion.button
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => { setShowGestureHint(false); setChatOpen(false); }}
+                    className="flex w-full items-center justify-center gap-2 py-2"
+                    style={{ backgroundColor: "rgba(255,255,255,0.03)" }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9" /></svg>
+                    <span className="font-sans text-[11px] text-white/25">Swipe down to minimize</span>
+                  </motion.button>
+                )}
+              </AnimatePresence>
+
               {/* Header */}
               <div className="flex items-center justify-between px-4 pt-3 pb-1">
                 <div className="flex items-center gap-2">
@@ -1364,7 +1391,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                   <span className="font-sans text-[15px] font-semibold text-white/90">{venue.name}</span>
                   <span className="font-sans text-[11px] text-white/30">{vl(venue.vibe)} · {pct}%</span>
                 </div>
-                <motion.button onClick={() => setChatOpen(false)} whileTap={{ scale: 0.85 }} className="flex h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                <motion.button onClick={() => { setChatOpen(false); setShowGestureHint(false); }} whileTap={{ scale: 0.85 }} className="flex h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-50"><polyline points="18 15 12 9 6 15" /></svg>
                 </motion.button>
               </div>
@@ -1594,7 +1621,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               {/* Input */}
               <div className="flex items-center gap-2 px-3 pb-2 pt-1">
                 <input ref={inputRef} type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
-                  placeholder="Ask anything..." enterKeyHint="send" autoComplete="off" autoCorrect="off"
+                  placeholder={user ? "Ask anything..." : "Swipe up for more info"} enterKeyHint="send" autoComplete="off" autoCorrect="off"
                   className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
                   style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
                 />
