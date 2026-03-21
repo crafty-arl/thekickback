@@ -1,14 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Fraunces, Geist } from "next/font/google";
+import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import { SandboxBanner } from "@/components/sandbox-banner";
 import Script from "next/script";
-import { cn } from "@/lib/utils";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
+  variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
@@ -25,7 +22,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "KickBack Dash",
   },
 };
@@ -45,11 +42,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en" className={`${dmSans.variable} font-sans`}>
       <head>
         <link rel="apple-touch-icon" href="/logo.png" />
       </head>
-      <body className={`${dmSans.variable} ${fraunces.variable} antialiased`}>
+      <body className={`${fraunces.variable} antialiased`}>
         <SandboxBanner />
         {children}
         <Script id="sw-register" strategy="afterInteractive">
