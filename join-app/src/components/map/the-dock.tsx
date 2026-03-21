@@ -1425,8 +1425,8 @@ export function TheDock({
       if (e.key === "ArrowLeft") { e.preventDefault(); onNavigateVenue(-1); return; }
       if (e.key === "ArrowRight") { e.preventDefault(); onNavigateVenue(1); return; }
 
-      // Enter — open venue chat if venue selected
-      if (e.key === "Enter" && selectedVenue && mode !== "venueChat") {
+      // Enter — open venue chat if venue selected (logged in only)
+      if (e.key === "Enter" && selectedVenue && mode !== "venueChat" && user) {
         e.preventDefault();
         setMode("venueChat");
         setVenueChatSnap("expanded");
@@ -1553,6 +1553,13 @@ export function TheDock({
   // ── Sync selectedVenue prop → mode ──
   useEffect(() => {
     if (selectedVenue) {
+      if (!user) {
+        // Not logged in — show venue profile only, no chat
+        setMode("venueChat");
+        setVenueChatSnap("expanded");
+        setShowVenueContact(true);
+        return;
+      }
       setMode("venueChat");
       setVenueChatSnap("collapsed");
       setActiveTab("chat");
@@ -2026,6 +2033,7 @@ export function TheDock({
   // ─── Input focus handler ───────────────────────────────────────
 
   const handleInputFocus = useCallback(() => {
+    if (!user) return; // Must be logged in for chat
     if (mode === "idle" || mode === "explore") {
       if (selectedVenue) {
         setMode("venueChat");
@@ -2036,7 +2044,7 @@ export function TheDock({
     } else if (mode === "venueChat" && venueChatSnap === "collapsed") {
       setVenueChatSnap("expanded");
     }
-  }, [mode, selectedVenue, venueChatSnap]);
+  }, [mode, selectedVenue, venueChatSnap, user]);
 
   // ─── Concierge venue card tap ──────────────────────────────────
 
@@ -2385,8 +2393,9 @@ export function TheDock({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
-                onFocus={handleInputFocus}
-                placeholder={isDesktop ? `Explore or ask anything...  ${isMac ? "\u2318" : "Ctrl+"}K` : "Explore or ask anything..."}
+                onFocus={user ? handleInputFocus : () => { setExploreSnap("half"); }}
+                placeholder={user ? (isDesktop ? `Explore or ask anything...  ${isMac ? "\u2318" : "Ctrl+"}K` : "Explore or ask anything...") : "Sign in to explore..."}
+                readOnly={!user}
                 enterKeyHint="send"
                 autoComplete="off"
                 autoCorrect="off"
@@ -2430,7 +2439,7 @@ export function TheDock({
           {/* ═══ VENUE CHAT COLLAPSED ═══ */}
           {mode === "venueChat" && !venueChatExpanded && selectedVenue && (
             <div className="flex h-full items-center gap-2 px-3">
-              <button onClick={() => setVenueChatSnap("expanded")} className="flex items-center gap-2 pl-1">
+              <button onClick={() => { if (user) setVenueChatSnap("expanded"); else { setVenueChatSnap("expanded"); setShowVenueContact(true); } }} className="flex items-center gap-2 pl-1">
                 <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full" style={{ border: `1.5px solid ${vibeColor}40`, backgroundColor: `${vibeColor}15` }}>
                   {selectedVenue.heroImage ? (
                     <img src={selectedVenue.heroImage} alt="" className="h-full w-full object-cover" />
