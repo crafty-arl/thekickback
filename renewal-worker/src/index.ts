@@ -371,6 +371,102 @@ function getNextExpiry(currentExpiry: string, interval: string | null): string {
   return d.toISOString();
 }
 
+// ─── Monthly Statement ──────────────────────────────────────────
+
+async function sendMonthlyStatements(env: Env) {
+  const now = new Date();
+  const firstOfThisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const firstOfLastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+
+  const monthName = firstOfLastMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  // Get all wallets with transactions last month
+  const txRows = (await supabaseGet(
+    env,
+    `wallet_transactions?status=eq.completed&created_at=gte.${firstOfLastMonth.toISOString()}&created_at=lt.${firstOfThisMonth.toISOString()}&select=user_id,venue_id,amount_cents`
+  )) as { user_id: string; venue_id: string; amount_cents: number }[];
+
+  if (!txRows?.length) {
+    console.log("No transactions last month — skipping statements");
+    return;
+  }
+
+  // Group by user
+  const byUser: Record<string, { venue_id: string; amount_cents: number }[]> = {};
+  for (const tx of txRows) {
+    if (!byUser[tx.user_id]) byUser[tx.user_id] = [];
+    byUser[tx.user_id].push(tx);
+  }
+
+  let sent = 0;
+  for (const [userId, txs] of Object.entries(byUser)) {
+    try {
+      const email = await getUserEmail(env, userId);
+      if (!email) continue;
+
+      const totalSpent = txs.reduce((s, t) => s + t.amount_cents, 0);
+
+      // Group by venue
+      const venueMap: Record<string, number> = {};
+      for (const tx of txs) {
+        const vid = tx.venue_id || "unknown";
+        venueMap[vid] = (venueMap[vid] || 0) + tx.amount_cents;
+      }
+      const venueCount = Object.keys(venueMap).length;
+
+      // Top venue
+      let topVenueId = "";
+      let topVenueSpend = 0;
+      for (const [vid, spend] of Object.entries(venueMap)) {
+        if (spend > topVenueSpend) { topVenueId = vid; topVenueSpend = spend; }
+      }
+      const topVenueName = topVenueId && topVenueId !== "unknown"
+        ? await getVenueName(env, topVenueId)
+        : "—";
+
+      // Funded (wallet top-ups) — look for positive balance changes
+      // For simplicity, we count fund transactions as description containing "fund" or "top" or negative spend
+      const funded = txs.filter(t => t.amount_cents < 0).reduce((s, t) => s + Math.abs(t.amount_cents), 0);
+
+      // Get current balance
+      const wallets = (await supabaseGet(
+        env,
+        `user_wallets?user_id=eq.${userId}&active=eq.true&select=balance_cents`
+      )) as { balance_cents: number }[];
+      const balance = wallets?.[0]?.balance_cents || 0;
+
+      // Get points balance
+      const pointRows = (await supabaseGet(
+        env,
+        `point_balances?user_id=eq.${userId}&select=balance`
+      )) as { balance: number }[];
+      const points = pointRows?.[0]?.balance || 0;
+
+      const spentDollars = (totalSpent / 100).toFixed(2);
+      const balanceDollars = (balance / 100).toFixed(2);
+
+      sendWorkerEmail(env, email, `Your ${monthName} on theKickBack`, wrapEmail(`
+        <div style="text-align:center;margin-bottom:24px;">
+          <h1 style="margin:0;font-size:24px;color:#fff;">Your month on theKickBack</h1>
+          <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.5);">${monthName}</p>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Total spent</td><td style="text-align:right;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#F97316;font-weight:700;font-size:18px;">$${spentDollars}</td></tr>
+          <tr><td style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Venues visited</td><td style="text-align:right;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${venueCount}</td></tr>
+          <tr><td style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Top venue</td><td style="text-align:right;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${topVenueName}</td></tr>
+          <tr><td style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Points earned</td><td style="text-align:right;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#4ADE80;font-weight:600;">${points.toLocaleString()}</td></tr>
+          <tr><td style="padding:12px 0;color:rgba(255,255,255,0.5);">Current balance</td><td style="text-align:right;padding:12px 0;color:#fff;font-weight:700;font-size:18px;">$${balanceDollars}</td></tr>
+        </table>
+        <div style="text-align:center;margin-top:24px;">
+          <a href="https://join.thekickback.net" style="display:inline-block;padding:12px 28px;background:#F97316;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Open theKickBack</a>
+        </div>
+      `));
+      sent++;
+    } catch (e) { console.error(`Monthly statement failed for ${userId}:`, e); }
+  }
+  console.log(`Sent ${sent} monthly statements`);
+}
+
 // ─── Main handler ───────────────────────────────────────────────
 
 export default {
@@ -448,6 +544,85 @@ export default {
       }
       console.log("─── Booking reminders done ───");
     } catch (e) { console.error("Booking reminder check failed:", e); }
+
+    // ─── Event RSVP Reminders (24h before) ────────────────────────
+    console.log("─── Event RSVP reminder check started ───");
+    try {
+      const now = new Date();
+      const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      // Find offering_slots starting in next 24h for event offerings that have RSVPs
+      const slots = (await supabaseGet(
+        env,
+        `offering_slots?starts_at=gt.${now.toISOString()}&starts_at=lt.${in24h.toISOString()}&status=eq.available&select=id,offering_id,venue_id,starts_at`
+      )) as { id: string; offering_id: string; venue_id: string; starts_at: string }[];
+
+      console.log(`Found ${(slots || []).length} upcoming event slots`);
+
+      for (const slot of slots || []) {
+        try {
+          // Get the offering name
+          const offerings = (await supabaseGet(
+            env,
+            `venue_offerings?id=eq.${slot.offering_id}&type=eq.event&active=eq.true&select=name`
+          )) as { name: string }[];
+          if (!offerings?.length) continue;
+          const eventName = offerings[0].name;
+
+          // Get RSVPs for this offering that haven't been reminded
+          const rsvps = (await supabaseGet(
+            env,
+            `event_rsvps?offering_id=eq.${slot.offering_id}&status=eq.going&reminder_sent=is.null&select=id,user_id`
+          )) as { id: string; user_id: string }[];
+
+          if (!rsvps?.length) continue;
+
+          const vName = await getVenueName(env, slot.venue_id);
+          const slug = await getVenueSlug(env, slot.venue_id);
+          const startDate = new Date(slot.starts_at);
+          const timeStr = startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+          for (const rsvp of rsvps) {
+            try {
+              const email = await getUserEmail(env, rsvp.user_id);
+              if (!email) continue;
+
+              sendWorkerEmail(env, email, `Tomorrow night — ${eventName}`, wrapEmail(`
+                <div style="background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(139,92,246,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
+                  <div style="font-size:36px;margin-bottom:8px;">&#128337;</div>
+                  <h1 style="margin:0;font-size:28px;color:#fff;">Tomorrow night.</h1>
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                  <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Event</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${eventName}</td></tr>
+                  <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Venue</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${vName}</td></tr>
+                  <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Time</td><td style="text-align:right;padding:10px 0;color:#8B5CF6;font-weight:600;">${timeStr}</td></tr>
+                </table>
+                <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:12px;padding:12px 16px;margin-top:20px;text-align:center;">
+                  <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.6);">Don't forget. Pull up.</p>
+                </div>
+                <div style="text-align:center;margin-top:20px;">
+                  <a href="https://join.thekickback.net/${slug}" style="display:inline-block;padding:12px 28px;background:#8B5CF6;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">View venue</a>
+                </div>
+              `));
+
+              // Mark reminder sent
+              await supabasePatch(env, "event_rsvps", rsvp.id, { reminder_sent: true });
+            } catch (e) { console.error(`RSVP reminder failed for ${rsvp.id}:`, e); }
+          }
+        } catch (e) { console.error(`Event slot reminder failed for ${slot.id}:`, e); }
+      }
+      console.log("─── Event RSVP reminders done ───");
+    } catch (e) { console.error("Event RSVP reminder check failed:", e); }
+
+    // ─── Monthly Statement (1st of month) ─────────────────────────
+    const today = new Date();
+    if (today.getUTCDate() === 1) {
+      console.log("─── Monthly statements started ───");
+      try {
+        await sendMonthlyStatements(env);
+        console.log("─── Monthly statements done ───");
+      } catch (e) { console.error("Monthly statements failed:", e); }
+    }
   },
 
   // HTTP trigger — OpenClaw can POST /renew to renew a specific user's membership
@@ -487,6 +662,22 @@ export default {
         status: result.renewed ? 200 : 400,
         headers: { "Content-Type": "application/json" },
       });
+    }
+
+    // Manual monthly statement trigger
+    if (request.method === "POST" && url.pathname === "/monthly-statements") {
+      const auth = request.headers.get("Authorization");
+      if (auth !== `Bearer ${env.OPENCLAW_GATEWAY_TOKEN}`) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      try {
+        await sendMonthlyStatements(env);
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+      }
     }
 
     // Health check

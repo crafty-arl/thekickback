@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { sendEmail, wrap } from "@/lib/email";
 
 function getServiceClient() {
   return createServiceClient(
@@ -93,6 +94,29 @@ export async function verifyOtp(email: string, token: string, deviceId: string, 
       if (insertError) {
         console.error("Device insert error:", insertError.message, insertError.code);
       }
+
+      // ─── New Device Login Email ──────────────────────────────
+      try {
+        if (email) {
+          const displayDevice = deviceName || "a new device";
+          const now = new Date();
+          const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+          const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+          sendEmail(email, "New sign-in to theKickBack", wrap(`
+            <div style="background:rgba(255,255,255,0.04);border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
+              <div style="font-size:36px;margin-bottom:8px;">&#128274;</div>
+              <h1 style="margin:0;font-size:24px;color:#fff;">New sign-in</h1>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Device</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${displayDevice}</td></tr>
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Date</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${dateStr}</td></tr>
+              <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Time</td><td style="text-align:right;padding:10px 0;color:#fff;">${timeStr}</td></tr>
+            </table>
+            <p style="margin:16px 0 0;font-size:13px;color:rgba(255,255,255,0.4);text-align:center;">If this wasn't you, secure your account by removing unknown devices in Settings.</p>
+          `));
+        }
+      } catch (e) { console.error("New device email failed:", e); }
     }
   }
 

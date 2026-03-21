@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { sendEmail, wrap } from "@/lib/email";
 
 const service = createClient(
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -111,6 +112,32 @@ export async function addStaffMember(
             role: "staff",
         }, { onConflict: "user_id,venue_id" });
     }
+
+    // ─── Staff Invite Email ──────────────────────────────────────
+    try {
+        const { data: venue } = await service
+            .from("venues")
+            .select("name")
+            .eq("id", venueId)
+            .single();
+        const venueName = venue?.name || "a venue";
+        const roleName = data.role_title || "Team Member";
+
+        sendEmail(email, `You've been added to ${venueName}`, wrap(`
+            <div style="background:linear-gradient(135deg,rgba(249,115,22,0.2),rgba(249,115,22,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
+              <div style="font-size:36px;margin-bottom:8px;">&#128188;</div>
+              <h1 style="margin:0;font-size:24px;color:#fff;">You're on the team.</h1>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Venue</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${venueName}</td></tr>
+              <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Role</td><td style="text-align:right;padding:10px 0;color:#F97316;font-weight:600;">${roleName}</td></tr>
+            </table>
+            <p style="margin:16px 0 0;font-size:13px;color:rgba(255,255,255,0.4);text-align:center;">Your venue owner added you as staff.</p>
+            <div style="text-align:center;margin-top:20px;">
+              <a href="https://dash.thekickback.net" style="display:inline-block;padding:12px 28px;background:#F97316;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Open Dashboard</a>
+            </div>
+        `));
+    } catch (e) { console.error("Staff invite email failed:", e); }
 
     revalidatePath("/settings");
     return { ok: true, staff: newStaff };
