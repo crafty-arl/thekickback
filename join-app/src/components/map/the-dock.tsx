@@ -15,7 +15,7 @@ import { VibeCard, MenuCard, EventsCard, ReserveCard, ShopCard, SubscribeCard, J
 import { PointsBadge } from "./points-badge";
 import { VenueProfileCards } from "./venue-profile-cards";
 import { VenueContact } from "./venue-contact";
-import { CheckoutCard, type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
+import { type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
 import { WalletSheet, useWalletStatus } from "./wallet-sheet";
 import { usePasskey } from "@/lib/use-passkey";
 
@@ -3176,8 +3176,19 @@ export function TheDock({
                             </div>
                           </div>
 
+                          {/* Login gate */}
+                          {!user && (
+                            <a
+                              href="/login"
+                              className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-sans text-[14px] font-bold text-black active:scale-[0.97]"
+                              style={{ backgroundColor: vibeColor }}
+                            >
+                              Log in to checkout
+                            </a>
+                          )}
+
                           {/* ══ Compact payment buttons ══ */}
-                          <div className="flex gap-2 w-full">
+                          {user && <div className="flex gap-2 w-full">
                             {/* AI Credit */}
                             <button
                               onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
@@ -3207,7 +3218,7 @@ export function TheDock({
                               </span>
                               <span className="font-mono text-[8px] text-white/20">+${((stripeFee + platformFee) / 100).toFixed(2)} fees</span>
                             </button>
-                          </div>
+                          </div>}
 
                           {/* Cancel */}
                           <button
