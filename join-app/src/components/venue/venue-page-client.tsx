@@ -664,7 +664,11 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
   const send = useCallback(async (text?: string) => {
     const msg = (text || input).trim();
-    if (!msg || loading) return;
+    if (!msg) return;
+    // Allow cart actions even while loading
+    if (msg === "__CHECKOUT__" || msg === "__CLEAR_CART__") {
+      // bypass loading check for cart actions
+    } else if (loading) return;
     if (!chatOpen) setChatOpen(true);
 
     // ── Cart special actions ──
