@@ -11,6 +11,21 @@ interface Thread {
   messageCount: number;
 }
 
+interface OfferingData {
+  id: string;
+  type: string;
+  name: string;
+  description: string | null;
+  price_cents: number;
+  recurring: boolean;
+  interval: string | null;
+}
+
+const TYPE_ICONS: Record<string, string> = {
+  membership: "\u{1F451}", reservation: "\u{1FA91}", service: "\u2702\uFE0F", product: "\u2615",
+  event: "\u{1F39F}\uFE0F", package: "\u{1F4E6}", custom: "\u2726",
+};
+
 interface VenueContactProps {
   venue: Venue;
   onClose: () => void;
@@ -33,6 +48,7 @@ export function VenueContact({ venue, onClose, onChat }: VenueContactProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [page, setPage] = useState<{ tagline: string | null; description: string | null; theme_color: string; hero_image: string | null; hours: { day: string; open: string; close: string }[] } | null>(null);
   const [thread, setThread] = useState<Thread | null>(null);
+  const [offerings, setOfferings] = useState<OfferingData[]>([]);
   const vibeColor = venue.themeColor || getVibeHexColor(venue.vibe);
   const pct = getOccupancyPercent(venue);
 
@@ -56,6 +72,12 @@ export function VenueContact({ venue, onClose, onChat }: VenueContactProps) {
           });
         }
       })
+      .catch(() => {});
+
+    // Load offerings
+    fetch(`/api/offerings?venueId=${venue.id}`)
+      .then((r) => r.ok ? r.json() : { offerings: [] })
+      .then((d) => setOfferings(d.offerings || []))
       .catch(() => {});
 
     // Check favorite status
@@ -219,6 +241,50 @@ export function VenueContact({ venue, onClose, onChat }: VenueContactProps) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Offerings */}
+      {offerings.length > 0 && (
+        <div className="mx-4 mb-3">
+          {/* Memberships */}
+          {offerings.filter((o) => o.type === "membership").map((m) => (
+            <button
+              key={m.id}
+              onClick={() => { onChat(); }}
+              className="mb-1.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left active:scale-[0.98]"
+              style={{ backgroundColor: `${theme}08`, border: `1px solid ${theme}20` }}
+            >
+              <span className="text-[16px]">{"\u{1F451}"}</span>
+              <div className="flex-1 min-w-0">
+                <span className="font-sans text-[12px] font-bold text-white/80">{m.name}</span>
+                {m.description && <p className="truncate font-sans text-[9px] text-white/30">{m.description}</p>}
+              </div>
+              <span className="font-mono text-[11px] font-bold" style={{ color: theme }}>${(m.price_cents / 100).toFixed(0)}/{m.interval || "mo"}</span>
+            </button>
+          ))}
+          {/* Other offerings as compact strip */}
+          {(() => {
+            const others = offerings.filter((o) => o.type !== "membership");
+            const grouped = others.reduce<Record<string, OfferingData[]>>((acc, o) => { (acc[o.type] ||= []).push(o); return acc; }, {});
+            if (Object.keys(grouped).length === 0) return null;
+            return (
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar mt-1">
+                {Object.entries(grouped).map(([type, items]) => (
+                  <button
+                    key={type}
+                    onClick={onChat}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 active:scale-95"
+                    style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <span className="text-[12px]">{TYPE_ICONS[type] || "\u2726"}</span>
+                    <span className="font-sans text-[10px] font-medium text-white/50 capitalize">{type}s</span>
+                    <span className="font-mono text-[9px] text-white/25">{items.length}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
 

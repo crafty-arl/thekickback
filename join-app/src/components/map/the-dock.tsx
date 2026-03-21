@@ -2975,11 +2975,6 @@ export function TheDock({
               className="flex-1 overflow-y-auto overscroll-contain px-4 py-3"
               style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
             >
-              {/* Venue splash cards — the storefront lives at the top of the chat */}
-              {selectedVenue.claimed !== false && (
-                <VenueProfileCards venue={selectedVenue} onAction={(cmd) => send(cmd)} />
-              )}
-
               <div className="flex flex-col gap-2.5">
                 {currentVenueMessages.map((msg) => {
                   if (msg.sender === "guest") {
