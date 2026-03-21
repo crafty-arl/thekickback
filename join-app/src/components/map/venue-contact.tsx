@@ -44,11 +44,26 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
+interface Review {
+  id: string;
+  rating: number;
+  body: string | null;
+  author: string;
+  createdAt: string;
+}
+
 export function VenueContact({ venue, onClose, onChat }: VenueContactProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [page, setPage] = useState<{ tagline: string | null; description: string | null; theme_color: string; hero_image: string | null; hours: { day: string; open: string; close: string }[] } | null>(null);
   const [thread, setThread] = useState<Thread | null>(null);
   const [offerings, setOfferings] = useState<OfferingData[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewAvg, setReviewAvg] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [myRating, setMyRating] = useState(0);
+  const [myBody, setMyBody] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
   const vibeColor = venue.themeColor || "#F97316";
 
   useEffect(() => {
@@ -74,6 +89,11 @@ export function VenueContact({ venue, onClose, onChat }: VenueContactProps) {
     fetch(`/api/offerings?venueId=${venue.id}`)
       .then((r) => r.ok ? r.json() : { offerings: [] })
       .then((d) => setOfferings(d.offerings || []))
+      .catch(() => {});
+
+    fetch(`/api/reviews?venueId=${venue.id}`)
+      .then((r) => r.ok ? r.json() : { reviews: [], average: 0, count: 0 })
+      .then((d) => { setReviews(d.reviews || []); setReviewAvg(d.average || 0); setReviewCount(d.count || 0); })
       .catch(() => {});
 
     try {
@@ -235,6 +255,101 @@ export function VenueContact({ venue, onClose, onChat }: VenueContactProps) {
           <p className="font-sans text-[12px] leading-[1.6] text-white/35">{page.description}</p>
         </div>
       )}
+
+      {/* Reviews */}
+      <div className="mx-4 mb-3">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="font-sans text-[8px] font-semibold tracking-[1px] text-white/20">REVIEWS</span>
+            {reviewCount > 0 && (
+              <span className="flex items-center gap-1 font-sans text-[10px] text-white/40">
+                {"★".repeat(Math.round(reviewAvg))}{"☆".repeat(5 - Math.round(reviewAvg))}
+                <span className="font-mono text-[9px] font-bold">{reviewAvg}</span>
+                <span className="text-white/20">({reviewCount})</span>
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => setShowReviewForm(!showReviewForm)}
+            className="rounded-lg px-2.5 py-1 font-sans text-[10px] font-bold active:scale-95"
+            style={{ backgroundColor: `${theme}15`, color: theme, border: `1px solid ${theme}25` }}
+          >
+            {showReviewForm ? "Cancel" : "Leave a review"}
+          </button>
+        </div>
+
+        {/* Review form */}
+        {showReviewForm && (
+          <div className="mb-3 rounded-xl px-3 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="mb-2 flex items-center justify-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setMyRating(star)}
+                  className="text-[24px] active:scale-110 transition-transform"
+                  style={{ color: star <= myRating ? "#F97316" : "rgba(255,255,255,0.15)" }}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={myBody}
+              onChange={(e) => setMyBody(e.target.value)}
+              placeholder="How was your experience? (optional)"
+              rows={2}
+              className="w-full resize-none rounded-lg px-3 py-2 font-sans text-[12px] text-white/80 placeholder:text-white/20 outline-none"
+              style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+            />
+            <button
+              onClick={async () => {
+                if (!myRating) return;
+                setSubmittingReview(true);
+                try {
+                  const res = await fetch("/api/reviews", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ venueId: venue.id, rating: myRating, body: myBody || null, source: "app" }),
+                  });
+                  if (res.ok) {
+                    setShowReviewForm(false);
+                    setMyRating(0);
+                    setMyBody("");
+                    // Refresh reviews
+                    const d = await fetch(`/api/reviews?venueId=${venue.id}`).then((r) => r.json());
+                    setReviews(d.reviews || []);
+                    setReviewAvg(d.average || 0);
+                    setReviewCount(d.count || 0);
+                  }
+                } catch { /* skip */ }
+                setSubmittingReview(false);
+              }}
+              disabled={!myRating || submittingReview}
+              className="mt-2 w-full rounded-lg py-2 font-sans text-[12px] font-bold text-black active:scale-[0.98] disabled:opacity-40"
+              style={{ backgroundColor: theme }}
+            >
+              {submittingReview ? "Submitting..." : "Submit Review"}
+            </button>
+          </div>
+        )}
+
+        {/* Review list */}
+        {reviews.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {reviews.slice(0, 5).map((r) => (
+              <div key={r.id} className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-sans text-[10px] font-semibold text-white/50">{r.author}</span>
+                  <span className="font-sans text-[10px]" style={{ color: "#F97316" }}>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                </div>
+                {r.body && <p className="font-sans text-[11px] leading-[1.5] text-white/35">{r.body}</p>}
+              </div>
+            ))}
+          </div>
+        ) : !showReviewForm && (
+          <p className="font-sans text-[10px] text-white/15 text-center py-2">No reviews yet — be the first</p>
+        )}
+      </div>
 
       {/* Past conversation */}
       {thread && (
