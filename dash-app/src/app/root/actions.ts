@@ -236,6 +236,118 @@ export async function updateAiConfig(updates: {
     return { ok: true };
 }
 
+// ─── Waitlist actions ────────────────────────────────────────────
+
+function generateReferralKey(): string {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    const seg = (n: number) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+    return `kb-${seg(4)}-${seg(4)}`;
+}
+
+export async function fetchWaitlist() {
+    await assertRoot();
+    const { data, error } = await service
+        .from("waitlist")
+        .select("*")
+        .order("created_at", { ascending: false });
+    if (error) return { error: error.message, entries: [] };
+    return { entries: data || [] };
+}
+
+export async function approveWaitlistEntry(entryId: string) {
+    await assertRoot();
+
+    // Get entry
+    const { data: entry, error: fetchErr } = await service
+        .from("waitlist")
+        .select("*")
+        .eq("id", entryId)
+        .single();
+
+    if (fetchErr || !entry) return { error: "Entry not found" };
+    if (entry.status === "approved") return { error: "Already approved" };
+
+    // Update status
+    await service.from("waitlist").update({
+        status: "approved",
+        approved_at: new Date().toISOString(),
+    }).eq("id", entryId);
+
+    // Find or create user profile to link referral keys
+    const { data: profile } = await service
+        .from("profiles")
+        .select("id")
+        .eq("email", entry.email)
+        .maybeSingle();
+
+    const userId = profile?.id || entryId; // fallback to entry id if no profile yet
+
+    // Generate 5 referral keys
+    const keys = Array.from({ length: 5 }, () => ({
+        user_id: userId,
+        key: generateReferralKey(),
+    }));
+    await service.from("referral_keys").insert(keys);
+
+    // Send approved email
+    try {
+        const keyLinks = keys.map((k) => `<li style="margin:4px 0;"><a href="https://join.thekickback.net?ref=${k.key}" style="color:#F97316;text-decoration:none;font-family:monospace;">${k.key}</a></li>`).join("");
+        sendEmail(entry.email, "You're in — welcome to theKickBack", wrap(`
+            <div style="background:linear-gradient(135deg,rgba(249,115,22,0.15),rgba(249,115,22,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
+                <div style="font-size:48px;margin-bottom:8px;">&#127881;</div>
+                <h1 style="margin:0;font-size:28px;color:#F97316;">You're in.</h1>
+            </div>
+            <p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.5;">
+                Welcome to <strong style="color:#fff;">theKickBack</strong>. You've been approved — sign in and start exploring.
+            </p>
+            <div style="background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin:16px 0;">
+                <strong style="color:#F97316;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Your referral keys</strong>
+                <p style="margin:8px 0 4px;color:rgba(255,255,255,0.5);font-size:13px;">Share these with 5 friends to let them skip the waitlist:</p>
+                <ul style="list-style:none;padding:0;margin:0;">${keyLinks}</ul>
+            </div>
+            <div style="text-align:center;margin-top:24px;">
+                <a href="https://join.thekickback.net" style="display:inline-block;background:#F97316;color:#000;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:600;font-size:15px;">Open theKickBack</a>
+            </div>
+        `));
+    } catch (e) { console.error("Approve email failed:", e); }
+
+    revalidatePath("/root");
+    return { ok: true };
+}
+
+export async function rejectWaitlistEntry(entryId: string) {
+    await assertRoot();
+
+    const { data: entry, error: fetchErr } = await service
+        .from("waitlist")
+        .select("*")
+        .eq("id", entryId)
+        .single();
+
+    if (fetchErr || !entry) return { error: "Entry not found" };
+
+    await service.from("waitlist").update({ status: "rejected" }).eq("id", entryId);
+
+    // Send rejection email
+    try {
+        sendEmail(entry.email, "theKickBack — update on your request", wrap(`
+            <div style="background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(239,68,68,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">
+                <div style="font-size:48px;margin-bottom:8px;color:#EF4444;">!</div>
+                <h1 style="margin:0;font-size:28px;color:#EF4444;">Not right now.</h1>
+            </div>
+            <p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.5;">
+                Thanks for your interest in theKickBack. We're not able to approve your access at this time, but we'll keep your email on file.
+            </p>
+            <p style="color:rgba(255,255,255,0.4);font-size:13px;margin-top:16px;">
+                If you have a referral key from someone already on the platform, you can use that to get in.
+            </p>
+        `));
+    } catch (e) { console.error("Reject email failed:", e); }
+
+    revalidatePath("/root");
+    return { ok: true };
+}
+
 // ─── Delete venue ───────────────────────────────────────────────
 
 export async function deleteVenue(venuePageId: string, venueId: string) {

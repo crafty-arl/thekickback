@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { rootSendOtp, rootVerifyOtp, approveVenue, rejectVenue, unpublishVenue, deleteVenue, updateAiConfig } from "./actions";
+import { rootSendOtp, rootVerifyOtp, approveVenue, rejectVenue, unpublishVenue, deleteVenue, updateAiConfig, approveWaitlistEntry, rejectWaitlistEntry } from "./actions";
 
 const DEFAULT_CHAT_MODELS = [
     { id: "openclaw", label: "OpenClaw (default)", provider: "openclaw" },
@@ -60,6 +60,18 @@ interface Stats {
     totalSessions: number;
     totalKnowledge: number;
     totalOfferings: number;
+    waitlistPending: number;
+    waitlistTotal: number;
+}
+
+interface WaitlistEntry {
+    id: string;
+    email: string;
+    status: string;
+    referred_by: string | null;
+    referral_key: string | null;
+    created_at: string;
+    approved_at: string | null;
 }
 
 interface AiConfig {
@@ -79,13 +91,14 @@ interface Props {
     stats: Stats | null;
     authed: boolean;
     aiConfig?: AiConfig | null;
+    waitlistEntries?: WaitlistEntry[];
 }
 
-export function RootClient({ pages, orphanVenues, stats, authed, aiConfig }: Props) {
+export function RootClient({ pages, orphanVenues, stats, authed, aiConfig, waitlistEntries }: Props) {
     // If not authed, show OTP gate
     if (!authed) return <OtpGate />;
 
-    return <AdminDashboard pages={pages} orphanVenues={orphanVenues || []} stats={stats!} aiConfig={aiConfig || null} />;
+    return <AdminDashboard pages={pages} orphanVenues={orphanVenues || []} stats={stats!} aiConfig={aiConfig || null} waitlistEntries={waitlistEntries || []} />;
 }
 
 // ─── OTP Gate ────────────────────────────────────────────────────
@@ -177,10 +190,13 @@ function OtpGate() {
 
 // ─── Admin Dashboard ─────────────────────────────────────────────
 
-function AdminDashboard({ pages, orphanVenues, stats, aiConfig }: { pages: VenuePage[]; orphanVenues: OrphanVenue[]; stats: Stats; aiConfig: AiConfig | null }) {
+function AdminDashboard({ pages, orphanVenues, stats, aiConfig, waitlistEntries }: { pages: VenuePage[]; orphanVenues: OrphanVenue[]; stats: Stats; aiConfig: AiConfig | null; waitlistEntries: WaitlistEntry[] }) {
     const [filter, setFilter] = useState<"all" | "draft" | "pending" | "approved" | "rejected" | "orphan">("all");
     const [acting, setActing] = useState<string | null>(null);
     const [showAiConfig, setShowAiConfig] = useState(false);
+    const [showWaitlist, setShowWaitlist] = useState(false);
+    const [waitlistFilter, setWaitlistFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+    const [wlActing, setWlActing] = useState<string | null>(null);
     const [savingAi, setSavingAi] = useState(false);
     const [chatModel, setChatModel] = useState({ id: aiConfig?.chat_model || "openclaw", label: aiConfig?.chat_model_label || "OpenClaw" });
     const [onboardingModel, setOnboardingModel] = useState({ id: aiConfig?.onboarding_model || "@cf/meta/llama-3.3-70b-instruct-fp8-fast", label: aiConfig?.onboarding_model_label || "Llama 3.3 70B" });
@@ -220,6 +236,106 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig }: { pages: Venue
                     <StatBox label="Sessions" value={stats.totalSessions} />
                     <StatBox label="Knowledge" value={stats.totalKnowledge} />
                     <StatBox label="Offerings" value={stats.totalOfferings} />
+                    <StatBox label="Waitlist" value={stats.waitlistPending} accent="#F97316" />
+                    <StatBox label="Total Signups" value={stats.waitlistTotal} />
+                </div>
+
+                {/* Waitlist Management */}
+                <div className="mb-8 rounded-2xl border p-5" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
+                    <div className="mb-4 flex items-center justify-between">
+                        <div>
+                            <h2 className="font-sans text-[16px] font-semibold text-white">Waitlist</h2>
+                            <p className="font-sans text-[12px]" style={{ color: "rgba(255,255,255,0.3)" }}>{stats.waitlistPending} pending, {stats.waitlistTotal} total</p>
+                        </div>
+                        <button onClick={() => setShowWaitlist(!showWaitlist)} className="font-sans text-[12px] text-white/40">
+                            {showWaitlist ? "Hide" : "Manage"}
+                        </button>
+                    </div>
+
+                    {showWaitlist && (
+                        <div className="border-t pt-4" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                            {/* Waitlist filters */}
+                            <div className="mb-3 flex gap-2">
+                                {(["pending", "approved", "rejected", "all"] as const).map((f) => {
+                                    const count = f === "all" ? waitlistEntries.length : waitlistEntries.filter((w) => w.status === f).length;
+                                    return (
+                                        <button
+                                            key={f}
+                                            onClick={() => setWaitlistFilter(f)}
+                                            className="rounded-lg px-3 py-1.5 font-sans text-[12px] font-medium capitalize transition"
+                                            style={{
+                                                backgroundColor: waitlistFilter === f ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.02)",
+                                                color: waitlistFilter === f ? "#fff" : "rgba(255,255,255,0.35)",
+                                                border: `1px solid ${waitlistFilter === f ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)"}`,
+                                            }}
+                                        >
+                                            {f} <span className="ml-1 text-white/30">({count})</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Waitlist entries */}
+                            <div className="flex flex-col gap-2">
+                                {waitlistEntries
+                                    .filter((w) => waitlistFilter === "all" || w.status === waitlistFilter)
+                                    .map((w) => (
+                                        <div
+                                            key={w.id}
+                                            className="flex items-center gap-3 rounded-xl border px-4 py-3"
+                                            style={{
+                                                borderColor: w.status === "pending" ? "rgba(249,115,22,0.2)" : w.status === "approved" ? "rgba(74,222,128,0.12)" : "rgba(239,68,68,0.12)",
+                                                backgroundColor: w.status === "pending" ? "rgba(249,115,22,0.04)" : "rgba(255,255,255,0.02)",
+                                            }}
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-sans text-[13px] font-semibold text-white">{w.email}</p>
+                                                    <span
+                                                        className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold tracking-wider uppercase"
+                                                        style={{
+                                                            backgroundColor: w.status === "approved" ? "rgba(74,222,128,0.15)" : w.status === "rejected" ? "rgba(239,68,68,0.15)" : "rgba(249,115,22,0.15)",
+                                                            color: w.status === "approved" ? "#4ADE80" : w.status === "rejected" ? "#EF4444" : "#F97316",
+                                                        }}
+                                                    >
+                                                        {w.status}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-0.5 flex items-center gap-2">
+                                                    <span className="font-sans text-[11px] text-white/20">{new Date(w.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                                                    {w.referral_key && <span className="font-mono text-[10px] text-white/15">ref: {w.referral_key}</span>}
+                                                </div>
+                                            </div>
+                                            <div className="flex shrink-0 items-center gap-2">
+                                                {w.status === "pending" && (
+                                                    <>
+                                                        <button
+                                                            onClick={async () => { setWlActing(w.id); await approveWaitlistEntry(w.id); setWlActing(null); }}
+                                                            disabled={wlActing === w.id}
+                                                            className="rounded-lg px-3 py-1.5 font-sans text-[12px] font-bold transition active:scale-95"
+                                                            style={{ backgroundColor: "rgba(74,222,128,0.15)", color: "#4ADE80" }}
+                                                        >
+                                                            {wlActing === w.id ? "..." : "Approve"}
+                                                        </button>
+                                                        <button
+                                                            onClick={async () => { setWlActing(w.id); await rejectWaitlistEntry(w.id); setWlActing(null); }}
+                                                            disabled={wlActing === w.id}
+                                                            className="rounded-lg px-3 py-1.5 font-sans text-[12px] font-medium transition active:scale-95"
+                                                            style={{ backgroundColor: "rgba(239,68,68,0.1)", color: "#EF4444" }}
+                                                        >
+                                                            {wlActing === w.id ? "..." : "Reject"}
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                {waitlistEntries.filter((w) => waitlistFilter === "all" || w.status === waitlistFilter).length === 0 && (
+                                    <p className="py-4 text-center font-sans text-[13px] text-white/25">No entries</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* AI Model Config */}

@@ -903,9 +903,24 @@ function DeviceManager() {
 function DockLogin({ onSuccess }: { onSuccess: () => void }) {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"email" | "otp">("email");
+  const [step, setStep] = useState<"email" | "otp" | "waitlisted">("email");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Capture referral key from URL on mount
+  const refKey = useRef<string | null>(null);
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref) {
+        refKey.current = ref;
+        localStorage.setItem("kb-ref", ref);
+      } else {
+        refKey.current = localStorage.getItem("kb-ref") || null;
+      }
+    } catch {}
+  }, []);
 
   const handleSend = async () => {
     if (!email || loading) return;
@@ -925,10 +940,44 @@ function DockLogin({ onSuccess }: { onSuccess: () => void }) {
     const ua = navigator.userAgent;
     const browser = /Chrome/i.test(ua) ? "Chrome" : /Safari/i.test(ua) ? "Safari" : "Browser";
     const os = /iPhone|iPad/i.test(ua) ? "iOS" : /Android/i.test(ua) ? "Android" : /Mac/i.test(ua) ? "Mac" : "Device";
-    const r = await verifyOtp(email, otp, did, `${browser} on ${os}`);
+    const r = await verifyOtp(email, otp, did, `${browser} on ${os}`, undefined, refKey.current || undefined);
+    if ((r as { waitlisted?: boolean })?.waitlisted) {
+      setStep("waitlisted");
+      setLoading(false);
+      // Clear referral key from localStorage on successful waitlist entry
+      try { localStorage.removeItem("kb-ref"); } catch {}
+      return;
+    }
     if (r?.error) { setError(r.error); setLoading(false); return; }
+    // Clear referral key on success
+    try { localStorage.removeItem("kb-ref"); } catch {}
     onSuccess();
   };
+
+  if (step === "waitlisted") {
+    return (
+      <div className="flex flex-col items-center px-6 py-8">
+        <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: "rgba(249,115,22,0.12)" }}>
+          <span className="text-[28px]">{"\u23F3"}</span>
+        </div>
+        <h2 className="mb-1 font-sans text-[18px] font-bold text-white">You're on the waitlist</h2>
+        <p className="mb-4 max-w-[280px] text-center font-sans text-[12px] leading-relaxed text-white/40">
+          We're letting people in gradually. You'll get an email as soon as you're approved.
+        </p>
+        <div className="w-full max-w-xs rounded-xl px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
+          <p className="text-center font-sans text-[11px] text-white/30">
+            Have a referral key from a friend? Use the invite link they shared to skip the line.
+          </p>
+        </div>
+        <button
+          onClick={() => { setStep("email"); setOtp(""); setError(""); }}
+          className="mt-4 font-sans text-[12px] text-white/30"
+        >
+          Try a different email
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center px-6 py-8">
@@ -936,6 +985,13 @@ function DockLogin({ onSuccess }: { onSuccess: () => void }) {
       <p className="mb-5 font-sans text-[12px] text-white/35">
         {step === "email" ? "Enter your email to get a code" : `Code sent to ${email}`}
       </p>
+      {refKey.current && step === "email" && (
+        <div className="mb-3 w-full max-w-xs rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
+          <p className="text-center font-sans text-[11px] font-medium" style={{ color: "#4ADE80" }}>
+            Referral key detected — you'll skip the waitlist
+          </p>
+        </div>
+      )}
       {step === "email" ? (
         <div className="flex w-full max-w-xs flex-col gap-3">
           <input
@@ -1045,6 +1101,7 @@ export function TheDock({
   const [memberships, setMemberships] = useState<{ venue_id: string; venue_name: string; tier: string; expires_at: string }[]>([]);
   const [balance, setBalance] = useState(0);
   const [myCollectibles, setMyCollectibles] = useState<{ unlock_id: string; asset_id: string; name: string; asset_type: string; category: string; description: string | null; is_animated: boolean; hub_id: string | null; hub_name: string; payment_method: string; unlocked_at: string }[]>([]);
+  const [referralKeys, setReferralKeys] = useState<{ id: string; key: string; used_by_email: string | null }[]>([]);
 
   // ── Offerings map (venueId → offeringId → meta) ──
   const [offeringsMap, setOfferingsMap] = useState<Record<string, Record<string, OfferingMeta>>>({});
@@ -1597,6 +1654,15 @@ export function TheDock({
           if (cRes.ok) {
             const cData = await cRes.json();
             if (cData.collectibles) setMyCollectibles(cData.collectibles);
+          }
+        } catch { /* skip */ }
+
+        // Fetch referral keys
+        try {
+          const rkRes = await fetch("/api/referral-keys");
+          if (rkRes.ok) {
+            const rkData = await rkRes.json();
+            if (rkData.keys) setReferralKeys(rkData.keys);
           }
         } catch { /* skip */ }
       } catch {
@@ -3654,6 +3720,58 @@ export function TheDock({
                         {passkey.hasPasskey ? "Wallet not working? Tap \"Add this device\" to register biometric here." : "Required for wallet purchases. Uses Face ID / Touch ID."}
                       </p>
                     </div>
+
+                    {/* Referral Keys */}
+                    {referralKeys.length > 0 && (
+                      <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.1)" }}>
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">REFERRAL KEYS</span>
+                          <span className="font-mono text-[10px] font-bold" style={{ color: "#F97316" }}>
+                            {referralKeys.filter((k) => !k.used_by_email).length}/{referralKeys.length} left
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          {referralKeys.map((k) => (
+                            <div key={k.id} className="flex items-center gap-2">
+                              <span className={`flex-1 font-mono text-[11px] ${k.used_by_email ? "text-white/15 line-through" : "text-white/50"}`}>
+                                {k.key}
+                              </span>
+                              {k.used_by_email ? (
+                                <span className="font-sans text-[9px] text-white/15">used</span>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard?.writeText(`https://join.thekickback.net?ref=${k.key}`);
+                                    }}
+                                    className="rounded-md px-2 py-1 font-sans text-[9px] font-bold active:scale-95"
+                                    style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316" }}
+                                  >
+                                    Copy
+                                  </button>
+                                  {typeof navigator !== "undefined" && "share" in navigator && (
+                                    <button
+                                      onClick={() => {
+                                        navigator.share?.({
+                                          title: "Join theKickBack",
+                                          text: "Skip the waitlist — use my invite link to join theKickBack",
+                                          url: `https://join.thekickback.net?ref=${k.key}`,
+                                        }).catch(() => {});
+                                      }}
+                                      className="rounded-md px-2 py-1 font-sans text-[9px] font-bold active:scale-95"
+                                      style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}
+                                    >
+                                      Share
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-2 font-sans text-[9px] text-white/20">Share a key with friends to let them skip the waitlist.</p>
+                      </div>
+                    )}
 
                     {/* KickBack Score */}
                     <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>

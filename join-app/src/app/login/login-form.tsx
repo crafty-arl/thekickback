@@ -12,14 +12,26 @@ export function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
-  const [step, setStep] = useState<"email" | "verify">("email");
+  const [step, setStep] = useState<"email" | "verify" | "waitlisted">("email");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [deviceId, setDeviceId] = useState("");
+  const [refKey, setRefKey] = useState<string | null>(null);
 
-  // Generate device fingerprint on mount
+  // Generate device fingerprint and capture referral key on mount
   useEffect(() => {
     getDeviceId().then(setDeviceId);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref) {
+        setRefKey(ref);
+        localStorage.setItem("kb-ref", ref);
+      } else {
+        const stored = localStorage.getItem("kb-ref");
+        if (stored) setRefKey(stored);
+      }
+    } catch {}
   }, []);
 
   async function handleSendOtp(e: React.FormEvent) {
@@ -54,12 +66,54 @@ export function LoginForm() {
     const os = /iPhone|iPad/i.test(ua) ? "iOS" : /Android/i.test(ua) ? "Android" : /Mac/i.test(ua) ? "Mac" : /Windows/i.test(ua) ? "Windows" : "Device";
     const deviceName = isMobile ? `${browser} on ${os}` : `${browser} on ${os}`;
 
-    const result = await verifyOtp(email, otpCode, did, deviceName, returnTo);
+    const result = await verifyOtp(email, otpCode, did, deviceName, returnTo, refKey || undefined);
+
+    if ((result as { waitlisted?: boolean })?.waitlisted) {
+      setStep("waitlisted");
+      setLoading(false);
+      try { localStorage.removeItem("kb-ref"); } catch {}
+      return;
+    }
 
     if (result?.error) {
       setError(result.error);
       setLoading(false);
+    } else {
+      try { localStorage.removeItem("kb-ref"); } catch {}
     }
+  }
+
+  if (step === "waitlisted") {
+    return (
+      <main className="flex min-h-svh flex-col items-center justify-center bg-black px-4">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex justify-center">
+            <Image src="/logo.png" alt="theKickBack" width={160} height={53} className="h-10 w-auto" priority />
+          </div>
+          <div className="rounded-2xl p-8 text-center" style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl" style={{ backgroundColor: "rgba(249,115,22,0.12)" }}>
+              <span className="text-[32px]">{"\u23F3"}</span>
+            </div>
+            <h1 className="mb-2 font-display text-2xl font-bold tracking-tight text-white">You're on the waitlist</h1>
+            <p className="mb-4 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
+              We're letting people in gradually. You'll get an email as soon as you're approved.
+            </p>
+            <div className="rounded-xl px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
+                Have a referral key from a friend? Use the invite link they shared to skip the line.
+              </p>
+            </div>
+            <button
+              onClick={() => { setStep("email"); setOtpCode(""); setError(""); }}
+              className="mt-4 text-sm transition"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+            >
+              Try a different email
+            </button>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -85,6 +139,14 @@ export function LoginForm() {
               ? "Enter your email to get a login code."
               : `We sent a 6-digit code to ${email}`}
           </p>
+
+          {refKey && step === "email" && (
+            <div className="mb-4 rounded-xl px-4 py-2.5" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
+              <p className="text-center text-xs font-medium" style={{ color: "#4ADE80" }}>
+                Referral key detected — you'll skip the waitlist
+              </p>
+            </div>
+          )}
 
           {step === "email" ? (
             <form onSubmit={handleSendOtp} className="flex flex-col gap-4">

@@ -26,7 +26,7 @@ export default async function RootPage() {
         process.env.SUPABASE_SERVICE_KEY!,
     );
 
-    const [pagesRes, allVenuesRes, memberCountRes, sessionCountRes, knowledgeCountRes, offeringCountRes, configRes] = await Promise.all([
+    const [pagesRes, allVenuesRes, memberCountRes, sessionCountRes, knowledgeCountRes, offeringCountRes, configRes, waitlistRes] = await Promise.all([
         service.from("venue_pages").select("*, venues(id, name, type, address, neighborhood, lat, lng, max_occupancy)").order("created_at", { ascending: false }),
         service.from("venues").select("id, name, type, address, neighborhood, lat, lng, max_occupancy, state, vibe, occupancy, created_at").order("created_at", { ascending: false }),
         service.from("memberships").select("id", { count: "exact", head: true }),
@@ -34,6 +34,7 @@ export default async function RootPage() {
         service.from("venue_knowledge").select("id", { count: "exact", head: true }),
         service.from("venue_offerings").select("id", { count: "exact", head: true }),
         service.from("platform_config").select("*").eq("id", "main").single(),
+        service.from("waitlist").select("*").order("created_at", { ascending: false }),
     ]);
 
     const pages = pagesRes.data || [];
@@ -47,6 +48,8 @@ export default async function RootPage() {
 
     const orphanVenues = allVenues.filter((v: Record<string, unknown>) => !pagedVenueIds.has(v.id));
 
+    const waitlistEntries = waitlistRes.data || [];
+
     const stats = {
         totalVenues: pages.length + orphanVenues.length,
         pendingVenues: pages.filter((p: Record<string, unknown>) => p.review_status === "pending").length,
@@ -56,9 +59,11 @@ export default async function RootPage() {
         totalSessions: sessionCountRes.count || 0,
         totalKnowledge: knowledgeCountRes.count || 0,
         totalOfferings: offeringCountRes.count || 0,
+        waitlistPending: waitlistEntries.filter((w: Record<string, unknown>) => w.status === "pending").length,
+        waitlistTotal: waitlistEntries.length,
     };
 
     const aiConfig = configRes.data || null;
 
-    return <RootClient pages={pages} orphanVenues={orphanVenues} stats={stats} authed={true} aiConfig={aiConfig} />;
+    return <RootClient pages={pages} orphanVenues={orphanVenues} stats={stats} authed={true} aiConfig={aiConfig} waitlistEntries={waitlistEntries} />;
 }

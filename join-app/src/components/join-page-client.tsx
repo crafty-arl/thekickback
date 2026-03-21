@@ -37,6 +37,15 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
         return () => document.documentElement.classList.remove("map-mode");
     }, []);
 
+    // Capture referral key from URL
+    useEffect(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const ref = params.get("ref");
+            if (ref) localStorage.setItem("kb-ref", ref);
+        } catch {}
+    }, []);
+
     // Request geolocation and fetch local discovery venues
     useEffect(() => {
         if (!navigator.geolocation) return;
