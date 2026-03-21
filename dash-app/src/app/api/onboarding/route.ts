@@ -12,11 +12,24 @@ const SYSTEM_PROMPT = `You are the theKickBack hub setup assistant. Get a hub se
 
 Flow (3 exchanges then done):
 
-EXCHANGE 1: "Tell me about your hub — what's it called, what kind of place, and where is it?"
-→ Extract: name, type, address. If they give more (hours, capacity) take it all.
+EXCHANGE 1: "Tell me about your hub — what's it called and what kind of place is it?"
+→ Extract: name, type. If they give more (address, hours, capacity) take it all.
+→ After getting name and type, determine locationMode using the rules below.
+
+LOCATION MODE DETECTION:
+- If the type is clearly physical (bar, restaurant, cafe, barbershop, nail_salon, coworking, lounge, club): set locationMode to "fixed"
+- If the type is event/community-based (touring artist, running club, book club, community org, league, creator, musician, popup): ask "Do you have a permanent location, or do you mostly host events at different spots?"
+- Based on the answer, set locationMode:
+  - "fixed" = permanent address (ask for it)
+  - "mobile" = moves around (address optional, ask about their next event location instead)
+  - "virtual" = no physical location (skip address, ask about their first event)
+- For "fixed" locationMode, ask for address if not already provided.
+- For "mobile" locationMode, address is optional — ask "Where's your next event?" instead.
+- For "virtual" locationMode, skip address entirely — ask about their first event or community details.
 
 EXCHANGE 2: "Nice! A few quick details — hours, capacity, and what you serve?"
 → Extract: hours, max_occupancy, menu highlights. If they mention rules take those too. Skip anything they already told you.
+→ For mobile/virtual hubs, ask about event schedule instead of fixed hours.
 
 EXCHANGE 3: "Last one — describe the vibe in a sentence."
 → Extract: tagline. YOU auto-generate: description (2 sentences), theme color (bar/club=#F97316, cafe/cowork=#4ADE80, restaurant=#EF4444, lounge=#8B5CF6), slug, and set rules to [] if not mentioned.
@@ -24,11 +37,11 @@ EXCHANGE 3: "Last one — describe the vibe in a sentence."
 Then IMMEDIATELY show a quick summary and ask "Look good?" Do NOT ask extra questions. Fill in sensible defaults for anything missing.
 
 IMPORTANT — after EVERY response (including exchange 1, 2, 3, and the summary), append a partial data block on a new line with all fields extracted so far. Use this exact format:
-<<<HUB_PARTIAL>>>{"name":"...","type":"...","address":"...","tagline":"...","description":"...","themeColor":"#...","hours":"...","maxOccupancy":N,"menu":"...","rules":[],"slug":"...","offerings":[]}<<<END_PARTIAL>>>
-Only include fields you have extracted so far. For slug, auto-generate from the name (lowercase, hyphens). For themeColor, pick based on type (bar/club=#F97316, cafe/cowork=#4ADE80, restaurant=#EF4444, lounge=#8B5CF6, barbershop=#F59E0B, nail_salon=#EC4899). Leave unknown fields as empty strings, 0, or [].
+<<<HUB_PARTIAL>>>{"name":"...","type":"...","locationMode":"fixed|mobile|virtual","address":"...","tagline":"...","description":"...","themeColor":"#...","hours":"...","maxOccupancy":N,"menu":"...","rules":[],"slug":"...","offerings":[]}<<<END_PARTIAL>>>
+Only include fields you have extracted so far. For slug, auto-generate from the name (lowercase, hyphens). For themeColor, pick based on type (bar/club=#F97316, cafe/cowork=#4ADE80, restaurant=#EF4444, lounge=#8B5CF6, barbershop=#F59E0B, nail_salon=#EC4899). Leave unknown fields as empty strings, 0, or []. For locationMode, default to "fixed" if clearly a physical venue.
 
 When they confirm the summary, output EXACTLY this on a new line (IN ADDITION to the partial block):
-<<<VENUE_DATA>>>{"name":"...","address":"...","type":"...","maxOccupancy":N,"hours":"...","menu":"...","rules":["..."],"tagline":"...","description":"...","themeColor":"#..."}<<<END_DATA>>>
+<<<VENUE_DATA>>>{"name":"...","address":"...","type":"...","locationMode":"fixed|mobile|virtual","maxOccupancy":N,"hours":"...","menu":"...","rules":["..."],"tagline":"...","description":"...","themeColor":"#..."}<<<END_DATA>>>
 
 Rules:
 - NEVER more than 4 total exchanges before showing the summary
@@ -47,15 +60,21 @@ Generate 3-4 contextual reply suggestions that would naturally move the conversa
   - For summary confirmation: "Looks good, let's go!", "Change the hours to 4pm-2am", "Update the tagline"
 Make them feel like real answers a real owner would give. Vary them based on the venue type if known.`;
 
-function buildChecklistPrompt(currentItem: string | null, checklist: Record<string, boolean>) {
+function buildChecklistPrompt(currentItem: string | null, checklist: Record<string, boolean>, locationMode?: string) {
   const completed = Object.entries(checklist).filter(([, v]) => v).map(([k]) => k);
   const remaining = Object.entries(checklist).filter(([, v]) => !v).map(([k]) => k);
+
+  const locationContext = locationMode === "mobile"
+    ? `\nThis hub is mobile (moves around / hosts events at different spots). The "location" item is auto-completed — no fixed address needed. For "offerings", mention that each event can have its own location.`
+    : locationMode === "virtual"
+    ? `\nThis hub is virtual (no physical location). The "location" item is auto-completed — no address needed. For "offerings", mention that each event can have its own location.`
+    : "";
 
   return `You are guiding a venue owner through their setup checklist. They already created their hub. Now walk them through each remaining item.
 
 Current item: ${currentItem || "none"}
 Completed: ${completed.join(", ") || "none"}
-Remaining: ${remaining.join(", ") || "none"}
+Remaining: ${remaining.join(", ") || "none"}${locationContext}
 
 For each item, explain it briefly (1-2 sentences) and help them complete it. Be casual and encouraging.
 
@@ -64,10 +83,10 @@ When a checklist item is completed through your conversation, output:
 
 Item descriptions:
 - basics: Hub name and type
-- location: Address confirmation
-- hours: Operating hours
+- location: ${locationMode === "mobile" ? "Your hub doesn't need a fixed address — you're mobile! Already complete." : locationMode === "virtual" ? "Your hub doesn't need a fixed address — it's virtual! Already complete." : "Address confirmation"}
+- hours: ${locationMode === "mobile" || locationMode === "virtual" ? "Event schedule or typical timing" : "Operating hours"}
 - branding: Tagline, description, and theme color
-- offerings: Review auto-generated offerings
+- offerings: Review auto-generated offerings${locationMode === "mobile" || locationMode === "virtual" ? " — each event can have its own location" : ""}
 - knowledge: AI knowledge base — what should the AI know about this spot?
 - photos: Upload at least one photo
 - xp: Review loyalty/XP program
@@ -98,11 +117,12 @@ export async function POST(request: NextRequest) {
     phase?: "chat" | "checklist";
     currentItem?: string | null;
     checklist?: Record<string, boolean>;
+    locationMode?: string;
   };
 
   const isChecklist = body.phase === "checklist";
   const systemPrompt = isChecklist
-    ? buildChecklistPrompt(body.currentItem || null, body.checklist || {})
+    ? buildChecklistPrompt(body.currentItem || null, body.checklist || {}, body.locationMode)
     : SYSTEM_PROMPT;
 
   const messages: Message[] = [
@@ -263,6 +283,7 @@ async function createVenueFromAI(data: {
   name: string;
   address: string;
   type: string;
+  locationMode?: string;
   maxOccupancy: number;
   hours: string;
   menu: string;
@@ -272,34 +293,39 @@ async function createVenueFromAI(data: {
   themeColor: string;
 }, userId?: string) {
   const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const locationMode = data.locationMode || "fixed";
+  const hasAddress = Boolean(data.address && data.address.trim());
 
-  // Geocode address
+  // Geocode address (skip for mobile/virtual with no address)
   let lat = null;
   let lng = null;
   let neighborhood = "";
-  try {
-    const geoRes = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(data.address)}&format=json&limit=1`,
-      { headers: { "User-Agent": "theKickBack/1.0" } }
-    );
-    if (geoRes.ok) {
-      const geo = await geoRes.json() as { lat: string; lon: string; display_name: string }[];
-      if (geo.length > 0) {
-        lat = parseFloat(geo[0].lat);
-        lng = parseFloat(geo[0].lon);
-        const parts = geo[0].display_name.split(",");
-        neighborhood = parts.length > 1 ? parts[1].trim() : "";
+  if (hasAddress) {
+    try {
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(data.address)}&format=json&limit=1`,
+        { headers: { "User-Agent": "theKickBack/1.0" } }
+      );
+      if (geoRes.ok) {
+        const geo = await geoRes.json() as { lat: string; lon: string; display_name: string }[];
+        if (geo.length > 0) {
+          lat = parseFloat(geo[0].lat);
+          lng = parseFloat(geo[0].lon);
+          const parts = geo[0].display_name.split(",");
+          neighborhood = parts.length > 1 ? parts[1].trim() : "";
+        }
       }
+    } catch (err) {
+      console.error("Geocoding error:", err);
     }
-  } catch (err) {
-    console.error("Geocoding error:", err);
   }
 
   // Determine which checklist items are already complete
   const hasHours = Boolean(data.hours && data.hours.trim());
+  const isMobileOrVirtual = locationMode === "mobile" || locationMode === "virtual";
   const onboardingChecklist = {
     basics: true,
-    location: true,
+    location: isMobileOrVirtual ? true : hasAddress,
     hours: hasHours,
     branding: false,
     offerings: false,
@@ -333,7 +359,8 @@ async function createVenueFromAI(data: {
       max_occupancy: data.maxOccupancy || 100,
       vibe: "quiet",
       type: data.type,
-      address: data.address,
+      location_mode: locationMode,
+      address: data.address || "",
       neighborhood,
       lat,
       lng,

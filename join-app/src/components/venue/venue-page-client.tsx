@@ -55,6 +55,11 @@ interface OfferingData {
   perks: string[];
   active: boolean;
   duration_minutes?: number | null;
+  location_name?: string | null;
+  location_address?: string | null;
+  rsvp_count?: number | null;
+  max_attendees?: number | null;
+  image_url?: string | null;
 }
 
 interface Props {
@@ -1041,6 +1046,61 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                 return map;
               })()}
             />
+          </div>
+        )}
+
+        {/* Events — shown separately with location + RSVP */}
+        {offerings.filter((o) => o.type === "event").length > 0 && (
+          <div className="px-5 pb-5">
+            <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">UPCOMING EVENTS</p>
+            <div className="flex flex-col gap-3">
+              {offerings.filter((o) => o.type === "event").map((event) => (
+                <button
+                  key={event.id}
+                  onClick={() => {
+                    if (!offeringsMap[event.id]) {
+                      setOfferingsMap((prev) => ({ ...prev, [event.id]: { name: event.name, description: event.description, price_cents: event.price_cents, image_url: event.image_url || null, type: event.type, recurring: false, interval: null, duration_minutes: event.duration_minutes } }));
+                    }
+                    setDrawerOfferId(event.id);
+                  }}
+                  className="w-full overflow-hidden rounded-2xl text-left active:scale-[0.98]"
+                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${theme}15` }}
+                >
+                  {event.image_url && (
+                    <div className="relative h-32 w-full">
+                      <img src={event.image_url} alt={event.name} className="h-full w-full object-cover" />
+                      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)" }} />
+                    </div>
+                  )}
+                  <div className="px-4 py-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[14px]">🎟️</span>
+                      <h3 className="font-sans text-[15px] font-bold text-white/90">{event.name}</h3>
+                    </div>
+                    {event.description && (
+                      <p className="font-sans text-[12px] text-white/40 line-clamp-2">{event.description}</p>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {event.location_name && (
+                        <div className="flex items-center gap-1">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                          <span className="font-sans text-[11px] text-white/35">{event.location_name}{event.location_address ? ` · ${event.location_address}` : ""}</span>
+                        </div>
+                      )}
+                      {event.price_cents > 0 && (
+                        <span className="font-mono text-[12px] font-bold" style={{ color: theme }}>${(event.price_cents / 100).toFixed(event.price_cents % 100 === 0 ? 0 : 2)}</span>
+                      )}
+                      {event.price_cents === 0 && (
+                        <span className="font-sans text-[11px] font-semibold" style={{ color: "#4ade80" }}>Free</span>
+                      )}
+                      {(event.rsvp_count ?? 0) > 0 && (
+                        <span className="font-sans text-[10px] text-white/25">{event.rsvp_count} going{event.max_attendees ? ` / ${event.max_attendees}` : ""}</span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

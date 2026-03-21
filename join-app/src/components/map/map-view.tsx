@@ -127,6 +127,20 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, ma
 
   const handleMarkerClick = useCallback(
     (venue: Venue) => {
+      // Event pins: select the parent venue so the dock shows the hub's chat
+      if (venue.isEventPin && venue.parentVenueId) {
+        const parent = venues.find((v) => v.id === venue.parentVenueId);
+        if (parent) {
+          onVenueSelect(parent);
+          mapRef.current?.flyTo({
+            center: [venue.longitude, venue.latitude],
+            zoom: 15.5,
+            pitch: 50,
+            duration: 800,
+          });
+          return;
+        }
+      }
       onVenueSelect(venue);
       mapRef.current?.flyTo({
         center: [venue.longitude, venue.latitude],
@@ -135,7 +149,7 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, ma
         duration: 800,
       });
     },
-    [onVenueSelect]
+    [onVenueSelect, venues]
   );
 
   const handleLoad = useCallback(() => {

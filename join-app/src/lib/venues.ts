@@ -23,6 +23,11 @@ export interface Venue {
   heroImage?: string | null;
   logo?: string | null;
   claimed?: boolean;
+  isEventPin?: boolean;
+  parentVenueId?: string;
+  eventName?: string;
+  eventDate?: string;
+  locationMode?: "fixed" | "mobile" | "virtual";
 }
 
 export const VENUE_CATEGORIES: { value: string; label: string }[] = [
@@ -44,6 +49,7 @@ export const VENUE_CATEGORIES: { value: string; label: string }[] = [
   { value: "artist", label: "Artists" },
   { value: "musician", label: "Musicians" },
   { value: "creator", label: "Creators" },
+  { value: "event", label: "Events" },
   { value: "venue", label: "All Hubs" },
 ];
 

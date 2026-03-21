@@ -19,6 +19,11 @@ export interface VenueData {
     latitude: number;
     longitude: number;
     themeColor: string;
+    isEventPin?: boolean;
+    parentVenueId?: string;
+    eventName?: string;
+    eventDate?: string;
+    locationMode?: "fixed" | "mobile" | "virtual";
 }
 
 /**
@@ -70,7 +75,10 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
         return [];
     }
 
-    return pages
+    // Build a set of venue IDs with coordinates (for dedup with event pins later)
+    const venueCoordSet = new Map<string, { lat: number; lng: number }>();
+
+    const venueResults = pages
         .filter((p: Record<string, unknown>) => {
             const v = p.venues as Record<string, unknown> | null;
             if (!v) return false;
@@ -86,8 +94,14 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
                 ? hours.map((h) => `${h.day} ${h.open}${h.close ? ` – ${h.close}` : ""}`).join(", ")
                 : "Hours vary";
 
+            const lat = (v.latitude as number) || (v.lat as number);
+            const lng = (v.longitude as number) || (v.lng as number);
+            const venueId = v.id as string;
+
+            venueCoordSet.set(venueId, { lat, lng });
+
             return {
-                id: v.id as string,
+                id: venueId,
                 name: v.name as string,
                 slug: p.slug as string,
                 category: (v.type as string) || "venue",
@@ -102,11 +116,92 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
                 hours: hoursStr,
                 memberOnly: false,
                 textNumber: (v.twilio_number as string) || (v.phone as string) || "",
-                latitude: (v.latitude as number) || (v.lat as number),
-                longitude: (v.longitude as number) || (v.lng as number),
+                latitude: lat,
+                longitude: lng,
                 themeColor: (p.theme_color as string) || "#F97316",
                 heroImage: (p.hero_image as string) || null,
                 logo: (p.logo as string) || null,
+                locationMode: "fixed" as const,
             };
         });
+
+    // --- Fetch event offerings with their own locations ---
+    const { data: eventOfferings, error: eventError } = await supabase
+        .from("venue_offerings")
+        .select(`
+            id, name, description, location_name, location_address,
+            location_lat, location_lng, venue_id
+        `)
+        .eq("type", "event")
+        .eq("active", true)
+        .not("location_lat", "is", null)
+        .not("location_lng", "is", null);
+
+    if (eventError) {
+        console.error("[fetchApprovedVenues] event offerings error:", eventError.message);
+    }
+
+    const eventPins: VenueData[] = [];
+
+    if (eventOfferings && eventOfferings.length > 0) {
+        // Build a lookup of venue data from pages we already fetched
+        const venuePageMap = new Map<string, Record<string, unknown>>();
+        for (const p of (pages || []) as Record<string, unknown>[]) {
+            const raw = p.venues;
+            const v = (Array.isArray(raw) ? raw[0] : raw) as Record<string, unknown> | null;
+            if (v) venuePageMap.set(v.id as string, p);
+        }
+
+        for (const ev of eventOfferings) {
+            const venueId = ev.venue_id as string;
+            const evLat = ev.location_lat as number;
+            const evLng = ev.location_lng as number;
+
+            // Skip if event is at the same location as the parent venue pin (within ~50m)
+            const parentCoords = venueCoordSet.get(venueId);
+            if (parentCoords) {
+                const dlat = Math.abs(parentCoords.lat - evLat);
+                const dlng = Math.abs(parentCoords.lng - evLng);
+                if (dlat < 0.0005 && dlng < 0.0005) continue;
+            }
+
+            // Use parent venue page data if available
+            const parentPage = venuePageMap.get(venueId);
+            const parentVenue = parentPage
+                ? (parentPage.venues as Record<string, unknown>)
+                : null;
+
+            eventPins.push({
+                id: `event-${ev.id}`,
+                name: parentVenue ? (parentVenue.name as string) : (ev.name as string),
+                slug: parentPage ? (parentPage.slug as string) : "",
+                category: "event",
+                neighborhood: "",
+                vibe: parentVenue ? ((parentVenue.vibe as string) || "moderate") : "moderate",
+                occupancy: 0,
+                capacity: parentVenue ? ((parentVenue.max_occupancy as number) || 100) : 100,
+                description: (ev.description as string) || "",
+                tags: [],
+                hours: "",
+                memberOnly: false,
+                textNumber: parentVenue
+                    ? ((parentVenue.twilio_number as string) || (parentVenue.phone as string) || "")
+                    : "",
+                latitude: evLat,
+                longitude: evLng,
+                themeColor: parentPage
+                    ? ((parentPage.theme_color as string) || "#F97316")
+                    : "#F97316",
+                heroImage: parentPage ? ((parentPage.hero_image as string) || null) : null,
+                logo: parentPage ? ((parentPage.logo as string) || null) : null,
+                isEventPin: true,
+                parentVenueId: venueId,
+                eventName: ev.name as string,
+                eventDate: undefined,
+                locationMode: "fixed",
+            } as VenueData);
+        }
+    }
+
+    return [...venueResults, ...eventPins];
 }
