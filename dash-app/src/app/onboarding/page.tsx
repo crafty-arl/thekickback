@@ -78,31 +78,13 @@ function mergePartialData(
   };
 }
 
-// ─── Quick replies logic ────────────────────────────────────────────
-
-function getQuickReplies(hubData: HubData, userMessageCount: number): string[] {
-  if (userMessageCount === 0) {
-    return [
-      "It\u2019s a bar",
-      "It\u2019s a cafe",
-      "It\u2019s a barbershop",
-      "It\u2019s a restaurant",
-    ];
-  }
-
-  // After first exchange — suggest what's still missing
-  const missing: string[] = [];
-  if (!hubData.address) missing.push("Here\u2019s the address");
-  if (!hubData.hours) missing.push("Our hours are...");
-  if (!hubData.tagline) missing.push("The vibe is...");
-  if (hubData.capacity === 100 && !hubData.hours) missing.push("We fit about...");
-
-  if (missing.length === 0) {
-    return ["Looks good!", "Change the color", "Update the name"];
-  }
-
-  return missing.slice(0, 4);
-}
+// Default quick replies (before AI generates any)
+const DEFAULT_REPLIES = [
+  "It\u2019s a cocktail bar called The Rooftop on 6th St in Austin",
+  "Coffee shop in Brooklyn, we\u2019re called Drip",
+  "Barbershop in Houston called Fresh Cuts",
+  "It\u2019s a coworking space",
+];
 
 // ─── Welcome message ───────────────────────────────────────────────
 
@@ -127,6 +109,7 @@ export default function OnboardingPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [venueCreated, setVenueCreated] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [smartReplies, setSmartReplies] = useState<string[]>(DEFAULT_REPLIES);
 
   const [hubData, setHubData] = useState<HubData>({
     name: "",
@@ -234,9 +217,15 @@ export default function OnboardingPage() {
           setHubData((prev) => mergePartialData(prev, data.hubData));
         }
 
+        // Update smart replies from AI
+        if (data.smartReplies && data.smartReplies.length > 0) {
+          setSmartReplies(data.smartReplies);
+        }
+
         // Check if venue was created
         if (data.venueCreated) {
           setVenueCreated(true);
+          setSmartReplies([]);
         }
       } catch {
         setMessages((prev) => [
@@ -259,9 +248,7 @@ export default function OnboardingPage() {
   // ─── Quick replies ────────────────────────────────────────────
 
   const userMessageCount = messages.filter((m) => m.sender === "user").length;
-  const quickReplies = venueCreated
-    ? []
-    : getQuickReplies(hubData, userMessageCount);
+  const quickReplies = venueCreated ? [] : smartReplies;
 
   // ─── Render ───────────────────────────────────────────────────
 

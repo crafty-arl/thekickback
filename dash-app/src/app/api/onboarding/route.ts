@@ -36,7 +36,15 @@ Rules:
 - Keep every response under 3 sentences
 - If something is missing, pick a reasonable default rather than asking
 - Only output <<<VENUE_DATA>>> after they confirm the summary
-- ALWAYS output <<<HUB_PARTIAL>>> after every response`;
+- ALWAYS output <<<HUB_PARTIAL>>> after every response
+- ALWAYS output smart reply suggestions after every response using this format:
+<<<REPLIES>>>["suggestion 1","suggestion 2","suggestion 3"]<<<END_REPLIES>>>
+Generate 3-4 contextual reply suggestions that would naturally move the conversation forward. Make them specific and realistic — full sentences the user can tap to send as their response. Examples:
+  - For exchange 1: "It's a cocktail bar called Neon on 6th St in Austin", "We're a barbershop in Brooklyn called Fresh Fades"
+  - For exchange 2: "Open 5pm to midnight, fits about 80, craft cocktails and local beer", "9 to 7 weekdays, we do cuts fades and beard trims"
+  - For exchange 3: "Late nights and good company", "Where the neighborhood comes to unwind"
+  - For summary confirmation: "Looks good, let's go!", "Change the hours to 4pm-2am", "Update the tagline"
+Make them feel like real answers a real owner would give. Vary them based on the venue type if known.`;
 
 interface Message {
   role: "system" | "user" | "assistant";
@@ -112,13 +120,25 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Extract AI-generated smart replies
+  let smartReplies: string[] = [];
+  const repliesMatch = reply.match(/<<<REPLIES>>>([\s\S]*?)<<<END_REPLIES>>>/);
+  if (repliesMatch) {
+    try {
+      smartReplies = JSON.parse(repliesMatch[1]);
+    } catch {
+      // best effort
+    }
+  }
+
   // Clean the reply — remove data blocks from what the user sees
   const cleanReply = reply
     .replace(/<<<VENUE_DATA>>>[\s\S]*?<<<END_DATA>>>/g, "")
     .replace(/<<<HUB_PARTIAL>>>[\s\S]*?<<<END_PARTIAL>>>/g, "")
+    .replace(/<<<REPLIES>>>[\s\S]*?<<<END_REPLIES>>>/g, "")
     .trim();
 
-  return NextResponse.json({ reply: cleanReply, venueCreated, hubData });
+  return NextResponse.json({ reply: cleanReply, venueCreated, hubData, smartReplies });
 }
 
 async function createVenueFromAI(data: {
