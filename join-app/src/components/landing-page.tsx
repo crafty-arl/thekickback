@@ -174,7 +174,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                 alt="theKickBack"
                 width={500}
                 height={250}
-                className="h-20 w-auto drop-shadow-2xl sm:h-28 md:h-32"
+                className="h-48 w-auto drop-shadow-2xl sm:h-56 md:h-64"
                 style={{ filter: "invert(1)" }}
                 priority
               />
