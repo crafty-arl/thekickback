@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
 
   const userId = user.id;
   const venueId = req.nextUrl.searchParams.get("venueId");
+  const wantMemberships = req.nextUrl.searchParams.get("memberships") === "true";
 
   const queries: Promise<unknown>[] = [
     // KickBack score (aggregate)
@@ -98,6 +99,17 @@ export async function GET(req: NextRequest) {
     response.venueMilestones = Array.isArray(milestones) ? milestones : [];
     response.venueXp = Array.isArray(venueXp) && venueXp.length > 0 ? venueXp[0] : { xp: 0, visits: 0 };
     response.perks = Array.isArray(perks) ? perks : [];
+  }
+
+  // Fetch memberships if requested
+  if (wantMemberships) {
+    const memberRows = await supabaseGet(
+      `memberships?user_id=eq.${userId}&select=venue_id,tier,expires_at,venues(name)&expires_at=gt.${new Date().toISOString()}`
+    );
+    response.memberships = (Array.isArray(memberRows) ? memberRows : []).map((m: Record<string, unknown>) => {
+      const v = Array.isArray(m.venues) ? m.venues[0] : m.venues;
+      return { venue_id: m.venue_id, venue_name: (v as Record<string, unknown>)?.name || "Venue", tier: m.tier, expires_at: m.expires_at };
+    });
   }
 
   return NextResponse.json(response);

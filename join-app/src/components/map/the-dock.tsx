@@ -944,6 +944,7 @@ export function TheDock({
   // ── User / profile state ──
   const [user, setUser] = useState<UserProfile | null>(null);
   const [perks, setPerks] = useState<Perk[]>([]);
+  const [memberships, setMemberships] = useState<{ venue_id: string; venue_name: string; tier: string; expires_at: string }[]>([]);
   const [balance, setBalance] = useState(0);
 
   // ── Offerings map (venueId → offeringId → meta) ──
@@ -1455,6 +1456,15 @@ export function TheDock({
           venueProfiles: data.venueProfiles || [],
         });
         setBalance(data.balance?.balance || 0);
+
+        // Fetch memberships
+        try {
+          const mRes = await fetch("/api/points?memberships=true");
+          if (mRes.ok) {
+            const mData = await mRes.json();
+            if (mData.memberships) setMemberships(mData.memberships);
+          }
+        } catch { /* skip */ }
 
         const allPerks: Perk[] = [];
         for (const v of venues.filter((v) => v.claimed !== false).slice(0, 10)) {
@@ -3462,11 +3472,44 @@ export function TheDock({
                     )}
                   </div>
 
+                  {/* Memberships */}
+                  {memberships.length > 0 && (
+                    <div className="mt-3">
+                      <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MEMBERSHIPS</span>
+                      <div className="mt-1.5 flex flex-col gap-1.5">
+                        {memberships.map((m) => (
+                          <div key={m.venue_id} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
+                            <span className="text-[14px]">{"\u{1F451}"}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-sans text-[12px] font-semibold text-white/80">{m.venue_name}</p>
+                              <p className="font-sans text-[9px] text-white/30">{m.tier} · expires {new Date(m.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Available Perks */}
+                  {perks.length > 0 && (
+                    <div className="mt-3">
+                      <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">PERKS YOU CAN CLAIM</span>
+                      <div className="mt-1.5 flex gap-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                        {perks.slice(0, 8).map((p) => (
+                          <div key={p.id} className="flex shrink-0 flex-col items-center rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", width: 90 }}>
+                            <span className="font-sans text-[11px] font-semibold text-white/70 text-center leading-tight line-clamp-2">{p.name}</span>
+                            <span className="mt-1 font-mono text-[10px] font-bold text-orange">{p.point_cost} pts</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Venue badges */}
                   {user.venueProfiles.length > 0 && (
                     <div className="mt-3">
                       <div className="mb-2 flex items-center justify-between px-1">
-                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">VENUES</span>
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">VENUES VISITED</span>
                         <span className="font-mono text-[11px] font-bold text-white/40">{user.venueProfiles.length}</span>
                       </div>
                       <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
