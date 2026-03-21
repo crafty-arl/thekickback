@@ -154,7 +154,7 @@ export async function submitHubForReview() {
       auth: { user: smtpUser, pass: smtpPass },
     });
 
-    const from = `theKickBack <hub@thekickback.net>`;
+    const from = `theKickBack <${smtpUser}>`;
     const adminEmail = "carl@craftthefuture.xyz";
     const ownerEmail = user.email;
 
