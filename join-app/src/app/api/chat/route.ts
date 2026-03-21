@@ -200,23 +200,28 @@ export async function POST(request: Request) {
     "",
     offerings ? [
       "CHECKOUT INSTRUCTIONS:",
-      "If the guest wants to book, reserve, order, or purchase something that matches an available offering, respond conversationally AND include a checkout card at the END of your response in this exact format:",
-      '[[CHECKOUT:{"items":[{"offering_id":"uuid-here","name":"Booth 7 (Window)","description":"Seats 6, window view","quantity":1,"unit_price_cents":5000,"metadata":{"date":"Fri Mar 20","time":"9:00 PM","guests":4}}],"add_ons":[{"name":"Bottle Service","price_cents":12000,"offering_id":"uuid-or-null"}],"date":"Fri Mar 20","time":"9:00 PM","guests":4}]]',
+      "If the guest wants to order or purchase a PRODUCT (not a service/reservation/event), respond conversationally AND include a checkout card at the END of your response in this exact format:",
+      '[[CHECKOUT:{"items":[{"offering_id":"uuid-here","name":"House Cocktail","description":"Our signature drink","quantity":1,"unit_price_cents":1400,"metadata":{}}],"add_ons":[]}]]',
       "Rules:",
-      "- Only generate a checkout when the guest clearly wants to purchase/book/reserve.",
+      "- Only generate a checkout for PRODUCTS and MEMBERSHIPS — never for services, reservations, or events that have a duration.",
+      "- For services/reservations/events (anything with duration_minutes): tell the guest to use the booking scheduler by tapping the offering. Say something like 'Tap the offering below to pick a time.'",
+      "- NEVER put a service or reservation in a [[CHECKOUT]] without date and time. It will be rejected.",
       "- Use the exact offering_id from the offerings list above.",
       "- price_cents must match the offering price.",
-      "- Include relevant add_ons from the offering's add-ons list if applicable.",
-      "- Include date/time/guests if the guest mentioned them.",
-      "- If the guest hasn't specified enough details (like date or time), ask — don't generate a checkout yet.",
       "- Never invent offerings that aren't in the list.",
       "",
       "BOOKING INSTRUCTIONS:",
-      "If the guest wants to RESERVE or BOOK a time slot (booth, table, event) and you have enough info (offering, date/time, and the guest has shared their name/email), include a booking tag:",
-      '[[BOOKING:{"offering_id":"uuid-here","start":"2026-03-20T02:00:00Z","attendee_name":"Guest Name","attendee_email":"guest@email.com","attendee_timezone":"America/Chicago"}]]',
+      "If the guest wants to RESERVE or BOOK a time-slotted offering (service, reservation, event) and ALL of the following are true:",
+      "  1. You know the specific offering_id",
+      "  2. The guest gave a specific DATE and TIME (not just 'tomorrow' or 'soon' — you need an actual time like '3pm')",
+      "  3. The guest has shared their name and email",
+      "Then include a booking tag:",
+      '[[BOOKING:{"offering_id":"uuid-here","start":"2026-03-20T15:00:00Z","attendee_name":"Guest Name","attendee_email":"guest@email.com","attendee_timezone":"America/Chicago"}]]',
       "- Use ISO 8601 UTC for the start time.",
       "- Only generate when the guest explicitly confirms the booking.",
-      "- If the guest hasn't given their name or email, ask for it first.",
+      "- If the guest hasn't given a specific date AND time, ask for both before generating the tag.",
+      "- If the guest hasn't given their name or email, ask for those too.",
+      "- NEVER generate [[BOOKING]] without a real date and time. If unsure, ask.",
     ].join("\n") : "",
   ].filter(Boolean).join(" ");
 
@@ -277,8 +282,16 @@ export async function POST(request: Request) {
     await supabase.from("chat_messages").insert({ venue_id: venueId, sender_type: "ai", body: reply });
   }
 
-  // If AI generated a booking tag, execute it
+  // If AI generated a booking tag, validate and execute it
   let bookingResult = null;
+  if (booking) {
+    // Server-side gate: reject bookings without a valid start time
+    const bStart = (booking as Record<string, unknown>).start as string | undefined;
+    if (!bStart || isNaN(new Date(bStart).getTime())) {
+      booking = null; // Drop invalid booking — AI hallucinated
+      console.warn("AI generated [[BOOKING]] without valid start time, dropping it");
+    }
+  }
   if (booking) {
     try {
       const bookRes = await fetch(

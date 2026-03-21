@@ -27,6 +27,25 @@ export async function POST(request: Request) {
     return Response.json({ error: "Missing venue or items" }, { status: 400 });
   }
 
+  // Validate: bookable offerings must include date+time in metadata
+  for (const item of items) {
+    if (!item.offering_id) continue;
+    const { data: off } = await supabase
+      .from("venue_offerings")
+      .select("type, duration_minutes")
+      .eq("id", item.offering_id)
+      .single();
+
+    if (off && off.duration_minutes && ["service", "reservation", "event"].includes(off.type)) {
+      if (!item.metadata?.date || !item.metadata?.time) {
+        return Response.json(
+          { error: `"${item.name}" requires a date and time. Please book it through the scheduler.` },
+          { status: 400 }
+        );
+      }
+    }
+  }
+
   // Merge add-ons into items array
   const allItems = [
     ...items,

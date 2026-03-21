@@ -221,8 +221,8 @@ function AiMessageBody({ body, theme, onTapOffer, onAddToCart, offeringsMap }: {
                   {meta?.recurring && <span className="text-[10px] font-normal text-white/30">/{meta.interval || "mo"}</span>}
                 </span>
               </button>
-              {/* Add / Book button */}
-              {meta?.duration_minutes ? (
+              {/* Add / Book button — bookable items open drawer, non-bookable add to cart */}
+              {meta?.duration_minutes && ["service", "reservation", "event"].includes(meta?.type || "") ? (
                 <button
                   onClick={() => onTapOffer(offer.id)}
                   className="flex h-full shrink-0 items-center px-3 font-sans text-[11px] font-bold active:scale-90"
@@ -775,6 +775,12 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   }
 
   function addToCart(id: string, name: string, priceCents: number) {
+    // Block bookable offerings from being added to cart — they must go through the scheduler
+    const meta = offeringsMap[id];
+    if (meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type)) {
+      setDrawerOfferId(id);
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((item) => item.id === id);
       if (existing) return prev.map((item) => item.id === id ? { ...item, quantity: item.quantity + 1 } : item);
