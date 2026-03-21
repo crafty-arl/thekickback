@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 
-const service = createServiceClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!,
-);
+function getService() {
+  return createServiceClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+}
 
 async function getAuthVenue() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data } = await service
+  const { data } = await getService()
     .from("venue_owners")
     .select("venue_id")
     .eq("user_id", user.id)
@@ -29,13 +31,13 @@ export async function GET() {
   const auth = await getAuthVenue();
   if (!auth) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const { data: page } = await service
+  const { data: page } = await getService()
     .from("venue_pages")
     .select("onboarding_checklist, slug, tagline, description, theme_color, hours, review_status")
     .eq("venue_id", auth.venueId)
     .single();
 
-  const { data: venue } = await service
+  const { data: venue } = await getService()
     .from("venues")
     .select("name, type, address, neighborhood")
     .eq("id", auth.venueId)
@@ -66,7 +68,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   // Get current checklist
-  const { data: page } = await service
+  const { data: page } = await getService()
     .from("venue_pages")
     .select("onboarding_checklist")
     .eq("venue_id", auth.venueId)
@@ -75,7 +77,7 @@ export async function PATCH(request: NextRequest) {
   const checklist = page?.onboarding_checklist || {};
   checklist[body.item] = body.completed;
 
-  const { error } = await service
+  const { error } = await getService()
     .from("venue_pages")
     .update({ onboarding_checklist: checklist })
     .eq("venue_id", auth.venueId);
