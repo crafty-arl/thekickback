@@ -9,7 +9,7 @@ import {
 } from "@/lib/venues";
 import { createClient } from "@/lib/supabase/client";
 import { type CheckoutCardData, type CheckoutAddOn } from "../map/checkout-card";
-import { useWalletStatus } from "../map/wallet-sheet";
+import { useWalletStatus, WalletSheet } from "../map/wallet-sheet";
 import { usePasskey } from "@/lib/use-passkey";
 import { sendOtp, verifyOtp } from "@/app/login/actions";
 import { getDeviceId } from "@/lib/device-id";
@@ -408,6 +408,7 @@ export function TheDrawer({
   const passkey = usePasskey();
   const [paymentMode, setPaymentMode] = useState<"choose" | "processing" | null>(null);
   const [deviceRefreshKey, setDeviceRefreshKey] = useState(0);
+  const [walletSheetOpen, setWalletSheetOpen] = useState(false);
 
   // ── Navigation ──
   const [navInfo, setNavInfo] = useState<{ steps: { instruction: string; distance: number; duration: number }[]; distance: number; duration: number; profile: "walking" | "driving" } | null>(null);
@@ -1067,6 +1068,7 @@ export function TheDrawer({
                   onVenueSelect={onVenueSelect}
                   onClearThread={selectedVenue ? () => clearThread(selectedVenue.id) : undefined}
                   onClearConcierge={clearConcierge}
+                  onOpenFundWallet={() => setWalletSheetOpen(true)}
                 />
               )}
 
@@ -1128,6 +1130,26 @@ export function TheDrawer({
           )}
         </motion.div>
       </motion.div>
+
+      {/* ═══ WALLET FUND SHEET ═══ */}
+      <AnimatePresence>
+        {walletSheetOpen && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setWalletSheetOpen(false); walletStatus?.refresh?.(); }} className="fixed inset-0 z-[100]" style={{ backgroundColor: "rgba(0,0,0,0.7)" }} />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="fixed inset-x-0 bottom-0 z-[101] rounded-t-3xl" style={{ backgroundColor: "#0A0A0E", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "80dvh" }}>
+              <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                <span className="font-sans text-[15px] font-bold text-white/80">Add Funds</span>
+                <button onClick={() => { setWalletSheetOpen(false); walletStatus?.refresh?.(); }} className="flex h-[48px] w-[48px] items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="overflow-y-auto px-5 pb-8" style={{ maxHeight: "calc(80dvh - 60px)" }}>
+                <WalletSheet />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ═══ ABOUT SHEET ═══ */}
       <AnimatePresence>

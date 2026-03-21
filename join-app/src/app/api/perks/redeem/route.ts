@@ -61,23 +61,30 @@ export async function POST(req: NextRequest) {
         : "7 days";
       const remaining = balance?.balance ?? 0;
 
-      sendEmail(user.email, `Perk redeemed — ${perk.name}`, wrap(`
-        <div style="text-align:center;margin-bottom:24px;">
-          <div style="width:56px;height:56px;border-radius:50%;background:#4ADE80;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;">
-            <span style="font-size:28px;color:#000;line-height:56px;">&#10003;</span>
+      const redeemUrl = `https://thekickback.net/wallet/redeem/${redemptionId}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(redeemUrl)}&bgcolor=000000&color=FFFFFF&format=png`;
+
+      sendEmail(user.email, `${perk.name} — show this QR to redeem`, wrap(`
+        <div style="text-align:center;margin-bottom:20px;">
+          <h1 style="margin:0;font-size:22px;color:#fff;">${perk.name}</h1>
+          <p style="margin:4px 0 0;font-size:14px;color:rgba(255,255,255,0.5);">${vName}</p>
+        </div>
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="display:inline-block;padding:16px;background:#111;border-radius:16px;border:1px solid rgba(255,255,255,0.1);">
+            <img src="${qrUrl}" alt="Redemption QR" width="200" height="200" style="display:block;border-radius:8px;" />
           </div>
-          <h1 style="margin:0;font-size:24px;color:#fff;">Perk redeemed.</h1>
-          <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.5);">${vName}</p>
+          <p style="margin:12px 0 0;font-size:13px;color:rgba(255,255,255,0.35);">Show this QR code to staff to claim your perk</p>
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:14px;">
-          <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Perk</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${perk.name}</td></tr>
-          <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Points spent</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#F97316;font-weight:600;">-${redemption.points_spent}</td></tr>
-          <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Remaining</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${remaining} pts</td></tr>
-          <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Expires</td><td style="text-align:right;padding:10px 0;color:#fff;">${expiresStr}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Perk</td><td style="text-align:right;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;font-weight:600;">${perk.name}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Points spent</td><td style="text-align:right;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#F97316;font-weight:600;">-${redemption.points_spent}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Remaining</td><td style="text-align:right;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${remaining} pts</td></tr>
+          <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5);">Expires</td><td style="text-align:right;padding:8px 0;color:#fff;">${expiresStr}</td></tr>
         </table>
-        <div style="text-align:center;margin-top:24px;">
-          <a href="https://thekickback.net/wallet/reward/${redemptionId}" style="display:inline-block;padding:12px 28px;background:#4ADE80;color:#000;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Add Reward to Wallet</a>
+        <div style="text-align:center;margin-top:20px;">
+          <a href="https://thekickback.net/wallet/reward/${redemptionId}" style="display:inline-block;padding:12px 28px;background:#4ADE80;color:#000;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Add to Apple Wallet</a>
         </div>
+        <p style="text-align:center;margin-top:12px;font-size:11px;color:rgba(255,255,255,0.2);">Redemption ID: ${String(redemptionId).substring(0, 8)}</p>
       `));
     } catch (e) { console.error("Perk redeemed email failed:", e); }
   }

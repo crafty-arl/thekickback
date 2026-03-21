@@ -18,7 +18,7 @@ interface Props {
     offerings: Offering[];
     themeColor: string;
     venueName: string;
-    staffByOffering?: Record<string, { name: string; avatar_url: string | null }[]>;
+    staffByOffering?: Record<string, { id: string; name: string; avatar_url: string | null }[]>;
     onTapOffering?: (offeringId: string) => void;
 }
 

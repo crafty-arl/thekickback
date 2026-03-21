@@ -75,6 +75,18 @@ export function DrawerVenue({
   const [offerings, setOfferings] = useState<VenueOffering[]>([]);
   const [selectedPerk, setSelectedPerk] = useState<VenuePerk | null>(null);
 
+  // Perk redemption state
+  const [redeemingPerkId, setRedeemingPerkId] = useState<string | null>(null);
+  const [redeemedPerkId, setRedeemedPerkId] = useState<string | null>(null);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+
+  // Check-in state
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkedIn, setCheckedIn] = useState(false);
+  const [checkInXp, setCheckInXp] = useState<number | null>(null);
+  const [checkInMilestone, setCheckInMilestone] = useState<string | null>(null);
+  const [checkInError, setCheckInError] = useState<string | null>(null);
+
   // Fetch venue data
   useEffect(() => {
     setPerks([]);
@@ -83,6 +95,14 @@ export function DrawerVenue({
     setMilestones([]);
     setOfferings([]);
     setSelectedPerk(null);
+    setRedeemingPerkId(null);
+    setRedeemedPerkId(null);
+    setRedeemError(null);
+    setCheckedIn(false);
+    setCheckingIn(false);
+    setCheckInXp(null);
+    setCheckInMilestone(null);
+    setCheckInError(null);
 
     fetch(`/api/points?venueId=${venue.id}`)
       .then((r) => r.ok ? r.json() : null)
@@ -106,6 +126,74 @@ export function DrawerVenue({
       scrollRef.current?.scrollTo({ top: 0 });
     });
   }, [venue.id, scrollRef]);
+
+  // ─── Check-in handler ───────────────────────────────────────────
+  const handleCheckIn = async () => {
+    if (checkingIn || checkedIn) return;
+    setCheckingIn(true);
+    setCheckInError(null);
+    try {
+      const res = await fetch("/api/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId: venue.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Check-in failed");
+
+      if (data.message === "Already checked in recently") {
+        setCheckInError("Already checked in");
+        setTimeout(() => setCheckInError(null), 2000);
+        setCheckingIn(false);
+        return;
+      }
+
+      setCheckedIn(true);
+      const xpEarned = data.xp?.xp || 0;
+      if (xpEarned > 0) {
+        setCheckInXp(xpEarned);
+        setVenueXp((prev) => prev ? { ...prev, xp: prev.xp + xpEarned, visits: prev.visits + 1 } : prev);
+        setTimeout(() => setCheckInXp(null), 3000);
+      }
+      if (data.xp?.milestone_changed && data.xp?.milestone) {
+        setCheckInMilestone(data.xp.milestone);
+        setTimeout(() => setCheckInMilestone(null), 4000);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Check-in failed";
+      setCheckInError(msg);
+      setTimeout(() => setCheckInError(null), 2000);
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  // ─── Perk redeem handler ────────────────────────────────────────
+  const handleRedeem = async (perk: VenuePerk) => {
+    if (redeemingPerkId || redeemedPerkId === perk.id) return;
+    setRedeemingPerkId(perk.id);
+    setRedeemError(null);
+    try {
+      const res = await fetch("/api/perks/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ perkId: perk.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Redemption failed");
+
+      setRedeemedPerkId(perk.id);
+      if (data.remainingBalance != null) {
+        setVenueXp((prev) => prev ? { ...prev, xp: prev.xp - perk.point_cost } : prev);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Redemption failed";
+      setRedeemError(msg);
+      setTimeout(() => setRedeemError(null), 3000);
+    } finally {
+      setRedeemingPerkId(null);
+    }
+  };
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -166,6 +254,70 @@ export function DrawerVenue({
 
         {/* Action row */}
         <div className="flex items-center gap-3 px-4 pb-4">
+          {/* Check-In button — only when logged in */}
+          {user && (
+            <div className="relative">
+              <button
+                onClick={handleCheckIn}
+                disabled={checkingIn || checkedIn}
+                className="flex h-[48px] w-[48px] items-center justify-center rounded-2xl active:scale-95 transition-all"
+                style={{
+                  backgroundColor: checkedIn ? "rgba(74,222,128,0.15)" : "rgba(255,255,255,0.06)",
+                  border: `1px solid ${checkedIn ? "rgba(74,222,128,0.3)" : "rgba(255,255,255,0.08)"}`,
+                }}
+              >
+                {checkingIn ? (
+                  <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.8, repeat: Infinity }} className="h-5 w-5 rounded-full" style={{ backgroundColor: `${vibeColor}40` }} />
+                ) : checkedIn ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                )}
+              </button>
+              {/* XP earned toast */}
+              <AnimatePresence>
+                {checkInXp != null && checkInXp > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4, scale: 0.8 }}
+                    animate={{ opacity: 1, y: -8, scale: 1 }}
+                    exit={{ opacity: 0, y: -16, scale: 0.8 }}
+                    className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[11px] font-bold"
+                    style={{ backgroundColor: "rgba(74,222,128,0.2)", color: "#4ADE80", border: "1px solid rgba(74,222,128,0.3)" }}
+                  >
+                    +{checkInXp} XP
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {/* Milestone toast */}
+              <AnimatePresence>
+                {checkInMilestone && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4, scale: 0.8 }}
+                    animate={{ opacity: 1, y: -24, scale: 1 }}
+                    exit={{ opacity: 0, y: -32, scale: 0.8 }}
+                    className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 font-sans text-[10px] font-bold"
+                    style={{ backgroundColor: "rgba(249,115,22,0.2)", color: "#F97316", border: "1px solid rgba(249,115,22,0.3)" }}
+                  >
+                    {checkInMilestone}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {/* Error toast */}
+              <AnimatePresence>
+                {checkInError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: -8 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold"
+                    style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.25)" }}
+                  >
+                    {checkInError}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
           <button onClick={onChat} className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-2xl font-sans text-[15px] font-bold text-black active:scale-[0.97]" style={{ backgroundColor: vibeColor }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
             {user ? "Chat" : "Sign in to chat"}
@@ -352,11 +504,31 @@ export function DrawerVenue({
                       <div className="flex items-center gap-2">
                         <span className="rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold capitalize text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>{p.category}</span>
                         {user && venueXp && venueXp.xp >= p.point_cost ? (
-                          <span className="font-sans text-[11px] font-semibold" style={{ color: "#4ADE80" }}>You can claim this</span>
+                          redeemedPerkId === p.id ? (
+                            <div className="flex flex-col gap-1">
+                              <span className="flex items-center gap-1.5 font-sans text-[12px] font-semibold" style={{ color: "#4ADE80" }}>
+                                Redeemed &#10003;
+                              </span>
+                              <span className="font-sans text-[11px] text-white/30">QR code sent to your email — show it to staff</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRedeem(p); }}
+                              disabled={redeemingPerkId === p.id}
+                              className="flex h-[32px] items-center gap-1 rounded-full px-3 font-sans text-[12px] font-bold text-black active:scale-95 transition disabled:opacity-60"
+                              style={{ backgroundColor: "#F97316", minWidth: 48 }}
+                            >
+                              {redeemingPerkId === p.id ? "Redeeming..." : "Redeem"}
+                            </button>
+                          )
                         ) : user && venueXp ? (
                           <span className="font-sans text-[11px] text-white/25">{p.point_cost - venueXp.xp} more XP needed</span>
                         ) : null}
                       </div>
+                      {/* Redeem error */}
+                      {redeemError && selectedPerk?.id === p.id && (
+                        <p className="mt-1 font-sans text-[11px]" style={{ color: "#EF4444" }}>{redeemError}</p>
+                      )}
                     </div>
                   )}
                 </button>

@@ -110,5 +110,17 @@ export function usePasskey() {
     }
   }, []);
 
-  return { ...state, register, verify };
+  // Reset (delete all passkeys so user can re-register)
+  const reset = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/passkey/check", { method: "DELETE" });
+      if (!res.ok) return false;
+      setState((s) => ({ ...s, hasPasskey: false, error: null }));
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  return { ...state, register, verify, reset };
 }

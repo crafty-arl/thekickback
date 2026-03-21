@@ -46,6 +46,7 @@ interface DrawerChatProps {
   apiVenues: Record<string, { id: string; name: string; vibe: string; occupancy: number; capacity: number; latitude: number | null; longitude: number | null; neighborhood: string | null }>;
   richVenues: Record<string, { id: string; name: string; vibe: string; occupancy: number; capacity: number; neighborhood?: string | null; type?: string | null; tagline?: string | null; themeColor?: string; hours?: string }>;
   onVenueSelect: (venue: Venue | null) => void;
+  onOpenFundWallet?: () => void;
 }
 
 function TabIcon({ path, size = 16 }: { path: string; size?: number }) {
@@ -58,7 +59,7 @@ export function DrawerChat({
   removeFromCart, clearCart, getVenueReplies, handleTabTap,
   handleCheckoutConfirm, handleCheckoutDismiss, walletStatus, passkey, paymentMode,
   scrollRef, inputRef, venues, apiVenues, richVenues, onVenueSelect,
-  onClearThread, onClearConcierge,
+  onClearThread, onClearConcierge, onOpenFundWallet,
 }: DrawerChatProps) {
   const isConcierge = !venue;
   const displayMessages = isConcierge ? conciergeMessages : messages;
@@ -201,16 +202,28 @@ export function DrawerChat({
                   </div>
                   {/* Payment buttons */}
                   <div className="flex gap-2 w-full">
-                    <button
-                      onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
-                      disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
-                      className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
-                      style={{ backgroundColor: canUseWallet ? "rgba(99,91,255,0.12)" : "rgba(99,91,255,0.05)", border: `1px solid ${canUseWallet ? "rgba(99,91,255,0.3)" : "rgba(99,91,255,0.1)"}` }}
-                    >
-                      <span className="font-mono text-[18px] font-bold" style={{ color: "#a78bfa" }}>${(subtotal / 100).toFixed(2)}</span>
-                      <span className="font-sans text-[12px] font-semibold" style={{ color: "#a78bfa" }}>{passkey.verifying || paymentMode === "processing" ? "Verifying..." : "AI Credit"}</span>
-                      <span className="font-sans text-[10px]" style={{ color: "#4ade80" }}>No fees</span>
-                    </button>
+                    {hasWallet && !canUseWallet ? (
+                      <button
+                        onClick={() => onOpenFundWallet?.()}
+                        className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97]"
+                        style={{ backgroundColor: "rgba(99,91,255,0.12)", border: "1px solid rgba(99,91,255,0.3)", minHeight: 48 }}
+                      >
+                        <span className="font-mono text-[18px] font-bold" style={{ color: "#a78bfa" }}>${(subtotal / 100).toFixed(2)}</span>
+                        <span className="font-sans text-[12px] font-semibold" style={{ color: "#F97316" }}>Add Funds</span>
+                        <span className="font-sans text-[10px] text-white/25">Balance: ${((walletStatus?.balanceCents || 0) / 100).toFixed(2)}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
+                        disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
+                        className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                        style={{ backgroundColor: canUseWallet ? "rgba(99,91,255,0.12)" : "rgba(99,91,255,0.05)", border: `1px solid ${canUseWallet ? "rgba(99,91,255,0.3)" : "rgba(99,91,255,0.1)"}`, minHeight: 48 }}
+                      >
+                        <span className="font-mono text-[18px] font-bold" style={{ color: "#a78bfa" }}>${(subtotal / 100).toFixed(2)}</span>
+                        <span className="font-sans text-[12px] font-semibold" style={{ color: "#a78bfa" }}>{passkey.verifying || paymentMode === "processing" ? "Verifying..." : "AI Credit"}</span>
+                        <span className="font-sans text-[10px]" style={{ color: "#4ade80" }}>No fees</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => handleCheckoutConfirm(msg, [], 0, "card")}
                       disabled={paymentMode === "processing" || passkey.verifying}

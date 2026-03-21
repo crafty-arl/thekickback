@@ -32,6 +32,7 @@ interface EditableHubPreviewProps {
   onFieldSave: (field: string, value: unknown) => Promise<void>;
   onPhotoUpload: (file: File) => Promise<void>;
   onSectionEdited: (key: string) => void;
+  onOfferingTap?: (offering: Offering) => void;
 }
 
 type EditingSection = "name" | "tagline" | "color" | "hours" | "description" | "photos" | "offerings" | null;
@@ -50,6 +51,7 @@ export function HubPreviewEditable({
   onFieldSave,
   onPhotoUpload,
   onSectionEdited,
+  onOfferingTap,
 }: EditableHubPreviewProps) {
   const [editing, setEditing] = useState<EditingSection>(null);
   const [editValue, setEditValue] = useState("");
@@ -372,9 +374,10 @@ export function HubPreviewEditable({
             <p className="mb-2 font-sans text-[10px] font-semibold tracking-[2px] text-white/20">WHAT WE OFFER</p>
             {offerings.length > 0 ? (
               offerings.slice(0, 4).map((o) => (
-                <div
+                <button
                   key={o.id}
-                  className="mb-2 rounded-xl p-3"
+                  onClick={() => onOfferingTap?.(o)}
+                  className="mb-2 w-full rounded-xl p-3 text-left transition hover:border-white/10"
                   style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
                 >
                   <div className="flex items-center justify-between">
@@ -384,7 +387,7 @@ export function HubPreviewEditable({
                   {o.description && (
                     <p className="mt-1 font-sans text-[10px] text-white/25">{o.description}</p>
                   )}
-                </div>
+                </button>
               ))
             ) : (
               [1, 2, 3].map((i) => (

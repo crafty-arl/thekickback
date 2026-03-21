@@ -20,3 +20,15 @@ export async function GET() {
 
   return NextResponse.json({ hasPasskey: (count || 0) > 0, count: count || 0 });
 }
+
+// DELETE — remove all passkeys for the user (reset biometric)
+export async function DELETE() {
+  const authClient = await createAuthClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  await supabase.from("user_passkeys").delete().eq("user_id", user.id);
+  await supabase.from("passkey_challenges").delete().eq("user_id", user.id);
+
+  return NextResponse.json({ ok: true });
+}

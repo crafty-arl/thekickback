@@ -17,7 +17,7 @@ import { OwnerMessageBody } from "./owner-message-body";
 import { HubPreviewEditable } from "./hub-preview-editable";
 import type { ChecklistState } from "./onboarding-checklist";
 import type { HubData } from "./hub-preview";
-import { updateVenue, updateVenuePage } from "@/app/settings/actions";
+import { updateVenue, updateVenuePage, updateOffering, deleteOffering } from "@/app/settings/actions";
 import { uploadGalleryImage } from "@/app/edit/gallery-actions";
 import { OrdersPanel } from "@/components/dashboard/orders-panel";
 import { StripeConnect } from "@/components/dashboard/stripe-connect";
@@ -285,10 +285,34 @@ export function OwnerDock({
     };
   });
   const [galleryImages, setGalleryImages] = useState(initialGallery || []);
-  const [offeringsState] = useState(initialOfferings || []);
+  const [offeringsState, setOfferingsState] = useState(initialOfferings || []);
 
   // Seed demo state
   const [seeding, setSeeding] = useState(false);
+
+  // Drawer states
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedGuest, setSelectedGuest] = useState<GuestSession | null>(null);
+  const [selectedOffering, setSelectedOffering] = useState<{
+    id: string;
+    name: string;
+    type: string;
+    price_cents: number;
+    description?: string;
+  } | null>(null);
+  const [drawerSaving, setDrawerSaving] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
+
+  // Offering edit form state
+  const [offeringForm, setOfferingForm] = useState<{
+    name: string;
+    description: string;
+    price_cents: number;
+    type: string;
+  }>({ name: "", description: "", price_cents: 0, type: "" });
+
+  // Local orders state for status updates
+  const [ordersState, setOrdersState] = useState(initialData.orders);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -309,7 +333,7 @@ export function OwnerDock({
 
   const topSellingItems = useMemo(() => {
     const itemMap = new Map<string, { name: string; count: number; revenue: number }>();
-    for (const order of initialData.orders) {
+    for (const order of ordersState) {
       if (order.status === "cancelled") continue;
       for (const item of (order.order_items || []) as OrderItem[]) {
         const key = item.name || "Unknown";
@@ -327,12 +351,12 @@ export function OwnerDock({
     return Array.from(itemMap.values())
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-  }, [initialData.orders]);
+  }, [ordersState]);
 
   // ─── Insights: Recent Purchases ───────────────────────────────────
 
   const recentPurchases = useMemo(() => {
-    return initialData.orders
+    return ordersState
       .filter((o) => o.status !== "cancelled")
       .slice(0, 5)
       .map((o) => ({
@@ -342,7 +366,7 @@ export function OwnerDock({
         total: o.total_cents || 0,
         time: o.created_at,
       }));
-  }, [initialData.orders]);
+  }, [ordersState]);
 
   // ─── Insights: XP Activity ────────────────────────────────────────
 
@@ -600,6 +624,86 @@ export function OwnerDock({
     [checklistState]
   );
 
+  // ─── Drawer: Order actions ──────────────────────────────────
+  const handleOrderStatusUpdate = useCallback(
+    async (orderId: string, status: string) => {
+      setDrawerSaving(true);
+      try {
+        const res = await fetch("/api/orders/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId, status }),
+        });
+        if (res.ok) {
+          setOrdersState((prev) =>
+            prev.map((o) => (o.id === orderId ? { ...o, status: status as Order["status"] } : o))
+          );
+          setSelectedOrder((prev) =>
+            prev && prev.id === orderId ? { ...prev, status: status as Order["status"] } : prev
+          );
+          setCancelConfirm(false);
+        }
+      } finally {
+        setDrawerSaving(false);
+      }
+    },
+    []
+  );
+
+  // ─── Drawer: Offering actions ──────────────────────────────
+  const handleOpenOfferingDrawer = useCallback(
+    (offering: { id: string; name: string; type: string; price_cents: number; description?: string }) => {
+      setSelectedOffering(offering);
+      setOfferingForm({
+        name: offering.name,
+        description: offering.description || "",
+        price_cents: offering.price_cents,
+        type: offering.type,
+      });
+    },
+    []
+  );
+
+  const handleSaveOffering = useCallback(
+    async () => {
+      if (!selectedOffering) return;
+      setDrawerSaving(true);
+      try {
+        await updateOffering(selectedOffering.id, {
+          name: offeringForm.name,
+          description: offeringForm.description || undefined,
+          price_cents: offeringForm.price_cents,
+        });
+        setOfferingsState((prev) =>
+          prev.map((o) =>
+            o.id === selectedOffering.id
+              ? { ...o, name: offeringForm.name, description: offeringForm.description, price_cents: offeringForm.price_cents }
+              : o
+          )
+        );
+        setSelectedOffering(null);
+      } finally {
+        setDrawerSaving(false);
+      }
+    },
+    [selectedOffering, offeringForm]
+  );
+
+  const handleDeleteOffering = useCallback(
+    async () => {
+      if (!selectedOffering) return;
+      setDrawerSaving(true);
+      try {
+        await deleteOffering(selectedOffering.id);
+        setOfferingsState((prev) => prev.filter((o) => o.id !== selectedOffering.id));
+        setSelectedOffering(null);
+      } finally {
+        setDrawerSaving(false);
+      }
+    },
+    [selectedOffering]
+  );
+
   // ─── Quick replies ────────────────────────────────────────────
 
   function getQuickReplies(): string[] {
@@ -779,6 +883,7 @@ export function OwnerDock({
                   onFieldSave={handleFieldSave}
                   onPhotoUpload={handlePhotoUpload}
                   onSectionEdited={handleSectionEdited}
+                  onOfferingTap={handleOpenOfferingDrawer}
                 />
               </div>
 
@@ -1031,9 +1136,10 @@ export function OwnerDock({
             >
               <h3 className="mb-4 font-sans text-[15px] font-semibold text-gray-700">Orders</h3>
               <OrdersPanel
-                orders={initialData.orders}
+                orders={ordersState}
                 revenue={initialData.revenueStats}
                 transactions={initialData.transactions}
+                onOrderTap={(order) => setSelectedOrder(order)}
               />
             </div>
           </div>
@@ -1156,9 +1262,10 @@ export function OwnerDock({
               ) : (
                 <div className="flex flex-col gap-2">
                   {initialData.sessions.map((session) => (
-                    <div
+                    <button
                       key={session.id}
-                      className="flex items-center gap-3 rounded-xl bg-white px-4 py-3"
+                      onClick={() => setSelectedGuest(session)}
+                      className="flex w-full items-center gap-3 rounded-xl bg-white px-4 py-3 text-left transition hover:border-gray-300"
                       style={{ border: "1px solid rgba(0,0,0,0.08)" }}
                     >
                       <div className="min-w-0 flex-1">
@@ -1188,7 +1295,7 @@ export function OwnerDock({
                           {session.started_at && <> &middot; checked in {relativeTime(session.started_at)}</>}
                         </p>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -1482,6 +1589,417 @@ export function OwnerDock({
           })}
         </div>
       </Tabs>
+
+      {/* ─── Order Detail Drawer ────────────────────────────────────── */}
+      <AnimatePresence>
+        {selectedOrder && (() => {
+          const order = selectedOrder;
+          const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
+            pending: { label: "Pending", color: "#FACC15", bg: "#FACC1512" },
+            confirmed: { label: "Confirmed", color: "#16a34a", bg: "#16a34a12" },
+            fulfilled: { label: "Fulfilled", color: "#94a3b8", bg: "#94a3b812" },
+            cancelled: { label: "Cancelled", color: "#ef4444", bg: "#ef444412" },
+          };
+          const sc = statusConfig[order.status] || statusConfig.pending;
+          const guestName = order.profiles?.display_name || order.guest_name || "Guest";
+          const guestEmail = order.profiles?.email || order.guest_email || null;
+          const items = (order.order_items || []) as OrderItem[];
+          const subtotal = items.reduce((s, i) => s + (i.subtotal_cents || i.unit_price_cents * i.quantity), 0);
+          const fee = Math.round(subtotal * feeRate);
+          const net = subtotal - fee;
+
+          return (
+            <>
+              <motion.div
+                key="order-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => { setSelectedOrder(null); setCancelConfirm(false); }}
+                className="fixed inset-0 z-50 bg-black/30"
+              />
+              <motion.div
+                key="order-drawer"
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                className="fixed right-0 top-0 z-50 flex h-full w-[85vw] max-w-md flex-col border-l border-gray-200 bg-white shadow-xl"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                  <div>
+                    <p className="font-sans text-[16px] font-bold text-gray-900">Order #{order.id.slice(0, 8)}</p>
+                    <p className="font-sans text-[11px] text-gray-400">
+                      {new Date(order.created_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}{" "}
+                      {new Date(order.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="rounded-full px-3 py-1 font-sans text-[11px] font-semibold"
+                      style={{ backgroundColor: sc.bg, color: sc.color }}
+                    >
+                      {sc.label}
+                    </span>
+                    <button
+                      onClick={() => { setSelectedOrder(null); setCancelConfirm(false); }}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition hover:bg-gray-200"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+                  {/* Guest */}
+                  <div className="rounded-xl bg-gray-50 p-4" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                    <p className="font-sans text-[10px] font-semibold uppercase tracking-wider text-gray-400">Guest</p>
+                    <p className="mt-1 font-sans text-[15px] font-semibold text-gray-900">{guestName}</p>
+                    {guestEmail && <p className="font-sans text-[12px] text-gray-400">{guestEmail}</p>}
+                  </div>
+
+                  {/* Line items */}
+                  <div>
+                    <p className="mb-2 font-sans text-[10px] font-semibold uppercase tracking-wider text-gray-400">Items</p>
+                    <div className="space-y-2">
+                      {items.map((item) => (
+                        <div key={item.id} className="flex items-start justify-between rounded-xl bg-gray-50 px-4 py-3" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                          <div>
+                            <p className="font-sans text-[13px] font-medium text-gray-700">{item.name}</p>
+                            <p className="font-sans text-[11px] text-gray-400">Qty: {item.quantity} @ {fmtCents(item.unit_price_cents)}</p>
+                          </div>
+                          <span className="font-mono text-[13px] font-semibold text-gray-900">{fmtCents(item.subtotal_cents || item.unit_price_cents * item.quantity)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Totals */}
+                  <div className="rounded-xl bg-gray-50 p-4 space-y-2" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-sans text-[12px] text-gray-400">Subtotal</span>
+                      <span className="font-mono text-[13px] text-gray-600">{fmtCents(subtotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-sans text-[12px] text-gray-400">Platform fee ({Math.round(feeRate * 100)}%)</span>
+                      <span className="font-mono text-[13px] text-red-400">-{fmtCents(fee)}</span>
+                    </div>
+                    <div className="border-t border-gray-200 pt-2 flex items-center justify-between">
+                      <span className="font-sans text-[13px] font-semibold text-gray-700">Net Earnings</span>
+                      <span className="font-mono text-[15px] font-bold" style={{ color: "#16a34a" }}>{fmtCents(net)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="shrink-0 border-t border-gray-100 px-5 py-4 space-y-2" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
+                  {order.status !== "fulfilled" && order.status !== "cancelled" && (
+                    <button
+                      onClick={() => handleOrderStatusUpdate(order.id, "fulfilled")}
+                      disabled={drawerSaving}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl py-3 font-sans text-[14px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                      style={{ backgroundColor: "#16a34a" }}
+                    >
+                      {drawerSaving ? "Updating..." : "Mark Fulfilled"}
+                    </button>
+                  )}
+                  {order.status !== "cancelled" && (
+                    cancelConfirm ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleOrderStatusUpdate(order.id, "cancelled")}
+                          disabled={drawerSaving}
+                          className="flex flex-1 items-center justify-center rounded-xl py-3 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                          style={{ backgroundColor: "#ef4444" }}
+                        >
+                          {drawerSaving ? "Cancelling..." : "Confirm Cancel"}
+                        </button>
+                        <button
+                          onClick={() => setCancelConfirm(false)}
+                          className="flex flex-1 items-center justify-center rounded-xl border border-gray-200 py-3 font-sans text-[13px] font-medium text-gray-500 transition active:scale-[0.98]"
+                        >
+                          Go Back
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setCancelConfirm(true)}
+                        className="flex w-full items-center justify-center rounded-xl border border-red-200 py-3 font-sans text-[13px] font-medium text-red-500 transition active:scale-[0.98]"
+                      >
+                        Cancel Order
+                      </button>
+                    )
+                  )}
+                </div>
+              </motion.div>
+            </>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* ─── Guest Detail Drawer ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {selectedGuest && (() => {
+          const guest = selectedGuest;
+          const guestName = guest.profiles?.display_name || "Guest";
+          const guestEmail = guest.profiles?.email || null;
+          const tier = guest.tier || "explorer";
+
+          // Find recent orders by this guest
+          const guestOrders = ordersState
+            .filter((o) => o.user_id === guest.user_id)
+            .slice(0, 5);
+
+          // Find recent XP for this guest
+          const guestXp = (xpActivity || [])
+            .filter((e) => e.profiles?.display_name === guestName)
+            .slice(0, 5);
+
+          return (
+            <>
+              <motion.div
+                key="guest-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedGuest(null)}
+                className="fixed inset-0 z-50 bg-black/30"
+              />
+              <motion.div
+                key="guest-drawer"
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                className="fixed right-0 top-0 z-50 flex h-full w-[85vw] max-w-md flex-col border-l border-gray-200 bg-white shadow-xl"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                  <p className="font-sans text-[16px] font-bold text-gray-900">Guest Details</p>
+                  <button
+                    onClick={() => setSelectedGuest(null)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition hover:bg-gray-200"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+                  {/* Profile */}
+                  <div className="rounded-xl bg-gray-50 p-4" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex h-12 w-12 items-center justify-center rounded-full font-sans text-[18px] font-bold text-white"
+                        style={{ backgroundColor: tierColors[tier] || tierColors.explorer }}
+                      >
+                        {guestName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-sans text-[16px] font-semibold text-gray-900">{guestName}</p>
+                        {guestEmail && <p className="font-sans text-[12px] text-gray-400">{guestEmail}</p>}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <span
+                        className="rounded-full px-2.5 py-1 font-sans text-[11px] font-semibold capitalize"
+                        style={{ backgroundColor: `${tierColors[tier] || tierColors.explorer}20`, color: tierColors[tier] || tierColors.explorer }}
+                      >
+                        {tier}
+                      </span>
+                      {guest.is_member && (
+                        <span className="rounded-full px-2.5 py-1 font-sans text-[11px] font-semibold" style={{ backgroundColor: "rgba(249,115,22,0.1)", color: "#F97316" }}>
+                          Member
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-gray-50 px-4 py-3" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                      <p className="font-mono text-[22px] font-bold" style={{ color: "#F97316" }}>{guest.venue_xp ?? 0}</p>
+                      <p className="font-sans text-[11px] text-gray-400">Venue XP</p>
+                    </div>
+                    <div className="rounded-xl bg-gray-50 px-4 py-3" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                      <p className="font-mono text-[22px] font-bold" style={{ color: "#8B5CF6" }}>{guest.venue_visits ?? 0}</p>
+                      <p className="font-sans text-[11px] text-gray-400">Visits</p>
+                    </div>
+                  </div>
+
+                  {/* Recent XP at this venue */}
+                  {guestXp.length > 0 && (
+                    <div>
+                      <p className="mb-2 font-sans text-[10px] font-semibold uppercase tracking-wider text-gray-400">Recent XP</p>
+                      <div className="space-y-2">
+                        {guestXp.map((entry, idx) => (
+                          <div key={idx} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-2.5" style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                            <span className="font-sans text-[12px] text-gray-600 capitalize">{entry.reason.replace(/_/g, " ")}</span>
+                            <span className="font-sans text-[12px] font-semibold text-green-600">+{entry.amount} XP</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recent orders at this venue */}
+                  {guestOrders.length > 0 && (
+                    <div>
+                      <p className="mb-2 font-sans text-[10px] font-semibold uppercase tracking-wider text-gray-400">Recent Orders</p>
+                      <div className="space-y-2">
+                        {guestOrders.map((o) => (
+                          <div
+                            key={o.id}
+                            onClick={() => { setSelectedGuest(null); setTimeout(() => setSelectedOrder(o), 200); }}
+                            className="flex cursor-pointer items-center justify-between rounded-xl bg-gray-50 px-4 py-2.5 transition hover:bg-gray-100"
+                            style={{ border: "1px solid rgba(0,0,0,0.06)" }}
+                          >
+                            <div>
+                              <p className="font-sans text-[12px] font-medium text-gray-700">
+                                {((o.order_items || []) as OrderItem[]).map((i) => i.name).join(", ") || "Order"}
+                              </p>
+                              <p className="font-sans text-[10px] text-gray-400">{relativeTime(o.created_at)}</p>
+                            </div>
+                            <span className="font-mono text-[12px] font-semibold text-gray-900">{fmtCents(o.total_cents)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="shrink-0 border-t border-gray-100 px-5 py-4" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
+                  <button
+                    onClick={() => {
+                      setSelectedGuest(null);
+                      setActiveTab(0);
+                      setTimeout(() => {
+                        sendMessage(`Tell me more about guest ${guestName}`);
+                      }, 300);
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 font-sans text-[14px] font-bold text-white transition active:scale-[0.98]"
+                    style={{ backgroundColor: "#F97316" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    Send Message
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* ─── Offering Detail Drawer ──────────────────────────────────── */}
+      <AnimatePresence>
+        {selectedOffering && (
+          <>
+            <motion.div
+              key="offering-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedOffering(null)}
+              className="fixed inset-0 z-50 bg-black/30"
+            />
+            <motion.div
+              key="offering-drawer"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed right-0 top-0 z-50 flex h-full w-[85vw] max-w-md flex-col border-l border-gray-200 bg-white shadow-xl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                <p className="font-sans text-[16px] font-bold text-gray-900">Edit Offering</p>
+                <button
+                  onClick={() => setSelectedOffering(null)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition hover:bg-gray-200"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Form */}
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                {/* Type badge */}
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-orange-50 px-3 py-1 font-sans text-[11px] font-semibold capitalize text-orange-600">
+                    {offeringForm.type}
+                  </span>
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label className="mb-1.5 block font-sans text-[11px] font-semibold uppercase tracking-wider text-gray-400">Name</label>
+                  <input
+                    value={offeringForm.name}
+                    onChange={(e) => setOfferingForm((f) => ({ ...f, name: e.target.value }))}
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-sans text-[14px] text-gray-900 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="mb-1.5 block font-sans text-[11px] font-semibold uppercase tracking-wider text-gray-400">Description</label>
+                  <textarea
+                    value={offeringForm.description}
+                    onChange={(e) => setOfferingForm((f) => ({ ...f, description: e.target.value }))}
+                    rows={3}
+                    className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-sans text-[14px] text-gray-900 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200"
+                  />
+                </div>
+
+                {/* Price */}
+                <div>
+                  <label className="mb-1.5 block font-sans text-[11px] font-semibold uppercase tracking-wider text-gray-400">Price</label>
+                  <div className="flex items-center gap-2">
+                    <span className="font-sans text-[16px] font-bold text-gray-400">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={(offeringForm.price_cents / 100).toFixed(2)}
+                      onChange={(e) => setOfferingForm((f) => ({ ...f, price_cents: Math.round(parseFloat(e.target.value || "0") * 100) }))}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-mono text-[14px] text-gray-900 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="shrink-0 border-t border-gray-100 px-5 py-4 space-y-2" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
+                <button
+                  onClick={handleSaveOffering}
+                  disabled={drawerSaving || !offeringForm.name.trim()}
+                  className="flex w-full items-center justify-center rounded-xl py-3 font-sans text-[14px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                  style={{ backgroundColor: "#F97316" }}
+                >
+                  {drawerSaving ? "Saving..." : "Save Changes"}
+                </button>
+                <button
+                  onClick={handleDeleteOffering}
+                  disabled={drawerSaving}
+                  className="flex w-full items-center justify-center rounded-xl border border-red-200 py-3 font-sans text-[13px] font-medium text-red-500 transition active:scale-[0.98] disabled:opacity-50"
+                >
+                  {drawerSaving ? "Deleting..." : "Delete Offering"}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

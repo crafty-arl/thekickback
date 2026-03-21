@@ -75,7 +75,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 
 // ─── Component ───────────────────────────────────────────────────
 
-export function OrdersPanel({ orders, revenue, transactions = [] }: { orders: Order[]; revenue: RevenueStats; transactions?: VenueTransaction[] }) {
+export function OrdersPanel({ orders, revenue, transactions = [], onOrderTap }: { orders: Order[]; revenue: RevenueStats; transactions?: VenueTransaction[]; onOrderTap?: (order: Order) => void }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showTxHistory, setShowTxHistory] = useState(false);
@@ -241,9 +241,9 @@ export function OrdersPanel({ orders, revenue, transactions = [] }: { orders: Or
                 key={order.id}
                 className="overflow-hidden rounded-2xl border border-black/5 bg-white transition hover:border-black/10"
               >
-                {/* Main content — clickable to expand */}
+                {/* Main content — clickable to expand or open drawer */}
                 <button
-                  onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                  onClick={() => onOrderTap ? onOrderTap(order) : setExpandedId(isExpanded ? null : order.id)}
                   className="flex w-full items-start gap-4 px-5 py-4 text-left"
                 >
                   {/* Order number block */}
