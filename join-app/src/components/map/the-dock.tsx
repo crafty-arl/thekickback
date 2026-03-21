@@ -2718,15 +2718,24 @@ export function TheDock({
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => setShowVenueContact(true)}
-                  className="flex items-center gap-2 active:opacity-70"
+                  className="flex items-center gap-2.5 active:opacity-70"
                 >
-                  <motion.div
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: vibeColor }}
-                    animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                  <span className="font-sans text-[15px] font-semibold text-white/90">{selectedVenue.name}</span>
+                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full" style={{ border: `2px solid ${vibeColor}40`, backgroundColor: `${vibeColor}15` }}>
+                    {selectedVenue.heroImage ? (
+                      <img src={selectedVenue.heroImage} alt="" className="h-full w-full object-cover" />
+                    ) : selectedVenue.logo ? (
+                      <img src={selectedVenue.logo} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <span className="font-sans text-[12px] font-bold" style={{ color: vibeColor }}>{selectedVenue.name.charAt(0)}</span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full border border-black" style={{ backgroundColor: vibeColor }} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-sans text-[14px] font-semibold text-white/90 leading-tight">{selectedVenue.name}</span>
+                    <span className="font-sans text-[9px] text-white/30">{selectedVenue.neighborhood || "Tap for info"}</span>
+                  </div>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
                 </button>
                 <div className="flex items-center gap-1.5">

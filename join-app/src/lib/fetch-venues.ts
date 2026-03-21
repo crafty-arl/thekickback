@@ -38,6 +38,8 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
       tagline,
       description,
       theme_color,
+      hero_image,
+      logo,
       hours,
       venues (
         id,
@@ -103,6 +105,8 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
                 latitude: (v.latitude as number) || (v.lat as number),
                 longitude: (v.longitude as number) || (v.lng as number),
                 themeColor: (p.theme_color as string) || "#F97316",
+                heroImage: (p.hero_image as string) || null,
+                logo: (p.logo as string) || null,
             };
         });
 }

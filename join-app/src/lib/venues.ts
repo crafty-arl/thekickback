@@ -20,6 +20,8 @@ export interface Venue {
   latitude: number;
   longitude: number;
   themeColor?: string;
+  heroImage?: string | null;
+  logo?: string | null;
   claimed?: boolean;
 }
 
