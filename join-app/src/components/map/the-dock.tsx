@@ -1938,7 +1938,24 @@ export function TheDock({
         next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), confirmMsg]);
         return next;
       });
-      if (result.orderId) clearCart(selectedVenue.id);
+      if (result.orderId) {
+        clearCart(selectedVenue.id);
+        // Refresh wallet balance + XP immediately
+        walletStatus?.refresh?.();
+        // Re-fetch user points/XP
+        fetch("/api/points").then((r) => r.ok ? r.json() : null).then((data) => {
+          if (data?.balance && user) {
+            setUser({
+              ...user,
+              kickbackScore: data.balance.kickback_score || data.balance.total_earned || user.kickbackScore,
+              totalEarned: data.balance.total_earned || user.totalEarned,
+              tier: data.balance.tier || user.tier,
+              streak: data.balance.current_streak || user.streak,
+              venueProfiles: data.venueProfiles || user.venueProfiles,
+            });
+          }
+        }).catch(() => {});
+      }
     } catch {
       setVenueThreads((prev) => {
         const next = new Map(prev);
@@ -1948,7 +1965,7 @@ export function TheDock({
     } finally {
       setPaymentMode(null);
     }
-  }, [selectedVenue, clearCart]);
+  }, [selectedVenue, clearCart, walletStatus, user]);
 
   const handleCheckoutConfirm = useCallback(async (
     msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number, method: "wallet" | "card" = "card"
@@ -3473,6 +3490,24 @@ export function TheDock({
                       <p className="mt-1.5 font-sans text-[9px] text-white/20">{(TIER_CONFIG[user.tier].threshold - user.kickbackScore).toLocaleString()} XP to {TIER_CONFIG[user.tier].next}</p>
                     )}
                   </div>
+
+                  {/* KickBack Pass */}
+                  <a
+                    href={`https://thekickback.net/wallet/pass/${user.authId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 active:scale-[0.98]"
+                    style={{ background: `linear-gradient(135deg, ${tierColor}15, ${tierColor}05)`, border: `1px solid ${tierColor}25` }}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${tierColor}20` }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={tierColor} strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-sans text-[13px] font-bold text-white/90">Get KickBack Pass</p>
+                      <p className="font-sans text-[9px] text-white/30">Add to Apple Wallet — your stats, tier, and balance</p>
+                    </div>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+                  </a>
 
                   {/* Memberships */}
                   {memberships.length > 0 && (
