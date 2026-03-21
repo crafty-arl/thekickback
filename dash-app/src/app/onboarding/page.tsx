@@ -90,6 +90,8 @@ export default function OnboardingPage() {
   const [currentItem, setCurrentItem] = useState<keyof ChecklistState | null>(null);
   const [offerings, setOfferings] = useState<{ id: string; name: string; type: string; price_cents: number; description?: string }[]>([]);
   const [galleryImages, setGalleryImages] = useState<{ id: string; image_url: string }[]>([]);
+  const [xpActions, setXpActions] = useState<{ label: string; points: number }[]>([]);
+  const [xpMilestones, setXpMilestones] = useState<{ name: string; threshold: number }[]>([]);
   const [resumeLoading, setResumeLoading] = useState(true);
 
   const [hubData, setHubData] = useState<HubData>({
@@ -146,6 +148,20 @@ export default function OnboardingPage() {
           if (state.checklist) setChecklist(state.checklist as ChecklistState);
           if (state.offerings) setOfferings(state.offerings);
           if (state.gallery) setGalleryImages(state.gallery);
+          if (state.xpActions) setXpActions(state.xpActions);
+          if (state.xpMilestones) setXpMilestones(state.xpMilestones);
+
+          // Auto-mark stripe if connected
+          if (state.stripeConnected && state.checklist && !(state.checklist as ChecklistState).stripe) {
+            const cl = state.checklist as ChecklistState;
+            cl.stripe = true;
+            setChecklist({ ...cl });
+            fetch("/api/onboarding/checklist", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ item: "stripe", completed: true }),
+            }).catch(() => {});
+          }
 
           if (state.reviewStatus === "pending" || state.reviewStatus === "approved") {
             setPhase("submitted");
@@ -335,6 +351,8 @@ export default function OnboardingPage() {
             if (state.checklist) setChecklist(state.checklist as ChecklistState);
             if (state.offerings) setOfferings(state.offerings);
             if (state.gallery) setGalleryImages(state.gallery);
+            if (state.xpActions) setXpActions(state.xpActions);
+            if (state.xpMilestones) setXpMilestones(state.xpMilestones);
 
             // Transition to checklist phase
             setPhase("checklist");
@@ -570,6 +588,8 @@ export default function OnboardingPage() {
             venueId={venueId}
             offerings={offerings}
             galleryImages={galleryImages}
+            xpActions={xpActions}
+            xpMilestones={xpMilestones}
             onFieldSave={handleFieldSave}
             onPhotoUpload={handlePhotoUpload}
             onSectionEdited={handleSectionEdited}

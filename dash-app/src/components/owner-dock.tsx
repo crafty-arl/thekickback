@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import type { VenueStats, GuestSession, VenueRequest, ChatMessage, VenuePerk, PerkRedemption, VenueMultiplier, PointLeaderboardEntry } from "@/lib/dashboard";
 import type { Booking } from "@/components/dashboard/bookings-panel";
+import type { Order, RevenueStats } from "@/components/dashboard/orders-panel";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -22,6 +23,8 @@ interface DashboardData {
   sessions: GuestSession[];
   requests: VenueRequest[];
   bookings: Booking[];
+  orders: Order[];
+  revenueStats: RevenueStats;
   messages: ChatMessage[];
   perks: VenuePerk[];
   redemptions: PerkRedemption[];

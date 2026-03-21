@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import type { GuestSession, VenueRequest, ChatMessage, VenueStats, VenuePerk, PerkRedemption, VenueMultiplier, PointLeaderboardEntry } from "@/lib/dashboard";
 import { type Booking } from "@/components/dashboard/bookings-panel";
+import { type Order, type RevenueStats } from "@/components/dashboard/orders-panel";
 import { OwnerDock } from "@/components/owner-dock";
 import { isSandbox } from "@/lib/stripe";
 
@@ -75,7 +76,7 @@ export default async function DashboardPage() {
     todaySessionsRes, todayMessagesRes,
     perksRes, redemptionsRes, multipliersRes,
     leaderboardRes, pointsTodayRes, perksTodayRes,
-    bookingsRes,
+    bookingsRes, ordersRes,
   ] = await Promise.all([
     // Active sessions with profile info
     service
@@ -175,6 +176,14 @@ export default async function DashboardPage() {
       .eq("venue_id", venue.id)
       .eq("mode", mode)
       .order("starts_at", { ascending: true }),
+
+    // Orders with line items
+    service
+      .from("orders")
+      .select("*, order_items(*), profiles(display_name, email, phone)")
+      .eq("venue_id", venue.id)
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   // Supabase joins return related records as arrays — extract first element
@@ -262,6 +271,31 @@ export default async function DashboardPage() {
     0
   );
 
+  // ─── Orders & Revenue ────────────────────────────────────────────
+  const rawOrders = (ordersRes.data || []).map((o: Record<string, unknown>) => ({
+    ...o,
+    profiles: Array.isArray(o.profiles) ? o.profiles[0] : o.profiles,
+    order_items: Array.isArray(o.order_items) ? o.order_items : [],
+  })) as Order[];
+
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  weekStart.setHours(0, 0, 0, 0);
+
+  const nonCancelledOrders = rawOrders.filter((o) => o.status !== "cancelled");
+  const todayRevenueTotal = nonCancelledOrders
+    .filter((o) => new Date(o.created_at) >= todayStart)
+    .reduce((sum, o) => sum + (o.total_cents || 0), 0);
+  const weekRevenueTotal = nonCancelledOrders
+    .filter((o) => new Date(o.created_at) >= weekStart)
+    .reduce((sum, o) => sum + (o.total_cents || 0), 0);
+
+  const revenueStats: RevenueStats = {
+    todayRevenue: todayRevenueTotal,
+    weekRevenue: weekRevenueTotal,
+    totalOrders: rawOrders.length,
+  };
+
   const stats: VenueStats = {
     currentOccupancy: venue.occupancy,
     capacity: venue.max_occupancy,
@@ -279,6 +313,8 @@ export default async function DashboardPage() {
         sessions,
         requests,
         bookings,
+        orders: rawOrders,
+        revenueStats,
         messages,
         perks,
         redemptions,

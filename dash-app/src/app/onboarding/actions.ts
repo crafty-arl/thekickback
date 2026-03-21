@@ -164,6 +164,18 @@ export async function getOnboardingState() {
     .eq("venue_id", venueId)
     .single();
 
+  const { data: xpActions } = await service
+    .from("venue_xp_actions")
+    .select("label, points")
+    .eq("venue_id", venueId)
+    .order("sort_order");
+
+  const { data: xpMilestones } = await service
+    .from("venue_xp_milestones")
+    .select("name, threshold")
+    .eq("venue_id", venueId)
+    .order("sort_order");
+
   return {
     hasVenue: true,
     venueId,
@@ -171,6 +183,8 @@ export async function getOnboardingState() {
     page,
     offerings: offerings || [],
     gallery: gallery || [],
+    xpActions: xpActions || [],
+    xpMilestones: xpMilestones || [],
     checklist: page?.onboarding_checklist || null,
     reviewStatus: page?.review_status,
     stripeConnected: stripeAccount?.charges_enabled || false,

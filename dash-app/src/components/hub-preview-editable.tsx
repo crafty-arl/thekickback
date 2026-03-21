@@ -12,11 +12,23 @@ interface Offering {
   description?: string;
 }
 
+interface XpAction {
+  label: string;
+  points: number;
+}
+
+interface XpMilestone {
+  name: string;
+  threshold: number;
+}
+
 interface EditableHubPreviewProps {
   data: HubData;
   venueId: string;
   offerings: Offering[];
   galleryImages: { id: string; image_url: string }[];
+  xpActions?: XpAction[];
+  xpMilestones?: XpMilestone[];
   onFieldSave: (field: string, value: unknown) => Promise<void>;
   onPhotoUpload: (file: File) => Promise<void>;
   onSectionEdited: (key: string) => void;
@@ -33,6 +45,8 @@ export function HubPreviewEditable({
   venueId,
   offerings,
   galleryImages,
+  xpActions,
+  xpMilestones,
   onFieldSave,
   onPhotoUpload,
   onSectionEdited,
@@ -382,6 +396,81 @@ export function HubPreviewEditable({
             )}
             {offerings.length > 4 && (
               <p className="mt-1 text-center font-sans text-[10px] text-white/20">+{offerings.length - 4} more</p>
+            )}
+            {offerings.length > 0 && (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={() => onSectionEdited("offerings")}
+                  className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold text-black"
+                  style={{ backgroundColor: "#4ADE80" }}
+                >
+                  Looks good
+                </button>
+                <a
+                  href="/settings#offerings"
+                  className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-medium text-white/40"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                >
+                  Edit in settings
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* XP / Loyalty */}
+          <div className="group relative px-5 py-3">
+            <p className="mb-2 font-sans text-[10px] font-semibold tracking-[2px] text-white/20">XP &amp; LOYALTY</p>
+            {xpActions && xpActions.length > 0 ? (
+              <>
+                {xpActions.slice(0, 4).map((a, i) => (
+                  <div
+                    key={i}
+                    className="mb-1.5 flex items-center justify-between rounded-lg px-3 py-2"
+                    style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <span className="font-sans text-[12px] text-white/70">{a.label}</span>
+                    <span className="font-sans text-[11px] font-medium text-green-400/70">+{a.points} XP</span>
+                  </div>
+                ))}
+                {xpActions.length > 4 && (
+                  <p className="mt-1 text-center font-sans text-[10px] text-white/20">+{xpActions.length - 4} more actions</p>
+                )}
+              </>
+            ) : (
+              <p className="font-sans text-[11px] text-white/25">No XP actions generated yet.</p>
+            )}
+            {xpMilestones && xpMilestones.length > 0 && (
+              <div className="mt-2">
+                <p className="mb-1.5 font-sans text-[10px] font-semibold text-white/15">MILESTONES</p>
+                {xpMilestones.map((m, i) => (
+                  <div
+                    key={i}
+                    className="mb-1 flex items-center justify-between rounded-lg px-3 py-1.5"
+                    style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+                  >
+                    <span className="font-sans text-[11px] text-white/50">{m.name}</span>
+                    <span className="font-sans text-[10px] text-white/25">{m.threshold} XP</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {((xpActions && xpActions.length > 0) || (xpMilestones && xpMilestones.length > 0)) && (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={() => onSectionEdited("xp")}
+                  className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold text-black"
+                  style={{ backgroundColor: "#4ADE80" }}
+                >
+                  Looks good
+                </button>
+                <a
+                  href="/settings#xp"
+                  className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-medium text-white/40"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                >
+                  Edit in settings
+                </a>
+              </div>
             )}
           </div>
 

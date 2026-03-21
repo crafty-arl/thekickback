@@ -207,6 +207,47 @@ Include this info in your <<<HUB_PARTIAL>>> block. Confirm the address with the 
     try { checklistUpdate = JSON.parse(checklistMatch[1]); } catch { /* best effort */ }
   }
 
+  // Save knowledge when the knowledge checklist item is marked complete
+  if (checklistUpdate?.item === "knowledge" && checklistUpdate?.completed && userId) {
+    try {
+      // Find the user's venue
+      const ownerRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/venue_owners?user_id=eq.${userId}&select=venue_id&limit=1`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      if (ownerRes.ok) {
+        const owners = await ownerRes.json() as { venue_id: string }[];
+        if (owners.length > 0) {
+          const venueId = owners[0].venue_id;
+          // Collect user messages as knowledge content
+          const userMessages = body.messages
+            .filter((m) => m.role === "user")
+            .map((m) => m.content)
+            .slice(-5)
+            .join("\n\n");
+
+          if (userMessages.trim()) {
+            await fetch(`${SUPABASE_URL}/rest/v1/venue_knowledge`, {
+              method: "POST",
+              headers: {
+                apikey: SUPABASE_KEY,
+                Authorization: `Bearer ${SUPABASE_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                venue_id: venueId,
+                content: userMessages.trim(),
+                category: "general",
+              }),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to save knowledge:", err);
+    }
+  }
+
   // Clean reply
   const cleanReply = reply
     .replace(/<<<VENUE_DATA>>>[\s\S]*?<<<END_DATA>>>/g, "")
