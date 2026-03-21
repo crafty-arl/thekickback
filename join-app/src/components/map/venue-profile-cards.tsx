@@ -29,6 +29,21 @@ interface OfferingData {
   interval: string | null;
 }
 
+interface DigitalAssetData {
+  id: string;
+  name: string;
+  asset_type: string;
+  category: string;
+  description: string | null;
+  preview_url: string | null;
+  xp_cost: number | null;
+  wallet_price_cents: number | null;
+  cash_price_cents: number | null;
+  is_animated: boolean;
+  min_tier: string | null;
+  duration_hours: number | null;
+}
+
 interface VenueProfileCardsProps {
   venue: Venue;
   onAction?: (command: string) => void;
@@ -44,26 +59,41 @@ const TYPE_LABELS: Record<string, string> = {
   product: "Products", event: "Events", package: "Packages", custom: "More",
 };
 
+const ASSET_EMOJI: Record<string, string> = {
+  sticker: "\u{1F3F7}\uFE0F",
+  badge: "\u{1F3C5}",
+  "3d_pin": "\u{1F4CC}",
+};
+
+const ASSET_COLORS: Record<string, { bg: string; fg: string }> = {
+  sticker: { bg: "rgba(74,222,128,0.15)", fg: "#4ADE80" },
+  badge: { bg: "rgba(249,115,22,0.15)", fg: "#F97316" },
+  "3d_pin": { bg: "rgba(168,139,250,0.15)", fg: "#A78BFA" },
+};
+
 export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
   const [page, setPage] = useState<VenuePageData | null>(null);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [offerings, setOfferings] = useState<OfferingData[]>([]);
+  const [digitalAssets, setDigitalAssets] = useState<DigitalAssetData[]>([]);
   const vibeColor = venue.themeColor || "#F97316";
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/venue-page?venueId=${venue.id}`).then((r) => r.ok ? r.json() : null),
       fetch(`/api/offerings?venueId=${venue.id}`).then((r) => r.ok ? r.json() : { offerings: [] }),
-    ]).then(([pageData, offerData]) => {
+      fetch(`/api/digital-assets?venueId=${venue.id}`).then((r) => r.ok ? r.json() : { assets: [] }),
+    ]).then(([pageData, offerData, assetData]) => {
       if (pageData) {
         setPage(pageData.page || null);
         setGallery(pageData.gallery || []);
       }
       setOfferings(offerData.offerings || []);
-    }).catch(() => {});
+      setDigitalAssets(assetData.assets || []);
+    }).catch(() => { });
   }, [venue.id]);
 
-  if (!page && offerings.length === 0) return null;
+  if (!page && offerings.length === 0 && digitalAssets.length === 0) return null;
 
   const theme = page?.theme_color || vibeColor;
 
@@ -217,6 +247,64 @@ export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
               </div>
             </button>
           ))}
+        </motion.div>
+      )}
+
+      {/* ── Digital Collectibles ── */}
+      {digitalAssets.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="flex flex-col gap-1.5"
+        >
+          <div className="flex items-center gap-1.5 px-1">
+            <span className="text-[11px]">{"\u{1F3A8}"}</span>
+            <span className="font-sans text-[10px] font-semibold tracking-[1px] text-white/30">COLLECTIBLES</span>
+            <span className="font-mono text-[9px] text-white/15">{digitalAssets.length}</span>
+          </div>
+          <div
+            className="flex gap-1.5 overflow-x-auto no-scrollbar"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
+            {digitalAssets.map((asset) => {
+              const colors = ASSET_COLORS[asset.asset_type] || { bg: "rgba(255,255,255,0.06)", fg: "rgba(255,255,255,0.5)" };
+              const priceLabel = asset.xp_cost
+                ? `${asset.xp_cost} XP`
+                : asset.cash_price_cents
+                  ? `$${(asset.cash_price_cents / 100).toFixed(2)}`
+                  : "Free";
+              return (
+                <button
+                  key={asset.id}
+                  onClick={() => onAction?.(`I want the ${asset.name} ${asset.asset_type}`)}
+                  className="flex shrink-0 flex-col items-center gap-1 rounded-xl px-3 py-2.5 transition-all active:scale-[0.96]"
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                    border: `1px solid ${colors.fg}20`,
+                    width: 90,
+                  }}
+                >
+                  <span className="text-[20px]">{ASSET_EMOJI[asset.asset_type] || "\u2726"}</span>
+                  <span className="w-full truncate text-center font-sans text-[10px] font-semibold text-white/70">
+                    {asset.name}
+                  </span>
+                  <span
+                    className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-bold tracking-wide"
+                    style={{ backgroundColor: colors.bg, color: colors.fg }}
+                  >
+                    {asset.asset_type === "3d_pin" ? "3D" : asset.asset_type.toUpperCase()}
+                  </span>
+                  <span className="font-mono text-[9px] font-bold" style={{ color: colors.fg }}>
+                    {priceLabel}
+                  </span>
+                  {asset.is_animated && (
+                    <span className="font-sans text-[7px] text-white/20">{"\u2728"} animated</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </motion.div>
       )}
 

@@ -600,3 +600,102 @@ export async function deleteMenuItem(id: string) {
     revalidatePath("/settings");
     return { ok: true };
 }
+
+// ─── Digital Asset actions ──────────────────────────────────────
+
+export async function addDigitalAsset(data: {
+    name: string;
+    asset_type: string;
+    category: string;
+    description?: string;
+    xp_cost?: number;
+    point_cost?: number;
+    wallet_price_cents?: number;
+    cash_price_cents?: number;
+    hub_revenue_share?: number;
+    min_tier?: string;
+    is_animated?: boolean;
+    is_3d?: boolean;
+    duration_hours?: number;
+}) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+    if (!data.name.trim()) return { error: "Name is required" };
+
+    const { error } = await service.from("digital_assets").insert({
+        hub_id: auth.venueId,
+        name: data.name.trim(),
+        asset_type: data.asset_type,
+        category: data.category,
+        description: data.description?.trim() || null,
+        xp_cost: data.xp_cost || null,
+        point_cost: data.point_cost || null,
+        wallet_price_cents: data.wallet_price_cents || null,
+        cash_price_cents: data.cash_price_cents || null,
+        hub_revenue_share: data.hub_revenue_share ?? 0.70,
+        min_tier: data.min_tier || null,
+        is_animated: data.is_animated || false,
+        is_3d: data.asset_type === "3d_pin",
+        duration_hours: data.duration_hours || null,
+    });
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function updateDigitalAsset(id: string, data: {
+    name?: string;
+    description?: string;
+    xp_cost?: number | null;
+    point_cost?: number | null;
+    wallet_price_cents?: number | null;
+    cash_price_cents?: number | null;
+    category?: string;
+    min_tier?: string | null;
+    is_animated?: boolean;
+    duration_hours?: number | null;
+}) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("digital_assets")
+        .update(data)
+        .eq("id", id)
+        .eq("hub_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function toggleDigitalAsset(id: string, active: boolean) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("digital_assets")
+        .update({ active })
+        .eq("id", id)
+        .eq("hub_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}
+
+export async function deleteDigitalAsset(id: string) {
+    const auth = await getAuthVenue();
+    if (!auth) return { error: "Not authenticated" };
+
+    const { error } = await service
+        .from("digital_assets")
+        .delete()
+        .eq("id", id)
+        .eq("hub_id", auth.venueId);
+
+    if (error) return { error: error.message };
+    revalidatePath("/settings");
+    return { ok: true };
+}

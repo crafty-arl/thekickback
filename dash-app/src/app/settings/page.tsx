@@ -24,7 +24,7 @@ export default async function SettingsPage() {
   if (!ownership) redirect("/onboarding");
 
   // Parallel fetch all data
-  const [venueRes, pageRes, knowledgeRes, membersRes, memberCountRes, offeringsRes, xpActionsRes, xpMilestonesRes, xpTemplatesRes, galleryRes, staffRes, aiLimitsRes] = await Promise.all([
+  const [venueRes, pageRes, knowledgeRes, membersRes, memberCountRes, offeringsRes, xpActionsRes, xpMilestonesRes, xpTemplatesRes, galleryRes, staffRes, aiLimitsRes, digitalAssetsRes] = await Promise.all([
     service.from("venues").select("*").eq("id", ownership.venue_id).single(),
     service.from("venue_pages").select("*").eq("venue_id", ownership.venue_id).single(),
     service.from("venue_knowledge").select("id, content, category, created_at").eq("venue_id", ownership.venue_id).order("created_at", { ascending: false }),
@@ -37,6 +37,7 @@ export default async function SettingsPage() {
     service.from("venue_gallery").select("id, image_url, caption, sort_order").eq("venue_id", ownership.venue_id).order("sort_order", { ascending: true }),
     service.from("venue_staff").select("id, display_name, role_title, avatar_url, bio, specialties, visible, sort_order, schedule, created_at").eq("venue_id", ownership.venue_id).order("sort_order", { ascending: true }),
     service.from("venue_ai_limits").select("*").eq("venue_id", ownership.venue_id).maybeSingle(),
+    service.from("digital_assets").select("*").eq("hub_id", ownership.venue_id).order("sort_order", { ascending: true }),
   ]);
 
   const venue = venueRes.data;
@@ -80,6 +81,7 @@ export default async function SettingsPage() {
       staff={staffRes.data || []}
       staffOfferingLinks={staffOfferingLinks}
       aiLimits={aiLimitsRes.data || null}
+      digitalAssets={digitalAssetsRes.data || []}
     />
   );
 }

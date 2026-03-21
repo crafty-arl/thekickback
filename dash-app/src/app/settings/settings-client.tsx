@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, uploadOfferingImage, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate, updateAiLimits, getAiUsageStats } from "./actions";
+import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, uploadOfferingImage, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate, updateAiLimits, getAiUsageStats, addDigitalAsset, toggleDigitalAsset, deleteDigitalAsset } from "./actions";
+import type { DigitalAsset } from "@/lib/dashboard";
 import { uploadGalleryImage, deleteGalleryImage, updateHeroImage, removeHeroImage } from "../../app/edit/gallery-actions";
 import { addStaffMember, updateStaffMember, deleteStaffMember, uploadStaffAvatar, toggleStaffVisibility } from "./staff-actions";
 import { linkStaffToOffering, unlinkStaffFromOffering } from "./staff-offering-actions";
@@ -246,6 +247,7 @@ const SECTION_GROUPS = [
         sections: [
             { id: "rules", label: "Vibe & Rules", icon: "◆" },
             { id: "xp", label: "Loyalty Rewards", icon: "⚡" },
+            { id: "digital_assets", label: "Digital Assets", icon: "🎨" },
             { id: "agent", label: "AI Chat", icon: "🤖" },
             { id: "qr", label: "QR Codes", icon: "▣" },
         ],
@@ -486,11 +488,12 @@ interface Props {
     staff: { id: string; display_name: string; role_title: string | null; avatar_url: string | null; bio: string | null; specialties: string[]; visible: boolean; sort_order: number; schedule: unknown[]; created_at: string }[];
     staffOfferingLinks: { staff_id: string; offering_id: string }[];
     aiLimits: { free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
+    digitalAssets: DigitalAsset[];
 }
 
 // ─── Main Component ──────────────────────────────────────────────
 
-export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [], staffOfferingLinks: initialLinks = [], aiLimits: initialAiLimits }: Props) {
+export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [], staffOfferingLinks: initialLinks = [], aiLimits: initialAiLimits, digitalAssets }: Props) {
     const [activeSection, setActiveSection] = useState("general");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
@@ -583,6 +586,23 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [offeringMsg, setOfferingMsg] = useState("");
     const [togglingOffering, setTogglingOffering] = useState<string | null>(null);
     const [deletingOfferingId, setDeletingOfferingId] = useState<string | null>(null);
+
+    // Digital asset fields
+    const [showAddAsset, setShowAddAsset] = useState(false);
+    const [assetName, setAssetName] = useState("");
+    const [assetType, setAssetType] = useState("sticker");
+    const [assetCategory, setAssetCategory] = useState("vibe");
+    const [assetDesc, setAssetDesc] = useState("");
+    const [assetXpCost, setAssetXpCost] = useState("");
+    const [assetWalletPrice, setAssetWalletPrice] = useState("");
+    const [assetCashPrice, setAssetCashPrice] = useState("");
+    const [assetMinTier, setAssetMinTier] = useState("");
+    const [assetAnimated, setAssetAnimated] = useState(false);
+    const [assetDuration, setAssetDuration] = useState("");
+    const [savingAsset, setSavingAsset] = useState(false);
+    const [assetMsg, setAssetMsg] = useState("");
+    const [togglingAsset, setTogglingAsset] = useState<string | null>(null);
+    const [deletingAsset, setDeletingAsset] = useState<string | null>(null);
 
     const slug = page?.slug || venue.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const venueEmail = `${slug}@thekickback.net`;
@@ -727,6 +747,46 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
         setDeletingOfferingId(null);
     }
 
+    // ─── Digital Asset handlers ─────────────────────────────────────
+
+    async function handleAddAsset() {
+        if (!assetName.trim()) return;
+        setSavingAsset(true);
+        setAssetMsg("");
+        const result = await addDigitalAsset({
+            name: assetName.trim(),
+            asset_type: assetType,
+            category: assetCategory,
+            description: assetDesc.trim() || undefined,
+            xp_cost: assetXpCost ? parseInt(assetXpCost) : undefined,
+            wallet_price_cents: assetWalletPrice ? Math.round(parseFloat(assetWalletPrice) * 100) : undefined,
+            cash_price_cents: assetCashPrice ? Math.round(parseFloat(assetCashPrice) * 100) : undefined,
+            min_tier: assetMinTier || undefined,
+            is_animated: assetAnimated,
+            duration_hours: assetDuration ? parseInt(assetDuration) : undefined,
+        });
+        if (result.error) { setAssetMsg(result.error); }
+        else {
+            setAssetMsg("Added!");
+            setShowAddAsset(false);
+            setAssetName(""); setAssetDesc(""); setAssetXpCost(""); setAssetWalletPrice(""); setAssetCashPrice(""); setAssetMinTier(""); setAssetAnimated(false); setAssetDuration("");
+            setTimeout(() => setAssetMsg(""), 2000);
+        }
+        setSavingAsset(false);
+    }
+
+    async function handleToggleAsset(id: string, active: boolean) {
+        setTogglingAsset(id);
+        await toggleDigitalAsset(id, active);
+        setTogglingAsset(null);
+    }
+
+    async function handleDeleteAsset(id: string) {
+        setDeletingAsset(id);
+        await deleteDigitalAsset(id);
+        setDeletingAsset(null);
+    }
+
     // ─── Navigate to section ───────────────────────────────────────
 
     function goToSection(id: string) {
@@ -745,7 +805,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
             <header className="sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 backdrop-blur-xl sm:px-6" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(10,10,10,0.9)" }}>
                 <div className="flex items-center gap-3">
                     <Link href="/" className="flex items-center gap-1.5 text-white/40 hover:text-white/60 text-[13px] font-medium transition">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
                         Back to Chat
                     </Link>
                     <div className="hidden h-4 w-px sm:block" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
@@ -2149,6 +2209,165 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                             </div>
                                         );
                                     })}
+                                </div>
+                            )}
+                        </Card>
+
+                        {/* ─── Digital Assets ──────────────────────────────── */}
+                        <Card id="digital_assets" title="Digital Assets" desc="Create stickers, badges, and 3D pins your guests can earn or buy to decorate the map.">
+                            {/* Stats */}
+                            <div className="flex gap-4">
+                                <div className="flex-1 rounded-xl p-3 text-center" style={{ backgroundColor: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)" }}>
+                                    <p className="font-sans text-[20px] font-bold" style={{ color: "#F97316" }}>{digitalAssets.length}</p>
+                                    <p className="font-sans text-[10px] tracking-[1px]" style={{ color: "rgba(255,255,255,0.35)" }}>TOTAL</p>
+                                </div>
+                                <div className="flex-1 rounded-xl p-3 text-center" style={{ backgroundColor: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)" }}>
+                                    <p className="font-sans text-[20px] font-bold" style={{ color: "#4ADE80" }}>{digitalAssets.filter(a => a.active).length}</p>
+                                    <p className="font-sans text-[10px] tracking-[1px]" style={{ color: "rgba(255,255,255,0.35)" }}>ACTIVE</p>
+                                </div>
+                                <div className="flex-1 rounded-xl p-3 text-center" style={{ backgroundColor: "rgba(168,139,250,0.08)", border: "1px solid rgba(168,139,250,0.2)" }}>
+                                    <p className="font-sans text-[20px] font-bold" style={{ color: "#A78BFA" }}>{digitalAssets.filter(a => a.asset_type === "3d_pin").length}</p>
+                                    <p className="font-sans text-[10px] tracking-[1px]" style={{ color: "rgba(255,255,255,0.35)" }}>3D PINS</p>
+                                </div>
+                            </div>
+
+                            {assetMsg && <p className="font-sans text-[12px] font-medium" style={{ color: assetMsg === "Added!" ? "#4ADE80" : "#EF4444" }}>{assetMsg}</p>}
+
+                            {/* Asset List */}
+                            {digitalAssets.length === 0 && !showAddAsset ? (
+                                <div className="rounded-xl border border-dashed p-6 text-center" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+                                    <p className="font-sans text-[14px] font-medium text-white/60">No digital assets yet</p>
+                                    <p className="mt-1 font-sans text-[12px] text-white/25">Create stickers and badges for your guests to earn or buy.</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-hidden rounded-xl border" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                                    <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>
+                                        <span className="flex-1 font-sans text-[10px] font-medium tracking-[2px]" style={{ color: "rgba(255,255,255,0.3)" }}>ASSET</span>
+                                        <span className="w-16 text-center font-sans text-[10px] font-medium tracking-[2px]" style={{ color: "rgba(255,255,255,0.3)" }}>TYPE</span>
+                                        <span className="w-14 text-center font-sans text-[10px] font-medium tracking-[2px]" style={{ color: "rgba(255,255,255,0.3)" }}>XP</span>
+                                        <span className="w-14 text-center font-sans text-[10px] font-medium tracking-[2px]" style={{ color: "rgba(255,255,255,0.3)" }}>PRICE</span>
+                                        <span className="w-20 text-center font-sans text-[10px] font-medium tracking-[2px]" style={{ color: "rgba(255,255,255,0.3)" }}>ACTIONS</span>
+                                    </div>
+                                    {digitalAssets.map((asset) => (
+                                        <div key={asset.id} className="flex items-center gap-2 border-t px-4 py-3" style={{ borderColor: "rgba(255,255,255,0.04)", opacity: asset.active ? 1 : 0.4 }}>
+                                            <div className="flex flex-1 items-center gap-3 min-w-0">
+                                                <span className="text-[18px]">
+                                                    {asset.asset_type === "sticker" ? "🏷️" : asset.asset_type === "badge" ? "🏅" : "📌"}
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-sans text-[13px] font-medium text-white">{asset.name}</p>
+                                                    {asset.description && <p className="truncate font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>{asset.description}</p>}
+                                                </div>
+                                            </div>
+                                            <span className="w-16 shrink-0 rounded-full px-2 py-0.5 text-center font-sans text-[10px] font-bold tracking-wide" style={{
+                                                backgroundColor: asset.asset_type === "sticker" ? "rgba(74,222,128,0.15)" : asset.asset_type === "badge" ? "rgba(249,115,22,0.15)" : "rgba(168,139,250,0.15)",
+                                                color: asset.asset_type === "sticker" ? "#4ADE80" : asset.asset_type === "badge" ? "#F97316" : "#A78BFA",
+                                            }}>{asset.asset_type === "3d_pin" ? "3D" : asset.asset_type.toUpperCase()}</span>
+                                            <span className="w-14 shrink-0 text-center font-sans text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+                                                {asset.xp_cost ?? "—"}
+                                            </span>
+                                            <span className="w-14 shrink-0 text-center font-sans text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+                                                {asset.cash_price_cents ? `$${(asset.cash_price_cents / 100).toFixed(2)}` : "—"}
+                                            </span>
+                                            <div className="flex w-20 shrink-0 items-center justify-center gap-1">
+                                                <button
+                                                    onClick={() => handleToggleAsset(asset.id, !asset.active)}
+                                                    disabled={togglingAsset === asset.id}
+                                                    className="rounded-lg px-2 py-1 font-sans text-[10px] font-medium transition active:scale-95 disabled:opacity-50"
+                                                    style={{ backgroundColor: asset.active ? "rgba(74,222,128,0.15)" : "rgba(255,255,255,0.06)", color: asset.active ? "#4ADE80" : "rgba(255,255,255,0.4)" }}
+                                                >{asset.active ? "ON" : "OFF"}</button>
+                                                <button
+                                                    onClick={() => handleDeleteAsset(asset.id)}
+                                                    disabled={deletingAsset === asset.id}
+                                                    className="rounded-lg px-2 py-1 font-sans text-[10px] font-medium transition active:scale-95 disabled:opacity-50"
+                                                    style={{ backgroundColor: "rgba(239,68,68,0.1)", color: "#EF4444" }}
+                                                >{deletingAsset === asset.id ? "..." : "✕"}</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Add Asset Toggle */}
+                            {!showAddAsset ? (
+                                <button
+                                    onClick={() => setShowAddAsset(true)}
+                                    className="w-full rounded-xl border border-dashed py-3 font-sans text-[13px] font-medium transition active:scale-[0.99]"
+                                    style={{ borderColor: "rgba(249,115,22,0.3)", color: "#F97316" }}
+                                >+ Add Digital Asset</button>
+                            ) : (
+                                <div className="rounded-xl border p-4" style={{ borderColor: "rgba(249,115,22,0.3)", backgroundColor: "rgba(249,115,22,0.04)" }}>
+                                    <p className="mb-4 font-sans text-[12px] font-bold tracking-[1px]" style={{ color: "#F97316" }}>NEW DIGITAL ASSET</p>
+
+                                    <div className="flex flex-col gap-4">
+                                        <Field label="Name">
+                                            <input value={assetName} onChange={(e) => setAssetName(e.target.value)} placeholder="e.g. Fire Sticker, VIP Crown" className="input" />
+                                        </Field>
+
+                                        <Field label="Type">
+                                            <div className="flex gap-2">
+                                                {(["sticker", "badge", "3d_pin"] as const).map((t) => (
+                                                    <Chip key={t} label={t === "3d_pin" ? "3D Pin" : t} active={assetType === t} onClick={() => setAssetType(t)} />
+                                                ))}
+                                            </div>
+                                        </Field>
+
+                                        <Field label="Category">
+                                            <div className="flex flex-wrap gap-2">
+                                                {["vibe", "shoutout", "love", "event", "trophy", "custom"].map((c) => (
+                                                    <Chip key={c} label={c} active={assetCategory === c} onClick={() => setAssetCategory(c)} />
+                                                ))}
+                                            </div>
+                                        </Field>
+
+                                        <Field label="Description" hint="Optional">
+                                            <input value={assetDesc} onChange={(e) => setAssetDesc(e.target.value)} placeholder="Show love for this spot" className="input" />
+                                        </Field>
+
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <Field label="XP Cost">
+                                                <input type="number" value={assetXpCost} onChange={(e) => setAssetXpCost(e.target.value)} placeholder="50" className="input" />
+                                            </Field>
+                                            <Field label="Wallet ($)">
+                                                <input type="number" step="0.01" value={assetWalletPrice} onChange={(e) => setAssetWalletPrice(e.target.value)} placeholder="0.99" className="input" />
+                                            </Field>
+                                            <Field label="Cash ($)">
+                                                <input type="number" step="0.01" value={assetCashPrice} onChange={(e) => setAssetCashPrice(e.target.value)} placeholder="1.49" className="input" />
+                                            </Field>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <Field label="Min Tier" hint="Optional">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {["", "explorer", "regular", "member", "vip"].map((t) => (
+                                                        <Chip key={t || "any"} label={t || "Any"} active={assetMinTier === t} onClick={() => setAssetMinTier(t)} />
+                                                    ))}
+                                                </div>
+                                            </Field>
+                                            <Field label="Duration (hrs)" hint="Leave blank = permanent">
+                                                <input type="number" value={assetDuration} onChange={(e) => setAssetDuration(e.target.value)} placeholder="24" className="input" />
+                                            </Field>
+                                        </div>
+
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" checked={assetAnimated} onChange={(e) => setAssetAnimated(e.target.checked)} className="h-4 w-4 rounded" />
+                                            <span className="font-sans text-[13px]" style={{ color: "rgba(255,255,255,0.6)" }}>Animated asset</span>
+                                        </label>
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={handleAddAsset}
+                                                disabled={savingAsset || !assetName.trim()}
+                                                className="rounded-xl px-6 py-2.5 font-sans text-[13px] font-bold text-black active:scale-[0.98] disabled:opacity-50"
+                                                style={{ backgroundColor: "#F97316" }}
+                                            >{savingAsset ? "Saving..." : "Create Asset"}</button>
+                                            <button
+                                                onClick={() => setShowAddAsset(false)}
+                                                className="rounded-xl px-4 py-2.5 font-sans text-[13px] font-medium active:scale-[0.98]"
+                                                style={{ color: "rgba(255,255,255,0.4)" }}
+                                            >Cancel</button>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </Card>

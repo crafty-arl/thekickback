@@ -112,3 +112,28 @@ export interface PointLeaderboardEntry {
     display_name: string | null;
   };
 }
+
+// ─── Digital Assets interfaces ─────────────────────────────────
+
+export interface DigitalAsset {
+  id: string;
+  name: string;
+  description: string | null;
+  asset_type: string;
+  asset_url: string;
+  xp_cost: number | null;
+  point_cost: number | null;
+  wallet_price_cents: number | null;
+  cash_price_cents: number | null;
+  hub_revenue_share: number;
+  min_tier: string | null;
+  min_kickback_score: number | null;
+  hub_id: string | null;
+  category: string;
+  is_animated: boolean;
+  is_3d: boolean;
+  duration_hours: number | null;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+}
