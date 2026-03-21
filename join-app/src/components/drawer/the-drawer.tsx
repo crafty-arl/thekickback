@@ -524,10 +524,12 @@ export function TheDrawer({
     });
   }, [snap, controls, viewportHeight]);
 
-  // ── Scroll to bottom on new messages ──
+  // ── Scroll to bottom on new messages (chat view only) ──
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [conciergeMessages, venueThreads, selectedVenue]);
+    if (view === "chat") {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [conciergeMessages, venueThreads, view]);
   useEffect(() => {
     const updateVH = () => {
       const vh = window.visualViewport?.height || window.innerHeight;
