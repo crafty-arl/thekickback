@@ -72,9 +72,10 @@ jobs:
             docker ps -aq | xargs -r docker rm -f 2>/dev/null || true
             docker image prune -f 2>/dev/null || true
 
-            # ── Build all app images in parallel ──
-            echo "Building images..."
-            docker compose build --parallel landing-blue join-app dash-app wallet-service
+            # ── Build all app images in parallel (BUILD_HASH busts SW cache) ──
+            export BUILD_HASH=$(git rev-parse --short HEAD)
+            echo "Building images (hash: $BUILD_HASH)..."
+            docker compose build --parallel --build-arg BUILD_HASH=$BUILD_HASH landing-blue join-app dash-app wallet-service
 
             # ── Seed OpenClaw config into volume ──
             docker compose stop claw 2>/dev/null || true

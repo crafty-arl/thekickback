@@ -3,10 +3,10 @@
 // push notifications, and navigation preload.
 // ─────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 3;
-const STATIC_CACHE = `kickback-static-v${CACHE_VERSION}`;
-const RUNTIME_CACHE = `kickback-runtime-v${CACHE_VERSION}`;
-const API_CACHE = `kickback-api-v${CACHE_VERSION}`;
+const BUILD_HASH = "__BUILD_HASH__";
+const STATIC_CACHE = `kickback-static-${BUILD_HASH}`;
+const RUNTIME_CACHE = `kickback-runtime-${BUILD_HASH}`;
+const API_CACHE = `kickback-api-${BUILD_HASH}`;
 
 // Assets to precache on install
 const PRECACHE_URLS = [
