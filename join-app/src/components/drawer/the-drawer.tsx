@@ -455,6 +455,14 @@ export function TheDrawer({
     setCartExpanded(false);
   }, []);
 
+  const clearThread = useCallback((venueId: string) => {
+    setVenueThreads((prev) => { const next = new Map(prev); next.delete(venueId); return next; });
+  }, []);
+
+  const clearConcierge = useCallback(() => {
+    setConciergeMessages([{ id: "welcome", sender: "ai", body: "Hey. I\u2019m KickBack. Ask me anything \u2014 what\u2019s happening tonight, where to go, or vibe check a spot.", timestamp: Date.now() }]);
+  }, []);
+
   // ── Navigation helpers ──
   const fetchDirections = useCallback(async (profile: "walking" | "driving") => {
     if (!userLocation || !selectedVenue) return;
@@ -879,7 +887,7 @@ export function TheDrawer({
     if (!user) return;
     if (snap === "peek") setSnap("mid");
     if (view === "explore" && !selectedVenue) {
-      // Will open concierge on send
+      setView("chat"); setSnap("full"); // Open concierge
     } else if (view === "venue" && selectedVenue) {
       setView("chat"); setSnap("full");
     }
@@ -896,7 +904,6 @@ export function TheDrawer({
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", damping: 28, stiffness: 280 }}
         className="fixed inset-x-0 bottom-0 z-40"
-        style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}
       >
         <motion.div
           animate={controls}
@@ -904,14 +911,14 @@ export function TheDrawer({
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={0.12}
           onDragEnd={handleDrag}
-          className="relative mx-3 flex flex-col overflow-hidden"
+          className="relative flex flex-col overflow-hidden"
           style={{
             height: 80,
-            borderRadius: 28,
-            background: "rgba(10, 10, 14, 0.92)",
+            borderRadius: "24px 24px 0 0",
+            background: "rgba(10, 10, 14, 0.95)",
             backdropFilter: "blur(40px) saturate(1.8)",
             WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-            boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 -4px 30px rgba(0,0,0,0.3)",
+            boxShadow: "0 -2px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)",
             touchAction: "none",
           }}
         >
@@ -1000,7 +1007,7 @@ export function TheDrawer({
               )}
 
               {/* Chat view */}
-              {view === "chat" && selectedVenue && user && (
+              {view === "chat" && user && (
                 <DrawerChat
                   venue={selectedVenue}
                   user={user}
@@ -1012,15 +1019,15 @@ export function TheDrawer({
                   send={send}
                   onBack={handleBack}
                   vibeColor={vibeColor}
-                  offeringsMap={offeringsMap[selectedVenue.id] || {}}
-                  addToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
+                  offeringsMap={selectedVenue ? (offeringsMap[selectedVenue.id] || {}) : {}}
+                  addToCart={(oid, name, price) => selectedVenue && addToCart(selectedVenue.id, oid, name, price)}
                   currentCart={currentCart}
                   cartTotal={cartTotal}
                   cartCount={cartCount}
                   cartExpanded={cartExpanded}
                   setCartExpanded={setCartExpanded}
-                  removeFromCart={(oid) => removeFromCart(selectedVenue.id, oid)}
-                  clearCart={() => clearCart(selectedVenue.id)}
+                  removeFromCart={(oid) => selectedVenue && removeFromCart(selectedVenue.id, oid)}
+                  clearCart={() => selectedVenue && clearCart(selectedVenue.id)}
                   getVenueReplies={getVenueReplies}
                   handleTabTap={handleTabTap}
                   handleCheckoutConfirm={handleCheckoutConfirm}
@@ -1034,6 +1041,8 @@ export function TheDrawer({
                   apiVenues={apiVenues}
                   richVenues={richVenues}
                   onVenueSelect={onVenueSelect}
+                  onClearThread={selectedVenue ? () => clearThread(selectedVenue.id) : undefined}
+                  onClearConcierge={clearConcierge}
                 />
               )}
 
