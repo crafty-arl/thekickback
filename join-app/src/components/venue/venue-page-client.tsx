@@ -1422,8 +1422,19 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                             </div>
                           </div>
 
+                          {/* Login gate */}
+                          {!user && (
+                            <a
+                              href="/login"
+                              className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-sans text-[14px] font-bold text-black active:scale-[0.97]"
+                              style={{ backgroundColor: theme }}
+                            >
+                              Log in to checkout
+                            </a>
+                          )}
+
                           {/* Compact payment buttons */}
-                          <div className="flex gap-2 w-full">
+                          {user && <div className="flex gap-2 w-full">
                             {/* AI Credit */}
                             <button
                               onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
@@ -1453,7 +1464,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                               </span>
                               <span className="font-mono text-[8px] text-white/20">+${((stripeFee + platformFee) / 100).toFixed(2)} fees</span>
                             </button>
-                          </div>
+                          </div>}
 
                           {/* Cancel */}
                           <button
