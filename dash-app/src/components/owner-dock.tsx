@@ -286,21 +286,40 @@ export function OwnerDock({ initialData, venue, reviewStatus, user }: OwnerDockP
 
   return (
     <div style={{ height: "100dvh" }} className="flex flex-col bg-black">
-      {/* Review status banner */}
+      {/* ── Pre-approval gate ── */}
       {reviewStatus && reviewStatus !== "approved" && (
-        <div className="px-4 py-3 text-center" style={{
-          backgroundColor: reviewStatus === "pending" ? "rgba(249,115,22,0.1)" : reviewStatus === "rejected" ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.05)",
-          borderBottom: `1px solid ${reviewStatus === "pending" ? "rgba(249,115,22,0.2)" : reviewStatus === "rejected" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.08)"}`,
-        }}>
-          <span className="font-sans text-[12px] font-bold tracking-wide" style={{
-            color: reviewStatus === "pending" ? "#F97316" : reviewStatus === "rejected" ? "#EF4444" : "rgba(255,255,255,0.5)",
+        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full" style={{
+            backgroundColor: reviewStatus === "pending" ? "rgba(249,115,22,0.15)" : reviewStatus === "rejected" ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.08)",
           }}>
-            {reviewStatus === "pending" && "YOUR HUB IS UNDER REVIEW — We\u2019ll notify you once it\u2019s approved"}
-            {reviewStatus === "rejected" && "YOUR HUB WAS NOT APPROVED — Check your email for details or update your settings and resubmit"}
-            {reviewStatus === "draft" && "YOUR HUB IS IN DRAFT — Submit for review from Settings to go live"}
-          </span>
+            {reviewStatus === "pending" && <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+            {reviewStatus === "rejected" && <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>}
+            {reviewStatus === "draft" && <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
+          </div>
+          <h2 className="mb-2 font-sans text-[20px] font-bold text-white/90">
+            {reviewStatus === "pending" && "Under Review"}
+            {reviewStatus === "rejected" && "Not Approved"}
+            {reviewStatus === "draft" && "Draft"}
+          </h2>
+          <p className="mb-6 max-w-sm font-sans text-[14px] leading-[1.6] text-white/45">
+            {reviewStatus === "pending" && "Your hub is being reviewed by our team. We\u2019ll email you once it\u2019s approved. You can edit your settings while you wait."}
+            {reviewStatus === "rejected" && "Your hub wasn\u2019t approved this time. Check your email for details, update your settings, and resubmit."}
+            {reviewStatus === "draft" && "Your hub is saved but not submitted yet. Finish setting it up and submit for review to go live."}
+          </p>
+          <div className="flex gap-3">
+            <Link
+              href="/settings"
+              className="rounded-xl px-6 py-3 font-sans text-[14px] font-bold text-black active:scale-[0.98]"
+              style={{ backgroundColor: "#F97316" }}
+            >
+              {reviewStatus === "rejected" ? "Edit & Resubmit" : "Edit Settings"}
+            </Link>
+          </div>
+          <p className="mt-8 font-sans text-[12px] text-white/20">{venue.name}</p>
         </div>
       )}
+      {/* ── Full dashboard (approved only) ── */}
+      {(!reviewStatus || reviewStatus === "approved") && <>
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
@@ -485,6 +504,7 @@ export function OwnerDock({ initialData, venue, reviewStatus, user }: OwnerDockP
           </button>
         </div>
       </div>
+      </>}
     </div>
   );
 }
