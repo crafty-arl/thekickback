@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   let query = supabase
     .from("venue_bookings")
     .select("id, venue_id, offering_id, offering_name, guest_name, starts_at, ends_at, duration_minutes, cal_status, created_at, venues(name)")
-    .or(`guest_email.eq.${user.email},user_id.eq.${user.id}`)
+    .eq("guest_email", user.email || "")
     .order("starts_at", { ascending: false })
     .limit(50);
 
