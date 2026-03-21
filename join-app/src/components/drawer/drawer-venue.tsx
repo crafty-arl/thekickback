@@ -27,6 +27,18 @@ interface VenueOffering {
   interval: string | null;
   duration_minutes: number | null;
 }
+
+interface XpAction {
+  action: string;
+  points: number;
+  label: string;
+}
+
+interface XpMilestone {
+  name: string;
+  threshold: number;
+  color: string;
+}
 import { type UserProfile, VIBE_COLORS, CATEGORY_ICONS } from "./the-drawer";
 import { PointsBadge } from "../map/points-badge";
 
@@ -58,6 +70,8 @@ export function DrawerVenue({
 
   const [perks, setPerks] = useState<VenuePerk[]>([]);
   const [venueXp, setVenueXp] = useState<VenueXp | null>(null);
+  const [xpActions, setXpActions] = useState<XpAction[]>([]);
+  const [milestones, setMilestones] = useState<XpMilestone[]>([]);
   const [offerings, setOfferings] = useState<VenueOffering[]>([]);
   const [selectedPerk, setSelectedPerk] = useState<VenuePerk | null>(null);
 
@@ -65,6 +79,8 @@ export function DrawerVenue({
   useEffect(() => {
     setPerks([]);
     setVenueXp(null);
+    setXpActions([]);
+    setMilestones([]);
     setOfferings([]);
     setSelectedPerk(null);
 
@@ -73,6 +89,8 @@ export function DrawerVenue({
       .then((d) => {
         if (d?.perks) setPerks(d.perks);
         if (d?.venueXp) setVenueXp(d.venueXp);
+        if (d?.venueXpActions) setXpActions(d.venueXpActions);
+        if (d?.venueMilestones) setMilestones(d.venueMilestones);
       })
       .catch(() => {});
 
@@ -220,20 +238,74 @@ export function DrawerVenue({
           </div>
         )}
 
-        {/* Your XP at this venue */}
-        {user && venueXp && venueXp.xp > 0 && (
+        {/* XP System */}
+        {(xpActions.length > 0 || milestones.length > 0) && (
           <div className="mt-5 px-4">
-            <span className="font-sans text-[12px] font-semibold tracking-[2px] text-white/25">YOUR XP HERE</span>
-            <div className="mt-2 flex items-center gap-4">
-              <div className="flex flex-col items-center">
-                <span className="font-mono text-[24px] font-bold" style={{ color: vibeColor }}>{venueXp.xp}</span>
-                <span className="font-sans text-[11px] text-white/30">XP</span>
+            <span className="font-sans text-[12px] font-semibold tracking-[2px] text-white/25">XP</span>
+
+            {/* Your progress (logged in) */}
+            {user && venueXp && (() => {
+              const currentXp = venueXp.xp;
+              const nextMilestone = milestones.find((m) => m.threshold > currentXp);
+              const prevThreshold = milestones.filter((m) => m.threshold <= currentXp).pop()?.threshold || 0;
+              const progress = nextMilestone ? Math.min(((currentXp - prevThreshold) / (nextMilestone.threshold - prevThreshold)) * 100, 100) : 100;
+              const currentTier = [...milestones].reverse().find((m) => m.threshold <= currentXp);
+              return (
+                <div className="mt-2 rounded-xl px-3 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${vibeColor}15` }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[20px] font-bold" style={{ color: vibeColor }}>{currentXp}</span>
+                      <span className="font-sans text-[13px] text-white/30">XP</span>
+                      {currentTier && (
+                        <span className="rounded-full px-2 py-0.5 font-sans text-[10px] font-bold" style={{ backgroundColor: `${currentTier.color}20`, color: currentTier.color }}>{currentTier.name}</span>
+                      )}
+                    </div>
+                    <span className="font-sans text-[13px] text-white/25">{venueXp.visits} visits</span>
+                  </div>
+                  {nextMilestone && (
+                    <>
+                      <div className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                        <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: nextMilestone.color }} />
+                      </div>
+                      <p className="mt-1 font-sans text-[11px] text-white/25">{nextMilestone.threshold - currentXp} XP to {nextMilestone.name}</p>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* How to earn */}
+            {xpActions.length > 0 && (
+              <div className="mt-3">
+                <span className="font-sans text-[11px] font-semibold text-white/20">HOW TO EARN</span>
+                <div className="mt-1.5 flex flex-col gap-1">
+                  {xpActions.map((a) => (
+                    <div key={a.action} className="flex items-center justify-between py-1">
+                      <span className="font-sans text-[14px] text-white/50">{a.label || a.action}</span>
+                      <span className="font-mono text-[14px] font-bold" style={{ color: vibeColor }}>+{a.points}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-col items-center">
-                <span className="font-mono text-[24px] font-bold text-white/60">{venueXp.visits}</span>
-                <span className="font-sans text-[11px] text-white/30">visits</span>
+            )}
+
+            {/* Milestones */}
+            {milestones.length > 0 && (
+              <div className="mt-3">
+                <span className="font-sans text-[11px] font-semibold text-white/20">MILESTONES</span>
+                <div className="mt-1.5 flex gap-2 overflow-x-auto no-scrollbar">
+                  {milestones.map((m) => {
+                    const reached = venueXp && venueXp.xp >= m.threshold;
+                    return (
+                      <div key={m.name} className="flex shrink-0 flex-col items-center rounded-xl px-3 py-2" style={{ backgroundColor: reached ? `${m.color}10` : "rgba(255,255,255,0.02)", border: `1px solid ${reached ? `${m.color}25` : "rgba(255,255,255,0.04)"}`, opacity: reached ? 1 : 0.5, minWidth: 80 }}>
+                        <span className="font-mono text-[13px] font-bold" style={{ color: m.color }}>{m.threshold}</span>
+                        <span className="font-sans text-[11px] font-semibold" style={{ color: reached ? m.color : "rgba(255,255,255,0.3)" }}>{m.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
