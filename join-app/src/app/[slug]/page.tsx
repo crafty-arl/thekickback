@@ -46,7 +46,7 @@ export default async function VenuePage({ params, searchParams }: Props) {
   // Fetch active offerings for this venue
   const { data: offerings } = await serviceClient
     .from("venue_offerings")
-    .select("id, type, name, description, price_cents, recurring, interval, perks, active")
+    .select("id, type, name, description, price_cents, recurring, interval, perks, active, duration_minutes")
     .eq("venue_id", page.venues.id)
     .eq("active", true)
     .order("sort_order", { ascending: true });
@@ -77,13 +77,13 @@ export default async function VenuePage({ params, searchParams }: Props) {
     staffOfferingLinks = links || [];
   }
 
-  // Build staffByOffering map: offeringId → staff names/avatars
-  const staffByOffering: Record<string, { name: string; avatar_url: string | null }[]> = {};
+  // Build staffByOffering map: offeringId → staff id/names/avatars
+  const staffByOffering: Record<string, { id: string; name: string; avatar_url: string | null }[]> = {};
   for (const link of staffOfferingLinks) {
     const member = (staff || []).find((s: { id: string }) => s.id === link.staff_id);
     if (member) {
       if (!staffByOffering[link.offering_id]) staffByOffering[link.offering_id] = [];
-      staffByOffering[link.offering_id].push({ name: member.display_name, avatar_url: member.avatar_url });
+      staffByOffering[link.offering_id].push({ id: member.id, name: member.display_name, avatar_url: member.avatar_url });
     }
   }
 

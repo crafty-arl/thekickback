@@ -11,7 +11,7 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
     const body = await request.json();
-    const { venueId, offeringId, start, attendeeName, attendeeEmail, attendeeTimezone } = body;
+    const { venueId, offeringId, start, attendeeName, attendeeEmail, attendeeTimezone, staffId } = body;
 
     if (!venueId || !offeringId || !start || !attendeeName || !attendeeEmail) {
         return Response.json(
@@ -51,6 +51,34 @@ export async function POST(request: Request) {
     const requestedStart = new Date(start);
     const requestedEnd = new Date(requestedStart.getTime() + duration * 60000);
 
+    // If a specific staff member is requested, check THEIR schedule for conflicts
+    if (staffId) {
+        const { count: staffConflicts } = await supabase
+            .from("venue_bookings")
+            .select("id", { count: "exact", head: true })
+            .eq("staff_id", staffId)
+            .in("cal_status", ["confirmed", "accepted", "pending"])
+            .lt("starts_at", requestedEnd.toISOString())
+            .gte("ends_at", requestedStart.toISOString());
+
+        const { count: staffConflictsByStart } = await supabase
+            .from("venue_bookings")
+            .select("id", { count: "exact", head: true })
+            .eq("staff_id", staffId)
+            .in("cal_status", ["confirmed", "accepted", "pending"])
+            .is("ends_at", null)
+            .gte("starts_at", requestedStart.toISOString())
+            .lt("starts_at", requestedEnd.toISOString());
+
+        if ((staffConflicts || 0) + (staffConflictsByStart || 0) > 0) {
+            return Response.json({
+                error: "This staff member is already booked at that time. Please pick a different time or staff member.",
+                fully_booked: true,
+            }, { status: 409 });
+        }
+    }
+
+    // Also check offering-level capacity (for non-staff or shared-capacity offerings)
     const { count: overlapping } = await supabase
         .from("venue_bookings")
         .select("id", { count: "exact", head: true })
@@ -106,6 +134,17 @@ export async function POST(request: Request) {
         return Response.json({ error: result.error }, { status: 502 });
     }
 
+    // Look up staff name if staffId provided (for email + record)
+    let staffName: string | null = null;
+    if (staffId) {
+        const { data: staffMember } = await supabase
+            .from("venue_staff")
+            .select("display_name")
+            .eq("id", staffId)
+            .single();
+        staffName = staffMember?.display_name || null;
+    }
+
     // Save booking locally for dashboard visibility
     const h = await headers();
     const mode = isSandboxServer(h) ? "test" : "live";
@@ -121,6 +160,7 @@ export async function POST(request: Request) {
         starts_at: result.start,
         ends_at: result.end,
         duration_minutes: duration,
+        staff_id: staffId || null,
         mode,
     }).then(({ error }) => {
         if (error) console.error("Failed to save booking locally:", error.message);
@@ -158,6 +198,7 @@ export async function POST(request: Request) {
             <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Date</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${dateStr}</td></tr>
             <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Time</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${startTime} &ndash; ${endTime}</td></tr>
             <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">Duration</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${duration} min</td></tr>
+            ${staffName ? `<tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);">With</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;">${staffName}</td></tr>` : ""}
             <tr><td style="padding:10px 0;color:rgba(255,255,255,0.5);">Guest</td><td style="text-align:right;padding:10px 0;color:#fff;">${attendeeName}</td></tr>
           </table>
           <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:12px;padding:12px 16px;margin-top:20px;text-align:center;">
@@ -169,7 +210,8 @@ export async function POST(request: Request) {
 
     return Response.json({
         booking: result,
-        message: `Booked "${offering.name}" at ${venue?.name}`,
+        message: `Booked "${offering.name}" at ${venue?.name}${staffName ? ` with ${staffName}` : ""}`,
+        staffName,
         availability: {
             booked: totalOverlapping + 1,
             capacity: maxCapacity,

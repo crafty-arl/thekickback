@@ -52,6 +52,7 @@ interface OfferingData {
   interval: string | null;
   perks: string[];
   active: boolean;
+  duration_minutes?: number | null;
 }
 
 interface Props {
@@ -63,7 +64,7 @@ interface Props {
   offerings: OfferingData[];
   gallery?: GalleryImage[];
   staff?: StaffMember[];
-  staffByOffering?: Record<string, { name: string; avatar_url: string | null }[]>;
+  staffByOffering?: Record<string, { id: string; name: string; avatar_url: string | null }[]>;
 }
 
 type Tab = "chat" | "vibe" | "menu" | "events" | "reserve" | "shop" | "subscribe" | "join";
@@ -236,18 +237,123 @@ function AiMessageBody({ body, theme, onTapOffer, onAddToCart, offeringsMap }: {
   );
 }
 
+/* ── Date helpers for booking picker ── */
+
+function getBookingDates(): { label: string; value: string }[] {
+  const dates: { label: string; value: string }[] = [];
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const value = `${yyyy}-${mm}-${dd}`;
+    const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : `${dayNames[d.getDay()]} ${d.getDate()}`;
+    dates.push({ label, value });
+  }
+  return dates;
+}
+
 /* ── Product Detail Drawer — slides in from left ── */
 
-function ProductDrawer({ offer, meta, theme, onClose, onAdd }: {
+function ProductDrawer({ offer, meta, theme, onClose, onAdd, linkedStaff, venueId, user, onBookingConfirm }: {
   offer: { id: string; name: string; price: number } | null;
   meta: OfferingMeta | null;
   theme: string;
   onClose: () => void;
   onAdd: () => void;
+  linkedStaff?: { id: string; name: string; avatar_url: string | null }[];
+  venueId: string;
+  user?: { id: string; email: string } | null;
+  onBookingConfirm?: (msg: string) => void;
 }) {
+  const [selectedStaff, setSelectedStaff] = useState<string | null>(null); // null = "Anyone"
+  const [selectedDate, setSelectedDate] = useState<string>(getBookingDates()[0]?.value || "");
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [slots, setSlots] = useState<{ staff: { id: string; name: string; avatar_url: string | null; slots: string[] }[]; anyone_slots: string[] } | null>(null);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [booking, setBooking] = useState(false);
+  const [bookingResult, setBookingResult] = useState<string | null>(null);
+
+  const isBookable = meta && ["service", "reservation", "event"].includes(meta.type) && meta.duration_minutes && linkedStaff && linkedStaff.length > 0;
+  const dates = getBookingDates();
+
+  // Fetch availability when offering/date/staff changes
+  useEffect(() => {
+    if (!isBookable || !offer) return;
+    setSlotsLoading(true);
+    setSelectedTime(null);
+    setSlots(null);
+    const params = new URLSearchParams({ offeringId: offer.id, date: selectedDate });
+    if (selectedStaff) params.set("staffId", selectedStaff);
+    fetch(`/api/availability?${params}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setSlots(data); })
+      .catch(() => {})
+      .finally(() => setSlotsLoading(false));
+  }, [offer?.id, selectedDate, selectedStaff, isBookable]);
+
   if (!offer) return null;
   const price = offer.price / 100;
   const emoji = TYPE_EMOJI[meta?.type || "custom"] || "✦";
+
+  // Get displayable time slots
+  const displaySlots: string[] = (() => {
+    if (!slots) return [];
+    if (selectedStaff) {
+      const staffSlots = slots.staff.find((s) => s.id === selectedStaff);
+      return staffSlots?.slots || [];
+    }
+    return slots.anyone_slots || [];
+  })();
+
+  // Build ISO start time from selected date + time label like "9:00 AM"
+  function buildStartISO(): string | null {
+    if (!selectedDate || !selectedTime) return null;
+    const match = selectedTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return null;
+    let h = parseInt(match[1]);
+    const m = parseInt(match[2]);
+    const ampm = match[3].toUpperCase();
+    if (ampm === "PM" && h !== 12) h += 12;
+    if (ampm === "AM" && h === 12) h = 0;
+    return `${selectedDate}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+  }
+
+  async function handleBook() {
+    const startISO = buildStartISO();
+    if (!startISO || booking) return;
+    setBooking(true);
+    try {
+      const res = await fetch("/api/book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venueId,
+          offeringId: offer!.id,
+          start: startISO,
+          attendeeName: user?.email?.split("@")[0] || "Guest",
+          attendeeEmail: user?.email || "guest@kickback.app",
+          staffId: selectedStaff || undefined,
+          userId: user?.id,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const msg = data.message || "Booking confirmed!";
+        setBookingResult(msg);
+        onBookingConfirm?.(msg);
+      } else {
+        setBookingResult(data.error || "Booking failed. Try another time.");
+      }
+    } catch {
+      setBookingResult("Something went wrong. Please try again.");
+    } finally {
+      setBooking(false);
+    }
+  }
 
   return (
     <>
@@ -316,8 +422,135 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd }: {
             <p className="mt-4 font-sans text-[14px] leading-[1.7] text-white/50">{meta.description}</p>
           )}
 
+          {/* ── Booking UI: Staff + Date + Time pickers ── */}
+          {isBookable && !bookingResult && (
+            <>
+              {/* Staff picker */}
+              <div className="mt-5">
+                <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">CHOOSE STAFF</p>
+                <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                  {/* Anyone option */}
+                  <button
+                    onClick={() => setSelectedStaff(null)}
+                    className="flex shrink-0 flex-col items-center gap-1.5"
+                    style={{ width: 56 }}
+                  >
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-full"
+                      style={{
+                        border: `2px solid ${selectedStaff === null ? theme : "rgba(255,255,255,0.1)"}`,
+                        backgroundColor: selectedStaff === null ? `${theme}20` : "rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={selectedStaff === null ? theme : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                    </div>
+                    <span className="font-sans text-[10px] font-medium" style={{ color: selectedStaff === null ? theme : "rgba(255,255,255,0.5)" }}>Anyone</span>
+                  </button>
+                  {linkedStaff!.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setSelectedStaff(s.id)}
+                      className="flex shrink-0 flex-col items-center gap-1.5"
+                      style={{ width: 56 }}
+                    >
+                      <div
+                        className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full"
+                        style={{
+                          border: `2px solid ${selectedStaff === s.id ? theme : "rgba(255,255,255,0.1)"}`,
+                          backgroundColor: "rgba(255,255,255,0.06)",
+                        }}
+                      >
+                        {s.avatar_url ? (
+                          <img src={s.avatar_url} alt={s.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-[14px] font-bold" style={{ color: selectedStaff === s.id ? theme : "rgba(255,255,255,0.4)" }}>
+                            {s.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <span className="truncate w-full text-center font-sans text-[10px] font-medium" style={{ color: selectedStaff === s.id ? theme : "rgba(255,255,255,0.5)" }}>
+                        {s.name.split(" ")[0]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date picker */}
+              <div className="mt-4">
+                <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">DATE</p>
+                <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                  {dates.map((d) => (
+                    <button
+                      key={d.value}
+                      onClick={() => setSelectedDate(d.value)}
+                      className="shrink-0 rounded-xl px-3 py-2 font-sans text-[12px] font-medium active:scale-95"
+                      style={{
+                        backgroundColor: selectedDate === d.value ? `${theme}20` : "rgba(255,255,255,0.04)",
+                        color: selectedDate === d.value ? theme : "rgba(255,255,255,0.5)",
+                        border: `1px solid ${selectedDate === d.value ? `${theme}40` : "rgba(255,255,255,0.06)"}`,
+                      }}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Time slot picker */}
+              <div className="mt-4">
+                <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">TIME</p>
+                {slotsLoading ? (
+                  <div className="flex items-center gap-2 py-4">
+                    <motion.div className="h-2 w-2 rounded-full" style={{ backgroundColor: theme }} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1, repeat: Infinity }} />
+                    <span className="font-sans text-[12px] text-white/30">Loading availability...</span>
+                  </div>
+                ) : displaySlots.length === 0 ? (
+                  <div className="rounded-xl py-4 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                    <p className="font-sans text-[12px] text-white/30">No slots available for this date</p>
+                    <p className="mt-1 font-sans text-[10px] text-white/15">Try another day or staff member</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {displaySlots.map((slot) => (
+                      <button
+                        key={slot}
+                        onClick={() => setSelectedTime(slot)}
+                        className="rounded-lg px-2.5 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                        style={{
+                          backgroundColor: selectedTime === slot ? `${theme}25` : "rgba(255,255,255,0.04)",
+                          color: selectedTime === slot ? theme : "rgba(255,255,255,0.5)",
+                          border: `1px solid ${selectedTime === slot ? `${theme}40` : "rgba(255,255,255,0.06)"}`,
+                        }}
+                      >
+                        {slot}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Booking result message */}
+          {bookingResult && (
+            <div className="mt-5 rounded-2xl p-4 text-center" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}>
+              <p className="text-[24px] mb-2">&#9989;</p>
+              <p className="font-sans text-[14px] font-semibold text-white">{bookingResult}</p>
+              <button
+                onClick={onClose}
+                className="mt-3 rounded-xl px-4 py-2 font-sans text-[12px] font-bold active:scale-95"
+                style={{ backgroundColor: theme, color: "#000" }}
+              >
+                Done
+              </button>
+            </div>
+          )}
+
           {/* Add-ons */}
-          {meta?.add_ons && meta.add_ons.length > 0 && (
+          {meta?.add_ons && meta.add_ons.length > 0 && !bookingResult && (
             <div className="mt-5">
               <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">ADD-ONS</p>
               <div className="flex flex-col gap-1.5">
@@ -334,14 +567,34 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd }: {
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Add to cart button */}
-          <button
-            onClick={onAdd}
-            className="mt-6 w-full rounded-2xl py-4 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
-            style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
-          >
-            Add to cart — ${price % 1 === 0 ? price : price.toFixed(2)}
-          </button>
+          {/* Action button */}
+          {!bookingResult && (
+            isBookable && selectedTime ? (
+              <button
+                onClick={handleBook}
+                disabled={booking}
+                className="mt-6 w-full rounded-2xl py-4 font-sans text-[15px] font-bold text-black active:scale-[0.98] disabled:opacity-50"
+                style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+              >
+                {booking ? "Booking..." : `Book — ${selectedTime}`}
+              </button>
+            ) : !isBookable ? (
+              <button
+                onClick={onAdd}
+                className="mt-6 w-full rounded-2xl py-4 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+                style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+              >
+                Add to cart — ${price % 1 === 0 ? price : price.toFixed(2)}
+              </button>
+            ) : (
+              <div
+                className="mt-6 w-full rounded-2xl py-4 text-center font-sans text-[15px] font-bold"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.25)" }}
+              >
+                Select a time to book
+              </div>
+            )
+          )}
         </div>
       </motion.div>
     </>
@@ -660,7 +913,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               // Populate offeringsMap for the drawer if not already present
               const o = offerings.find((off) => off.id === id);
               if (o && !offeringsMap[id]) {
-                setOfferingsMap((prev) => ({ ...prev, [id]: { name: o.name, description: o.description, price_cents: o.price_cents, image_url: null, type: o.type, recurring: o.recurring, interval: o.interval } }));
+                setOfferingsMap((prev) => ({ ...prev, [id]: { name: o.name, description: o.description, price_cents: o.price_cents, image_url: null, type: o.type, recurring: o.recurring, interval: o.interval, duration_minutes: o.duration_minutes } }));
               }
               setDrawerOfferId(id);
             }} />
@@ -918,6 +1171,14 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
             onAdd={() => {
               if (drawerOffer) addToCart(drawerOffer.id, drawerOffer.name, drawerOffer.price);
               setDrawerOfferId(null);
+            }}
+            linkedStaff={drawerOfferId ? staffByOffering[drawerOfferId] : undefined}
+            venueId={venue.id}
+            user={user}
+            onBookingConfirm={(msg) => {
+              setMessages((prev) => [...prev, { id: `booking-${Date.now()}`, sender: "ai", body: msg, timestamp: Date.now() }]);
+              // Refresh bookings list
+              fetch(`/api/bookings?venueId=${venue.id}`).then((r) => r.ok ? r.json() : null).then((d) => { if (d?.bookings) setMyBookings(d.bookings); }).catch(() => {});
             }}
           />
         )}
