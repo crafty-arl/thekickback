@@ -103,8 +103,7 @@ services:
       - FOURSQUARE_SERVICE_TOKEN=${FOURSQUARE_SERVICE_TOKEN}
       - OPENCLAW_GATEWAY_URL=https://claw.thekickback.net
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASS=${SMTP_PASS}
+      - RESEND_API_KEY=${RESEND_API_KEY}
     restart: always
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
