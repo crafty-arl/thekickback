@@ -643,24 +643,8 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
       .catch(() => {});
   }, [user, venue.id]);
 
-  // Load persisted thread history on mount
-  useEffect(() => {
-    fetch(`/api/threads?venueId=${venue.id}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (data?.messages?.length) {
-          setMessages(
-            data.messages.map((m: { id: string; sender_type: string; body: string; created_at: string }) => ({
-              id: m.id,
-              sender: m.sender_type as "guest" | "ai",
-              body: m.body,
-              timestamp: new Date(m.created_at).getTime(),
-            }))
-          );
-        }
-      })
-      .catch(() => {});
-  }, [venue.id]);
+  // Fresh chat each visit — history is saved server-side for AI context
+  // but the UI always starts with a clean welcome message
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
