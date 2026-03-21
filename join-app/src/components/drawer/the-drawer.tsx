@@ -511,7 +511,7 @@ export function TheDrawer({
   useEffect(() => {
     controls.start({
       height: snapToHeight(snap),
-      borderRadius: snap === "peek" ? "28px" : snap === "full" ? "24px 24px 0 0" : "20px",
+      borderRadius: "20px 20px 0 0",
       transition: { type: "spring", damping: 30, stiffness: 300 },
     });
   }, [snap, controls]);
@@ -914,11 +914,11 @@ export function TheDrawer({
           className="relative flex flex-col overflow-hidden"
           style={{
             height: 80,
-            borderRadius: "24px 24px 0 0",
-            background: "rgba(10, 10, 14, 0.95)",
+            borderRadius: "20px 20px 0 0",
+            background: "rgba(10, 10, 14, 0.97)",
             backdropFilter: "blur(40px) saturate(1.8)",
             WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-            boxShadow: "0 -2px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)",
+            boxShadow: "0 -4px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
             touchAction: "none",
           }}
         >
