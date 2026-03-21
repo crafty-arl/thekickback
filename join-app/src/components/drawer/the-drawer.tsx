@@ -892,11 +892,15 @@ export function TheDrawer({
   }, [user]);
 
   const handleBack = useCallback(() => {
-    if (view === "chat") { setView("venue"); setSnap("mid"); return; }
+    if (view === "chat") {
+      if (selectedVenue) { setView("venue"); setSnap("mid"); }
+      else { setView("explore"); setSnap("mid"); } // Concierge → back to explore
+      return;
+    }
     if (view === "profile" || view === "login") { setView("explore"); setSnap("mid"); return; }
-    if (view === "venue") { onVenueSelect(null); return; }
+    if (view === "venue") { onVenueSelect(null); setView("explore"); setSnap("mid"); return; }
     setSnap("peek");
-  }, [view, onVenueSelect]);
+  }, [view, selectedVenue, onVenueSelect]);
 
   const handleVenueChat = useCallback(() => {
     if (!user) { setView("login"); setSnap("mid"); return; }
