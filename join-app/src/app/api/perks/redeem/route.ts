@@ -39,6 +39,18 @@ export async function POST(req: NextRequest) {
     supabase.from("point_balances").select("balance").eq("user_id", user.id).single(),
   ]);
 
+  // ─── Insert pending fulfillment for wallet pass ──────────────
+  if (redemption && perk) {
+    const { data: venue } = await supabase.from("venues").select("name").eq("id", redemption.venue_id).single();
+    await supabase.from("pending_fulfillments").insert({
+      user_id: user.id,
+      venue_id: redemption.venue_id,
+      type: "redemption",
+      reference_id: String(redemptionId),
+      label: `${perk.name} @ ${venue?.name || "Venue"}`,
+    });
+  }
+
   // ─── Email 2: Perk Redeemed ───────────────────────────────────
   if (user.email && redemption && perk) {
     try {

@@ -126,6 +126,17 @@ export async function POST(request: Request) {
         if (error) console.error("Failed to save booking locally:", error.message);
     });
 
+    // Insert pending fulfillment for wallet pass
+    if (body.userId) {
+      await supabase.from("pending_fulfillments").insert({
+        user_id: body.userId,
+        venue_id: venueId,
+        type: "booking",
+        reference_id: result.uid || result.id?.toString() || "",
+        label: `${offering.name} @ ${venue?.name || "Venue"}`,
+      });
+    }
+
     // Send booking confirmation email
     if (attendeeEmail) {
       try {

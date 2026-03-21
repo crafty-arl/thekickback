@@ -79,10 +79,22 @@ export async function POST(request: Request) {
       });
     }
 
+    // ─── Insert pending fulfillments for wallet pass ─────────
+    const { data: venueData } = await supabase.from("venues").select("name").eq("id", venueId).single();
+    const vName = (venueData as any)?.name || "Venue";
+    for (const item of allItems) {
+      await supabase.from("pending_fulfillments").insert({
+        user_id: userId,
+        venue_id: venueId,
+        type: "order",
+        reference_id: String(data),
+        label: `${item.name} @ ${vName}`,
+      });
+    }
+
     // ─── Send order receipt email ─────────────────────────────
     if (user.email) {
       try {
-        const { data: venueData } = await supabase.from("venues").select("name").eq("id", venueId).single();
         const vName = venueData?.name || "Venue";
         const now = new Date();
         const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -146,6 +158,17 @@ export async function POST(request: Request) {
         charge_method: "wallet",
         mode,
       }, { onConflict: "user_id,venue_id" });
+
+      // Insert pending fulfillment for membership wallet pass
+      if (!memberErr) {
+        await supabase.from("pending_fulfillments").insert({
+          user_id: userId,
+          venue_id: venueId,
+          type: "order",
+          reference_id: String(data),
+          label: `${mi.name} membership @ ${vName}`,
+        });
+      }
 
       // Send membership email
       if (!memberErr && user.email) {

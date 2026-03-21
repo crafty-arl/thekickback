@@ -713,6 +713,24 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                 </div>
               </div>
 
+              {/* Add to Wallet pass */}
+              {user && (
+                <div className="mt-3 px-5">
+                  <a
+                    href={`https://thekickback.net/wallet/pass/${user.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[12px] font-bold active:scale-[0.98]"
+                    style={{ backgroundColor: `${theme}15`, color: theme, border: `1px solid ${theme}25` }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+                    </svg>
+                    Add to Apple Wallet
+                  </a>
+                </div>
+              )}
+
               {/* Transaction history */}
               <div className="mt-5 px-5">
                 <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">RECENT ACTIVITY</p>
@@ -779,6 +797,23 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                 </button>
               </div>
               <WalletSheet />
+              {/* Add to Wallet pass */}
+              {user && (
+                <div className="px-4 pb-4">
+                  <a
+                    href={`https://thekickback.net/wallet/pass/${user.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-sans text-[13px] font-bold text-white active:scale-[0.98]"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+                    </svg>
+                    Add to Apple Wallet
+                  </a>
+                </div>
+              )}
             </motion.div>
           </>
         )}
