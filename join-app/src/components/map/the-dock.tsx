@@ -410,10 +410,12 @@ function LandscapeVenueCard({
         style={{ background: `linear-gradient(135deg, ${themeColor}25 0%, ${themeColor}08 60%, rgba(0,0,0,0.4) 100%)` }}
       >
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={`${themeColor}50`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
-        <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
-          <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor, boxShadow: `0 0 4px ${vibeColor}` }} />
-          <span className="font-sans text-[9px] font-semibold" style={{ color: vibeColor }}>{getVibeLabel(venue.vibe)}</span>
-        </div>
+        {venue.occupancy > 0 && (
+          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
+            <span className="font-sans text-[9px] font-semibold text-white/50">{venue.occupancy} in</span>
+          </div>
+        )}
       </div>
       <div className="flex w-[60%] flex-col justify-between p-3">
         {xp !== undefined && xp > 0 && (
@@ -762,7 +764,7 @@ function DeviceManager() {
         if (data?.devices) setDevices(data.devices);
         if (data?.maxDevices) setMaxDevices(data.maxDevices);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
@@ -778,7 +780,7 @@ function DeviceManager() {
       });
       const data = await res.json();
       if (data.ok) loadDevices();
-    } catch {}
+    } catch { }
     setRemoving(null);
   }, [loadDevices]);
 
@@ -917,7 +919,7 @@ export function TheDock({
 
   const dismissOnboarding = useCallback(() => {
     setShowOnboarding(false);
-    try { localStorage.setItem("kb-shortcuts-seen", "1"); } catch {}
+    try { localStorage.setItem("kb-shortcuts-seen", "1"); } catch { }
   }, []);
 
   // ── Mode state ──
@@ -946,6 +948,7 @@ export function TheDock({
   const [perks, setPerks] = useState<Perk[]>([]);
   const [memberships, setMemberships] = useState<{ venue_id: string; venue_name: string; tier: string; expires_at: string }[]>([]);
   const [balance, setBalance] = useState(0);
+  const [myCollectibles, setMyCollectibles] = useState<{ unlock_id: string; asset_id: string; name: string; asset_type: string; category: string; description: string | null; is_animated: boolean; hub_id: string | null; hub_name: string; payment_method: string; unlocked_at: string }[]>([]);
 
   // ── Offerings map (venueId → offeringId → meta) ──
   const [offeringsMap, setOfferingsMap] = useState<Record<string, Record<string, OfferingMeta>>>({});
@@ -972,6 +975,7 @@ export function TheDock({
 
   // ── Explore offerings (all venues) ──
   const [exploreOfferings, setExploreOfferings] = useState<{ id: string; name: string; type: string; price_cents: number; venue_id: string; description: string | null; image_url: string | null; category: string | null }[]>([]);
+  const [exploreDigitalAssets, setExploreDigitalAssets] = useState<{ id: string; name: string; asset_type: string; category: string; venue_id: string; xp_cost: number | null; cash_price_cents: number | null; is_animated: boolean; description: string | null }[]>([]);
   const exploreOfferingsLoaded = useRef(false);
 
   // ── Concierge venue data ──
@@ -982,7 +986,7 @@ export function TheDock({
   const controls = useAnimationControls();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const handleTabTapRef = useRef<(tab: Tab) => void>(() => {});
+  const handleTabTapRef = useRef<(tab: Tab) => void>(() => { });
   const conciergeHistoryLoaded = useRef(false);
   const threadInfo = useThreadCount();
 
@@ -1343,12 +1347,13 @@ export function TheDock({
     }
   }, []);
 
-  // ── Load all offerings for explore mode ──
+  // ── Load all offerings + digital assets for explore mode ──
   useEffect(() => {
     if (mode !== "explore" || exploreOfferingsLoaded.current) return;
     exploreOfferingsLoaded.current = true;
 
     const claimed = venues.filter((v) => v.claimed !== false).slice(0, 15);
+    // Fetch offerings
     Promise.all(
       claimed.map((v) =>
         fetch(`/api/offerings?venueId=${v.id}`)
@@ -1360,6 +1365,19 @@ export function TheDock({
       )
     ).then((results) => {
       setExploreOfferings(results.flat());
+    });
+    // Fetch digital assets
+    Promise.all(
+      claimed.map((v) =>
+        fetch(`/api/digital-assets?venueId=${v.id}`)
+          .then((r) => r.ok ? r.json() : { assets: [] })
+          .then((d) => (d.assets || []).map((a: { id: string; name: string; asset_type: string; category: string; xp_cost: number | null; cash_price_cents: number | null; is_animated: boolean; description: string | null }) => ({
+            ...a, venue_id: v.id,
+          })))
+          .catch(() => [])
+      )
+    ).then((results) => {
+      setExploreDigitalAssets(results.flat());
     });
   }, [mode, venues]);
 
@@ -1427,7 +1445,7 @@ export function TheDock({
               setVenueOfferings((prev) => ({ ...prev, [vid]: d.offerings.map((o: { id: string; type: string; name: string }) => ({ id: o.id, type: o.type, name: o.name })) }));
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     } else {
       if (mode === "venueChat") {
@@ -1476,6 +1494,15 @@ export function TheDock({
           } catch { /* skip */ }
         }
         setPerks(allPerks);
+
+        // Fetch collectibles
+        try {
+          const cRes = await fetch("/api/my-collectibles");
+          if (cRes.ok) {
+            const cData = await cRes.json();
+            if (cData.collectibles) setMyCollectibles(cData.collectibles);
+          }
+        } catch { /* skip */ }
       } catch {
         setUser({
           authId: authUser.id,
@@ -1881,7 +1908,7 @@ export function TheDock({
   // ─── Computed ──────────────────────────────────────────────────
 
   const tierColor = TIER_CONFIG[user?.tier || "explorer"]?.color || "#94a3b8";
-  const vibeColor = selectedVenue ? getVibeHexColor(selectedVenue.vibe) : ACCENT;
+  const vibeColor = selectedVenue ? (selectedVenue.themeColor || "#F97316") : ACCENT;
   const sendColor = mode === "venueChat" ? vibeColor : ACCENT;
   const venueChatExpanded = venueChatSnap !== "collapsed";
   const showExpandedContent = mode === "explore" || mode === "concierge" || mode === "profile" || (mode === "venueChat" && venueChatExpanded);
@@ -1954,7 +1981,7 @@ export function TheDock({
               venueProfiles: data.venueProfiles || user.venueProfiles,
             });
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
     } catch {
       setVenueThreads((prev) => {
@@ -2041,292 +2068,168 @@ export function TheDock({
 
   return (
     <>
-    {/* ─── Desktop Keyboard Shortcuts Button + Panel ─── */}
-    {isDesktop && (
-      <>
-        {/* ? toggle button — fixed top-right */}
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          onClick={() => setShowShortcuts((prev) => !prev)}
-          className="fixed right-4 top-[max(16px,env(safe-area-inset-top))] z-[60] flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/[0.08]"
-          style={{
-            backgroundColor: showShortcuts ? "rgba(167,139,250,0.15)" : "rgba(255,255,255,0.06)",
-            border: `1px solid ${showShortcuts ? "rgba(167,139,250,0.3)" : "rgba(255,255,255,0.08)"}`,
-          }}
-          title="Keyboard shortcuts (?)"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showShortcuts ? "#a78bfa" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="4" width="20" height="16" rx="2" />
-            <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h8" />
-          </svg>
-        </motion.button>
+      {/* ─── Desktop Keyboard Shortcuts Button + Panel ─── */}
+      {isDesktop && (
+        <>
+          {/* ? toggle button — fixed top-right */}
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            onClick={() => setShowShortcuts((prev) => !prev)}
+            className="fixed right-4 top-[max(16px,env(safe-area-inset-top))] z-[60] flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/[0.08]"
+            style={{
+              backgroundColor: showShortcuts ? "rgba(167,139,250,0.15)" : "rgba(255,255,255,0.06)",
+              border: `1px solid ${showShortcuts ? "rgba(167,139,250,0.3)" : "rgba(255,255,255,0.08)"}`,
+            }}
+            title="Keyboard shortcuts (?)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showShortcuts ? "#a78bfa" : "rgba(255,255,255,0.4)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h8" />
+            </svg>
+          </motion.button>
 
-        {/* Onboarding toast — shows once for new desktop users */}
-        <AnimatePresence>
-          {showOnboarding && !showShortcuts && (
-            <motion.div
-              initial={{ opacity: 0, x: 20, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 20, scale: 0.95 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed right-4 top-[max(52px,calc(env(safe-area-inset-top)+52px))] z-[60] flex items-start gap-3 rounded-xl px-4 py-3"
-              style={{
-                background: "rgba(12, 12, 14, 0.95)",
-                backdropFilter: "blur(40px) saturate(1.8)",
-                WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-                boxShadow: "0 0 0 1px rgba(167,139,250,0.2), 0 8px 30px rgba(0,0,0,0.4)",
-                maxWidth: 320,
-              }}
-            >
-              {/* Keyboard icon */}
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(167,139,250,0.1)" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="4" width="20" height="16" rx="2" />
-                  <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h8" />
-                </svg>
-              </div>
-
-              <div className="flex-1">
-                <p className="font-sans text-[13px] font-semibold text-white/90">Keyboard shortcuts available</p>
-                <p className="mt-0.5 font-sans text-[11px] leading-[1.4] text-white/40">
-                  Press <Kbd>?</Kbd> anytime to see all shortcuts. Try <Kbd>{isMac ? "\u2318" : "Ctrl"}</Kbd><span className="mx-0.5 text-[9px] text-white/15">+</span><Kbd>K</Kbd> to search, <Kbd>E</Kbd> to explore, or <Kbd>\u2190</Kbd> <Kbd>\u2192</Kbd> to browse venues.
-                </p>
-
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    onClick={() => { dismissOnboarding(); setShowShortcuts(true); }}
-                    className="rounded-full px-3 py-1 font-sans text-[11px] font-semibold text-black active:scale-95"
-                    style={{ backgroundColor: "#a78bfa" }}
-                  >
-                    View all shortcuts
-                  </button>
-                  <button
-                    onClick={dismissOnboarding}
-                    className="rounded-full px-3 py-1 font-sans text-[11px] font-medium text-white/40 active:scale-95"
-                    style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
-                  >
-                    Got it
-                  </button>
-                </div>
-              </div>
-
-              {/* Close X */}
-              <button onClick={dismissOnboarding} className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition hover:bg-white/[0.08]">
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="opacity-30">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Shortcuts overlay */}
-        <AnimatePresence>
-          {showShortcuts && (
-            <KeyboardShortcutsPanel isMac={isMac} mode={mode} onClose={() => setShowShortcuts(false)} />
-          )}
-        </AnimatePresence>
-      </>
-    )}
-
-    <motion.div
-      initial={{ y: 60, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ type: "spring", damping: 28, stiffness: 280 }}
-      className="fixed inset-x-0 bottom-0 z-40"
-      style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}
-    >
-      <motion.div
-        animate={controls}
-        drag="y"
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={0.12}
-        onDragEnd={handleDrag}
-        className="relative mx-3 flex flex-col overflow-hidden"
-        style={{
-          height: 56,
-          borderRadius: 28,
-          background: "rgba(12, 12, 14, 0.92)",
-          backdropFilter: "blur(40px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-          boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 -4px 30px rgba(0,0,0,0.3)",
-          touchAction: "none",
-        }}
-      >
-        {/* ═══ IDLE MODE ═══ */}
-        {mode === "idle" && (
-          <div className="flex h-full items-center gap-1.5 px-2">
-            {/* Avatar */}
-            <button
-              onClick={handleAvatarTap}
-              className="group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-              style={{
-                background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`,
-                border: `2px solid ${tierColor}40`,
-              }}
-            >
-              {user ? (
-                <span className="font-sans text-[14px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
-              ) : (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                </svg>
-              )}
-              {isDesktop && <span className="absolute -bottom-1 -right-1 hidden h-4 min-w-[16px] items-center justify-center rounded bg-white/[0.08] px-0.5 font-mono text-[8px] font-bold text-white/40 group-hover:flex" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>P</span>}
-            </button>
-
-            {/* Center: pulsing dot + input */}
-            <button
-              onClick={() => { setMode("explore"); setExploreSnap("half"); }}
-              className="group relative flex items-center gap-1.5 pl-1"
-            >
+          {/* Onboarding toast — shows once for new desktop users */}
+          <AnimatePresence>
+            {showOnboarding && !showShortcuts && (
               <motion.div
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: ACCENT }}
-                animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
-                transition={{ duration: 3, repeat: Infinity }}
-              />
-              {isDesktop && <span className="absolute -bottom-1 -right-2 hidden h-4 min-w-[16px] items-center justify-center rounded bg-white/[0.08] px-0.5 font-mono text-[8px] font-bold text-white/40 group-hover:flex" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>E</span>}
-            </button>
-
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && send()}
-              onFocus={handleInputFocus}
-              placeholder={isDesktop ? `Explore or ask anything...  ${isMac ? "\u2318" : "Ctrl+"}K` : "Explore or ask anything..."}
-              enterKeyHint="send"
-              autoComplete="off"
-              autoCorrect="off"
-              className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
-            />
-
-            {/* Streak */}
-            {user && user.streak > 0 && (
-              <div className="flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(249,115,22,0.08)" }}>
-                <span className="text-[10px]">&#x1f525;</span>
-                <span className="font-mono text-[10px] font-bold text-orange">{user.streak}</span>
-              </div>
-            )}
-
-            {/* Thread count */}
-            {threadInfo.count > 0 && (
-              <div className="relative flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(167,139,250,0.08)" }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                <span className="font-mono text-[10px] font-bold text-[#a78bfa]">{threadInfo.count}</span>
-                {threadInfo.unread > 0 && <div className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-orange" />}
-              </div>
-            )}
-
-            {/* Location */}
-            {hasLocation && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onRecenter(); }}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90"
-                style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="fixed right-4 top-[max(52px,calc(env(safe-area-inset-top)+52px))] z-[60] flex items-start gap-3 rounded-xl px-4 py-3"
+                style={{
+                  background: "rgba(12, 12, 14, 0.95)",
+                  backdropFilter: "blur(40px) saturate(1.8)",
+                  WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+                  boxShadow: "0 0 0 1px rgba(167,139,250,0.2), 0 8px 30px rgba(0,0,0,0.4)",
+                  maxWidth: 320,
+                }}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                </svg>
-              </button>
+                {/* Keyboard icon */}
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(167,139,250,0.1)" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h8" />
+                  </svg>
+                </div>
+
+                <div className="flex-1">
+                  <p className="font-sans text-[13px] font-semibold text-white/90">Keyboard shortcuts available</p>
+                  <p className="mt-0.5 font-sans text-[11px] leading-[1.4] text-white/40">
+                    Press <Kbd>?</Kbd> anytime to see all shortcuts. Try <Kbd>{isMac ? "\u2318" : "Ctrl"}</Kbd><span className="mx-0.5 text-[9px] text-white/15">+</span><Kbd>K</Kbd> to search, <Kbd>E</Kbd> to explore, or <Kbd>\u2190</Kbd> <Kbd>\u2192</Kbd> to browse venues.
+                  </p>
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      onClick={() => { dismissOnboarding(); setShowShortcuts(true); }}
+                      className="rounded-full px-3 py-1 font-sans text-[11px] font-semibold text-black active:scale-95"
+                      style={{ backgroundColor: "#a78bfa" }}
+                    >
+                      View all shortcuts
+                    </button>
+                    <button
+                      onClick={dismissOnboarding}
+                      className="rounded-full px-3 py-1 font-sans text-[11px] font-medium text-white/40 active:scale-95"
+                      style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    >
+                      Got it
+                    </button>
+                  </div>
+                </div>
+
+                {/* Close X */}
+                <button onClick={dismissOnboarding} className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition hover:bg-white/[0.08]">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="opacity-30">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </motion.div>
             )}
-          </div>
-        )}
+          </AnimatePresence>
 
-        {/* ═══ VENUE CHAT COLLAPSED ═══ */}
-        {mode === "venueChat" && !venueChatExpanded && selectedVenue && (
-          <div className="flex h-full items-center gap-2 px-3">
-            <button onClick={() => setVenueChatSnap("expanded")} className="flex items-center gap-2 pl-1">
-              <motion.div
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: vibeColor }}
-                animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-white/90">{selectedVenue.name}</span>
-            </button>
+          {/* Shortcuts overlay */}
+          <AnimatePresence>
+            {showShortcuts && (
+              <KeyboardShortcutsPanel isMac={isMac} mode={mode} onClose={() => setShowShortcuts(false)} />
+            )}
+          </AnimatePresence>
+        </>
+      )}
 
-            <PointsBadge venueId={selectedVenue.id} vibeColor={vibeColor} expanded={false} />
-
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && send()}
-              onFocus={handleInputFocus}
-              placeholder="Ask anything..."
-              enterKeyHint="send"
-              autoComplete="off"
-              autoCorrect="off"
-              className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
-            />
-
-            <motion.button
-              onClick={handleKBBack}
-              whileTap={{ scale: 0.9 }}
-              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5"
-              style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
-            </motion.button>
-          </div>
-        )}
-
-        {/* ═══ EXPLORE MODE ═══ */}
-        {mode === "explore" && (
-          <>
-            {/* Drag handle */}
-            <div className="flex shrink-0 justify-center pt-2 pb-1">
-              <div className="h-1 w-8 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
-            </div>
-
-            {/* Profile strip (peek row) */}
-            <button
-              onClick={() => {
-                if (exploreSnap === "peek") setExploreSnap("half");
-                else if (exploreSnap === "half") setExploreSnap("peek");
-                else setExploreSnap("half");
-              }}
-              className="flex shrink-0 items-center gap-3 px-4 pb-2"
-            >
+      <motion.div
+        initial={{ y: 60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="fixed inset-x-0 bottom-0 z-40"
+        style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}
+      >
+        <motion.div
+          animate={controls}
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={0.12}
+          onDragEnd={handleDrag}
+          className="relative mx-3 flex flex-col overflow-hidden"
+          style={{
+            height: 56,
+            borderRadius: 28,
+            background: "rgba(12, 12, 14, 0.92)",
+            backdropFilter: "blur(40px) saturate(1.8)",
+            WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+            boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 -4px 30px rgba(0,0,0,0.3)",
+            touchAction: "none",
+          }}
+        >
+          {/* ═══ IDLE MODE ═══ */}
+          {mode === "idle" && (
+            <div className="flex h-full items-center gap-1.5 px-2">
               {/* Avatar */}
               <button
-                onClick={(e) => { e.stopPropagation(); handleAvatarTap(); }}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                onClick={handleAvatarTap}
+                className="group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                 style={{
                   background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`,
                   border: `2px solid ${tierColor}40`,
                 }}
               >
                 {user ? (
-                  <span className="font-sans text-[16px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
+                  <span className="font-sans text-[14px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
                 ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
                   </svg>
                 )}
+                {isDesktop && <span className="absolute -bottom-1 -right-1 hidden h-4 min-w-[16px] items-center justify-center rounded bg-white/[0.08] px-0.5 font-mono text-[8px] font-bold text-white/40 group-hover:flex" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>P</span>}
               </button>
 
-              {/* Tier badge + XP bar */}
-              {user && (
-                <div className="flex flex-1 items-center gap-2">
-                  <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
-                    {TIER_CONFIG[user.tier]?.label || "Explorer"}
-                  </span>
-                  <div className="relative h-1.5 max-w-[100px] flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                    <div className="h-full rounded-full" style={{ width: `${TIER_CONFIG[user.tier]?.next ? Math.min((user.kickbackScore / TIER_CONFIG[user.tier].threshold) * 100, 100) : 100}%`, backgroundColor: tierColor, boxShadow: `0 0 6px ${tierColor}40` }} />
-                  </div>
-                  <span className="font-mono text-[10px] font-bold" style={{ color: tierColor }}>{user.kickbackScore.toLocaleString()}</span>
-                </div>
-              )}
+              {/* Center: pulsing dot + input */}
+              <button
+                onClick={() => { setMode("explore"); setExploreSnap("half"); }}
+                className="group relative flex items-center gap-1.5 pl-1"
+              >
+                <motion.div
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: ACCENT }}
+                  animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                />
+                {isDesktop && <span className="absolute -bottom-1 -right-2 hidden h-4 min-w-[16px] items-center justify-center rounded bg-white/[0.08] px-0.5 font-mono text-[8px] font-bold text-white/40 group-hover:flex" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>E</span>}
+              </button>
+
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send()}
+                onFocus={handleInputFocus}
+                placeholder={isDesktop ? `Explore or ask anything...  ${isMac ? "\u2318" : "Ctrl+"}K` : "Explore or ask anything..."}
+                enterKeyHint="send"
+                autoComplete="off"
+                autoCorrect="off"
+                className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
+              />
 
               {/* Streak */}
               {user && user.streak > 0 && (
@@ -2347,487 +2250,488 @@ export function TheDock({
                 </div>
               )}
 
-              {/* Chevron */}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" strokeLinecap="round" className="shrink-0">
-                <polyline points={exploreSnap === "peek" ? "6 9 12 15 18 9" : "6 15 12 9 18 15"} />
-              </svg>
-            </button>
-
-            {/* Scrollable content (half + full) */}
-            {exploreSnap !== "peek" && (
-              <div
-                ref={scrollRef}
-                className="flex-1 overflow-y-auto overscroll-contain"
-                style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
-              >
-                {/* Tag filters */}
-                {tags.length > 0 && (
-                  <div className="mb-4">
-                    <div className="flex gap-1.5 overflow-x-auto px-4 pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
-                      {activeTag && (
-                        <button
-                          onClick={() => onTagSelect(null)}
-                          className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
-                          style={{ backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.12)" }}
-                        >
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-                          All
-                        </button>
-                      )}
-                      {tags.map((tag) => {
-                        const isActive = activeTag?.id === tag.id;
-                        return (
-                          <button
-                            key={tag.id}
-                            onClick={() => onTagSelect(isActive ? null : tag)}
-                            className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
-                            style={{
-                              backgroundColor: isActive ? `${tag.color}20` : "rgba(255,255,255,0.04)",
-                              color: isActive ? tag.color : "rgba(255,255,255,0.45)",
-                              border: `1px solid ${isActive ? `${tag.color}40` : "rgba(255,255,255,0.06)"}`,
-                            }}
-                          >
-                            {(tag.type === "venue" || tag.type === "vibe") && <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: tag.color }} />}
-                            {tag.label}
-                            {tag.venueIds.length > 1 && <span style={{ opacity: 0.5 }}>{tag.venueIds.length}</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Offerings by category ── */}
-                {exploreOfferings.length > 0 && (() => {
-                  const OFFER_CATEGORIES: { key: string; label: string; types: string[]; icon: string }[] = [
-                    { key: "food", label: "FOOD & DRINKS", types: ["product"], icon: "M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3" },
-                    { key: "events", label: "EVENTS", types: ["event"], icon: "M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" },
-                    { key: "services", label: "SERVICES", types: ["service"], icon: "M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2M12 8v4l3 3" },
-                    { key: "reserve", label: "RESERVATIONS", types: ["reservation"], icon: "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" },
-                    { key: "membership", label: "MEMBERSHIPS", types: ["membership"], icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },
-                    { key: "shop", label: "SHOP", types: ["package", "custom"], icon: "M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" },
-                  ];
-
-                  return OFFER_CATEGORIES.map(({ key, label, types, icon }) => {
-                    const items = exploreOfferings.filter((o) => types.includes(o.type));
-                    if (items.length === 0) return null;
-
-                    return (
-                      <div key={key} className="mb-5">
-                        <div className="flex items-center justify-between px-5 pb-2.5">
-                          <div className="flex items-center gap-1.5">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
-                            <span className="font-sans text-[10px] font-semibold tracking-[2px] text-white/25">{label}</span>
-                          </div>
-                          <span className="font-sans text-[10px] text-white/15">{items.length}</span>
-                        </div>
-                        <div className="flex gap-2.5 overflow-x-auto px-5 pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory" }}>
-                          {items.map((item, i) => {
-                            const venue = venues.find((v) => v.id === item.venue_id);
-                            const color = venue?.themeColor || getVibeHexColor(venue?.vibe || "quiet");
-                            return (
-                              <motion.button
-                                key={item.id}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: Math.min(i * 0.03, 0.15) }}
-                                onClick={() => {
-                                  if (venue) {
-                                    handleExploreVenueTap(venue);
-                                    setTimeout(() => send(`Tell me about ${item.name}`), 300);
-                                  }
-                                }}
-                                className="flex shrink-0 flex-col overflow-hidden rounded-2xl text-left active:scale-[0.97]"
-                                style={{
-                                  width: 160, scrollSnapAlign: "start",
-                                  backgroundColor: "rgba(255,255,255,0.03)",
-                                  border: `1px solid ${color}15`,
-                                }}
-                              >
-                                {/* Image or gradient header */}
-                                <div className="relative h-20 w-full" style={{ background: item.image_url ? undefined : `linear-gradient(135deg, ${color}20 0%, ${color}06 100%)` }}>
-                                  {item.image_url ? (
-                                    <img src={item.image_url} alt="" className="h-full w-full object-cover" />
-                                  ) : (
-                                    <div className="flex h-full w-full items-center justify-center">
-                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={`${color}40`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
-                                    </div>
-                                  )}
-                                  {/* Price badge */}
-                                  <div className="absolute bottom-1.5 right-1.5 rounded-full px-1.5 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
-                                    <span className="font-mono text-[10px] font-bold" style={{ color }}>${(item.price_cents / 100).toFixed(item.price_cents % 100 === 0 ? 0 : 2)}</span>
-                                  </div>
-                                </div>
-                                {/* Info */}
-                                <div className="flex flex-col gap-0.5 px-2.5 py-2">
-                                  <span className="truncate font-sans text-[12px] font-semibold text-white/80">{item.name}</span>
-                                  {item.description && (
-                                    <span className="line-clamp-1 font-sans text-[9px] leading-[1.3] text-white/30">{item.description}</span>
-                                  )}
-                                  <span className="mt-0.5 truncate font-sans text-[9px] font-medium text-white/20">{venue?.name || "Venue"}</span>
-                                </div>
-                              </motion.button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-
-                {/* Venue shelves */}
-                {yourSpots.length > 0 && (
-                  <Shelf title="YOUR SPOTS">
-                    {yourSpots.map(({ venue, xp }, i) => (
-                      <LandscapeVenueCard key={venue.id} venue={venue} onClick={() => handleExploreVenueTap(venue)} delay={Math.min(i * 0.04, 0.2)} xp={xp} />
-                    ))}
-                  </Shelf>
-                )}
-
-                {recommended.length > 0 && (
-                  <Shelf title="RECOMMENDED" count={recommended.length}>
-                    {recommended.map((v, i) => (
-                      <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)} delay={Math.min(i * 0.04, 0.2)} />
-                    ))}
-                  </Shelf>
-                )}
-
-                {affordablePerks.length > 0 && (
-                  <Shelf title="PERKS" count={affordablePerks.length}>
-                    {affordablePerks.map((perk, i) => (
-                      <PerkBadge
-                        key={perk.id}
-                        perk={perk}
-                        venueName={venueNameMap.get(perk.venue_id) || "Venue"}
-                        canAfford={balance >= perk.point_cost}
-                        onClick={() => { const v = venues.find((v) => v.id === perk.venue_id); if (v) handleExploreVenueTap(v); }}
-                        delay={Math.min(i * 0.04, 0.2)}
-                      />
-                    ))}
-                  </Shelf>
-                )}
-
-                {happeningNow.length > 0 && (
-                  <Shelf title="HAPPENING NOW" count={happeningNow.length}>
-                    {happeningNow.map((v, i) => (
-                      <LandscapeVenueCard
-                        key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)}
-                        delay={Math.min(i * 0.04, 0.2)}
-                        xp={user?.venueProfiles.find((vp) => vp.venue_id === v.id)?.xp}
-                      />
-                    ))}
-                  </Shelf>
-                )}
-
-                {nearYou.length > 0 && (
-                  <Shelf title="NEAR YOU">
-                    {nearYou.map(({ venue, dist }, i) => (
-                      <LandscapeVenueCard key={venue.id} venue={venue} onClick={() => handleExploreVenueTap(venue)} delay={Math.min(i * 0.04, 0.2)} distance={dist} />
-                    ))}
-                  </Shelf>
-                )}
-
-                {quietSpots.length > 0 && (
-                  <Shelf title="GOOD FOR FOCUS">
-                    {quietSpots.map((v, i) => (
-                      <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)} delay={Math.min(i * 0.04, 0.2)} />
-                    ))}
-                  </Shelf>
-                )}
-
-                {/* Full-only sections */}
-                {exploreSnap === "full" && user && (
-                  <>
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between px-4 pb-2">
-                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">CONVERSATIONS</span>
-                      </div>
-                      <ThreadsList
-                        onThreadSelect={(venueId) => {
-                          if (venueId) {
-                            // Venue thread — open venue chat with history
-                            const venue = venues.find((v) => v.id === venueId);
-                            if (venue) handleExploreVenueTap(venue);
-                          } else {
-                            // Master/concierge thread — load history and switch to concierge
-                            loadThreadHistory(null).then((messages) => {
-                              if (messages && messages.length > 0) {
-                                setConciergeMessages(messages);
-                              }
-                            });
-                            setMode("concierge");
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div className="px-4">
-                      <PreferencesSection />
-                    </div>
-
-                    <div className="px-4 pb-6 pt-3">
-                      <button
-                        onClick={async () => {
-                          const supabase = createClient();
-                          await supabase.auth.signOut();
-                          window.location.reload();
-                        }}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
-                        style={{ border: "1px solid rgba(255,255,255,0.05)" }}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-                        </svg>
-                        Sign Out
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Input bar at bottom of explore */}
-            {exploreSnap !== "peek" && (
-              <div className="flex items-center gap-2 px-3 pb-2 pt-1">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && send()}
-                  onFocus={handleInputFocus}
-                  placeholder="Ask KickBack anything..."
-                  enterKeyHint="send"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
-                  style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
-                />
-                {input.trim() && (
-                  <motion.button
-                    onClick={() => send()}
-                    disabled={loading}
-                    whileTap={{ scale: 0.9 }}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
-                    style={{ backgroundColor: ACCENT, boxShadow: `0 2px 10px ${ACCENT}40` }}
-                  >
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
-                    </svg>
-                  </motion.button>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ═══ CONCIERGE MODE ═══ */}
-        {mode === "concierge" && (
-          <>
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <div className="flex items-center gap-2">
-                <motion.div
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: ACCENT }}
-                  animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                />
-                <span className="font-sans text-[15px] font-semibold text-white/90">KickBack</span>
-                <span className="font-sans text-[11px] text-white/30">Concierge</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {hasLocation && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onRecenter(); }}
-                    className="flex h-7 w-7 items-center justify-center rounded-full transition-transform active:scale-90"
-                    style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                    </svg>
-                  </button>
-                )}
-                <motion.button
-                  onClick={() => setMode("idle")}
-                  whileTap={{ scale: 0.85 }}
-                  className="flex h-7 w-7 items-center justify-center rounded-full"
-                  style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+              {/* Location */}
+              {hasLocation && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRecenter(); }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-50">
-                    <polyline points="18 15 12 9 6 15" />
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
                   </svg>
-                </motion.button>
-              </div>
+                </button>
+              )}
             </div>
+          )}
 
-            <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
-
-            {/* Messages */}
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto overscroll-contain px-4 py-3"
-              style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
-            >
-              <div className="flex flex-col gap-2.5">
-                {conciergeMessages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 10, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                    className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.sender === "guest" ? "rounded-br-sm" : "rounded-bl-sm"}`}
-                      style={msg.sender === "guest"
-                        ? { backgroundColor: ACCENT, color: "#000", boxShadow: `0 2px 12px ${ACCENT}33` }
-                        : { backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }
-                      }
-                    >
-                      <p className="font-sans text-[14px] leading-[1.5]">
-                        {msg.sender === "ai"
-                          ? parseVenueChips(venues, apiVenues, richVenues, msg.body, handleConciergeVenueTap)
-                          : msg.body}
-                      </p>
+          {/* ═══ VENUE CHAT COLLAPSED ═══ */}
+          {mode === "venueChat" && !venueChatExpanded && selectedVenue && (
+            <div className="flex h-full items-center gap-2 px-3">
+              <button onClick={() => setVenueChatSnap("expanded")} className="flex items-center gap-2 pl-1">
+                <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full" style={{ border: `1.5px solid ${vibeColor}40`, backgroundColor: `${vibeColor}15` }}>
+                  {selectedVenue.heroImage ? (
+                    <img src={selectedVenue.heroImage} alt="" className="h-full w-full object-cover" />
+                  ) : selectedVenue.logo ? (
+                    <img src={selectedVenue.logo} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <span className="font-sans text-[10px] font-bold" style={{ color: vibeColor }}>{selectedVenue.name.charAt(0)}</span>
                     </div>
-                  </motion.div>
-                ))}
-                {loading && <LoadingDots />}
-              </div>
-            </div>
+                  )}
+                </div>
+                <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-white/90">{selectedVenue.name}</span>
+              </button>
 
-            {/* Quick replies */}
-            {conciergeMessages.length <= 1 && (
-              <div className="flex gap-1.5 overflow-x-auto px-3 pb-1.5 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
-                {["What's open right now?", "Somewhere quiet to work", "Best spot for a date", "Where's the party?"].map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => send(q)}
-                    className="shrink-0 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
-                    style={{ backgroundColor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            )}
+              <PointsBadge venueId={selectedVenue.id} vibeColor={vibeColor} expanded={false} />
 
-            {/* Input bar */}
-            <div className="flex items-center gap-2 px-3 pb-2 pt-1">
               <input
-                ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
+                onFocus={handleInputFocus}
                 placeholder="Ask anything..."
                 enterKeyHint="send"
                 autoComplete="off"
                 autoCorrect="off"
-                className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
-                style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
               />
+
               <motion.button
-                onClick={() => send()}
-                disabled={!input.trim() || loading}
+                onClick={handleKBBack}
                 whileTap={{ scale: 0.9 }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
-                style={{ backgroundColor: ACCENT, boxShadow: `0 2px 10px ${ACCENT}40` }}
+                className="flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5"
+                style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}
               >
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
                 </svg>
+                <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
               </motion.button>
             </div>
-          </>
-        )}
+          )}
 
-        {/* ═══ VENUE CHAT EXPANDED ═══ */}
-        {mode === "venueChat" && venueChatExpanded && selectedVenue && !showVenueContact && (
-          <>
-            {/* Header */}
-            <div className="px-4 pt-3 pb-1">
-              <div className="flex items-center justify-between">
+          {/* ═══ EXPLORE MODE ═══ */}
+          {mode === "explore" && (
+            <>
+              {/* Drag handle */}
+              <div className="flex shrink-0 justify-center pt-2 pb-1">
+                <div className="h-1 w-8 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+              </div>
+
+              {/* Profile strip (peek row) */}
+              <button
+                onClick={() => {
+                  if (exploreSnap === "peek") setExploreSnap("half");
+                  else if (exploreSnap === "half") setExploreSnap("peek");
+                  else setExploreSnap("half");
+                }}
+                className="flex shrink-0 items-center gap-3 px-4 pb-2"
+              >
+                {/* Avatar */}
                 <button
-                  onClick={() => setShowVenueContact(true)}
-                  className="flex items-center gap-2.5 active:opacity-70"
+                  onClick={(e) => { e.stopPropagation(); handleAvatarTap(); }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`,
+                    border: `2px solid ${tierColor}40`,
+                  }}
                 >
-                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full" style={{ border: `2px solid ${vibeColor}40`, backgroundColor: `${vibeColor}15` }}>
-                    {selectedVenue.heroImage ? (
-                      <img src={selectedVenue.heroImage} alt="" className="h-full w-full object-cover" />
-                    ) : selectedVenue.logo ? (
-                      <img src={selectedVenue.logo} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <span className="font-sans text-[12px] font-bold" style={{ color: vibeColor }}>{selectedVenue.name.charAt(0)}</span>
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full border border-black" style={{ backgroundColor: vibeColor }} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-sans text-[14px] font-semibold text-white/90 leading-tight">{selectedVenue.name}</span>
-                    <span className="font-sans text-[9px] text-white/30">{selectedVenue.neighborhood || "Tap for info"}</span>
-                  </div>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
-                </button>
-                <div className="flex items-center gap-1.5">
-                  <motion.button
-                    onClick={handleKBBack}
-                    whileTap={{ scale: 0.9 }}
-                    className="flex h-7 items-center gap-1.5 rounded-full px-2.5"
-                    style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="15 18 9 12 15 6" />
+                  {user ? (
+                    <span className="font-sans text-[16px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
                     </svg>
-                    <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
-                  </motion.button>
-                  {/* Clear thread */}
-                  {currentVenueMessages.length > 1 && (
+                  )}
+                </button>
+
+                {/* Tier badge + XP bar */}
+                {user && (
+                  <div className="flex flex-1 items-center gap-2">
+                    <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
+                      {TIER_CONFIG[user.tier]?.label || "Explorer"}
+                    </span>
+                    <div className="relative h-1.5 max-w-[100px] flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${TIER_CONFIG[user.tier]?.next ? Math.min((user.kickbackScore / TIER_CONFIG[user.tier].threshold) * 100, 100) : 100}%`, backgroundColor: tierColor, boxShadow: `0 0 6px ${tierColor}40` }} />
+                    </div>
+                    <span className="font-mono text-[10px] font-bold" style={{ color: tierColor }}>{user.kickbackScore.toLocaleString()}</span>
+                  </div>
+                )}
+
+                {/* Streak */}
+                {user && user.streak > 0 && (
+                  <div className="flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(249,115,22,0.08)" }}>
+                    <span className="text-[10px]">&#x1f525;</span>
+                    <span className="font-mono text-[10px] font-bold text-orange">{user.streak}</span>
+                  </div>
+                )}
+
+                {/* Thread count */}
+                {threadInfo.count > 0 && (
+                  <div className="relative flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(167,139,250,0.08)" }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span className="font-mono text-[10px] font-bold text-[#a78bfa]">{threadInfo.count}</span>
+                    {threadInfo.unread > 0 && <div className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-orange" />}
+                  </div>
+                )}
+
+                {/* Chevron */}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" strokeLinecap="round" className="shrink-0">
+                  <polyline points={exploreSnap === "peek" ? "6 9 12 15 18 9" : "6 15 12 9 18 15"} />
+                </svg>
+              </button>
+
+              {/* Scrollable content (half + full) */}
+              {exploreSnap !== "peek" && (
+                <div
+                  ref={scrollRef}
+                  className="flex-1 overflow-y-auto overscroll-contain"
+                  style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+                >
+                  {/* Tag filters */}
+                  {tags.length > 0 && (
+                    <div className="mb-4">
+                      <div className="flex gap-1.5 overflow-x-auto px-4 pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                        {activeTag && (
+                          <button
+                            onClick={() => onTagSelect(null)}
+                            className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                            style={{ backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.12)" }}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                            All
+                          </button>
+                        )}
+                        {tags.map((tag) => {
+                          const isActive = activeTag?.id === tag.id;
+                          return (
+                            <button
+                              key={tag.id}
+                              onClick={() => onTagSelect(isActive ? null : tag)}
+                              className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                              style={{
+                                backgroundColor: isActive ? `${tag.color}20` : "rgba(255,255,255,0.04)",
+                                color: isActive ? tag.color : "rgba(255,255,255,0.45)",
+                                border: `1px solid ${isActive ? `${tag.color}40` : "rgba(255,255,255,0.06)"}`,
+                              }}
+                            >
+                              {(tag.type === "venue" || tag.type === "vibe") && <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: tag.color }} />}
+                              {tag.label}
+                              {tag.venueIds.length > 1 && <span style={{ opacity: 0.5 }}>{tag.venueIds.length}</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Offerings by category ── */}
+                  {exploreOfferings.length > 0 && (() => {
+                    const OFFER_CATEGORIES: { key: string; label: string; types: string[]; icon: string }[] = [
+                      { key: "food", label: "FOOD & DRINKS", types: ["product"], icon: "M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2M7 2v20M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3" },
+                      { key: "events", label: "EVENTS", types: ["event"], icon: "M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" },
+                      { key: "services", label: "SERVICES", types: ["service"], icon: "M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2M12 8v4l3 3" },
+                      { key: "reserve", label: "RESERVATIONS", types: ["reservation"], icon: "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" },
+                      { key: "membership", label: "MEMBERSHIPS", types: ["membership"], icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },
+                      { key: "shop", label: "SHOP", types: ["package", "custom"], icon: "M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" },
+                    ];
+
+                    return OFFER_CATEGORIES.map(({ key, label, types, icon }) => {
+                      const items = exploreOfferings.filter((o) => types.includes(o.type));
+                      if (items.length === 0) return null;
+
+                      return (
+                        <div key={key} className="mb-5">
+                          <div className="flex items-center justify-between px-5 pb-2.5">
+                            <div className="flex items-center gap-1.5">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
+                              <span className="font-sans text-[10px] font-semibold tracking-[2px] text-white/25">{label}</span>
+                            </div>
+                            <span className="font-sans text-[10px] text-white/15">{items.length}</span>
+                          </div>
+                          <div className="flex gap-2.5 overflow-x-auto px-5 pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory" }}>
+                            {items.map((item, i) => {
+                              const venue = venues.find((v) => v.id === item.venue_id);
+                              const color = venue?.themeColor || getVibeHexColor(venue?.vibe || "quiet");
+                              return (
+                                <motion.button
+                                  key={item.id}
+                                  initial={{ opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: Math.min(i * 0.03, 0.15) }}
+                                  onClick={() => {
+                                    if (venue) {
+                                      handleExploreVenueTap(venue);
+                                      setTimeout(() => send(`Tell me about ${item.name}`), 300);
+                                    }
+                                  }}
+                                  className="flex shrink-0 flex-col overflow-hidden rounded-2xl text-left active:scale-[0.97]"
+                                  style={{
+                                    width: 160, scrollSnapAlign: "start",
+                                    backgroundColor: "rgba(255,255,255,0.03)",
+                                    border: `1px solid ${color}15`,
+                                  }}
+                                >
+                                  {/* Image or gradient header */}
+                                  <div className="relative h-20 w-full" style={{ background: item.image_url ? undefined : `linear-gradient(135deg, ${color}20 0%, ${color}06 100%)` }}>
+                                    {item.image_url ? (
+                                      <img src={item.image_url} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                      <div className="flex h-full w-full items-center justify-center">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={`${color}40`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
+                                      </div>
+                                    )}
+                                    {/* Price badge */}
+                                    <div className="absolute bottom-1.5 right-1.5 rounded-full px-1.5 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+                                      <span className="font-mono text-[10px] font-bold" style={{ color }}>${(item.price_cents / 100).toFixed(item.price_cents % 100 === 0 ? 0 : 2)}</span>
+                                    </div>
+                                  </div>
+                                  {/* Info */}
+                                  <div className="flex flex-col gap-0.5 px-2.5 py-2">
+                                    <span className="truncate font-sans text-[12px] font-semibold text-white/80">{item.name}</span>
+                                    {item.description && (
+                                      <span className="line-clamp-1 font-sans text-[9px] leading-[1.3] text-white/30">{item.description}</span>
+                                    )}
+                                    <span className="mt-0.5 truncate font-sans text-[9px] font-medium text-white/20">{venue?.name || "Venue"}</span>
+                                  </div>
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+
+                  {/* Venue shelves */}
+                  {yourSpots.length > 0 && (
+                    <Shelf title="YOUR SPOTS">
+                      {yourSpots.map(({ venue, xp }, i) => (
+                        <LandscapeVenueCard key={venue.id} venue={venue} onClick={() => handleExploreVenueTap(venue)} delay={Math.min(i * 0.04, 0.2)} xp={xp} />
+                      ))}
+                    </Shelf>
+                  )}
+
+                  {recommended.length > 0 && (
+                    <Shelf title="RECOMMENDED" count={recommended.length}>
+                      {recommended.map((v, i) => (
+                        <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)} delay={Math.min(i * 0.04, 0.2)} />
+                      ))}
+                    </Shelf>
+                  )}
+
+                  {affordablePerks.length > 0 && (
+                    <Shelf title="PERKS YOU CAN CLAIM" count={affordablePerks.length}>
+                      {affordablePerks.map((perk, i) => (
+                        <PerkBadge
+                          key={perk.id}
+                          perk={perk}
+                          venueName={venueNameMap.get(perk.venue_id) || "Venue"}
+                          canAfford={balance >= perk.point_cost}
+                          onClick={() => {
+                            const v = venues.find((v) => v.id === perk.venue_id);
+                            if (v) {
+                              handleExploreVenueTap(v);
+                              setTimeout(() => send(`Tell me about the ${perk.name} perk`), 300);
+                            }
+                          }}
+                          delay={Math.min(i * 0.04, 0.2)}
+                        />
+                      ))}
+                    </Shelf>
+                  )}
+
+                  {exploreDigitalAssets.length > 0 && (
+                    <Shelf title="COLLECTIBLES" count={exploreDigitalAssets.length}>
+                      {exploreDigitalAssets.map((asset, i) => {
+                        const assetEmoji = asset.asset_type === "sticker" ? "\u{1F3F7}\uFE0F" : asset.asset_type === "badge" ? "\u{1F3C5}" : "\u{1F4CC}";
+                        const assetColor = asset.asset_type === "sticker" ? "#4ADE80" : asset.asset_type === "badge" ? "#F97316" : "#A78BFA";
+                        const priceLabel = asset.xp_cost ? `${asset.xp_cost} XP` : asset.cash_price_cents ? `$${(asset.cash_price_cents / 100).toFixed(2)}` : "Free";
+                        return (
+                          <motion.button
+                            key={asset.id}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 300, delay: Math.min(i * 0.04, 0.2) }}
+                            whileTap={{ scale: 0.93 }}
+                            onClick={() => {
+                              const v = venues.find((v) => v.id === asset.venue_id);
+                              if (v) {
+                                handleExploreVenueTap(v);
+                                setTimeout(() => send(`I want the ${asset.name} ${asset.asset_type}`), 300);
+                              }
+                            }}
+                            className="flex shrink-0 flex-col items-center"
+                            style={{ width: 80, scrollSnapAlign: "start" }}
+                          >
+                            <div
+                              className="flex h-[72px] w-[72px] items-center justify-center rounded-full"
+                              style={{
+                                background: `linear-gradient(135deg, ${assetColor}20, ${assetColor}08)`,
+                                border: `2px solid ${assetColor}30`,
+                                boxShadow: `0 0 16px ${assetColor}15`,
+                              }}
+                            >
+                              <span className="text-[28px]">{assetEmoji}</span>
+                            </div>
+                            <p className="mt-1.5 w-full truncate text-center font-sans text-[9px] font-medium text-white/40">{venueNameMap.get(asset.venue_id) || "Venue"}</p>
+                            <span className="rounded-full px-2 py-0.5 font-mono text-[9px] font-bold" style={{ backgroundColor: `${assetColor}15`, color: assetColor, border: `1px solid ${assetColor}25` }}>
+                              {priceLabel}
+                            </span>
+                            {asset.is_animated && <span className="mt-0.5 font-sans text-[7px] text-white/15">{"\u2728"} animated</span>}
+                          </motion.button>
+                        );
+                      })}
+                    </Shelf>
+                  )}
+
+                  {happeningNow.length > 0 && (
+                    <Shelf title="HAPPENING NOW" count={happeningNow.length}>
+                      {happeningNow.map((v, i) => (
+                        <LandscapeVenueCard
+                          key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)}
+                          delay={Math.min(i * 0.04, 0.2)}
+                          xp={user?.venueProfiles.find((vp) => vp.venue_id === v.id)?.xp}
+                        />
+                      ))}
+                    </Shelf>
+                  )}
+
+                  {nearYou.length > 0 && (
+                    <Shelf title="NEAR YOU">
+                      {nearYou.map(({ venue, dist }, i) => (
+                        <LandscapeVenueCard key={venue.id} venue={venue} onClick={() => handleExploreVenueTap(venue)} delay={Math.min(i * 0.04, 0.2)} distance={dist} />
+                      ))}
+                    </Shelf>
+                  )}
+
+                  {quietSpots.length > 0 && (
+                    <Shelf title="GOOD FOR FOCUS">
+                      {quietSpots.map((v, i) => (
+                        <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)} delay={Math.min(i * 0.04, 0.2)} />
+                      ))}
+                    </Shelf>
+                  )}
+
+                  {/* Full-only sections */}
+                  {exploreSnap === "full" && user && (
+                    <>
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between px-4 pb-2">
+                          <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">CONVERSATIONS</span>
+                        </div>
+                        <ThreadsList
+                          onThreadSelect={(venueId) => {
+                            if (venueId) {
+                              // Venue thread — open venue chat with history
+                              const venue = venues.find((v) => v.id === venueId);
+                              if (venue) handleExploreVenueTap(venue);
+                            } else {
+                              // Master/concierge thread — load history and switch to concierge
+                              loadThreadHistory(null).then((messages) => {
+                                if (messages && messages.length > 0) {
+                                  setConciergeMessages(messages);
+                                }
+                              });
+                              setMode("concierge");
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <div className="px-4">
+                        <PreferencesSection />
+                      </div>
+
+                      <div className="px-4 pb-6 pt-3">
+                        <button
+                          onClick={async () => {
+                            const supabase = createClient();
+                            await supabase.auth.signOut();
+                            window.location.reload();
+                          }}
+                          className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
+                          style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                          </svg>
+                          Sign Out
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Input bar at bottom of explore */}
+              {exploreSnap !== "peek" && (
+                <div className="flex items-center gap-2 px-3 pb-2 pt-1">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && send()}
+                    onFocus={handleInputFocus}
+                    placeholder="Ask KickBack anything..."
+                    enterKeyHint="send"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                    style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  />
+                  {input.trim() && (
                     <motion.button
-                      onClick={() => {
-                        if (!selectedVenue) return;
-                        const welcomeBody = selectedVenue.claimed === false
-                          ? `Hey — I know a bit about ${selectedVenue.name} from public info. Ask me what you want to know.`
-                          : `Welcome to ${selectedVenue.name}. ${getVibeLabel(selectedVenue.vibe)} right now, ${selectedVenue.occupancy} people. Ask me anything.`;
-                        setVenueThreads((prev) => {
-                          const next = new Map(prev);
-                          next.set(selectedVenue.id, [{ id: `welcome-${Date.now()}`, sender: "ai", body: welcomeBody, timestamp: Date.now() }]);
-                          return next;
-                        });
-                      }}
-                      whileTap={{ scale: 0.85 }}
-                      className="flex h-7 w-7 items-center justify-center rounded-full"
-                      style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-                      title="Start over"
+                      onClick={() => send()}
+                      disabled={loading}
+                      whileTap={{ scale: 0.9 }}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+                      style={{ backgroundColor: ACCENT, boxShadow: `0 2px 10px ${ACCENT}40` }}
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="1 4 1 10 7 10" />
-                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
                       </svg>
                     </motion.button>
                   )}
-                  {/* Expand to full / collapse from full */}
-                  <motion.button
-                    onClick={() => setVenueChatSnap(venueChatSnap === "full" ? "expanded" : "full")}
-                    whileTap={{ scale: 0.85 }}
-                    className="flex h-7 w-7 items-center justify-center rounded-full"
-                    style={{ backgroundColor: venueChatSnap === "full" ? `${vibeColor}15` : "rgba(255,255,255,0.08)" }}
-                  >
-                    {venueChatSnap === "full" ? (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
-                        <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ═══ CONCIERGE MODE ═══ */}
+          {mode === "concierge" && (
+            <>
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                <div className="flex items-center gap-2">
+                  <motion.div
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: ACCENT }}
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                  />
+                  <span className="font-sans text-[15px] font-semibold text-white/90">KickBack</span>
+                  <span className="font-sans text-[11px] text-white/30">Concierge</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {hasLocation && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onRecenter(); }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full transition-transform active:scale-90"
+                      style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
                       </svg>
-                    ) : (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-40">
-                        <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-                      </svg>
-                    )}
-                  </motion.button>
-                  {/* Collapse to pill */}
+                    </button>
+                  )}
                   <motion.button
-                    onClick={() => setVenueChatSnap("collapsed")}
+                    onClick={() => setMode("idle")}
                     whileTap={{ scale: 0.85 }}
                     className="flex h-7 w-7 items-center justify-center rounded-full"
                     style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
@@ -2839,765 +2743,1006 @@ export function TheDock({
                 </div>
               </div>
 
-              {/* Stats strip */}
-              <div className="mt-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                <div className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: `${vibeColor}15`, border: `1px solid ${vibeColor}20` }}>
-                  <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor }} />
-                  <span className="font-sans text-[9px] font-semibold" style={{ color: vibeColor }}>{getVibeLabel(selectedVenue.vibe)}</span>
-                </div>
-                {selectedVenue.occupancy > 0 && (
-                  <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/[0.04] px-2 py-0.5" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-                    </svg>
-                    <span className="font-mono text-[9px] font-semibold text-white/40">{selectedVenue.occupancy} in</span>
-                  </div>
-                )}
-                {selectedVenue.category && selectedVenue.category !== "venue" && (
-                  <span className="shrink-0 rounded-full bg-white/[0.04] px-2 py-0.5 font-sans text-[8px] font-medium capitalize text-white/25" style={{ border: "1px solid rgba(255,255,255,0.04)" }}>{selectedVenue.category}</span>
-                )}
-                {selectedVenue.neighborhood && <span className="shrink-0 font-sans text-[9px] text-white/20">{selectedVenue.neighborhood}</span>}
-                {selectedVenue.hours && (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    <span className="font-sans text-[8px] text-white/15">{selectedVenue.hours.split(",")[0]}</span>
-                  </div>
-                )}
-                {walletStatus?.active && (
-                  <div className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(99,91,255,0.1)", border: "1px solid rgba(99,91,255,0.2)" }}>
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#635bff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
-                    </svg>
-                    <span className="font-mono text-[9px] font-semibold" style={{ color: "#635bff" }}>${((walletStatus?.balanceCents || 0) / 100).toFixed(2)}</span>
-                  </div>
-                )}
-                {/* Navigate button */}
-                {hasLocation && selectedVenue.latitude !== 0 && (
-                  <button
-                    onClick={() => navInfo ? clearNav() : fetchDirections(navProfile)}
-                    disabled={navLoading}
-                    className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 active:scale-95"
-                    style={{
-                      backgroundColor: navInfo ? `${vibeColor}20` : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${navInfo ? `${vibeColor}30` : "rgba(255,255,255,0.06)"}`,
-                    }}
-                  >
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={navInfo ? vibeColor : "rgba(255,255,255,0.4)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="3 11 22 2 13 21 11 13 3 11" />
-                    </svg>
-                    <span className="font-sans text-[9px] font-semibold" style={{ color: navInfo ? vibeColor : "rgba(255,255,255,0.4)" }}>
-                      {navLoading ? "..." : navInfo ? `${Math.round(navInfo.duration / 60)} min` : "Navigate"}
-                    </span>
-                  </button>
-                )}
-              </div>
+              <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
 
-              {selectedVenue.tagline && (
-                <p className="mt-1 line-clamp-1 font-sans text-[10px] italic text-white/25">&ldquo;{selectedVenue.tagline}&rdquo;</p>
-              )}
-            </div>
-
-            {/* Navigation directions panel */}
-            <AnimatePresence>
-              {navInfo && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mx-4 mb-1 overflow-hidden rounded-xl"
-                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${vibeColor}15` }}
-                >
-                  {/* Profile toggle + summary */}
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      {/* Walking / Driving toggle */}
-                      <div className="flex rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                        <button
-                          onClick={() => fetchDirections("walking")}
-                          className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold transition"
-                          style={{
-                            backgroundColor: navProfile === "walking" ? `${vibeColor}20` : "transparent",
-                            color: navProfile === "walking" ? vibeColor : "rgba(255,255,255,0.35)",
-                          }}
-                        >
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="5" r="2" /><path d="M10 22V18L7 15V11L10 9L14 9L17 11V15L14 18V22" />
-                          </svg>
-                          Walk
-                        </button>
-                        <button
-                          onClick={() => fetchDirections("driving")}
-                          className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold transition"
-                          style={{
-                            backgroundColor: navProfile === "driving" ? `${vibeColor}20` : "transparent",
-                            color: navProfile === "driving" ? vibeColor : "rgba(255,255,255,0.35)",
-                          }}
-                        >
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M5 17h14M5 17a2 2 0 01-2-2V9a2 2 0 012-2h14a2 2 0 012 2v6a2 2 0 01-2 2M5 17l-1 3M19 17l1 3" />
-                          </svg>
-                          Drive
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[12px] font-bold" style={{ color: vibeColor }}>{Math.round(navInfo.duration / 60)} min</span>
-                        <span className="font-mono text-[10px] text-white/30">
-                          {navInfo.distance < 1000
-                            ? `${Math.round(navInfo.distance)} m`
-                            : `${(navInfo.distance / 1609).toFixed(1)} mi`
-                          }
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={openInMaps}
-                        className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold active:scale-95"
-                        style={{ backgroundColor: `${vibeColor}15`, color: vibeColor, border: `1px solid ${vibeColor}25` }}
-                      >
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-                        </svg>
-                        Open Maps
-                      </button>
-                      <button
-                        onClick={clearNav}
-                        className="flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-white/[0.08]"
-                      >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5" strokeLinecap="round">
-                          <path d="M18 6 6 18M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Step-by-step directions */}
-                  <div className="max-h-[120px] overflow-y-auto px-3 pb-2" style={{ WebkitOverflowScrolling: "touch" }}>
-                    {navInfo.steps.filter((s) => s.instruction).map((step, i) => (
-                      <div key={i} className="flex items-start gap-2 py-1" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.03)" : "none" }}>
-                        <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${vibeColor}15` }}>
-                          <span className="font-mono text-[7px] font-bold" style={{ color: vibeColor }}>{i + 1}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-sans text-[11px] leading-[1.4] text-white/60">{step.instruction}</p>
-                          <span className="font-mono text-[9px] text-white/20">
-                            {step.distance < 1000 ? `${Math.round(step.distance)} m` : `${(step.distance / 1609).toFixed(1)} mi`}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Points / Member Perks */}
-            <PointsBadge venueId={selectedVenue.id} vibeColor={vibeColor} expanded={true} />
-
-            <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
-
-            {/* Messages + Venue Profile */}
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto overscroll-contain px-4 py-3"
-              style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
-            >
-              <div className="flex flex-col gap-2.5">
-                {currentVenueMessages.map((msg) => {
-                  if (msg.sender === "guest") {
-                    return (
-                      <motion.div key={msg.id} initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-end">
-                        <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5" style={{ backgroundColor: vibeColor, color: "#000", boxShadow: `0 2px 12px ${vibeColor}33` }}>
-                          <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
-                        </div>
-                      </motion.div>
-                    );
-                  }
-
-                  if (msg.tab && msg.tab !== "chat") {
-                    // Phase 5: Inline tab responses — text bubble + compact strip below
-                    return (
-                      <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
-                        {msg.body && (
-                          <div className="flex justify-start">
-                            <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                              <AiMessageBody
-                                body={msg.body}
-                                theme={vibeColor}
-                                offeringsMap={offeringsMap[selectedVenue.id] || {}}
-                                onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
-                              />
-                            </div>
-                          </div>
-                        )}
-                        {/* Compact tab strip */}
-                        <div className="ml-1">
-                          <button
-                            onClick={() => handleTabTap(msg.tab!)}
-                            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[10px] font-medium active:scale-95"
-                            style={{ backgroundColor: `${vibeColor}12`, color: vibeColor, border: `1px solid ${vibeColor}25` }}
-                          >
-                            <TabIcon path={TABS.find((t) => t.id === msg.tab)?.icon || ""} size={10} />
-                            View full {msg.tab} details
-                          </button>
-                        </div>
-                      </motion.div>
-                    );
-                  }
-
-                  if (msg.checkout) {
-                    const subtotal = msg.checkout.items.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0);
-                    const hasWallet = walletStatus?.active && walletStatus.balanceCents > 0;
-                    const canUseWallet = hasWallet && walletStatus.balanceCents >= subtotal;
-                    const stripeFee = Math.round(subtotal * 0.029 + 30);
-                    const platformFee = Math.round(subtotal * 0.05);
-                    const cardTotal = subtotal + stripeFee + platformFee;
-
-                    return (
-                      <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
-                        {/* AI message text */}
-                        {msg.body && (
-                          <div className="flex justify-start">
-                            <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                              <AiMessageBody
-                                body={msg.body}
-                                theme={vibeColor}
-                                offeringsMap={offeringsMap[selectedVenue.id] || {}}
-                                onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Order summary */}
-                        <div className="w-full rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}15` }}>
-                          <div className="px-3.5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                              </svg>
-                              <span className="font-sans text-[13px] font-bold text-white/80">Order at {selectedVenue.name}</span>
-                            </div>
-                            {msg.checkout.items.map((item, i) => (
-                              <div key={i} className="flex items-center justify-between py-0.5">
-                                <span className="font-sans text-[12px] text-white/60">
-                                  {item.name}{item.quantity > 1 ? ` x${item.quantity}` : ""}
-                                </span>
-                                <span className="font-mono text-[12px] text-white/50">${((item.unit_price_cents * item.quantity) / 100).toFixed(2)}</span>
-                              </div>
-                            ))}
-                            <div className="flex items-center justify-between mt-1 pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                              <span className="font-sans text-[12px] font-semibold text-white/70">Subtotal</span>
-                              <span className="font-mono text-[13px] font-bold text-white/80">${(subtotal / 100).toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* ══ Compact payment buttons ══ */}
-                        <div className="flex gap-2 w-full">
-                          {/* AI Credit */}
-                          <button
-                            onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
-                            disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
-                            className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
-                            style={{ backgroundColor: canUseWallet ? "rgba(99,91,255,0.12)" : "rgba(99,91,255,0.05)", border: `1px solid ${canUseWallet ? "rgba(99,91,255,0.3)" : "rgba(99,91,255,0.1)"}` }}
-                          >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
-                            <span className="font-mono text-[14px] font-bold" style={{ color: "#a78bfa" }}>${(subtotal / 100).toFixed(2)}</span>
-                            <span className="font-sans text-[10px] font-semibold" style={{ color: "#a78bfa" }}>
-                              {passkey.verifying || paymentMode === "processing" ? "Verifying..." : "AI Credit"}
-                            </span>
-                            {walletStatus?.active && <span className="font-mono text-[9px] text-white/25">Bal: ${(walletStatus.balanceCents / 100).toFixed(2)}</span>}
-                            <span className="font-sans text-[8px]" style={{ color: "#4ade80" }}>No fees</span>
-                          </button>
-                          {/* Card */}
-                          <button
-                            onClick={() => handleCheckoutConfirm(msg, [], 0, "card")}
-                            disabled={paymentMode === "processing" || passkey.verifying}
-                            className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
-                            style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-                          >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
-                            <span className="font-mono text-[14px] font-bold text-white/80">${(cardTotal / 100).toFixed(2)}</span>
-                            <span className="font-sans text-[10px] font-semibold text-white/50">
-                              {passkey.verifying || paymentMode === "processing" ? "Verifying..." : "Card"}
-                            </span>
-                            <span className="font-mono text-[8px] text-white/20">+${((stripeFee + platformFee) / 100).toFixed(2)} fees</span>
-                          </button>
-                        </div>
-
-                        {/* Cancel */}
-                        <button
-                          onClick={handleCheckoutDismiss}
-                          className="w-full rounded-xl py-2.5 font-sans text-[12px] font-medium text-white/30 transition hover:bg-white/[0.04]"
-                          style={{ border: "1px solid rgba(255,255,255,0.05)" }}
-                        >
-                          Cancel
-                        </button>
-                      </motion.div>
-                    );
-                  }
-
-                  return (
-                    <motion.div key={msg.id} initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                      <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                        <AiMessageBody
-                          body={msg.body}
-                          theme={vibeColor}
-                          offeringsMap={offeringsMap[selectedVenue.id] || {}}
-                          onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
-                        />
-                      </div>
-                    </motion.div>
-                  );
-                })}
-                {loading && <LoadingDots />}
-              </div>
-            </div>
-
-            {/* Cart pill */}
-            {cartCount > 0 && selectedVenue && (
-              <div className="px-3 pb-1">
-                <AnimatePresence>
-                  {cartExpanded && (
+              {/* Messages */}
+              <div
+                ref={scrollRef}
+                className="flex-1 overflow-y-auto overscroll-contain px-4 py-3"
+                style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+              >
+                <div className="flex flex-col gap-2.5">
+                  {conciergeMessages.map((msg) => (
                     <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="mb-1.5 overflow-hidden rounded-xl"
-                      style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                      className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
                     >
-                      <div className="flex flex-col gap-1 px-3 py-2">
-                        {currentCart.map((item) => (
-                          <div key={item.offeringId} className="flex items-center justify-between gap-2">
-                            <span className="min-w-0 flex-1 truncate font-sans text-[12px] text-white/70">{item.name}</span>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => removeFromCart(selectedVenue.id, item.offeringId)}
-                                className="flex h-5 w-5 items-center justify-center rounded-full active:scale-90"
-                                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
-                              >
-                                <span className="font-mono text-[11px] font-bold text-white/50">-</span>
-                              </button>
-                              <span className="w-4 text-center font-mono text-[11px] font-bold text-white/60">{item.quantity}</span>
-                              <button
-                                onClick={() => addToCart(selectedVenue.id, item.offeringId, item.name, item.priceCents)}
-                                className="flex h-5 w-5 items-center justify-center rounded-full active:scale-90"
-                                style={{ backgroundColor: `${vibeColor}20` }}
-                              >
-                                <span className="font-mono text-[11px] font-bold" style={{ color: vibeColor }}>+</span>
-                              </button>
-                              <span className="w-12 text-right font-mono text-[11px] font-semibold text-white/50">${((item.priceCents * item.quantity) / 100).toFixed(2)}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2 border-t px-3 py-2" style={{ borderColor: `${vibeColor}15` }}>
-                        <button
-                          onClick={() => clearCart(selectedVenue.id)}
-                          className="rounded-full px-2.5 py-1 font-sans text-[10px] font-medium text-white/30 active:scale-95"
-                          style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-                        >
-                          Clear
-                        </button>
-                        <div className="flex-1" />
-                        <button
-                          onClick={() => { setCartExpanded(false); send("__CHECKOUT__"); }}
-                          className="rounded-full px-4 py-1.5 font-sans text-[11px] font-bold text-black active:scale-95"
-                          style={{ backgroundColor: vibeColor }}
-                        >
-                          Checkout ${(cartTotal / 100).toFixed(2)}
-                        </button>
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.sender === "guest" ? "rounded-br-sm" : "rounded-bl-sm"}`}
+                        style={msg.sender === "guest"
+                          ? { backgroundColor: ACCENT, color: "#000", boxShadow: `0 2px 12px ${ACCENT}33` }
+                          : { backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }
+                        }
+                      >
+                        <p className="font-sans text-[14px] leading-[1.5]">
+                          {msg.sender === "ai"
+                            ? parseVenueChips(venues, apiVenues, richVenues, msg.body, handleConciergeVenueTap)
+                            : msg.body}
+                        </p>
                       </div>
                     </motion.div>
-                  )}
-                </AnimatePresence>
-                <button
-                  onClick={() => setCartExpanded(!cartExpanded)}
-                  className="flex w-full items-center justify-between rounded-full px-3 py-1.5 active:scale-[0.98]"
-                  style={{ backgroundColor: `${vibeColor}12`, border: `1px solid ${vibeColor}25` }}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                    </svg>
-                    <span className="font-sans text-[11px] font-semibold" style={{ color: vibeColor }}>{cartCount} {cartCount === 1 ? "item" : "items"}</span>
-                  </div>
-                  <span className="font-mono text-[12px] font-bold" style={{ color: vibeColor }}>${(cartTotal / 100).toFixed(2)}</span>
-                </button>
+                  ))}
+                  {loading && <LoadingDots />}
+                </div>
               </div>
-            )}
 
-            {/* Smart quick replies */}
-            {!loading && selectedVenue && (() => {
-              const replies = getVenueReplies();
-              if (replies.length === 0) return null;
-              return (
+              {/* Quick replies */}
+              {conciergeMessages.length <= 1 && (
                 <div className="flex gap-1.5 overflow-x-auto px-3 pb-1.5 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
-                  {replies.map((r) => (
+                  {["What's open right now?", "Somewhere quiet to work", "Best spot for a date", "Where's the party?"].map((q) => (
                     <button
-                      key={r.label}
-                      onClick={() => send(r.action)}
+                      key={q}
+                      onClick={() => send(q)}
                       className="shrink-0 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
-                      style={{ backgroundColor: `${vibeColor}08`, color: `${vibeColor}cc`, border: `1px solid ${vibeColor}20` }}
+                      style={{ backgroundColor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
                     >
-                      {r.label}
+                      {q}
                     </button>
                   ))}
                 </div>
-              );
-            })()}
+              )}
 
-            {/* Input bar */}
-            <div className="flex items-center gap-2 px-3 pb-2 pt-1">
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && send()}
-                placeholder="Ask anything..."
-                enterKeyHint="send"
-                autoComplete="off"
-                autoCorrect="off"
-                className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
-                style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
-              />
-              <motion.button
-                onClick={() => send()}
-                disabled={!input.trim() || loading}
-                whileTap={{ scale: 0.9 }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
-                style={{ backgroundColor: vibeColor, boxShadow: `0 2px 10px ${vibeColor}40` }}
-              >
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
-                </svg>
-              </motion.button>
-            </div>
-          </>
-        )}
-
-        {/* ═══ VENUE CONTACT PAGE ═══ */}
-        {mode === "venueChat" && venueChatExpanded && selectedVenue && showVenueContact && (
-          <VenueContact
-            venue={selectedVenue}
-            onClose={() => setShowVenueContact(false)}
-            onChat={() => setShowVenueContact(false)}
-          />
-        )}
-
-        {/* ═══ VENUE CHAT — UNCLAIMED (Ghost Agent) ═══ */}
-        {mode === "venueChat" && selectedVenue && selectedVenue.claimed === false && venueChatExpanded && (
-          <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Header */}
-            <div className="px-4 pt-3 pb-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#6b7280" }} />
-                  <span className="font-sans text-[15px] font-semibold text-white/90">{selectedVenue.name}</span>
-                  <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-sans text-[8px] font-semibold tracking-wider text-white/20">PUBLIC DATA</span>
-                </div>
-                <motion.button onClick={handleKBBack} whileTap={{ scale: 0.85 }} className="flex h-7 items-center gap-1.5 rounded-full px-2.5" style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-                  <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
+              {/* Input bar */}
+              <div className="flex items-center gap-2 px-3 pb-2 pt-1">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && send()}
+                  placeholder="Ask anything..."
+                  enterKeyHint="send"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                  style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                />
+                <motion.button
+                  onClick={() => send()}
+                  disabled={!input.trim() || loading}
+                  whileTap={{ scale: 0.9 }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+                  style={{ backgroundColor: ACCENT, boxShadow: `0 2px 10px ${ACCENT}40` }}
+                >
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
+                  </svg>
                 </motion.button>
               </div>
-              {/* Info row */}
-              <div className="mt-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                {selectedVenue.category && selectedVenue.category !== "venue" && (
-                  <span className="shrink-0 rounded-full bg-white/[0.04] px-2 py-0.5 font-sans text-[9px] capitalize text-white/25" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>{selectedVenue.category}</span>
-                )}
-                {selectedVenue.neighborhood && <span className="shrink-0 font-sans text-[9px] text-white/20">{selectedVenue.neighborhood}</span>}
-                {selectedVenue.tags?.slice(0, 3).map((tag) => (
-                  <span key={tag} className="shrink-0 font-sans text-[8px] text-white/15">{tag}</span>
-                ))}
-              </div>
-            </div>
+            </>
+          )}
 
-            <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.04)" }} />
-
-            {/* Messages */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
-              <div className="flex flex-col gap-2.5">
-                {currentVenueMessages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 10, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                    className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
+          {/* ═══ VENUE CHAT EXPANDED ═══ */}
+          {mode === "venueChat" && venueChatExpanded && selectedVenue && !showVenueContact && (
+            <>
+              {/* Header */}
+              <div className="px-4 pt-3 pb-1">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setShowVenueContact(true)}
+                    className="flex items-center gap-2.5 active:opacity-70"
                   >
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.sender === "guest" ? "rounded-br-sm" : "rounded-bl-sm"}`}
-                      style={msg.sender === "guest"
-                        ? { backgroundColor: "#6b7280", color: "#fff" }
-                        : { backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.04)" }
-                      }
+                    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full" style={{ border: `2px solid ${vibeColor}40`, backgroundColor: `${vibeColor}15` }}>
+                      {selectedVenue.heroImage ? (
+                        <img src={selectedVenue.heroImage} alt="" className="h-full w-full object-cover" />
+                      ) : selectedVenue.logo ? (
+                        <img src={selectedVenue.logo} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <span className="font-sans text-[12px] font-bold" style={{ color: vibeColor }}>{selectedVenue.name.charAt(0)}</span>
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full border border-black" style={{ backgroundColor: vibeColor }} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-sans text-[14px] font-semibold text-white/90 leading-tight">{selectedVenue.name}</span>
+                      <span className="font-sans text-[9px] text-white/30">{selectedVenue.neighborhood || "Tap for info"}</span>
+                    </div>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <motion.button
+                      onClick={handleKBBack}
+                      whileTap={{ scale: 0.9 }}
+                      className="flex h-7 items-center gap-1.5 rounded-full px-2.5"
+                      style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}
                     >
-                      <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                      <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
+                    </motion.button>
+                    {/* Clear thread */}
+                    {currentVenueMessages.length > 1 && (
+                      <motion.button
+                        onClick={() => {
+                          if (!selectedVenue) return;
+                          const welcomeBody = selectedVenue.claimed === false
+                            ? `Hey — I know a bit about ${selectedVenue.name} from public info. Ask me what you want to know.`
+                            : `Welcome to ${selectedVenue.name}. ${getVibeLabel(selectedVenue.vibe)} right now, ${selectedVenue.occupancy} people. Ask me anything.`;
+                          setVenueThreads((prev) => {
+                            const next = new Map(prev);
+                            next.set(selectedVenue.id, [{ id: `welcome-${Date.now()}`, sender: "ai", body: welcomeBody, timestamp: Date.now() }]);
+                            return next;
+                          });
+                        }}
+                        whileTap={{ scale: 0.85 }}
+                        className="flex h-7 w-7 items-center justify-center rounded-full"
+                        style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                        title="Start over"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="1 4 1 10 7 10" />
+                          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                        </svg>
+                      </motion.button>
+                    )}
+                    {/* Expand to full / collapse from full */}
+                    <motion.button
+                      onClick={() => setVenueChatSnap(venueChatSnap === "full" ? "expanded" : "full")}
+                      whileTap={{ scale: 0.85 }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full"
+                      style={{ backgroundColor: venueChatSnap === "full" ? `${vibeColor}15` : "rgba(255,255,255,0.08)" }}
+                    >
+                      {venueChatSnap === "full" ? (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
+                          <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-40">
+                          <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      )}
+                    </motion.button>
+                    {/* Collapse to pill */}
+                    <motion.button
+                      onClick={() => setVenueChatSnap("collapsed")}
+                      whileTap={{ scale: 0.85 }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full"
+                      style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-50">
+                        <polyline points="18 15 12 9 6 15" />
+                      </svg>
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Stats strip */}
+                <div className="mt-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                  <div className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: `${vibeColor}15`, border: `1px solid ${vibeColor}20` }}>
+                    <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor }} />
+                    <span className="font-sans text-[9px] font-semibold" style={{ color: vibeColor }}>{getVibeLabel(selectedVenue.vibe)}</span>
+                  </div>
+                  {selectedVenue.occupancy > 0 && (
+                    <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/[0.04] px-2 py-0.5" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                      </svg>
+                      <span className="font-mono text-[9px] font-semibold text-white/40">{selectedVenue.occupancy} in</span>
                     </div>
-                  </motion.div>
-                ))}
-                {loading && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                    <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                      <div className="flex gap-1.5">
-                        <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} />
-                        <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }} />
-                        <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }} />
+                  )}
+                  {selectedVenue.category && selectedVenue.category !== "venue" && (
+                    <span className="shrink-0 rounded-full bg-white/[0.04] px-2 py-0.5 font-sans text-[8px] font-medium capitalize text-white/25" style={{ border: "1px solid rgba(255,255,255,0.04)" }}>{selectedVenue.category}</span>
+                  )}
+                  {selectedVenue.neighborhood && <span className="shrink-0 font-sans text-[9px] text-white/20">{selectedVenue.neighborhood}</span>}
+                  {selectedVenue.hours && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                      </svg>
+                      <span className="font-sans text-[8px] text-white/15">{selectedVenue.hours.split(",")[0]}</span>
+                    </div>
+                  )}
+                  {walletStatus?.active && (
+                    <div className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(99,91,255,0.1)", border: "1px solid rgba(99,91,255,0.2)" }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#635bff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+                      </svg>
+                      <span className="font-mono text-[9px] font-semibold" style={{ color: "#635bff" }}>${((walletStatus?.balanceCents || 0) / 100).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {/* Navigate button */}
+                  {hasLocation && selectedVenue.latitude !== 0 && (
+                    <button
+                      onClick={() => navInfo ? clearNav() : fetchDirections(navProfile)}
+                      disabled={navLoading}
+                      className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 active:scale-95"
+                      style={{
+                        backgroundColor: navInfo ? `${vibeColor}20` : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${navInfo ? `${vibeColor}30` : "rgba(255,255,255,0.06)"}`,
+                      }}
+                    >
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={navInfo ? vibeColor : "rgba(255,255,255,0.4)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                      </svg>
+                      <span className="font-sans text-[9px] font-semibold" style={{ color: navInfo ? vibeColor : "rgba(255,255,255,0.4)" }}>
+                        {navLoading ? "..." : navInfo ? `${Math.round(navInfo.duration / 60)} min` : "Navigate"}
+                      </span>
+                    </button>
+                  )}
+                </div>
+
+                {selectedVenue.tagline && (
+                  <p className="mt-1 line-clamp-1 font-sans text-[10px] italic text-white/25">&ldquo;{selectedVenue.tagline}&rdquo;</p>
+                )}
+              </div>
+
+              {/* Navigation directions panel */}
+              <AnimatePresence>
+                {navInfo && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mx-4 mb-1 overflow-hidden rounded-xl"
+                    style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${vibeColor}15` }}
+                  >
+                    {/* Profile toggle + summary */}
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        {/* Walking / Driving toggle */}
+                        <div className="flex rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                          <button
+                            onClick={() => fetchDirections("walking")}
+                            className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold transition"
+                            style={{
+                              backgroundColor: navProfile === "walking" ? `${vibeColor}20` : "transparent",
+                              color: navProfile === "walking" ? vibeColor : "rgba(255,255,255,0.35)",
+                            }}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="5" r="2" /><path d="M10 22V18L7 15V11L10 9L14 9L17 11V15L14 18V22" />
+                            </svg>
+                            Walk
+                          </button>
+                          <button
+                            onClick={() => fetchDirections("driving")}
+                            className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold transition"
+                            style={{
+                              backgroundColor: navProfile === "driving" ? `${vibeColor}20` : "transparent",
+                              color: navProfile === "driving" ? vibeColor : "rgba(255,255,255,0.35)",
+                            }}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M5 17h14M5 17a2 2 0 01-2-2V9a2 2 0 012-2h14a2 2 0 012 2v6a2 2 0 01-2 2M5 17l-1 3M19 17l1 3" />
+                            </svg>
+                            Drive
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-[12px] font-bold" style={{ color: vibeColor }}>{Math.round(navInfo.duration / 60)} min</span>
+                          <span className="font-mono text-[10px] text-white/30">
+                            {navInfo.distance < 1000
+                              ? `${Math.round(navInfo.distance)} m`
+                              : `${(navInfo.distance / 1609).toFixed(1)} mi`
+                            }
+                          </span>
+                        </div>
                       </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={openInMaps}
+                          className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold active:scale-95"
+                          style={{ backgroundColor: `${vibeColor}15`, color: vibeColor, border: `1px solid ${vibeColor}25` }}
+                        >
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                          </svg>
+                          Open Maps
+                        </button>
+                        <button
+                          onClick={clearNav}
+                          className="flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-white/[0.08]"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5" strokeLinecap="round">
+                            <path d="M18 6 6 18M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Step-by-step directions */}
+                    <div className="max-h-[120px] overflow-y-auto px-3 pb-2" style={{ WebkitOverflowScrolling: "touch" }}>
+                      {navInfo.steps.filter((s) => s.instruction).map((step, i) => (
+                        <div key={i} className="flex items-start gap-2 py-1" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.03)" : "none" }}>
+                          <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${vibeColor}15` }}>
+                            <span className="font-mono text-[7px] font-bold" style={{ color: vibeColor }}>{i + 1}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-sans text-[11px] leading-[1.4] text-white/60">{step.instruction}</p>
+                            <span className="font-mono text-[9px] text-white/20">
+                              {step.distance < 1000 ? `${Math.round(step.distance)} m` : `${(step.distance / 1609).toFixed(1)} mi`}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </motion.div>
                 )}
-              </div>
-            </div>
+              </AnimatePresence>
 
-            {/* Claim CTA — compact, below messages */}
-            <div className="mx-4 mb-2 rounded-xl px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.1)" }}>
-              <div className="flex items-center justify-between">
-                <span className="font-sans text-[10px] text-white/25">This venue hasn&apos;t claimed their page yet</span>
-                <a href="https://dash.thekickback.net" target="_blank" rel="noopener noreferrer" className="rounded-full px-2.5 py-1 font-sans text-[9px] font-bold text-black" style={{ backgroundColor: "#F97316" }}>
-                  Claim
-                </a>
-              </div>
-            </div>
+              {/* Points / Member Perks */}
+              <PointsBadge venueId={selectedVenue.id} vibeColor={vibeColor} expanded={true} />
 
-            {/* Input */}
-            <div className="flex items-center gap-2 px-3 pb-2 pt-1">
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && send()}
-                placeholder="Ask about this place..."
-                enterKeyHint="send"
-                autoComplete="off"
-                autoCorrect="off"
-                className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
-                style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.06)" }}
-              />
-              <motion.button onClick={() => send()} disabled={!input.trim() || loading} whileTap={{ scale: 0.9 }} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30" style={{ backgroundColor: "#6b7280" }}>
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
-                </svg>
-              </motion.button>
-            </div>
-          </div>
-        )}
+              <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
 
-        {/* ═══ PROFILE MODE ═══ */}
-        {mode === "profile" && (
-          <>
-            {/* Header with back arrow */}
-            <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-              <motion.button
-                onClick={handleProfileBack}
-                whileTap={{ scale: 0.85 }}
-                className="flex h-8 w-8 items-center justify-center rounded-full"
-                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+              {/* Messages + Venue Profile */}
+              <div
+                ref={scrollRef}
+                className="flex-1 overflow-y-auto overscroll-contain px-4 py-3"
+                style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-              </motion.button>
-              <span className="font-sans text-[15px] font-semibold text-white/90">Profile</span>
-            </div>
-
-            <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
-              {user && (
-                <div className="px-4 pb-4">
-                  {/* Identity */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`, border: `2px solid ${tierColor}40` }}>
-                      <span className="font-sans text-[20px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-sans text-[13px] font-semibold text-white/80">{user.email}</p>
-                      <div className="mt-0.5 flex items-center gap-2">
-                        <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
-                          {TIER_CONFIG[user.tier]?.label || "Explorer"}
-                        </span>
-                        {user.streak > 0 && (
-                          <span className="flex items-center gap-1 font-sans text-[10px] font-semibold text-orange">&#x1f525; {user.streak}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Biometric Security */}
-                  <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.06)" : "rgba(249,115,22,0.06)", border: `1px solid ${passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "rgba(249,115,22,0.15)"}` }}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={passkey.hasPasskey ? "#4ADE80" : "#F97316"} strokeWidth="2" strokeLinecap="round">
-                          <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                        </svg>
-                        <span className="font-sans text-[12px] font-semibold" style={{ color: passkey.hasPasskey ? "#4ADE80" : "rgba(255,255,255,0.6)" }}>
-                          {passkey.hasPasskey ? "Biometric enabled" : "Biometric not set up"}
-                        </span>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          const ok = await passkey.register();
-                          if (ok) {
-                            setDeviceRefreshKey((k) => k + 1);
-                            setVenueThreads((prev) => {
-                              const next = new Map(prev);
-                              const vid = selectedVenue?.id || "global";
-                              next.set(vid, [...(next.get(vid) || []), { id: `bio-ok-${Date.now()}`, sender: "ai", body: "Biometric registered on this device. Wallet payments are now enabled.", timestamp: Date.now() }]);
-                              return next;
-                            });
-                          }
-                        }}
-                        disabled={passkey.verifying}
-                        className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold active:scale-95 disabled:opacity-50"
-                        style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "#F97316", color: passkey.hasPasskey ? "#4ADE80" : "#000" }}
-                      >
-                        {passkey.verifying ? "Setting up..." : passkey.hasPasskey ? "Add this device" : "Enable"}
-                      </button>
-                    </div>
-                    <p className="mt-1.5 font-sans text-[9px] text-white/25">
-                      {passkey.hasPasskey ? "Wallet not working? Tap \"Add this device\" to register biometric here." : "Required for wallet purchases. Uses Face ID / Touch ID."}
-                    </p>
-                  </div>
-
-                  {/* KickBack Score */}
-                  <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">KICKBACK SCORE</span>
-                      <span className="font-mono text-[13px] font-bold" style={{ color: tierColor }}>
-                        {user.kickbackScore.toLocaleString()}
-                        {TIER_CONFIG[user.tier]?.next && <span className="font-normal text-white/20"> / {TIER_CONFIG[user.tier].threshold.toLocaleString()}</span>}
-                      </span>
-                    </div>
-                    <div className="relative h-2.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${TIER_CONFIG[user.tier]?.next ? Math.min((user.kickbackScore / TIER_CONFIG[user.tier].threshold) * 100, 100) : 100}%` }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="h-full rounded-full"
-                        style={{ background: `linear-gradient(90deg, ${tierColor}, ${tierColor}cc)`, boxShadow: `0 0 10px ${tierColor}40` }}
-                      />
-                    </div>
-                    {TIER_CONFIG[user.tier]?.next && (
-                      <p className="mt-1.5 font-sans text-[9px] text-white/20">{(TIER_CONFIG[user.tier].threshold - user.kickbackScore).toLocaleString()} XP to {TIER_CONFIG[user.tier].next}</p>
-                    )}
-                  </div>
-
-                  {/* KickBack Pass */}
-                  <a
-                    href={`https://thekickback.net/wallet/pass/${user.authId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 active:scale-[0.98]"
-                    style={{ background: `linear-gradient(135deg, ${tierColor}15, ${tierColor}05)`, border: `1px solid ${tierColor}25` }}
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${tierColor}20` }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={tierColor} strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-sans text-[13px] font-bold text-white/90">Get KickBack Pass</p>
-                      <p className="font-sans text-[9px] text-white/30">Add to Apple Wallet — your stats, tier, and balance</p>
-                    </div>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
-                  </a>
-
-                  {/* Memberships */}
-                  {memberships.length > 0 && (
-                    <div className="mt-3">
-                      <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MEMBERSHIPS</span>
-                      <div className="mt-1.5 flex flex-col gap-1.5">
-                        {memberships.map((m) => (
-                          <div key={m.venue_id} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
-                            <span className="text-[14px]">{"\u{1F451}"}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-sans text-[12px] font-semibold text-white/80">{m.venue_name}</p>
-                              <p className="font-sans text-[9px] text-white/30">{m.tier} · expires {new Date(m.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
-                            </div>
+                <div className="flex flex-col gap-2.5">
+                  {currentVenueMessages.map((msg) => {
+                    if (msg.sender === "guest") {
+                      return (
+                        <motion.div key={msg.id} initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-end">
+                          <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5" style={{ backgroundColor: vibeColor, color: "#000", boxShadow: `0 2px 12px ${vibeColor}33` }}>
+                            <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        </motion.div>
+                      );
+                    }
 
-                  {/* Available Perks */}
-                  {perks.length > 0 && (
-                    <div className="mt-3">
-                      <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">PERKS YOU CAN CLAIM</span>
-                      <div className="mt-1.5 flex gap-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
-                        {perks.slice(0, 8).map((p) => (
-                          <div key={p.id} className="flex shrink-0 flex-col items-center rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", width: 90 }}>
-                            <span className="font-sans text-[11px] font-semibold text-white/70 text-center leading-tight line-clamp-2">{p.name}</span>
-                            <span className="mt-1 font-mono text-[10px] font-bold text-orange">{p.point_cost} pts</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Venue badges */}
-                  {user.venueProfiles.length > 0 && (
-                    <div className="mt-3">
-                      <div className="mb-2 flex items-center justify-between px-1">
-                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">VENUES VISITED</span>
-                        <span className="font-mono text-[11px] font-bold text-white/40">{user.venueProfiles.length}</span>
-                      </div>
-                      <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
-                        {user.venueProfiles.slice(0, 12).map((vp) => {
-                          const milestoneColor = vp.venue_xp_milestones?.color || "#94a3b8";
-                          const venueName = vp.venues?.name || "Venue";
-                          return (
-                            <div key={vp.venue_id} className="flex shrink-0 flex-col items-center" style={{ width: 56 }}>
-                              <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${milestoneColor}20, ${milestoneColor}08)`, border: `2px solid ${milestoneColor}30` }}>
-                                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: milestoneColor, boxShadow: `0 0 6px ${milestoneColor}50` }} />
+                    if (msg.tab && msg.tab !== "chat") {
+                      // Phase 5: Inline tab responses — text bubble + compact strip below
+                      return (
+                        <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
+                          {msg.body && (
+                            <div className="flex justify-start">
+                              <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                <AiMessageBody
+                                  body={msg.body}
+                                  theme={vibeColor}
+                                  offeringsMap={offeringsMap[selectedVenue.id] || {}}
+                                  onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
+                                />
                               </div>
-                              <p className="mt-1 w-full truncate text-center font-sans text-[8px] font-medium text-white/40">{venueName}</p>
-                              <span className="font-mono text-[8px] font-bold" style={{ color: milestoneColor }}>{vp.xp}</span>
                             </div>
-                          );
-                        })}
-                      </div>
+                          )}
+                          {/* Compact tab strip */}
+                          <div className="ml-1">
+                            <button
+                              onClick={() => handleTabTap(msg.tab!)}
+                              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[10px] font-medium active:scale-95"
+                              style={{ backgroundColor: `${vibeColor}12`, color: vibeColor, border: `1px solid ${vibeColor}25` }}
+                            >
+                              <TabIcon path={TABS.find((t) => t.id === msg.tab)?.icon || ""} size={10} />
+                              View full {msg.tab} details
+                            </button>
+                          </div>
+                        </motion.div>
+                      );
+                    }
+
+                    if (msg.checkout) {
+                      const subtotal = msg.checkout.items.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0);
+                      const hasWallet = walletStatus?.active && walletStatus.balanceCents > 0;
+                      const canUseWallet = hasWallet && walletStatus.balanceCents >= subtotal;
+                      const stripeFee = Math.round(subtotal * 0.029 + 30);
+                      const platformFee = Math.round(subtotal * 0.05);
+                      const cardTotal = subtotal + stripeFee + platformFee;
+
+                      return (
+                        <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
+                          {/* AI message text */}
+                          {msg.body && (
+                            <div className="flex justify-start">
+                              <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                <AiMessageBody
+                                  body={msg.body}
+                                  theme={vibeColor}
+                                  offeringsMap={offeringsMap[selectedVenue.id] || {}}
+                                  onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Order summary */}
+                          <div className="w-full rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}15` }}>
+                            <div className="px-3.5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                                </svg>
+                                <span className="font-sans text-[13px] font-bold text-white/80">Order at {selectedVenue.name}</span>
+                              </div>
+                              {msg.checkout.items.map((item, i) => (
+                                <div key={i} className="flex items-center justify-between py-0.5">
+                                  <span className="font-sans text-[12px] text-white/60">
+                                    {item.name}{item.quantity > 1 ? ` x${item.quantity}` : ""}
+                                  </span>
+                                  <span className="font-mono text-[12px] text-white/50">${((item.unit_price_cents * item.quantity) / 100).toFixed(2)}</span>
+                                </div>
+                              ))}
+                              <div className="flex items-center justify-between mt-1 pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                                <span className="font-sans text-[12px] font-semibold text-white/70">Subtotal</span>
+                                <span className="font-mono text-[13px] font-bold text-white/80">${(subtotal / 100).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* ══ Compact payment buttons ══ */}
+                          <div className="flex gap-2 w-full">
+                            {/* AI Credit */}
+                            <button
+                              onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
+                              disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
+                              className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                              style={{ backgroundColor: canUseWallet ? "rgba(99,91,255,0.12)" : "rgba(99,91,255,0.05)", border: `1px solid ${canUseWallet ? "rgba(99,91,255,0.3)" : "rgba(99,91,255,0.1)"}` }}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
+                              <span className="font-mono text-[14px] font-bold" style={{ color: "#a78bfa" }}>${(subtotal / 100).toFixed(2)}</span>
+                              <span className="font-sans text-[10px] font-semibold" style={{ color: "#a78bfa" }}>
+                                {passkey.verifying || paymentMode === "processing" ? "Verifying..." : "AI Credit"}
+                              </span>
+                              {walletStatus?.active && <span className="font-mono text-[9px] text-white/25">Bal: ${(walletStatus.balanceCents / 100).toFixed(2)}</span>}
+                              <span className="font-sans text-[8px]" style={{ color: "#4ade80" }}>No fees</span>
+                            </button>
+                            {/* Card */}
+                            <button
+                              onClick={() => handleCheckoutConfirm(msg, [], 0, "card")}
+                              disabled={paymentMode === "processing" || passkey.verifying}
+                              className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                              style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
+                              <span className="font-mono text-[14px] font-bold text-white/80">${(cardTotal / 100).toFixed(2)}</span>
+                              <span className="font-sans text-[10px] font-semibold text-white/50">
+                                {passkey.verifying || paymentMode === "processing" ? "Verifying..." : "Card"}
+                              </span>
+                              <span className="font-mono text-[8px] text-white/20">+${((stripeFee + platformFee) / 100).toFixed(2)} fees</span>
+                            </button>
+                          </div>
+
+                          {/* Cancel */}
+                          <button
+                            onClick={handleCheckoutDismiss}
+                            className="w-full rounded-xl py-2.5 font-sans text-[12px] font-medium text-white/30 transition hover:bg-white/[0.04]"
+                            style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                          >
+                            Cancel
+                          </button>
+                        </motion.div>
+                      );
+                    }
+
+                    return (
+                      <motion.div key={msg.id} initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
+                        <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                          <AiMessageBody
+                            body={msg.body}
+                            theme={vibeColor}
+                            offeringsMap={offeringsMap[selectedVenue.id] || {}}
+                            onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
+                          />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                  {loading && <LoadingDots />}
+                </div>
+              </div>
+
+              {/* Cart pill */}
+              {cartCount > 0 && selectedVenue && (
+                <div className="px-3 pb-1">
+                  <AnimatePresence>
+                    {cartExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mb-1.5 overflow-hidden rounded-xl"
+                        style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}
+                      >
+                        <div className="flex flex-col gap-1 px-3 py-2">
+                          {currentCart.map((item) => (
+                            <div key={item.offeringId} className="flex items-center justify-between gap-2">
+                              <span className="min-w-0 flex-1 truncate font-sans text-[12px] text-white/70">{item.name}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => removeFromCart(selectedVenue.id, item.offeringId)}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full active:scale-90"
+                                  style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                                >
+                                  <span className="font-mono text-[11px] font-bold text-white/50">-</span>
+                                </button>
+                                <span className="w-4 text-center font-mono text-[11px] font-bold text-white/60">{item.quantity}</span>
+                                <button
+                                  onClick={() => addToCart(selectedVenue.id, item.offeringId, item.name, item.priceCents)}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full active:scale-90"
+                                  style={{ backgroundColor: `${vibeColor}20` }}
+                                >
+                                  <span className="font-mono text-[11px] font-bold" style={{ color: vibeColor }}>+</span>
+                                </button>
+                                <span className="w-12 text-right font-mono text-[11px] font-semibold text-white/50">${((item.priceCents * item.quantity) / 100).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2 border-t px-3 py-2" style={{ borderColor: `${vibeColor}15` }}>
+                          <button
+                            onClick={() => clearCart(selectedVenue.id)}
+                            className="rounded-full px-2.5 py-1 font-sans text-[10px] font-medium text-white/30 active:scale-95"
+                            style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+                          >
+                            Clear
+                          </button>
+                          <div className="flex-1" />
+                          <button
+                            onClick={() => { setCartExpanded(false); send("__CHECKOUT__"); }}
+                            className="rounded-full px-4 py-1.5 font-sans text-[11px] font-bold text-black active:scale-95"
+                            style={{ backgroundColor: vibeColor }}
+                          >
+                            Checkout ${(cartTotal / 100).toFixed(2)}
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <button
+                    onClick={() => setCartExpanded(!cartExpanded)}
+                    className="flex w-full items-center justify-between rounded-full px-3 py-1.5 active:scale-[0.98]"
+                    style={{ backgroundColor: `${vibeColor}12`, border: `1px solid ${vibeColor}25` }}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                      </svg>
+                      <span className="font-sans text-[11px] font-semibold" style={{ color: vibeColor }}>{cartCount} {cartCount === 1 ? "item" : "items"}</span>
                     </div>
-                  )}
+                    <span className="font-mono text-[12px] font-bold" style={{ color: vibeColor }}>${(cartTotal / 100).toFixed(2)}</span>
+                  </button>
                 </div>
               )}
 
-              {/* AI Wallet */}
-              <WalletSheet />
+              {/* Smart quick replies */}
+              {!loading && selectedVenue && (() => {
+                const replies = getVenueReplies();
+                if (replies.length === 0) return null;
+                return (
+                  <div className="flex gap-1.5 overflow-x-auto px-3 pb-1.5 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                    {replies.map((r) => (
+                      <button
+                        key={r.label}
+                        onClick={() => send(r.action)}
+                        className="shrink-0 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                        style={{ backgroundColor: `${vibeColor}08`, color: `${vibeColor}cc`, border: `1px solid ${vibeColor}20` }}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
 
-              {/* Device Management */}
-              <DeviceManager key={deviceRefreshKey} />
+              {/* Input bar */}
+              <div className="flex items-center gap-2 px-3 pb-2 pt-1">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && send()}
+                  placeholder="Ask anything..."
+                  enterKeyHint="send"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                  style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                />
+                <motion.button
+                  onClick={() => send()}
+                  disabled={!input.trim() || loading}
+                  whileTap={{ scale: 0.9 }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+                  style={{ backgroundColor: vibeColor, boxShadow: `0 2px 10px ${vibeColor}40` }}
+                >
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
+                  </svg>
+                </motion.button>
+              </div>
+            </>
+          )}
 
-              {/* Preferences */}
-              <div className="px-4">
-                <PreferencesSection />
+          {/* ═══ VENUE CONTACT PAGE ═══ */}
+          {mode === "venueChat" && venueChatExpanded && selectedVenue && showVenueContact && (
+            <VenueContact
+              venue={selectedVenue}
+              onClose={() => setShowVenueContact(false)}
+              onChat={() => setShowVenueContact(false)}
+            />
+          )}
+
+          {/* ═══ VENUE CHAT — UNCLAIMED (Ghost Agent) ═══ */}
+          {mode === "venueChat" && selectedVenue && selectedVenue.claimed === false && venueChatExpanded && (
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {/* Header */}
+              <div className="px-4 pt-3 pb-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#6b7280" }} />
+                    <span className="font-sans text-[15px] font-semibold text-white/90">{selectedVenue.name}</span>
+                    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-sans text-[8px] font-semibold tracking-wider text-white/20">PUBLIC DATA</span>
+                  </div>
+                  <motion.button onClick={handleKBBack} whileTap={{ scale: 0.85 }} className="flex h-7 items-center gap-1.5 rounded-full px-2.5" style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                    <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
+                  </motion.button>
+                </div>
+                {/* Info row */}
+                <div className="mt-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                  {selectedVenue.category && selectedVenue.category !== "venue" && (
+                    <span className="shrink-0 rounded-full bg-white/[0.04] px-2 py-0.5 font-sans text-[9px] capitalize text-white/25" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>{selectedVenue.category}</span>
+                  )}
+                  {selectedVenue.neighborhood && <span className="shrink-0 font-sans text-[9px] text-white/20">{selectedVenue.neighborhood}</span>}
+                  {selectedVenue.tags?.slice(0, 3).map((tag) => (
+                    <span key={tag} className="shrink-0 font-sans text-[8px] text-white/15">{tag}</span>
+                  ))}
+                </div>
               </div>
 
-              {/* Sign out */}
-              <div className="px-4 pb-6 pt-3">
-                <button
-                  onClick={async () => {
-                    const supabase = createClient();
-                    await supabase.auth.signOut();
-                    window.location.reload();
-                  }}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
-                  style={{ border: "1px solid rgba(255,255,255,0.05)" }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+              <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.04)" }} />
+
+              {/* Messages */}
+              <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
+                <div className="flex flex-col gap-2.5">
+                  {currentVenueMessages.map((msg) => (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                      className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.sender === "guest" ? "rounded-br-sm" : "rounded-bl-sm"}`}
+                        style={msg.sender === "guest"
+                          ? { backgroundColor: "#6b7280", color: "#fff" }
+                          : { backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.04)" }
+                        }
+                      >
+                        <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {loading && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                      <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div className="flex gap-1.5">
+                          <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} />
+                          <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }} />
+                          <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+
+              {/* Claim CTA — compact, below messages */}
+              <div className="mx-4 mb-2 rounded-xl px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.1)" }}>
+                <div className="flex items-center justify-between">
+                  <span className="font-sans text-[10px] text-white/25">This venue hasn&apos;t claimed their page yet</span>
+                  <a href="https://dash.thekickback.net" target="_blank" rel="noopener noreferrer" className="rounded-full px-2.5 py-1 font-sans text-[9px] font-bold text-black" style={{ backgroundColor: "#F97316" }}>
+                    Claim
+                  </a>
+                </div>
+              </div>
+
+              {/* Input */}
+              <div className="flex items-center gap-2 px-3 pb-2 pt-1">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && send()}
+                  placeholder="Ask about this place..."
+                  enterKeyHint="send"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                  style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.06)" }}
+                />
+                <motion.button onClick={() => send()} disabled={!input.trim() || loading} whileTap={{ scale: 0.9 }} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30" style={{ backgroundColor: "#6b7280" }}>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
                   </svg>
-                  Sign Out
-                </button>
+                </motion.button>
               </div>
             </div>
-          </>
-        )}
+          )}
+
+          {/* ═══ PROFILE MODE ═══ */}
+          {mode === "profile" && (
+            <>
+              {/* Header with back arrow */}
+              <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+                <motion.button
+                  onClick={handleProfileBack}
+                  whileTap={{ scale: 0.85 }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full"
+                  style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </motion.button>
+                <span className="font-sans text-[15px] font-semibold text-white/90">Profile</span>
+              </div>
+
+              <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
+                {user && (
+                  <div className="px-4 pb-4">
+                    {/* Identity */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`, border: `2px solid ${tierColor}40` }}>
+                        <span className="font-sans text-[20px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-sans text-[13px] font-semibold text-white/80">{user.email}</p>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
+                            {TIER_CONFIG[user.tier]?.label || "Explorer"}
+                          </span>
+                          {user.streak > 0 && (
+                            <span className="flex items-center gap-1 font-sans text-[10px] font-semibold text-orange">&#x1f525; {user.streak}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Biometric Security */}
+                    <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.06)" : "rgba(249,115,22,0.06)", border: `1px solid ${passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "rgba(249,115,22,0.15)"}` }}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={passkey.hasPasskey ? "#4ADE80" : "#F97316"} strokeWidth="2" strokeLinecap="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                          <span className="font-sans text-[12px] font-semibold" style={{ color: passkey.hasPasskey ? "#4ADE80" : "rgba(255,255,255,0.6)" }}>
+                            {passkey.hasPasskey ? "Biometric enabled" : "Biometric not set up"}
+                          </span>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            const ok = await passkey.register();
+                            if (ok) {
+                              setDeviceRefreshKey((k) => k + 1);
+                              setVenueThreads((prev) => {
+                                const next = new Map(prev);
+                                const vid = selectedVenue?.id || "global";
+                                next.set(vid, [...(next.get(vid) || []), { id: `bio-ok-${Date.now()}`, sender: "ai", body: "Biometric registered on this device. Wallet payments are now enabled.", timestamp: Date.now() }]);
+                                return next;
+                              });
+                            }
+                          }}
+                          disabled={passkey.verifying}
+                          className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold active:scale-95 disabled:opacity-50"
+                          style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "#F97316", color: passkey.hasPasskey ? "#4ADE80" : "#000" }}
+                        >
+                          {passkey.verifying ? "Setting up..." : passkey.hasPasskey ? "Add this device" : "Enable"}
+                        </button>
+                      </div>
+                      <p className="mt-1.5 font-sans text-[9px] text-white/25">
+                        {passkey.hasPasskey ? "Wallet not working? Tap \"Add this device\" to register biometric here." : "Required for wallet purchases. Uses Face ID / Touch ID."}
+                      </p>
+                    </div>
+
+                    {/* KickBack Score */}
+                    <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">KICKBACK SCORE</span>
+                        <span className="font-mono text-[13px] font-bold" style={{ color: tierColor }}>
+                          {user.kickbackScore.toLocaleString()}
+                          {TIER_CONFIG[user.tier]?.next && <span className="font-normal text-white/20"> / {TIER_CONFIG[user.tier].threshold.toLocaleString()}</span>}
+                        </span>
+                      </div>
+                      <div className="relative h-2.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${TIER_CONFIG[user.tier]?.next ? Math.min((user.kickbackScore / TIER_CONFIG[user.tier].threshold) * 100, 100) : 100}%` }}
+                          transition={{ duration: 0.8, ease: "easeOut" }}
+                          className="h-full rounded-full"
+                          style={{ background: `linear-gradient(90deg, ${tierColor}, ${tierColor}cc)`, boxShadow: `0 0 10px ${tierColor}40` }}
+                        />
+                      </div>
+                      {TIER_CONFIG[user.tier]?.next && (
+                        <p className="mt-1.5 font-sans text-[9px] text-white/20">{(TIER_CONFIG[user.tier].threshold - user.kickbackScore).toLocaleString()} XP to {TIER_CONFIG[user.tier].next}</p>
+                      )}
+                    </div>
+
+                    {/* KickBack Pass */}
+                    <a
+                      href={`https://thekickback.net/wallet/pass/${user.authId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 active:scale-[0.98]"
+                      style={{ background: `linear-gradient(135deg, ${tierColor}15, ${tierColor}05)`, border: `1px solid ${tierColor}25` }}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${tierColor}20` }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={tierColor} strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-sans text-[13px] font-bold text-white/90">Get KickBack Pass</p>
+                        <p className="font-sans text-[9px] text-white/30">Add to Apple Wallet — your stats, tier, and balance</p>
+                      </div>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+                    </a>
+
+                    {/* Memberships */}
+                    {memberships.length > 0 && (
+                      <div className="mt-3">
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MEMBERSHIPS</span>
+                        <div className="mt-1.5 flex flex-col gap-1.5">
+                          {memberships.map((m) => (
+                            <div key={m.venue_id} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
+                              <span className="text-[14px]">{"\u{1F451}"}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-sans text-[12px] font-semibold text-white/80">{m.venue_name}</p>
+                                <p className="font-sans text-[9px] text-white/30">{m.tier} · expires {new Date(m.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Available Perks */}
+                    {perks.length > 0 && (
+                      <div className="mt-3">
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">PERKS YOU CAN CLAIM</span>
+                        <div className="mt-1.5 flex gap-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                          {perks.slice(0, 8).map((p) => (
+                            <div key={p.id} className="flex shrink-0 flex-col items-center rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", width: 90 }}>
+                              <span className="font-sans text-[11px] font-semibold text-white/70 text-center leading-tight line-clamp-2">{p.name}</span>
+                              <span className="mt-1 font-mono text-[10px] font-bold text-orange">{p.point_cost} pts</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Venue badges */}
+                    {user.venueProfiles.length > 0 && (
+                      <div className="mt-3">
+                        <div className="mb-2 flex items-center justify-between px-1">
+                          <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">VENUES VISITED</span>
+                          <span className="font-mono text-[11px] font-bold text-white/40">{user.venueProfiles.length}</span>
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                          {user.venueProfiles.slice(0, 12).map((vp) => {
+                            const milestoneColor = vp.venue_xp_milestones?.color || "#94a3b8";
+                            const venueName = vp.venues?.name || "Venue";
+                            return (
+                              <div key={vp.venue_id} className="flex shrink-0 flex-col items-center" style={{ width: 56 }}>
+                                <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${milestoneColor}20, ${milestoneColor}08)`, border: `2px solid ${milestoneColor}30` }}>
+                                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: milestoneColor, boxShadow: `0 0 6px ${milestoneColor}50` }} />
+                                </div>
+                                <p className="mt-1 w-full truncate text-center font-sans text-[8px] font-medium text-white/40">{venueName}</p>
+                                <span className="font-mono text-[8px] font-bold" style={{ color: milestoneColor }}>{vp.xp}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* My Collectibles */}
+                    {myCollectibles.length > 0 && (() => {
+                      // Group by hub
+                      const groups = new Map<string, typeof myCollectibles>();
+                      for (const c of myCollectibles) {
+                        const key = c.hub_id || "network";
+                        if (!groups.has(key)) groups.set(key, []);
+                        groups.get(key)!.push(c);
+                      }
+                      return (
+                        <div className="mt-3">
+                          <div className="mb-2 flex items-center justify-between px-1">
+                            <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MY COLLECTIBLES</span>
+                            <span className="font-mono text-[11px] font-bold text-white/40">{myCollectibles.length}</span>
+                          </div>
+                          {Array.from(groups.entries()).map(([hubKey, items]) => {
+                            const hubName = items[0]?.hub_name || "Network";
+                            return (
+                              <div key={hubKey} className="mb-2">
+                                <p className="mb-1 px-1 font-sans text-[9px] font-semibold text-white/20">{hubName}</p>
+                                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                                  {items.map((c) => {
+                                    const emoji = c.asset_type === "sticker" ? "\u{1F3F7}\uFE0F" : c.asset_type === "badge" ? "\u{1F3C5}" : "\u{1F4CC}";
+                                    const color = c.asset_type === "sticker" ? "#4ADE80" : c.asset_type === "badge" ? "#F97316" : "#A78BFA";
+                                    return (
+                                      <button
+                                        key={c.unlock_id}
+                                        onClick={() => {
+                                          const v = venues.find((v) => v.id === c.hub_id);
+                                          if (v) {
+                                            onVenueSelect(v);
+                                            setTimeout(() => send(`Tell me about my ${c.name} ${c.asset_type}`), 300);
+                                          }
+                                        }}
+                                        className="flex shrink-0 flex-col items-center active:scale-95"
+                                        style={{ width: 64 }}
+                                      >
+                                        <div
+                                          className="flex h-12 w-12 items-center justify-center rounded-full"
+                                          style={{
+                                            background: `linear-gradient(135deg, ${color}20, ${color}08)`,
+                                            border: `2px solid ${color}30`,
+                                            boxShadow: `0 0 8px ${color}15`,
+                                          }}
+                                        >
+                                          <span className="text-[20px]">{emoji}</span>
+                                        </div>
+                                        <p className="mt-1 w-full truncate text-center font-sans text-[8px] font-medium text-white/40">{c.name}</p>
+                                        <span className="font-sans text-[7px] font-bold" style={{ color }}>
+                                          {c.asset_type === "3d_pin" ? "3D" : c.asset_type.toUpperCase()}
+                                        </span>
+                                        {c.is_animated && <span className="text-[6px] text-white/15">{"\u2728"}</span>}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* AI Wallet */}
+                <WalletSheet />
+
+                {/* Device Management */}
+                <DeviceManager key={deviceRefreshKey} />
+
+                {/* Preferences */}
+                <div className="px-4">
+                  <PreferencesSection />
+                </div>
+
+                {/* Sign out */}
+                <div className="px-4 pb-6 pt-3">
+                  <button
+                    onClick={async () => {
+                      const supabase = createClient();
+                      await supabase.auth.signOut();
+                      window.location.reload();
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
+                    style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </motion.div>
       </motion.div>
-    </motion.div>
     </>
   );
 }
