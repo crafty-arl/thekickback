@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, uploadOfferingImage, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate, updateAiLimits, getAiUsageStats, addDigitalAsset, toggleDigitalAsset, deleteDigitalAsset } from "./actions";
+import { updateVenue, updateVenuePage, addKnowledge, deleteKnowledge, addOffering, deleteOffering, toggleOffering, uploadOfferingImage, addXpAction, deleteXpAction, toggleXpAction, addXpMilestone, deleteXpMilestone, applyXpTemplate, saveCustomTemplate, deleteCustomTemplate, updateAiLimits, getAiUsageStats, addDigitalAsset, toggleDigitalAsset, deleteDigitalAsset, addMenuItem, toggleMenuItemStock, deleteMenuItem } from "./actions";
 import type { DigitalAsset } from "@/lib/dashboard";
 import { uploadGalleryImage, deleteGalleryImage, updateHeroImage, removeHeroImage } from "../../app/edit/gallery-actions";
 import { addStaffMember, updateStaffMember, deleteStaffMember, uploadStaffAvatar, toggleStaffVisibility } from "./staff-actions";
@@ -239,6 +239,7 @@ const SECTION_GROUPS = [
         sections: [
             { id: "hours", label: "Hours & Menu", icon: "◇" },
             { id: "offerings", label: "What You Sell", icon: "💰" },
+            { id: "menu_items", label: "Menu Items", icon: "🍽" },
             { id: "staff", label: "Your Team", icon: "👤" },
         ],
     },
@@ -489,11 +490,12 @@ interface Props {
     staffOfferingLinks: { staff_id: string; offering_id: string }[];
     aiLimits: { free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
     digitalAssets: DigitalAsset[];
+    menuItems?: { id: string; venue_id: string; category: string; name: string; description: string | null; price_cents: number; in_stock: boolean; inventory_count: number | null }[];
 }
 
 // ─── Main Component ──────────────────────────────────────────────
 
-export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [], staffOfferingLinks: initialLinks = [], aiLimits: initialAiLimits, digitalAssets }: Props) {
+export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [], staffOfferingLinks: initialLinks = [], aiLimits: initialAiLimits, digitalAssets, menuItems: initialMenuItems = [] }: Props) {
     const [activeSection, setActiveSection] = useState("general");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
@@ -530,6 +532,24 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [newStaffSpecialties, setNewStaffSpecialties] = useState("");
     const [addingStaff, setAddingStaff] = useState(false);
     const [staffMsg, setStaffMsg] = useState("");
+    const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+    const [editStaffName, setEditStaffName] = useState("");
+    const [editStaffTitle, setEditStaffTitle] = useState("");
+    const [editStaffBio, setEditStaffBio] = useState("");
+    const [editStaffSpecialties, setEditStaffSpecialties] = useState("");
+    const [editStaffSchedule, setEditStaffSchedule] = useState<{ day: string; working: boolean; start: string; end: string }[]>([]);
+    const [savingStaff, setSavingStaff] = useState(false);
+
+    // Menu items state
+    const [menuItemsList, setMenuItemsList] = useState(initialMenuItems);
+    const [showAddMenuItem, setShowAddMenuItem] = useState(false);
+    const [newMenuCategory, setNewMenuCategory] = useState("");
+    const [newMenuName, setNewMenuName] = useState("");
+    const [newMenuDesc, setNewMenuDesc] = useState("");
+    const [newMenuPrice, setNewMenuPrice] = useState("");
+    const [newMenuInventory, setNewMenuInventory] = useState("");
+    const [addingMenuItem, setAddingMenuItem] = useState(false);
+    const [menuMsg, setMenuMsg] = useState("");
 
     // Staff-offering links
     const [soLinks, setSoLinks] = useState(initialLinks);
@@ -1115,8 +1135,8 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
                             <div className="flex flex-col gap-3">
                                 {staffList.map((member) => (
+                                    <div key={member.id}>
                                     <div
-                                        key={member.id}
                                         className="group flex items-center gap-3 rounded-xl p-3"
                                         style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
                                     >
@@ -1176,6 +1196,31 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
                                         {/* Actions */}
                                         <div className="flex items-center gap-1.5 opacity-0 transition group-hover:opacity-100">
+                                            {/* Edit */}
+                                            <button
+                                                onClick={() => {
+                                                    const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+                                                    const existingSchedule = (member.schedule || []) as { day: string; start: string; end: string }[];
+                                                    setEditingStaffId(member.id);
+                                                    setEditStaffName(member.display_name);
+                                                    setEditStaffTitle(member.role_title || "");
+                                                    setEditStaffBio(member.bio || "");
+                                                    setEditStaffSpecialties((member.specialties || []).join(", "));
+                                                    setEditStaffSchedule(DAYS.map((day) => {
+                                                        const existing = existingSchedule.find((s) => s.day === day);
+                                                        return { day, working: !!existing, start: existing?.start || "9:00", end: existing?.end || "17:00" };
+                                                    }));
+                                                }}
+                                                className="flex h-7 w-7 items-center justify-center rounded-lg"
+                                                style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                                                title="Edit"
+                                            >
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2.5" strokeLinecap="round">
+                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                </svg>
+                                            </button>
+
                                             {/* Visibility toggle */}
                                             <button
                                                 onClick={async () => {
@@ -1212,6 +1257,108 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                                 </svg>
                                             </button>
                                         </div>
+                                    </div>
+
+                                    {/* Staff Edit Form (inline) */}
+                                    {editingStaffId === member.id && (
+                                        <div className="rounded-xl p-4 mt-2" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                                            <div className="flex flex-col gap-3">
+                                                <input value={editStaffName} onChange={(e) => setEditStaffName(e.target.value)} placeholder="Display name" className="input" />
+                                                <input value={editStaffTitle} onChange={(e) => setEditStaffTitle(e.target.value)} placeholder="Role title" className="input" />
+                                                <textarea value={editStaffBio} onChange={(e) => setEditStaffBio(e.target.value)} placeholder="Bio" rows={2} className="input" style={{ resize: "none" }} />
+                                                <input value={editStaffSpecialties} onChange={(e) => setEditStaffSpecialties(e.target.value)} placeholder="Specialties (comma-separated)" className="input" />
+
+                                                {/* Schedule grid */}
+                                                <div>
+                                                    <label className="font-sans text-[12px] font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>Schedule</label>
+                                                    <div className="mt-2 flex flex-col gap-1.5">
+                                                        {editStaffSchedule.map((slot, idx) => (
+                                                            <div key={slot.day} className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => setEditStaffSchedule((prev) => prev.map((s, i) => i === idx ? { ...s, working: !s.working } : s))}
+                                                                    className="flex h-7 w-12 shrink-0 items-center justify-center rounded-lg font-sans text-[11px] font-bold"
+                                                                    style={{
+                                                                        backgroundColor: slot.working ? "rgba(74,222,128,0.15)" : "rgba(255,255,255,0.04)",
+                                                                        color: slot.working ? "#4ADE80" : "rgba(255,255,255,0.2)",
+                                                                        border: `1px solid ${slot.working ? "rgba(74,222,128,0.2)" : "rgba(255,255,255,0.06)"}`,
+                                                                    }}
+                                                                >
+                                                                    {slot.day}
+                                                                </button>
+                                                                {slot.working ? (
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <input
+                                                                            type="time"
+                                                                            value={slot.start}
+                                                                            onChange={(e) => setEditStaffSchedule((prev) => prev.map((s, i) => i === idx ? { ...s, start: e.target.value } : s))}
+                                                                            className="input"
+                                                                            style={{ width: "auto", padding: "4px 8px", fontSize: "12px" }}
+                                                                        />
+                                                                        <span className="font-sans text-[11px] text-white/20">to</span>
+                                                                        <input
+                                                                            type="time"
+                                                                            value={slot.end}
+                                                                            onChange={(e) => setEditStaffSchedule((prev) => prev.map((s, i) => i === idx ? { ...s, end: e.target.value } : s))}
+                                                                            className="input"
+                                                                            style={{ width: "auto", padding: "4px 8px", fontSize: "12px" }}
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="font-sans text-[11px] text-white/15">Off</span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex gap-2 mt-1">
+                                                    <button
+                                                        onClick={async () => {
+                                                            setSavingStaff(true);
+                                                            const schedule = editStaffSchedule
+                                                                .filter((s) => s.working)
+                                                                .map((s) => ({ day: s.day, start: s.start, end: s.end }));
+                                                            const specialties = editStaffSpecialties.split(",").map((s) => s.trim()).filter(Boolean);
+                                                            const result = await updateStaffMember(venue.id, member.id, {
+                                                                display_name: editStaffName.trim(),
+                                                                role_title: editStaffTitle.trim() || undefined,
+                                                                bio: editStaffBio.trim() || undefined,
+                                                                specialties,
+                                                                schedule,
+                                                            });
+                                                            if (!result.error) {
+                                                                setStaffList((prev) => prev.map((s) => s.id === member.id ? {
+                                                                    ...s,
+                                                                    display_name: editStaffName.trim(),
+                                                                    role_title: editStaffTitle.trim() || null,
+                                                                    bio: editStaffBio.trim() || null,
+                                                                    specialties,
+                                                                    schedule,
+                                                                } : s));
+                                                                setEditingStaffId(null);
+                                                                setStaffMsg("Saved!"); setTimeout(() => setStaffMsg(""), 2000);
+                                                            } else {
+                                                                setStaffMsg(result.error);
+                                                            }
+                                                            setSavingStaff(false);
+                                                        }}
+                                                        disabled={savingStaff}
+                                                        className="rounded-lg px-4 py-2 font-sans text-[12px] font-semibold text-white"
+                                                        style={{ backgroundColor: page?.theme_color || "#F97316" }}
+                                                    >
+                                                        {savingStaff ? "Saving..." : "Save"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setEditingStaffId(null)}
+                                                        className="rounded-lg px-4 py-2 font-sans text-[12px] text-white/40"
+                                                        style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                     </div>
                                 ))}
                             </div>
@@ -1273,6 +1420,164 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
                             {staffMsg && (
                                 <p className="font-sans text-[13px] font-medium" style={{ color: staffMsg.includes("!") ? "#4ADE80" : "#EF4444" }}>{staffMsg}</p>
+                            )}
+                        </Card>
+
+                        {/* ─── Menu Items ──────────────────────────────────────── */}
+                        <Card id="menu_items" title="Menu Items" desc="Track inventory and stock status for items you serve or sell.">
+                            {/* Existing items grouped by category */}
+                            {menuItemsList.length === 0 && !showAddMenuItem && (
+                                <p className="font-sans text-[13px] text-white/20">No menu items added yet.</p>
+                            )}
+
+                            {(() => {
+                                const categories = new Map<string, typeof menuItemsList>();
+                                for (const item of menuItemsList) {
+                                    const cat = item.category || "General";
+                                    if (!categories.has(cat)) categories.set(cat, []);
+                                    categories.get(cat)!.push(item);
+                                }
+                                return Array.from(categories.entries()).map(([cat, items]) => (
+                                    <div key={cat} className="flex flex-col gap-2">
+                                        <p className="font-sans text-[11px] font-bold tracking-wider" style={{ color: "rgba(255,255,255,0.3)" }}>{cat.toUpperCase()}</p>
+                                        {items.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                className="group flex items-center gap-3 rounded-xl p-3"
+                                                style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-sans text-[13px] font-medium text-white/80">{item.name}</p>
+                                                        <span
+                                                            className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-bold tracking-wider"
+                                                            style={{
+                                                                backgroundColor: item.in_stock ? "rgba(74,222,128,0.15)" : "rgba(239,68,68,0.15)",
+                                                                color: item.in_stock ? "#4ADE80" : "#EF4444",
+                                                            }}
+                                                        >
+                                                            {item.in_stock ? "IN STOCK" : "OUT"}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 mt-0.5">
+                                                        <span className="font-mono text-[12px] text-white/40">${(item.price_cents / 100).toFixed(2)}</span>
+                                                        {item.inventory_count !== null && (
+                                                            <span className="font-sans text-[11px] text-white/20">{item.inventory_count} in stock</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 opacity-0 transition group-hover:opacity-100">
+                                                    {/* Toggle stock */}
+                                                    <button
+                                                        onClick={async () => {
+                                                            const newStock = !item.in_stock;
+                                                            await toggleMenuItemStock(item.id, newStock);
+                                                            setMenuItemsList((prev) => prev.map((m) => m.id === item.id ? { ...m, in_stock: newStock } : m));
+                                                        }}
+                                                        className="flex h-7 items-center justify-center rounded-lg px-2 font-sans text-[10px] font-semibold"
+                                                        style={{
+                                                            backgroundColor: item.in_stock ? "rgba(239,68,68,0.1)" : "rgba(74,222,128,0.1)",
+                                                            color: item.in_stock ? "#EF4444" : "#4ADE80",
+                                                        }}
+                                                    >
+                                                        {item.in_stock ? "Mark Out" : "Mark In"}
+                                                    </button>
+                                                    {/* Delete */}
+                                                    <button
+                                                        onClick={async () => {
+                                                            const result = await deleteMenuItem(item.id);
+                                                            if (!result.error) {
+                                                                setMenuItemsList((prev) => prev.filter((m) => m.id !== item.id));
+                                                            }
+                                                        }}
+                                                        className="flex h-7 w-7 items-center justify-center rounded-lg"
+                                                        style={{ backgroundColor: "rgba(239,68,68,0.1)" }}
+                                                    >
+                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round">
+                                                            <path d="M18 6 6 18M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ));
+                            })()}
+
+                            {/* Add menu item form */}
+                            {showAddMenuItem ? (
+                                <div className="flex flex-col gap-3 rounded-xl p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                                    <input value={newMenuCategory} onChange={(e) => setNewMenuCategory(e.target.value)} placeholder="Category (e.g. Drinks, Food, Merch)" className="input" />
+                                    <input value={newMenuName} onChange={(e) => setNewMenuName(e.target.value)} placeholder="Item name *" className="input" />
+                                    <input value={newMenuDesc} onChange={(e) => setNewMenuDesc(e.target.value)} placeholder="Description (optional)" className="input" />
+                                    <input value={newMenuPrice} onChange={(e) => setNewMenuPrice(e.target.value)} placeholder="Price (e.g. 12.50) *" type="number" step="0.01" min="0" className="input" />
+                                    <input value={newMenuInventory} onChange={(e) => setNewMenuInventory(e.target.value)} placeholder="Inventory count (optional)" type="number" min="0" className="input" />
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={async () => {
+                                                if (!newMenuName.trim() || !newMenuPrice) return;
+                                                setAddingMenuItem(true);
+                                                const priceCents = Math.round(parseFloat(newMenuPrice) * 100);
+                                                const inventoryCount = newMenuInventory ? parseInt(newMenuInventory, 10) : undefined;
+                                                const result = await addMenuItem({
+                                                    category: newMenuCategory.trim() || "General",
+                                                    name: newMenuName.trim(),
+                                                    description: newMenuDesc.trim() || undefined,
+                                                    price_cents: priceCents,
+                                                    inventory_count: inventoryCount,
+                                                });
+                                                if (result.ok) {
+                                                    // Reload will pick up new item via revalidation
+                                                    setNewMenuCategory(""); setNewMenuName(""); setNewMenuDesc(""); setNewMenuPrice(""); setNewMenuInventory("");
+                                                    setShowAddMenuItem(false);
+                                                    setMenuMsg("Item added!"); setTimeout(() => setMenuMsg(""), 2000);
+                                                    // Optimistic add (without id — page reload will fix)
+                                                    setMenuItemsList((prev) => [...prev, {
+                                                        id: `temp-${Date.now()}`,
+                                                        venue_id: venue.id,
+                                                        category: newMenuCategory.trim() || "General",
+                                                        name: newMenuName.trim(),
+                                                        description: newMenuDesc.trim() || null,
+                                                        price_cents: priceCents,
+                                                        in_stock: true,
+                                                        inventory_count: inventoryCount ?? null,
+                                                    }]);
+                                                } else if (result.error) {
+                                                    setMenuMsg(result.error);
+                                                }
+                                                setAddingMenuItem(false);
+                                            }}
+                                            disabled={addingMenuItem || !newMenuName.trim() || !newMenuPrice}
+                                            className="rounded-lg px-4 py-2 font-sans text-[12px] font-semibold text-white"
+                                            style={{ backgroundColor: page?.theme_color || "#F97316" }}
+                                        >
+                                            {addingMenuItem ? "Adding..." : "Add Item"}
+                                        </button>
+                                        <button
+                                            onClick={() => { setShowAddMenuItem(false); setNewMenuCategory(""); setNewMenuName(""); setNewMenuDesc(""); setNewMenuPrice(""); setNewMenuInventory(""); }}
+                                            className="rounded-lg px-4 py-2 font-sans text-[12px] text-white/40"
+                                            style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setShowAddMenuItem(true)}
+                                    className="flex items-center gap-2 rounded-xl px-4 py-3 font-sans text-[12px] font-medium transition"
+                                    style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" }}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                        <line x1="12" y1="5" x2="12" y2="19" />
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                    Add menu item
+                                </button>
+                            )}
+
+                            {menuMsg && (
+                                <p className="font-sans text-[13px] font-medium" style={{ color: menuMsg.includes("!") ? "#4ADE80" : "#EF4444" }}>{menuMsg}</p>
                             )}
                         </Card>
 

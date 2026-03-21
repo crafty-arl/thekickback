@@ -152,6 +152,7 @@ export async function updateStaffMember(
         bio?: string;
         specialties?: string[];
         visible?: boolean;
+        schedule?: { day: string; start: string; end: string }[];
     }
 ) {
     const user = await verifyOwnership(venueId);
@@ -163,6 +164,7 @@ export async function updateStaffMember(
     if (data.bio !== undefined) updateData.bio = data.bio;
     if (data.specialties !== undefined) updateData.specialties = data.specialties;
     if (data.visible !== undefined) updateData.visible = data.visible;
+    if (data.schedule !== undefined) updateData.schedule = data.schedule;
 
     const { error } = await service
         .from("venue_staff")
