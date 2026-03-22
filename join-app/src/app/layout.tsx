@@ -54,7 +54,6 @@ export default function RootLayout({
         <SandboxBanner />
         {children}
         <PwaInstallPrompt />
-        <PwaUpdatePrompt />
         <Script id="sw-register" strategy="afterInteractive">
           {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js',{scope:'/'})}`}
         </Script>
