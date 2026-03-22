@@ -545,9 +545,10 @@ function LoadingDots() {
 
 /* ── AI message body — parses [[OFFER:id:name:price]] into tappable cards ── */
 
-function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
+function AiMessageBody({ body, theme, onAddToCart, onBookOffer, offeringsMap }: {
   body: string; theme: string;
   onAddToCart: (offeringId: string, name: string, priceCents: number) => void;
+  onBookOffer?: (offeringId: string) => void;
   offeringsMap: Record<string, OfferingMeta>;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -606,13 +607,23 @@ function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
                 <span className="shrink-0 font-mono text-[13px] font-bold" style={{ color: theme }}>
                   ${offer.price % 1 === 0 ? offer.price : offer.price.toFixed(2)}
                 </span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAddToCart(offer.id, offer.name, Math.round(offer.price * 100)); }}
-                  className="shrink-0 rounded-full px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
-                  style={{ backgroundColor: theme, color: "#000" }}
-                >
-                  ADD
-                </button>
+                {meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type) ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onBookOffer?.(offer.id); }}
+                    className="shrink-0 rounded-full px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
+                    style={{ backgroundColor: theme, color: "#000" }}
+                  >
+                    BOOK
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onAddToCart(offer.id, offer.name, Math.round(offer.price * 100)); }}
+                    className="shrink-0 rounded-full px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
+                    style={{ backgroundColor: theme, color: "#000" }}
+                  >
+                    ADD
+                  </button>
+                )}
               </button>
             </div>
           );
@@ -3446,7 +3457,7 @@ export function TheDock({
                                   body={msg.body}
                                   theme={vibeColor}
                                   offeringsMap={offeringsMap[selectedVenue.id] || {}}
-                                  onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
+                                  onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)} onBookOffer={(oid) => setDrawerOfferId(oid)}
                                 />
                               </div>
                             </div>
@@ -3484,7 +3495,7 @@ export function TheDock({
                                   body={msg.body}
                                   theme={vibeColor}
                                   offeringsMap={offeringsMap[selectedVenue.id] || {}}
-                                  onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
+                                  onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)} onBookOffer={(oid) => setDrawerOfferId(oid)}
                                 />
                               </div>
                             </div>
@@ -3577,7 +3588,7 @@ export function TheDock({
                             body={msg.body}
                             theme={vibeColor}
                             offeringsMap={offeringsMap[selectedVenue.id] || {}}
-                            onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)}
+                            onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)} onBookOffer={(oid) => setDrawerOfferId(oid)}
                           />
                         </div>
                       </motion.div>
