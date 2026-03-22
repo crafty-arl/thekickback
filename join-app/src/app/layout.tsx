@@ -4,7 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import Script from "next/script";
 import { SandboxBanner } from "@/components/sandbox-banner";
-import { PwaInstallPrompt, PwaUpdatePrompt } from "@/components/pwa-prompt";
+import { PwaInstallPrompt } from "@/components/pwa-prompt";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -54,8 +54,8 @@ export default function RootLayout({
         <SandboxBanner />
         {children}
         <PwaInstallPrompt />
-        <Script id="sw-register" strategy="afterInteractive">
-          {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js',{scope:'/'})}`}
+        <Script id="sw-cleanup" strategy="afterInteractive">
+          {`if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){r.unregister()})});if('caches' in window){caches.keys().then(function(keys){keys.forEach(function(k){caches.delete(k)})})}}`}
         </Script>
       </body>
     </html>
