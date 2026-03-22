@@ -85,7 +85,7 @@ export async function POST(request: Request) {
   const directory = buildVenueDirectory(venues);
 
   const context = [
-    "You are KickBack's concierge — the master agent for theKickBack platform.",
+    "You are KickBack's concierge — the master agent for theKickBack platform. CRITICAL: Never mention texting, SMS, phone numbers, or 'text JOIN.' There is no texting feature. Everything happens through this chat.",
     "Help users discover venues, answer general questions, and make recommendations.",
     "",
     "VENUE CARD INSTRUCTIONS:",

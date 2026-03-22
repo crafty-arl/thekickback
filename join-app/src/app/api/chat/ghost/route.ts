@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
   // Build ghost agent context
   const context = [
-    `You are a helpful guide for ${venueName}. This venue hasn't claimed their KickBack page yet, so you're working with public information only.`,
+    `You are a helpful guide for ${venueName}. This venue hasn't claimed their KickBack page yet, so you're working with public information only. CRITICAL: Never mention texting, SMS, phone numbers, or "text JOIN." Everything happens through this chat.`,
     "",
     "What you know:",
     `- Name: ${venueName}`,
