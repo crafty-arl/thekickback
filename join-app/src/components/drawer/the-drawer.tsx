@@ -205,7 +205,7 @@ export function getDistance(lat1: number, lon1: number, lat2: number, lon2: numb
 }
 
 function snapToHeight(snap: DrawerSnap, vpHeight?: number): string | number {
-  if (snap === "peek") return 80;
+  if (snap === "peek") return 90;
   if (vpHeight && vpHeight > 0) {
     // Use actual viewport pixels — stable even with keyboard open
     if (snap === "mid") return Math.round(vpHeight * 0.45);
@@ -945,6 +945,12 @@ export function TheDrawer({
               tierColor={tierColor}
               onTap={handlePeekTap}
               onSignIn={() => { setView("login"); setSnap("mid"); }}
+              input={input}
+              setInput={setInput}
+              onSend={() => send()}
+              onInputFocus={handleInputFocus}
+              inputRef={inputRef}
+              loading={loading}
             />
           )}
 
