@@ -31,6 +31,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing venueId" }, { status: 400 });
   }
 
+  // Auto-create test wallet if in sandbox mode and none exists
+  if (mode === "test") {
+    const { data: existing } = await supabase
+      .from("user_wallets")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("mode", "test")
+      .eq("active", true)
+      .maybeSingle();
+
+    if (!existing) {
+      await supabase.from("user_wallets").insert({
+        user_id: user.id,
+        balance_cents: 50000, // $500 test balance
+        spending_limit_cents: 50000,
+        spending_period: "daily",
+        spent_this_period_cents: 0,
+        active: true,
+        mode: "test",
+      });
+    }
+  }
+
   // Deduct from wallet balance via atomic DB function
   const { data: result } = await supabase.rpc("wallet_spend", {
     p_user_id: user.id,
