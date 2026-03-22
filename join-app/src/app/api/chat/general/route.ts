@@ -66,17 +66,18 @@ function resolveVenueTags(text: string, venues: VenueRow[]): string {
 }
 
 export async function POST(request: Request) {
-  // Verify authenticated user from session cookie
-  const authClient = await createAuthClient();
-  const { data: { user: authUser } } = await authClient.auth.getUser();
-  const userId = authUser?.id || null;
-
-  const { message } = await request.json();
+  // Parse body and auth in parallel
+  const [body, authClient] = await Promise.all([request.json(), createAuthClient()]);
+  const { message } = body;
 
   if (!message) {
     return Response.json({ reply: "Missing message." }, { status: 400 });
   }
 
+  const { data: { user: authUser } } = await authClient.auth.getUser();
+  const userId = authUser?.id || null;
+
+  // Fetch venues + preferences in parallel
   const [venues, prefsContext] = await Promise.all([
     getActiveVenues(),
     userId ? getPreferencesContext(userId) : Promise.resolve(""),
@@ -177,20 +178,12 @@ export async function POST(request: Request) {
       };
     });
 
-  // Save to thread (master = venue_id null)
+  // Save to thread (non-blocking, non-critical)
   if (userId) {
-    try {
-      await supabase.rpc("save_thread_message", {
-        p_user_id: userId, p_venue_id: null, p_sender_type: "guest", p_body: message,
-      });
-      await supabase.rpc("save_thread_message", {
-        p_user_id: userId, p_venue_id: null, p_sender_type: "ai", p_body: reply,
-      });
-    } catch { /* thread save is non-critical */ }
-  }
-
-  // Async preference extraction (fire-and-forget)
-  if (userId) {
+    Promise.all([
+      supabase.rpc("save_thread_message", { p_user_id: userId, p_venue_id: null, p_sender_type: "guest", p_body: message }),
+      supabase.rpc("save_thread_message", { p_user_id: userId, p_venue_id: null, p_sender_type: "ai", p_body: reply }),
+    ]).then(() => {}, () => {});
     extractPreferences(userId, message, reply, null).catch(() => {});
   }
 

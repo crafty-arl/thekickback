@@ -128,22 +128,28 @@ async function checkAiUsageGate(
 }
 
 export async function POST(request: Request) {
-  // Verify authenticated user from session cookie
-  const authClient = await createAuthClient();
-  const { data: { user: authUser } } = await authClient.auth.getUser();
-  const userId = authUser?.id || null;
-  const userEmail = authUser?.email || null;
-  const userName = userEmail?.split("@")[0] || "Guest";
-
-  const { message, venueId, venueName, vibe, occupancy, table, deviceId, timezone } = await request.json();
+  // Parse body and auth in parallel
+  const [body, authClient] = await Promise.all([request.json(), createAuthClient()]);
+  const { message, venueId, venueName, vibe, occupancy, table, deviceId, timezone } = body;
   const userTimezone = timezone || "America/Chicago";
 
   if (!message || !venueId) {
     return Response.json({ reply: "Missing message or venue." }, { status: 400 });
   }
 
-  // Check usage limits before calling the AI
-  const gate = await checkAiUsageGate(venueId, userId, deviceId);
+  const { data: { user: authUser } } = await authClient.auth.getUser();
+  const userId = authUser?.id || null;
+  const userEmail = authUser?.email || null;
+  const userName = userEmail?.split("@")[0] || "Guest";
+
+  // Check usage limits + fetch venue data in parallel
+  const [gate, knowledge, offeringsRaw, prefsContext] = await Promise.all([
+    checkAiUsageGate(venueId, userId, deviceId),
+    getVenueKnowledge(venueId),
+    getVenueOfferingsRaw(venueId),
+    userId ? getPreferencesContext(userId, venueId) : Promise.resolve(""),
+  ]);
+
   if (!gate.allowed) {
     return Response.json({
       reply: gate.gateMessage,
@@ -152,13 +158,6 @@ export async function POST(request: Request) {
       limit: gate.limit,
     });
   }
-
-  // Fetch venue-specific knowledge, offerings, and user preferences
-  const [knowledge, offeringsRaw, prefsContext] = await Promise.all([
-    getVenueKnowledge(venueId),
-    getVenueOfferingsRaw(venueId),
-    userId ? getPreferencesContext(userId, venueId) : Promise.resolve(""),
-  ]);
   const offerings = formatOfferingsForPrompt(offeringsRaw);
 
   // Build offerings lookup for the client (id → metadata)
@@ -229,11 +228,11 @@ export async function POST(request: Request) {
     ].join("\n") : "",
   ].filter(Boolean).join(" ");
 
-  // Save guest message to thread
+  // Save guest message to thread (non-blocking)
   if (userId) {
-    await supabase.rpc("save_thread_message", {
+    supabase.rpc("save_thread_message", {
       p_user_id: userId, p_venue_id: venueId, p_sender_type: "guest", p_body: message,
-    });
+    }).then(() => {}, () => {});
   }
 
   // Forward to claw via OpenResponses API (synchronous, per-venue agent)
@@ -275,20 +274,19 @@ export async function POST(request: Request) {
     console.error("Claw fetch error:", err);
   }
 
-  // Save AI reply to thread
+  // Save AI reply to thread (non-blocking)
   if (userId) {
-    await supabase.rpc("save_thread_message", {
+    supabase.rpc("save_thread_message", {
       p_user_id: userId, p_venue_id: venueId, p_sender_type: "ai", p_body: reply,
-    });
+    }).then(() => {}, () => {});
   }
 
   // If AI generated a booking tag, validate and execute it
   let bookingResult = null;
   if (booking) {
-    // Server-side gate: reject bookings without a valid start time
     const bStart = (booking as Record<string, unknown>).start as string | undefined;
     if (!bStart || isNaN(new Date(bStart).getTime())) {
-      booking = null; // Drop invalid booking — AI hallucinated
+      booking = null;
       console.warn("AI generated [[BOOKING]] without valid start time, dropping it");
     }
   }
