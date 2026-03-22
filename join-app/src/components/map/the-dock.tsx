@@ -240,12 +240,8 @@ function getDockHeight(mode: DockMode, exploreSnap: SnapPoint, venueChatSnap: Ve
   }
 }
 
-function getDockRadius(mode: DockMode, exploreSnap: SnapPoint, venueChatSnap: VenueChatSnap): string {
-  if (mode === "idle") return "28px";
-  if (mode === "venueChat" && venueChatSnap === "collapsed") return "28px";
-  if (mode === "explore" && exploreSnap === "full") return "24px 24px 0 0";
-  if (mode === "explore" && exploreSnap !== "full") return "20px";
-  return "24px 24px 0 0";
+function getDockRadius(_mode: DockMode, _exploreSnap: SnapPoint, _venueChatSnap: VenueChatSnap): string {
+  return "0px";
 }
 
 function buildVenueFromApi(av: ApiVenue): Venue {
@@ -295,7 +291,7 @@ function parseVenueChips(
       const vibeLabel = vibe.charAt(0).toUpperCase() + vibe.slice(1);
 
       return (
-        <div key={i} className="my-2 w-full overflow-hidden rounded-2xl" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}>
+        <div key={i} className="my-2 w-full overflow-hidden " style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}>
           <div className="relative flex items-center justify-center" style={{ height: 80, background: `linear-gradient(135deg, ${vibeColor}18 0%, ${vibeColor}06 50%, rgba(0,0,0,0.2) 100%)` }}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={`${vibeColor}35`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
             <div className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
@@ -318,7 +314,7 @@ function parseVenueChips(
                 {rv?.tagline && <p className="mt-0.5 line-clamp-1 font-sans text-[10px] italic text-white/30">&ldquo;{rv.tagline}&rdquo;</p>}
                 <div className="mt-1 flex items-center gap-1.5">
                   {rv?.type && rv.type !== "venue" && (
-                    <span className="rounded-md px-1.5 py-0.5 font-sans text-[8px] font-medium capitalize text-white/25" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{rv.type}</span>
+                    <span className=" px-1.5 py-0.5 font-sans text-[8px] font-medium capitalize text-white/25" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{rv.type}</span>
                   )}
                   {(rv?.neighborhood || venue?.neighborhood) && <span className="font-sans text-[9px] text-white/20">{rv?.neighborhood || venue?.neighborhood}</span>}
                   {rv?.hours && <span className="font-sans text-[8px] text-white/15">{rv.hours.split(",")[0]}</span>}
@@ -402,7 +398,7 @@ function LandscapeVenueCard({
       transition={{ type: "spring", damping: 25, stiffness: 300, delay }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
-      className="relative flex shrink-0 overflow-hidden rounded-2xl text-left"
+      className="relative flex shrink-0 overflow-hidden  text-left"
       style={{
         width: 280, height: 140, scrollSnapAlign: "start",
         backgroundColor: "rgba(255,255,255,0.03)",
@@ -434,7 +430,7 @@ function LandscapeVenueCard({
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="rounded-md px-1.5 py-0.5 font-sans text-[8px] font-semibold capitalize text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{catLabel}</span>
+          <span className=" px-1.5 py-0.5 font-sans text-[8px] font-semibold capitalize text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{catLabel}</span>
           {venue.neighborhood && <span className="truncate font-sans text-[9px] text-white/20">{venue.neighborhood}</span>}
           {distance !== undefined && <span className="ml-auto shrink-0 font-sans text-[9px] font-medium text-white/25">{distance.toFixed(1)} mi</span>}
         </div>
@@ -487,7 +483,7 @@ function PerkBadge({
 function LoadingDots() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-      <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }}>
+      <div className="  px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }}>
         <div className="flex gap-1.5">
           <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} />
           <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }} />
@@ -538,7 +534,7 @@ function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
           const hasDesc = meta?.description;
 
           return (
-            <div key={offer.id} className="rounded-xl overflow-hidden transition" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}>
+            <div key={offer.id} className=" overflow-hidden transition" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}>
               {isExpanded && hasImage && (
                 <div className="relative" style={{ height: 120 }}>
                   <img src={meta.image_url!} alt={offer.name} className="h-full w-full object-cover" />
@@ -550,7 +546,7 @@ function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
                 className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left active:opacity-80"
               >
                 {!isExpanded && hasImage && (
-                  <img src={meta.image_url!} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                  <img src={meta.image_url!} alt="" className="h-9 w-9 shrink-0  object-cover" />
                 )}
                 <div className="min-w-0 flex-1">
                   <span className="font-sans text-[13px] font-medium text-white/85">{offer.name}</span>
@@ -673,7 +669,7 @@ function KeyboardShortcutsPanel({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.96 }}
       transition={{ type: "spring", damping: 25, stiffness: 400 }}
-      className="fixed right-4 top-[max(80px,calc(env(safe-area-inset-top)+80px))] z-[60] w-[280px] overflow-hidden rounded-2xl"
+      className="fixed right-4 top-[max(80px,calc(env(safe-area-inset-top)+80px))] z-[60] w-[280px] overflow-hidden "
       style={{
         background: "rgba(12, 12, 14, 0.95)",
         backdropFilter: "blur(40px) saturate(1.8)",
@@ -805,7 +801,7 @@ function DeviceManager() {
   if (loading) {
     return (
       <div className="px-4 py-3">
-        <div className="h-20 animate-pulse rounded-2xl" style={{ backgroundColor: "rgba(255,255,255,0.03)" }} />
+        <div className="h-20 animate-pulse " style={{ backgroundColor: "rgba(255,255,255,0.03)" }} />
       </div>
     );
   }
@@ -814,7 +810,7 @@ function DeviceManager() {
     <div className="px-4 py-2">
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+        <div className="flex h-8 w-8 items-center justify-center " style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="5" y="2" width="14" height="20" rx="2" ry="2" /><line x1="12" y1="18" x2="12.01" y2="18" />
           </svg>
@@ -836,14 +832,14 @@ function DeviceManager() {
           return (
             <div
               key={d.id}
-              className="flex items-center justify-between rounded-xl px-3 py-2.5"
+              className="flex items-center justify-between  px-3 py-2.5"
               style={{
                 backgroundColor: isCurrent ? "rgba(99,91,255,0.06)" : "rgba(255,255,255,0.02)",
                 border: isCurrent ? "1px solid rgba(99,91,255,0.15)" : "1px solid rgba(255,255,255,0.04)",
               }}
             >
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+                <div className="flex h-8 w-8 items-center justify-center " style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isCurrent ? "#635bff" : "rgba(255,255,255,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="5" y="2" width="14" height="20" rx="2" ry="2" /><line x1="12" y1="18" x2="12.01" y2="18" />
                   </svg>
@@ -865,7 +861,7 @@ function DeviceManager() {
                   onClick={() => handleRemove(d.id)}
                   disabled={removing === d.id}
                   whileTap={{ scale: 0.9 }}
-                  className="rounded-lg px-2.5 py-1.5 font-sans text-[10px] font-medium text-red-400/60 transition hover:bg-red-500/10 disabled:opacity-40"
+                  className=" px-2.5 py-1.5 font-sans text-[10px] font-medium text-red-400/60 transition hover:bg-red-500/10 disabled:opacity-40"
                 >
                   {removing === d.id ? "..." : "Remove"}
                 </motion.button>
@@ -881,7 +877,7 @@ function DeviceManager() {
           onClick={handleLogoutAll}
           disabled={loggingOutAll}
           whileTap={{ scale: 0.97 }}
-          className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl py-2 font-sans text-[11px] font-medium text-red-400/50 transition hover:bg-red-500/5 disabled:opacity-40"
+          className="mt-2.5 flex w-full items-center justify-center gap-1.5  py-2 font-sans text-[11px] font-medium text-red-400/50 transition hover:bg-red-500/5 disabled:opacity-40"
           style={{ border: "1px solid rgba(239,68,68,0.1)" }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -892,7 +888,7 @@ function DeviceManager() {
       )}
 
       {devices.length === 0 && (
-        <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+        <div className=" px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
           <p className="font-sans text-[11px] text-white/30">No devices registered yet. They appear after you sign in.</p>
         </div>
       )}
@@ -959,14 +955,14 @@ function DockLogin({ onSuccess }: { onSuccess: () => void }) {
   if (step === "waitlisted") {
     return (
       <div className="flex flex-col items-center px-6 py-8">
-        <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: "rgba(249,115,22,0.12)" }}>
+        <div className="mb-3 flex h-14 w-14 items-center justify-center " style={{ backgroundColor: "rgba(249,115,22,0.12)" }}>
           <span className="text-[28px]">{"\u23F3"}</span>
         </div>
         <h2 className="mb-1 font-sans text-[18px] font-bold text-white">You're on the waitlist</h2>
         <p className="mb-4 max-w-[280px] text-center font-sans text-[12px] leading-relaxed text-white/40">
           We're letting people in gradually. You'll get an email as soon as you're approved.
         </p>
-        <div className="w-full max-w-xs rounded-xl px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
+        <div className="w-full max-w-xs  px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
           <p className="text-center font-sans text-[11px] text-white/30">
             Have a referral key from a friend? Use the invite link they shared to skip the line.
           </p>
@@ -988,7 +984,7 @@ function DockLogin({ onSuccess }: { onSuccess: () => void }) {
         {step === "email" ? "Enter your email to get a code" : `Code sent to ${email}`}
       </p>
       {refKey.current && step === "email" && (
-        <div className="mb-3 w-full max-w-xs rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
+        <div className="mb-3 w-full max-w-xs  px-3 py-2" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
           <p className="text-center font-sans text-[11px] font-medium" style={{ color: "#4ADE80" }}>
             Referral key detected — you'll skip the waitlist
           </p>
@@ -1003,13 +999,13 @@ function DockLogin({ onSuccess }: { onSuccess: () => void }) {
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="you@email.com"
             autoComplete="email"
-            className="w-full rounded-xl px-4 py-3 font-sans text-[14px] text-white outline-none placeholder:text-white/20"
+            className="w-full  px-4 py-3 font-sans text-[14px] text-white outline-none placeholder:text-white/20"
             style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
           />
           <button
             onClick={handleSend}
             disabled={loading || !email}
-            className="w-full rounded-xl py-3 font-sans text-[14px] font-bold text-black active:scale-[0.97] disabled:opacity-50"
+            className="w-full  py-3 font-sans text-[14px] font-bold text-black active:scale-[0.97] disabled:opacity-50"
             style={{ backgroundColor: "#F97316" }}
           >
             {loading ? "Sending..." : "Send Code"}
@@ -1026,13 +1022,13 @@ function DockLogin({ onSuccess }: { onSuccess: () => void }) {
             onKeyDown={(e) => e.key === "Enter" && handleVerify()}
             placeholder="000000"
             autoComplete="one-time-code"
-            className="w-full rounded-xl px-4 py-3 text-center font-mono text-[24px] tracking-[0.3em] text-white outline-none"
+            className="w-full  px-4 py-3 text-center font-mono text-[24px] tracking-[0.3em] text-white outline-none"
             style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
           />
           <button
             onClick={handleVerify}
             disabled={loading || otp.length < 6}
-            className="w-full rounded-xl py-3 font-sans text-[14px] font-bold text-black active:scale-[0.97] disabled:opacity-50"
+            className="w-full  py-3 font-sans text-[14px] font-bold text-black active:scale-[0.97] disabled:opacity-50"
             style={{ backgroundColor: "#F97316" }}
           >
             {loading ? "Verifying..." : "Verify"}
@@ -2278,7 +2274,7 @@ export function TheDock({
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: 20, scale: 0.95 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="fixed right-4 top-[max(52px,calc(env(safe-area-inset-top)+52px))] z-[60] flex items-start gap-3 rounded-xl px-4 py-3"
+                className="fixed right-4 top-[max(52px,calc(env(safe-area-inset-top)+52px))] z-[60] flex items-start gap-3  px-4 py-3"
                 style={{
                   background: "rgba(12, 12, 14, 0.95)",
                   backdropFilter: "blur(40px) saturate(1.8)",
@@ -2288,7 +2284,7 @@ export function TheDock({
                 }}
               >
                 {/* Keyboard icon */}
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(167,139,250,0.1)" }}>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center " style={{ backgroundColor: "rgba(167,139,250,0.1)" }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="2" y="4" width="20" height="16" rx="2" />
                     <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h8" />
@@ -2354,11 +2350,11 @@ export function TheDock({
           className="relative mx-3 flex flex-col overflow-hidden"
           style={{
             height: 56,
-            borderRadius: 28,
+            borderRadius: 0,
             background: "rgba(12, 12, 14, 0.92)",
             backdropFilter: "blur(40px) saturate(1.8)",
             WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-            boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 -4px 30px rgba(0,0,0,0.3)",
+            boxShadow: "0 -4px 20px rgba(0,0,0,0.3), 0 -1px 0 rgba(255,255,255,0.06)",
             touchAction: "none",
           }}
         >
@@ -2662,7 +2658,7 @@ export function TheDock({
                                       onVenueSelect(venue);
                                     }
                                   }}
-                                  className="flex shrink-0 flex-col overflow-hidden rounded-2xl text-left active:scale-[0.97]"
+                                  className="flex shrink-0 flex-col overflow-hidden  text-left active:scale-[0.97]"
                                   style={{
                                     width: 160, scrollSnapAlign: "start",
                                     backgroundColor: "rgba(255,255,255,0.03)",
@@ -2847,7 +2843,7 @@ export function TheDock({
                             await supabase.auth.signOut();
                             window.location.reload();
                           }}
-                          className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
+                          className="flex w-full items-center justify-center gap-2  py-2.5 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
                           style={{ border: "1px solid rgba(255,255,255,0.05)" }}
                         >
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2954,7 +2950,7 @@ export function TheDock({
                       className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.sender === "guest" ? "rounded-br-sm" : "rounded-bl-sm"}`}
+                        className={`max-w-[85%]  px-3.5 py-2.5 ${msg.sender === "guest" ? "" : ""}`}
                         style={msg.sender === "guest"
                           ? { backgroundColor: ACCENT, color: "#000", boxShadow: `0 2px 12px ${ACCENT}33` }
                           : { backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }
@@ -3181,7 +3177,7 @@ export function TheDock({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="mx-4 mb-1 overflow-hidden rounded-xl"
+                    className="mx-4 mb-1 overflow-hidden "
                     style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${vibeColor}15` }}
                   >
                     {/* Profile toggle + summary */}
@@ -3284,7 +3280,7 @@ export function TheDock({
                     if (msg.sender === "guest") {
                       return (
                         <motion.div key={msg.id} initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-end">
-                          <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5" style={{ backgroundColor: vibeColor, color: "#000", boxShadow: `0 2px 12px ${vibeColor}33` }}>
+                          <div className="max-w-[80%]   px-3.5 py-2.5" style={{ backgroundColor: vibeColor, color: "#000", boxShadow: `0 2px 12px ${vibeColor}33` }}>
                             <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
                           </div>
                         </motion.div>
@@ -3297,7 +3293,7 @@ export function TheDock({
                         <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
                           {msg.body && (
                             <div className="flex justify-start">
-                              <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                              <div className="max-w-[85%]   px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
                                 <AiMessageBody
                                   body={msg.body}
                                   theme={vibeColor}
@@ -3335,7 +3331,7 @@ export function TheDock({
                           {/* AI message text */}
                           {msg.body && (
                             <div className="flex justify-start">
-                              <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                              <div className="max-w-[85%]   px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
                                 <AiMessageBody
                                   body={msg.body}
                                   theme={vibeColor}
@@ -3347,7 +3343,7 @@ export function TheDock({
                           )}
 
                           {/* Order summary */}
-                          <div className="w-full rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}15` }}>
+                          <div className="w-full  overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}15` }}>
                             <div className="px-3.5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                               <div className="flex items-center gap-2 mb-2">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3374,7 +3370,7 @@ export function TheDock({
                           {!user && (
                             <a
                               href="/login"
-                              className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-sans text-[14px] font-bold text-black active:scale-[0.97]"
+                              className="flex w-full items-center justify-center gap-2  py-3.5 font-sans text-[14px] font-bold text-black active:scale-[0.97]"
                               style={{ backgroundColor: vibeColor }}
                             >
                               Log in to checkout
@@ -3387,7 +3383,7 @@ export function TheDock({
                             <button
                               onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
                               disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
-                              className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                              className="flex-1 flex flex-col items-center gap-1  py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
                               style={{ backgroundColor: canUseWallet ? "rgba(99,91,255,0.12)" : "rgba(99,91,255,0.05)", border: `1px solid ${canUseWallet ? "rgba(99,91,255,0.3)" : "rgba(99,91,255,0.1)"}` }}
                             >
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
@@ -3402,7 +3398,7 @@ export function TheDock({
                             <button
                               onClick={() => handleCheckoutConfirm(msg, [], 0, "card")}
                               disabled={paymentMode === "processing" || passkey.verifying}
-                              className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                              className="flex-1 flex flex-col items-center gap-1  py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
                               style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                             >
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
@@ -3417,7 +3413,7 @@ export function TheDock({
                           {/* Cancel */}
                           <button
                             onClick={handleCheckoutDismiss}
-                            className="w-full rounded-xl py-2.5 font-sans text-[12px] font-medium text-white/30 transition hover:bg-white/[0.04]"
+                            className="w-full  py-2.5 font-sans text-[12px] font-medium text-white/30 transition hover:bg-white/[0.04]"
                             style={{ border: "1px solid rgba(255,255,255,0.05)" }}
                           >
                             Cancel
@@ -3428,7 +3424,7 @@ export function TheDock({
 
                     return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                        <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <div className="max-w-[85%]   px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
                           <AiMessageBody
                             body={msg.body}
                             theme={vibeColor}
@@ -3452,7 +3448,7 @@ export function TheDock({
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="mb-1.5 overflow-hidden rounded-xl"
+                        className="mb-1.5 overflow-hidden "
                         style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}
                       >
                         <div className="flex flex-col gap-1 px-3 py-2">
@@ -3617,7 +3613,7 @@ export function TheDock({
                       className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${msg.sender === "guest" ? "rounded-br-sm" : "rounded-bl-sm"}`}
+                        className={`max-w-[85%]  px-3.5 py-2.5 ${msg.sender === "guest" ? "" : ""}`}
                         style={msg.sender === "guest"
                           ? { backgroundColor: "#6b7280", color: "#fff" }
                           : { backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.75)", border: "1px solid rgba(255,255,255,0.04)" }
@@ -3629,7 +3625,7 @@ export function TheDock({
                   ))}
                   {loading && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                      <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div className="  px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.04)" }}>
                         <div className="flex gap-1.5">
                           <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} />
                           <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }} />
@@ -3642,7 +3638,7 @@ export function TheDock({
               </div>
 
               {/* Claim CTA — compact, below messages */}
-              <div className="mx-4 mb-2 rounded-xl px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.1)" }}>
+              <div className="mx-4 mb-2  px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.1)" }}>
                 <div className="flex items-center justify-between">
                   <span className="font-sans text-[10px] text-white/25">This venue hasn&apos;t claimed their page yet</span>
                   <a href="https://dash.thekickback.net" target="_blank" rel="noopener noreferrer" className="rounded-full px-2.5 py-1 font-sans text-[9px] font-bold text-black" style={{ backgroundColor: "#F97316" }}>
@@ -3715,7 +3711,7 @@ export function TheDock({
                     </div>
 
                     {/* Biometric Security */}
-                    <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.06)" : "rgba(249,115,22,0.06)", border: `1px solid ${passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "rgba(249,115,22,0.15)"}` }}>
+                    <div className="mt-3  px-3 py-2.5" style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.06)" : "rgba(249,115,22,0.06)", border: `1px solid ${passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "rgba(249,115,22,0.15)"}` }}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={passkey.hasPasskey ? "#4ADE80" : "#F97316"} strokeWidth="2" strokeLinecap="round">
@@ -3739,7 +3735,7 @@ export function TheDock({
                             }
                           }}
                           disabled={passkey.verifying}
-                          className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold active:scale-95 disabled:opacity-50"
+                          className=" px-3 py-1.5 font-sans text-[11px] font-bold active:scale-95 disabled:opacity-50"
                           style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "#F97316", color: passkey.hasPasskey ? "#4ADE80" : "#000" }}
                         >
                           {passkey.verifying ? "Setting up..." : passkey.hasPasskey ? "Add this device" : "Enable"}
@@ -3752,7 +3748,7 @@ export function TheDock({
 
                     {/* Referral Keys */}
                     {referralKeys.length > 0 && (
-                      <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.1)" }}>
+                      <div className="mt-3  px-3 py-2.5" style={{ backgroundColor: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.1)" }}>
                         <div className="mb-2 flex items-center justify-between">
                           <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">REFERRAL KEYS</span>
                           <span className="font-mono text-[10px] font-bold" style={{ color: "#F97316" }}>
@@ -3773,7 +3769,7 @@ export function TheDock({
                                     onClick={() => {
                                       navigator.clipboard?.writeText(`https://join.thekickback.net?ref=${k.key}`);
                                     }}
-                                    className="rounded-md px-2 py-1 font-sans text-[9px] font-bold active:scale-95"
+                                    className=" px-2 py-1 font-sans text-[9px] font-bold active:scale-95"
                                     style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316" }}
                                   >
                                     Copy
@@ -3787,7 +3783,7 @@ export function TheDock({
                                           url: `https://join.thekickback.net?ref=${k.key}`,
                                         }).catch(() => {});
                                       }}
-                                      className="rounded-md px-2 py-1 font-sans text-[9px] font-bold active:scale-95"
+                                      className=" px-2 py-1 font-sans text-[9px] font-bold active:scale-95"
                                       style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}
                                     >
                                       Share
@@ -3803,7 +3799,7 @@ export function TheDock({
                     )}
 
                     {/* KickBack Score */}
-                    <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div className="mt-3  px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
                       <div className="mb-2 flex items-center justify-between">
                         <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">KICKBACK SCORE</span>
                         <span className="font-mono text-[13px] font-bold" style={{ color: tierColor }}>
@@ -3830,10 +3826,10 @@ export function TheDock({
                       href={`https://thekickback.net/wallet/pass/${user.authId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 active:scale-[0.98]"
+                      className="mt-3 flex w-full items-center gap-3  px-3 py-3 active:scale-[0.98]"
                       style={{ background: `linear-gradient(135deg, ${tierColor}15, ${tierColor}05)`, border: `1px solid ${tierColor}25` }}
                     >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${tierColor}20` }}>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center " style={{ backgroundColor: `${tierColor}20` }}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={tierColor} strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
                       </div>
                       <div className="flex-1">
@@ -3849,7 +3845,7 @@ export function TheDock({
                         <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MEMBERSHIPS</span>
                         <div className="mt-1.5 flex flex-col gap-1.5">
                           {memberships.map((m) => (
-                            <div key={m.venue_id} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
+                            <div key={m.venue_id} className="flex items-center gap-2.5  px-3 py-2.5" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
                               <span className="text-[14px]">{"\u{1F451}"}</span>
                               <div className="flex-1 min-w-0">
                                 <p className="font-sans text-[12px] font-semibold text-white/80">{m.venue_name}</p>
@@ -3867,7 +3863,7 @@ export function TheDock({
                         <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">PERKS YOU CAN CLAIM</span>
                         <div className="mt-1.5 flex gap-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
                           {perks.slice(0, 8).map((p) => (
-                            <div key={p.id} className="flex shrink-0 flex-col items-center rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", width: 90 }}>
+                            <div key={p.id} className="flex shrink-0 flex-col items-center  px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", width: 90 }}>
                               <span className="font-sans text-[11px] font-semibold text-white/70 text-center leading-tight line-clamp-2">{p.name}</span>
                               <span className="mt-1 font-mono text-[10px] font-bold text-orange">{p.point_cost} pts</span>
                             </div>
@@ -3985,7 +3981,7 @@ export function TheDock({
                       await supabase.auth.signOut();
                       window.location.reload();
                     }}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
+                    className="flex w-full items-center justify-center gap-2  py-2.5 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
                     style={{ border: "1px solid rgba(255,255,255,0.05)" }}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -4017,7 +4013,7 @@ export function TheDock({
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed inset-x-0 bottom-0 z-[101] rounded-t-3xl"
+              className="fixed inset-x-0 bottom-0 z-[101] "
               style={{ backgroundColor: "#0A0A0A", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "70dvh" }}
             >
               <div className="flex items-center justify-between px-5 pt-4 pb-2">
