@@ -107,6 +107,15 @@ interface CartItem {
 
 /* ── Helpers ── */
 
+function stripTags(text: string): string {
+  return text
+    .replace(/\[\[OFFER:[^\]]*\]\]/g, "")
+    .replace(/\[\[CHECKOUT:[\s\S]*?\]\]/g, "")
+    .replace(/\[\[BOOKING:[\s\S]*?\]\]/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function vc(vibe: string): string {
   switch (vibe) {
     case "quiet": return "#4ADE80";
@@ -701,21 +710,68 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: msg, venueId: venue.id, venueName: venue.name, vibe: venue.vibe, occupancy: venue.occupancy, table }),
       });
-      const data = await res.json();
-      if (data.offerings) setOfferingsMap((prev) => ({ ...prev, ...data.offerings }));
-      let replyBody: string = data.reply || "Couldn't reach the venue right now.";
-      // Enrich booking confirmations with details
-      if (data.booking?.booking) {
-        const bk = data.booking.booking;
-        const bkStart = bk.start ? new Date(bk.start) : null;
-        const bkEnd = bk.end ? new Date(bk.end) : null;
-        const dateStr = bkStart ? bkStart.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
-        const timeStr = bkStart ? bkStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
-        const endTimeStr = bkEnd ? bkEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
-        replyBody += `\n\nBooking confirmed: ${data.booking.message || ""}${dateStr ? `\nDate: ${dateStr}` : ""}${timeStr ? `\nTime: ${timeStr}${endTimeStr ? ` - ${endTimeStr}` : ""}` : ""}`;
-        // Booking confirmed — no local state refresh needed
+
+      const aiMsgId = `ai-${Date.now()}`;
+      // Add empty AI message immediately for streaming
+      setMessages((prev) => [...prev, { id: aiMsgId, sender: "ai" as const, body: "", timestamp: Date.now() }]);
+      setLoading(false);
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let fullReply = "";
+      let metadata: Record<string, unknown> | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split("\n\n");
+        buffer = chunks.pop() || "";
+
+        for (const chunk of chunks) {
+          if (!chunk.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(chunk.slice(6));
+            if (event.type === "delta") {
+              fullReply += event.text;
+              const displayText = stripTags(fullReply);
+              setMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: displayText } : m));
+            } else if (event.type === "done") {
+              metadata = event;
+            }
+          } catch { /* skip */ }
+        }
       }
-      setMessages((prev) => [...prev, { id: `ai-${Date.now()}`, sender: "ai", body: replyBody, timestamp: Date.now(), tab: activeTab }]);
+
+      // Process metadata after stream completes
+      if (metadata) {
+        const data = metadata as Record<string, unknown>;
+        if (data.offerings) setOfferingsMap((prev) => ({ ...prev, ...(data.offerings as Record<string, OfferingMeta>) }));
+        let replyBody: string = (data.reply as string) || fullReply || "Couldn't reach the venue right now.";
+
+        // Build checkout
+        let checkoutData: CheckoutCardData | undefined;
+        if (data.checkout) {
+          checkoutData = { ...(data.checkout as CheckoutCardData), venue_name: venue.name, venue_id: venue.id };
+        }
+
+        // Enrich booking confirmations with details
+        const bookingData = data.booking as { booking?: { start?: string; end?: string; message?: string } } | null;
+        if (bookingData?.booking) {
+          const bk = bookingData.booking;
+          const bkStart = bk.start ? new Date(bk.start) : null;
+          const bkEnd = bk.end ? new Date(bk.end) : null;
+          const dateStr = bkStart ? bkStart.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
+          const timeStr = bkStart ? bkStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+          const endTimeStr = bkEnd ? bkEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+          replyBody += `\n\nBooking confirmed: ${bookingData.booking.message || ""}${dateStr ? `\nDate: ${dateStr}` : ""}${timeStr ? `\nTime: ${timeStr}${endTimeStr ? ` - ${endTimeStr}` : ""}` : ""}`;
+        }
+
+        // Update the AI message with cleaned reply and metadata
+        setMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: replyBody, tab: activeTab, checkout: checkoutData } : m));
+      }
     } catch {
       setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "ai", body: "Something went wrong. Try again.", timestamp: Date.now() }]);
     } finally {

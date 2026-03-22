@@ -276,6 +276,19 @@ function buildVenueFromApi(av: ApiVenue): Venue {
   };
 }
 
+// Strip raw tags from streaming text so users don't see [[VENUE_CARD:...]] etc.
+function stripTags(text: string): string {
+  return text
+    .replace(/\[\[VENUE_CARD:[^\]]*\]\]/g, "")
+    .replace(/\[\[venue:[^\]]*\]\]/g, "")
+    .replace(/\[\[OFFER:[^\]]*\]\]/g, "")
+    .replace(/\[\[CHECKOUT:[\s\S]*?\]\]/g, "")
+    .replace(/\[\[BOOKING:[\s\S]*?\]\]/g, "")
+    .replace(/\[\[CARD:\w+\]\]/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function parseVenueChips(
   venues: Venue[],
   apiVenues: Record<string, ApiVenue>,
@@ -1915,41 +1928,92 @@ export function TheDock({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(chatBody),
         });
-        const data = await res.json();
 
-        // Store offerings metadata for rendering inline cards
-        if (data.offerings && Object.keys(data.offerings).length > 0) {
-          setOfferingsMap((prev) => ({
-            ...prev,
-            [selectedVenue.id]: { ...(prev[selectedVenue.id] || {}), ...data.offerings },
-          }));
-        }
-
-        const cardTab = data.card || (activeTab !== "chat" ? activeTab : undefined);
-        const aiMsg: Message = {
-          id: `ai-${Date.now()}`, sender: "ai",
-          body: data.reply || "Couldn't reach the venue right now. Try again.",
-          timestamp: Date.now(), tab: cardTab as Tab | undefined,
-        };
-        if (data.checkout) {
-          aiMsg.checkout = { ...data.checkout, venue_name: selectedVenue.name, venue_id: selectedVenue.id };
-        }
-        // If a booking was confirmed, enrich the reply with details
-        if (data.booking?.booking) {
-          const bk = data.booking.booking;
-          const bkStart = bk.start ? new Date(bk.start) : null;
-          const bkEnd = bk.end ? new Date(bk.end) : null;
-          const dateStr = bkStart ? bkStart.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
-          const timeStr = bkStart ? bkStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
-          const endTimeStr = bkEnd ? bkEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
-          const bookingDetails = `\n\nBooking confirmed: ${data.booking.message || ""}${dateStr ? `\nDate: ${dateStr}` : ""}${timeStr ? `\nTime: ${timeStr}${endTimeStr ? ` - ${endTimeStr}` : ""}` : ""}${user ? `\n\nAdd to Apple Wallet: https://thekickback.net/wallet/pass/${user.authId}` : ""}`;
-          aiMsg.body = aiMsg.body + bookingDetails;
-        }
+        const aiMsgId = `ai-${Date.now()}`;
+        // Add empty AI message immediately for streaming
         setVenueThreads((prev) => {
           const next = new Map(prev);
-          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), aiMsg]);
+          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), { id: aiMsgId, sender: "ai" as const, body: "", timestamp: Date.now() }]);
           return next;
         });
+        setLoading(false);
+
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let fullReply = "";
+        let metadata: Record<string, unknown> | null = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const chunks = buffer.split("\n\n");
+          buffer = chunks.pop() || "";
+
+          for (const chunk of chunks) {
+            if (!chunk.startsWith("data: ")) continue;
+            try {
+              const event = JSON.parse(chunk.slice(6));
+              if (event.type === "delta") {
+                fullReply += event.text;
+                const displayText = stripTags(fullReply);
+                setVenueThreads((prev) => {
+                  const next = new Map(prev);
+                  const thread = next.get(selectedVenue.id) || [];
+                  next.set(selectedVenue.id, thread.map((m) => m.id === aiMsgId ? { ...m, body: displayText } : m));
+                  return next;
+                });
+              } else if (event.type === "done") {
+                metadata = event;
+              }
+            } catch { /* skip */ }
+          }
+        }
+
+        // Process metadata after stream completes
+        if (metadata) {
+          const data = metadata as Record<string, unknown>;
+
+          // Store offerings metadata for rendering inline cards
+          if (data.offerings && typeof data.offerings === "object" && Object.keys(data.offerings as object).length > 0) {
+            setOfferingsMap((prev) => ({
+              ...prev,
+              [selectedVenue.id]: { ...(prev[selectedVenue.id] || {}), ...(data.offerings as Record<string, OfferingMeta>) },
+            }));
+          }
+
+          const cardTab = data.card || (activeTab !== "chat" ? activeTab : undefined);
+          let finalBody = (data.reply as string) || fullReply || "Couldn't reach the venue right now. Try again.";
+
+          // Build checkout data
+          let checkoutData: CheckoutCardData | undefined;
+          if (data.checkout) {
+            checkoutData = { ...(data.checkout as CheckoutCardData), venue_name: selectedVenue.name, venue_id: selectedVenue.id };
+          }
+
+          // If a booking was confirmed, enrich the reply with details
+          const bookingData = data.booking as { booking?: { start?: string; end?: string; message?: string } } | null;
+          if (bookingData?.booking) {
+            const bk = bookingData.booking;
+            const bkStart = bk.start ? new Date(bk.start) : null;
+            const bkEnd = bk.end ? new Date(bk.end) : null;
+            const dateStr = bkStart ? bkStart.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
+            const timeStr = bkStart ? bkStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+            const endTimeStr = bkEnd ? bkEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+            const bookingDetails = `\n\nBooking confirmed: ${bookingData.booking.message || ""}${dateStr ? `\nDate: ${dateStr}` : ""}${timeStr ? `\nTime: ${timeStr}${endTimeStr ? ` - ${endTimeStr}` : ""}` : ""}${user ? `\n\nAdd to Apple Wallet: https://thekickback.net/wallet/pass/${user.authId}` : ""}`;
+            finalBody = finalBody + bookingDetails;
+          }
+
+          // Update the AI message with cleaned reply and metadata
+          setVenueThreads((prev) => {
+            const next = new Map(prev);
+            const thread = next.get(selectedVenue.id) || [];
+            next.set(selectedVenue.id, thread.map((m) => m.id === aiMsgId ? { ...m, body: finalBody, tab: cardTab as Tab | undefined, checkout: checkoutData } : m));
+            return next;
+          });
+        }
       } catch {
         setVenueThreads((prev) => {
           const next = new Map(prev);
@@ -1974,25 +2038,62 @@ export function TheDock({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: msg }),
         });
-        const data = await res.json();
 
-        if (data.venues?.length) {
-          setApiVenues((prev) => {
-            const next = { ...prev };
-            for (const v of data.venues) next[v.id] = v;
-            return next;
-          });
-          setRichVenues((prev) => {
-            const next = { ...prev };
-            for (const v of data.venues) next[v.id] = v;
-            return next;
-          });
+        const aiMsgId = `ai-${Date.now()}`;
+        // Add empty AI message immediately for streaming
+        setConciergeMessages((prev) => [...prev, { id: aiMsgId, sender: "ai" as const, body: "", timestamp: Date.now() }]);
+        setLoading(false);
+
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let fullReply = "";
+        let metadata: Record<string, unknown> | null = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const chunks = buffer.split("\n\n");
+          buffer = chunks.pop() || "";
+
+          for (const chunk of chunks) {
+            if (!chunk.startsWith("data: ")) continue;
+            try {
+              const event = JSON.parse(chunk.slice(6));
+              if (event.type === "delta") {
+                fullReply += event.text;
+                const displayText = stripTags(fullReply);
+                setConciergeMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: displayText } : m));
+              } else if (event.type === "done") {
+                metadata = event;
+              }
+            } catch { /* skip */ }
+          }
         }
 
-        setConciergeMessages((prev) => [
-          ...prev,
-          { id: `ai-${Date.now()}`, sender: "ai", body: data.reply || "Something went wrong. Try again in a moment.", timestamp: Date.now() },
-        ]);
+        // Process metadata after stream completes
+        if (metadata) {
+          const data = metadata as Record<string, unknown>;
+          const venuesList = data.venues as ApiVenue[] | undefined;
+
+          if (venuesList?.length) {
+            setApiVenues((prev) => {
+              const next = { ...prev };
+              for (const v of venuesList) next[v.id] = v;
+              return next;
+            });
+            setRichVenues((prev) => {
+              const next = { ...prev };
+              for (const v of venuesList) next[v.id] = v as unknown as RichVenue;
+              return next;
+            });
+          }
+
+          // Update with cleaned reply
+          setConciergeMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: (data.reply as string) || fullReply || "Something went wrong. Try again in a moment." } : m));
+        }
       } catch {
         setConciergeMessages((prev) => [
           ...prev,
