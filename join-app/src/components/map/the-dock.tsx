@@ -22,6 +22,7 @@ import { sendOtp, verifyOtp } from "@/app/login/actions";
 import { getDeviceId } from "@/lib/device-id";
 import { APP_VERSION, BUILD_NUMBER, BUILD_DATE } from "@/lib/version";
 import Image from "next/image";
+import { ProductDrawer, type OfferingMeta as SharedOfferingMeta } from "@/components/shared/product-drawer";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -1156,6 +1157,7 @@ export function TheDock({
   // ── Cart (venueId → items) ──
   const [carts, setCarts] = useState<Map<string, CartItem[]>>(new Map());
   const [cartExpanded, setCartExpanded] = useState(false);
+  const [drawerOfferId, setDrawerOfferId] = useState<string | null>(null);
 
   // ── Venue offerings for quick replies ──
   const [venueOfferings, setVenueOfferings] = useState<Record<string, { id: string; type: string; name: string }[]>>({});
@@ -1203,12 +1205,9 @@ export function TheDock({
     const allMaps = offeringsMap[venueId] || {};
     const meta = allMaps[offeringId] as { duration_minutes?: number | null; type?: string } | undefined;
     if (meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type || "")) {
-      // Find the venue's slug and navigate to it
-      const venue = venues.find((v) => v.id === venueId);
-      if (venue?.slug) {
-        window.location.href = `/${venue.slug}`;
-        return;
-      }
+      // Open ProductDrawer for bookable offerings instead of redirecting
+      setDrawerOfferId(offeringId);
+      return;
     }
 
     setCarts((prev) => {
@@ -4206,6 +4205,48 @@ export function TheDock({
             </motion.div>
           </>
         )}
+      </AnimatePresence>
+
+      {/* ── Product Drawer for bookable offerings ── */}
+      <AnimatePresence>
+        {drawerOfferId && selectedVenue && (() => {
+          const venueOffers = offeringsMap[selectedVenue.id] || {};
+          const meta = venueOffers[drawerOfferId];
+          if (!meta) return null;
+          return (
+            <ProductDrawer
+              offer={{ id: drawerOfferId, name: meta.name, price: meta.price_cents }}
+              meta={meta as SharedOfferingMeta}
+              theme={selectedVenue.themeColor || getVibeHexColor(selectedVenue.vibe)}
+              onClose={() => setDrawerOfferId(null)}
+              onAdd={() => {
+                setCarts((prev) => {
+                  const next = new Map(prev);
+                  const items = [...(next.get(selectedVenue.id) || [])];
+                  const existing = items.find((i) => i.offeringId === drawerOfferId);
+                  if (existing) existing.quantity += 1;
+                  else items.push({ offeringId: drawerOfferId, name: meta.name, priceCents: meta.price_cents, quantity: 1 });
+                  next.set(selectedVenue.id, items);
+                  return next;
+                });
+                setDrawerOfferId(null);
+              }}
+              onAddWithMeta={(metadata) => {
+                setCarts((prev) => {
+                  const next = new Map(prev);
+                  const items = [...(next.get(selectedVenue.id) || [])];
+                  items.push({ offeringId: drawerOfferId, name: meta.name, priceCents: meta.price_cents, quantity: 1, metadata } as CartItem & { metadata: typeof metadata });
+                  next.set(selectedVenue.id, items);
+                  return next;
+                });
+                setDrawerOfferId(null);
+              }}
+              linkedStaff={[]}
+              venueId={selectedVenue.id}
+              user={user ? { id: user.authId, email: user.email } : null}
+            />
+          );
+        })()}
       </AnimatePresence>
     </>
   );
