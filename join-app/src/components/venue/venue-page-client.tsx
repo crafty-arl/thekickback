@@ -350,7 +350,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
         transition={{ type: "spring", damping: 28, stiffness: 280 }}
         className="fixed inset-y-0 left-0 z-[85] w-[85vw] max-w-sm flex flex-col overflow-y-auto"
         style={{
-          backgroundColor: "rgba(12,12,15,0.97)",
+          background: "linear-gradient(to bottom, rgba(12,12,15,0.95) 0%, rgba(12,12,15,0.85) 100%)",
           backdropFilter: "blur(40px)",
           WebkitBackdropFilter: "blur(40px)",
           borderRight: "1px solid rgba(255,255,255,0.05)",
@@ -670,6 +670,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   useEffect(() => {
     controls.start({
       height: chatOpen ? "70dvh" : "56px",
+      backgroundColor: chatOpen ? "rgba(12, 12, 14, 0.88)" : "rgba(12, 12, 14, 0.55)",
       transition: { type: "spring", damping: 30, stiffness: 300 },
     });
   }, [chatOpen, controls]);
@@ -1169,7 +1170,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="fixed inset-y-0 right-0 z-[85] w-[85vw] max-w-sm flex flex-col overflow-y-auto"
-              style={{ backgroundColor: "rgba(12,12,15,0.97)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: "1px solid rgba(255,255,255,0.08)" }}
+              style={{ background: "linear-gradient(to bottom, rgba(12,12,15,0.95) 0%, rgba(12,12,15,0.85) 100%)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: "1px solid rgba(255,255,255,0.08)" }}
             >
               {/* Header */}
               <div className="flex items-center justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] pb-4">
@@ -1329,7 +1330,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="fixed inset-y-0 right-0 z-[85] w-[85vw] max-w-sm flex flex-col overflow-y-auto"
-              style={{ backgroundColor: "rgba(12,12,15,0.97)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: "1px solid rgba(255,255,255,0.08)" }}
+              style={{ background: "linear-gradient(to bottom, rgba(12,12,15,0.95) 0%, rgba(12,12,15,0.85) 100%)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: "1px solid rgba(255,255,255,0.08)" }}
             >
               <div className="flex items-center justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] pb-2">
                 <h2 className="font-sans text-[16px] font-bold text-white">AI Wallet</h2>
@@ -1393,10 +1394,10 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
           style={{
             height: 56,
             borderRadius: 0,
-            background: "rgba(12, 12, 14, 0.92)",
+            backgroundColor: "rgba(12, 12, 14, 0.55)",
             backdropFilter: "blur(40px) saturate(1.8)",
             WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-            boxShadow: "0 -4px 20px rgba(0,0,0,0.3), 0 -1px 0 rgba(255,255,255,0.06)",
+            boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
           }}
         >
           {/* Collapsed: input bar (shown when not expanded) */}

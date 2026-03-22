@@ -244,6 +244,18 @@ function getDockRadius(_mode: DockMode, _exploreSnap: SnapPoint, _venueChatSnap:
   return "0px";
 }
 
+// Background opacity: transparent when collapsed, darker as it expands
+function getDockBg(mode: DockMode, exploreSnap: SnapPoint, venueChatSnap: VenueChatSnap): string {
+  if (mode === "idle") return "rgba(12, 12, 14, 0.55)";
+  if (mode === "venueChat" && venueChatSnap === "collapsed") return "rgba(12, 12, 14, 0.55)";
+  if (mode === "explore" && exploreSnap === "peek") return "rgba(12, 12, 14, 0.65)";
+  if (mode === "explore" && exploreSnap === "half") return "rgba(12, 12, 14, 0.82)";
+  if (mode === "explore" && exploreSnap === "full") return "rgba(12, 12, 14, 0.92)";
+  if (mode === "venueChat" && venueChatSnap === "expanded") return "rgba(12, 12, 14, 0.85)";
+  if (mode === "venueChat" && venueChatSnap === "full") return "rgba(12, 12, 14, 0.94)";
+  return "rgba(12, 12, 14, 0.88)"; // concierge, profile
+}
+
 function buildVenueFromApi(av: ApiVenue): Venue {
   return {
     id: av.id,
@@ -1318,11 +1330,12 @@ export function TheDock({
     return [];
   }, [selectedVenue, venueOfferings, carts, currentVenueMessages]);
 
-  // ── Animate height/radius on mode + snap changes ──
+  // ── Animate height/radius/background on mode + snap changes ──
   useEffect(() => {
     controls.start({
       height: getDockHeight(mode, exploreSnap, venueChatSnap),
       borderRadius: getDockRadius(mode, exploreSnap, venueChatSnap),
+      backgroundColor: getDockBg(mode, exploreSnap, venueChatSnap),
       transition: { type: "spring", damping: 30, stiffness: 300 },
     });
   }, [mode, exploreSnap, venueChatSnap, controls]);
@@ -2351,10 +2364,10 @@ export function TheDock({
           style={{
             height: 56,
             borderRadius: 0,
-            background: "rgba(12, 12, 14, 0.92)",
+            backgroundColor: "rgba(12, 12, 14, 0.55)",
             backdropFilter: "blur(40px) saturate(1.8)",
             WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-            boxShadow: "0 -4px 20px rgba(0,0,0,0.3), 0 -1px 0 rgba(255,255,255,0.06)",
+            boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
             touchAction: "none",
           }}
         >
