@@ -2906,7 +2906,7 @@ export function TheDock({
           )}
 
           {/* ═══ CONCIERGE MODE ═══ */}
-          {mode === "concierge" && user && (
+          {mode === "concierge" && (
             <>
               {/* Header */}
               <div className="flex items-center justify-between px-4 pt-3 pb-2">
