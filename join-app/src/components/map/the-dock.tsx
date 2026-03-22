@@ -2969,11 +2969,11 @@ export function TheDock({
                           : { backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }
                         }
                       >
-                        <p className="font-sans text-[14px] leading-[1.5]">
+                        <div className="font-sans text-[14px] leading-[1.5]">
                           {msg.sender === "ai"
                             ? parseVenueChips(venues, apiVenues, richVenues, msg.body, handleConciergeVenueTap)
                             : msg.body}
-                        </p>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
