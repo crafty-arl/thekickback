@@ -596,7 +596,10 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const pct = Math.round((venue.occupancy / venue.max_occupancy) * 100);
   /* ── Chat state — starts expanded so guests see venue info immediately ── */
   const [chatOpen, setChatOpen] = useState(true);
-  const [showGestureHint, setShowGestureHint] = useState(true);
+  const [showGestureHint, setShowGestureHint] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem("kb-gesture-seen");
+  });
   const activeTab: Tab = "chat";
   const controls = useAnimationControls();
   const welcomeMsg: Message = { id: "welcome", sender: "ai", body: `Hey! ${vl(venue.vibe)} vibes right now, ${venue.occupancy} people in. Ask me anything about ${venue.name}.`, timestamp: Date.now() };
@@ -620,7 +623,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   // Auto-dismiss gesture hint after 3s
   useEffect(() => {
     if (!showGestureHint) return;
-    const t = setTimeout(() => setShowGestureHint(false), 3000);
+    const t = setTimeout(() => { setShowGestureHint(false); localStorage.setItem("kb-gesture-seen", "1"); }, 3000);
     return () => clearTimeout(t);
   }, [showGestureHint]);
 
@@ -904,16 +907,10 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         {/* Venue identity */}
         <div className="absolute inset-x-0 bottom-0 px-5 pb-6">
           <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center gap-1.5 px-2.5 py-1" style={{ backgroundColor: theme }}>
-              <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
-              <span className="font-sans text-[10px] font-bold tracking-[1px] text-black">LIVE</span>
-            </div>
             <div className="flex items-center gap-1.5 px-2.5 py-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
               <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
               <span className="font-sans text-[11px] font-semibold" style={{ color }}>{vl(venue.vibe)}</span>
-            </div>
-            <div className="px-2.5 py-1 font-sans text-[11px] text-white/60" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
-              {venue.occupancy}/{venue.max_occupancy} ({pct}%)
+              <span className="font-sans text-[10px] text-white/40">{venue.occupancy} in</span>
             </div>
           </div>
           <h1 className="font-sans text-[28px] font-bold leading-tight tracking-tight">{venue.name}</h1>
@@ -959,15 +956,6 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                 <p className="font-sans text-[12px] text-white/50 mt-0.5">{venue.address}</p>
               </div>
             </a>
-          )}
-          {offerings.filter((o) => o.type === "membership").length > 0 && (
-            <button onClick={() => setChatOpen(true)} className="shrink-0 px-5 py-3.5 text-left transition-colors duration-150 active:scale-[0.98]" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}15`, minWidth: 140 }}>
-              <p className="font-sans text-[10px] font-semibold tracking-[1px] mb-2" style={{ color: `${theme}80` }}>MEMBERSHIP</p>
-              <p className="font-sans text-[13px] font-semibold" style={{ color: theme }}>
-                {offerings.filter((o) => o.type === "membership")[0]?.name}
-              </p>
-              <p className="font-sans text-[11px] text-white/30 mt-0.5">Tap to learn more</p>
-            </button>
           )}
         </div>
 
@@ -1499,10 +1487,6 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         </motion.div>
       </div>
 
-      {/* Powered by */}
-      <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center" style={{ paddingBottom: "max(2px, calc(env(safe-area-inset-bottom, 2px) + 62px))" }}>
-        <span className="font-sans text-[9px] text-white/10">powered by theKickBack</span>
-      </div>
     </main>
   );
 }
