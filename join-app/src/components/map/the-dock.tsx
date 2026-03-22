@@ -283,8 +283,30 @@ function parseVenueChips(
   text: string,
   onTap: (venue: Venue) => void
 ): React.ReactNode[] {
-  const parts = text.split(/(\[\[VENUE_CARD:[^\]]+\]\]|\[\[venue:[^\]]+\]\])/g);
+  const parts = text.split(/(\[\[VENUE_CARD:[^\]]+\]\]|\[\[venue:[^\]]+\]\]|\[\[OFFER:[^\]]+\]\])/g);
   return parts.map((part, i) => {
+    // Offering chip: [[OFFER:id:name:price_cents]]
+    const offerMatch = part.match(/^\[\[OFFER:([^:]+):([^:]+):(\d+)\]\]$/);
+    if (offerMatch) {
+      const price = parseInt(offerMatch[3]) / 100;
+      return (
+        <button
+          key={i}
+          onClick={() => {
+            // Find which venue owns this offering and tap it
+            const venueId = Object.keys(richVenues).find((vid) => true); // will navigate to venue
+            const venue = venues.find((v) => richVenues[v.id]);
+            if (venue) onTap(venue);
+          }}
+          className="mx-0.5 my-1 inline-flex items-center gap-1.5 px-3 py-1.5 font-sans text-[12px] font-semibold active:scale-95"
+          style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}
+        >
+          <span>{offerMatch[2]}</span>
+          <span className="font-mono text-[11px] opacity-70">${price % 1 === 0 ? price : price.toFixed(2)}</span>
+        </button>
+      );
+    }
+
     const cardMatch = part.match(/^\[\[VENUE_CARD:([^\]]+)\]\]$/);
     if (cardMatch) {
       const venueId = cardMatch[1];

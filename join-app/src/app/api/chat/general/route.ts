@@ -45,15 +45,43 @@ async function getVenuePageData(venueIds: string[]): Promise<Record<string, { ta
   return map;
 }
 
-function buildVenueDirectory(venues: VenueRow[]): string {
+interface OfferingRow {
+  id: string;
+  venue_id: string;
+  name: string;
+  type: string;
+  price_cents: number;
+  description: string | null;
+  duration_minutes: number | null;
+}
+
+async function getActiveOfferings(): Promise<OfferingRow[]> {
+  const { data } = await supabase
+    .from("venue_offerings")
+    .select("id, venue_id, name, type, price_cents, description, duration_minutes")
+    .eq("active", true)
+    .order("sort_order")
+    .limit(200);
+  return (data || []) as OfferingRow[];
+}
+
+function buildVenueDirectory(venues: VenueRow[], offerings: OfferingRow[]): string {
   if (venues.length === 0) return "No venues currently active.";
 
-  return venues
-    .map(
-      (v) =>
-        `- ${v.name} (id: ${v.id}) — ${v.vibe}, ${v.occupancy}/${v.max_occupancy} people`
-    )
-    .join("\n");
+  // Group offerings by venue
+  const offeringsByVenue = new Map<string, OfferingRow[]>();
+  for (const o of offerings) {
+    if (!offeringsByVenue.has(o.venue_id)) offeringsByVenue.set(o.venue_id, []);
+    offeringsByVenue.get(o.venue_id)!.push(o);
+  }
+
+  return venues.map((v) => {
+    const vOfferings = offeringsByVenue.get(v.id) || [];
+    const offeringList = vOfferings.length > 0
+      ? `\n  Offerings: ${vOfferings.map((o) => `${o.name} (${o.type}, $${(o.price_cents / 100).toFixed(2)}, id:${o.id})`).join(", ")}`
+      : "";
+    return `- ${v.name} (id: ${v.id}) — ${v.type || "venue"}, ${v.vibe}, ${v.occupancy}/${v.max_occupancy} people${v.neighborhood ? `, ${v.neighborhood}` : ""}${offeringList}`;
+  }).join("\n");
 }
 
 // Resolve [[venue:uuid]] tags into [[venue:uuid:Name]] so the client can render chips
@@ -77,12 +105,13 @@ export async function POST(request: Request) {
   const { data: { user: authUser } } = await authClient.auth.getUser();
   const userId = authUser?.id || null;
 
-  // Fetch venues + preferences in parallel
-  const [venues, prefsContext] = await Promise.all([
+  // Fetch venues + offerings + preferences in parallel
+  const [venues, offerings, prefsContext] = await Promise.all([
     getActiveVenues(),
+    getActiveOfferings(),
     userId ? getPreferencesContext(userId) : Promise.resolve(""),
   ]);
-  const directory = buildVenueDirectory(venues);
+  const directory = buildVenueDirectory(venues, offerings);
 
   const context = [
     "You are KickBack's concierge — the master agent for theKickBack platform. CRITICAL: Never mention texting, SMS, phone numbers, or 'text JOIN.' There is no texting feature. Everything happens through this chat.",
@@ -97,14 +126,24 @@ export async function POST(request: Request) {
     "For casual mentions without a full card, use: [[venue:venue-id-here]]",
     "This renders a small tappable chip.",
     "",
+    "OFFERING LINK INSTRUCTIONS:",
+    "When mentioning a specific offering (product, service, event, membership), link it inline:",
+    "[[OFFER:offering-id:Offering Name:price_cents]]",
+    "Example: 'Check out [[OFFER:abc-123:Classic Fade:2500]] at Tight Lines or [[OFFER:def-456:Latte Art Class:1500]] at Drip.'",
+    "This renders a tappable offering chip guests can add to cart or book.",
+    "Use these when someone asks 'what can I buy', 'any events', 'haircuts near me', etc.",
+    "Always pair offerings with their venue using VENUE_CARD or [[venue:id]].",
+    "",
     "Active venues:",
     directory,
     "",
     prefsContext || "",
     `User says: "${message}"`,
     "",
-    "Keep responses concise (1-3 sentences). No emojis. Be direct and helpful.",
+    "Keep responses concise (2-4 sentences). No emojis. Be direct and helpful.",
     "Always use VENUE_CARD when the user asks where to go, what's good, or for recommendations.",
+    "When the user asks about specific services or products (haircuts, coffee, events, food), show the relevant OFFER links from the offerings listed above.",
+    "You are a discovery engine — help users find things to do, buy, book, and experience across all venues.",
     "",
     "IMPORTANT RULES:",
     "- NEVER tell users to text, SMS, or call any number. There is no texting feature.",
