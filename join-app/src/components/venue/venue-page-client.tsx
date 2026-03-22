@@ -606,46 +606,16 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   const [offeringsMap, setOfferingsMap] = useState<Record<string, OfferingMeta>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [drawerOfferId, setDrawerOfferId] = useState<string | null>(null);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [cartExpanded, setCartExpanded] = useState(false);
   const walletStatus = useWalletStatus();
   const passkey = usePasskey();
   const [paymentMode, setPaymentMode] = useState<"choose" | "processing" | null>(null);
-  const [pointsData, setPointsData] = useState<{
-    balance: number; total_earned: number; tier: string; kickback_score: number;
-    current_streak: number; venues_visited: number;
-  } | null>(null);
-  const [txHistory, setTxHistory] = useState<{
-    id: string; amount: number; reason: string; venues?: { name: string }; created_at: string;
-  }[]>([]);
-  const [myBookings, setMyBookings] = useState<{
-    id: string; offeringName: string; startsAt: string; endsAt: string | null;
-    durationMinutes: number | null; status: string;
-  }[]>([]);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const _hasSentTabCommand = useRef<Set<Tab>>(new Set(["chat"]));
 
   // Fetch balance + history
-  useEffect(() => {
-    if (!user) return;
-    fetch(`/api/points?venueId=${venue.id}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (data?.balance) setPointsData(data.balance);
-        if (data?.history) setTxHistory(data.history);
-      })
-      .catch(() => {});
-    // Fetch bookings
-    fetch(`/api/bookings?venueId=${venue.id}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (data?.bookings) setMyBookings(data.bookings);
-      })
-      .catch(() => {});
-  }, [user, venue.id]);
+  // Points/bookings fetches removed — handled by main app profile
 
   // Auto-dismiss gesture hint after 3s
   useEffect(() => {
@@ -740,8 +710,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         const timeStr = bkStart ? bkStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
         const endTimeStr = bkEnd ? bkEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
         replyBody += `\n\nBooking confirmed: ${data.booking.message || ""}${dateStr ? `\nDate: ${dateStr}` : ""}${timeStr ? `\nTime: ${timeStr}${endTimeStr ? ` - ${endTimeStr}` : ""}` : ""}`;
-        // Refresh bookings list
-        fetch(`/api/bookings?venueId=${venue.id}`).then((r) => r.ok ? r.json() : null).then((d) => { if (d?.bookings) setMyBookings(d.bookings); }).catch(() => {});
+        // Booking confirmed — no local state refresh needed
       }
       setMessages((prev) => [...prev, { id: `ai-${Date.now()}`, sender: "ai", body: replyBody, timestamp: Date.now(), tab: activeTab }]);
     } catch {
@@ -838,10 +807,6 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         setCart([]);
         setCartExpanded(false);
         walletStatus?.refresh?.();
-        fetch(`/api/points?venueId=${venue.id}`).then((r) => r.ok ? r.json() : null).then((data) => {
-          if (data?.balance) setPointsData(data.balance);
-          if (data?.history) setTxHistory(data.history);
-        }).catch(() => {});
       }
     } catch {
       setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "ai", body: "Couldn't process the order. Try again.", timestamp: Date.now() }]);
