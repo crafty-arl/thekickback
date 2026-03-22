@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { fetchApprovedVenues } from "@/lib/fetch-venues";
 import { fetchDiscoveryVenues } from "@/lib/fetch-discovery";
 import { JoinPageClient } from "@/components/join-page-client";
