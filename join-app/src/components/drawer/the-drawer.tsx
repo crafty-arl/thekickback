@@ -719,7 +719,11 @@ export function TheDrawer({
   const send = useCallback(async (text?: string) => {
     if (!user) return;
     const msg = (text || input).trim();
-    if (!msg || loading) return;
+    if (!msg) return;
+    // Allow cart actions even while AI is loading
+    if (msg === "__CHECKOUT__" || msg === "__CLEAR_CART__" || msg === "__WALLET_PASS__") {
+      // bypass loading check
+    } else if (loading) return;
     const userMsg: Message = { id: `user-${Date.now()}`, sender: "guest", body: msg, timestamp: Date.now() };
 
     if (selectedVenue && (view === "venue" || view === "chat")) {
@@ -735,7 +739,8 @@ export function TheDrawer({
           items: cart.map((item) => ({ offering_id: item.offeringId, slot_id: null, name: item.name, quantity: item.quantity, unit_price_cents: item.priceCents })),
         };
         const checkoutMsg: Message = { id: `checkout-${Date.now()}`, sender: "ai", body: "Here's your order \u2014 review and confirm when ready.", timestamp: Date.now(), checkout: checkoutData };
-        setVenueThreads((prev) => { const next = new Map(prev); next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), checkoutMsg]); return next; });
+        // Remove any existing checkout messages (one at a time) then add new
+        setVenueThreads((prev) => { const next = new Map(prev); next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []).filter((m) => !m.checkout), checkoutMsg]); return next; });
         setCartExpanded(false);
         return;
       }
@@ -831,9 +836,11 @@ export function TheDrawer({
       const confirmMsg: Message = result.orderId
         ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed: ${itemNames}. Total: $${(subtotal / 100).toFixed(2)}.${method === "wallet" ? " Paid from AI Credit." : " Charged to card on file."}${pointsToSpend > 0 ? ` Used ${pointsToSpend} points.` : ""}${bonusPts > 0 ? ` +${bonusPts} XP earned!` : ""} Show this to the host when you arrive.${walletPassNote}`, timestamp: Date.now() }
         : { id: `err-${Date.now()}`, sender: "ai", body: result.error || "Something went wrong with the order.", timestamp: Date.now() };
-      setVenueThreads((prev) => { const next = new Map(prev); next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), confirmMsg]); return next; });
+      // Remove checkout message (prevent double-pay) and add confirmation
+      setVenueThreads((prev) => { const next = new Map(prev); next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []).filter((m) => !m.checkout), confirmMsg]); return next; });
       if (result.orderId) {
         clearCart(selectedVenue.id);
+        setCartExpanded(false);
         walletStatus?.refresh?.();
         fetch("/api/points").then((r) => r.ok ? r.json() : null).then((data) => {
           if (data?.balance && user) setUser({ ...user, kickbackScore: data.balance.kickback_score || data.balance.total_earned || user.kickbackScore, totalEarned: data.balance.total_earned || user.totalEarned, tier: data.balance.tier || user.tier, streak: data.balance.current_streak || user.streak, venueProfiles: data.venueProfiles || user.venueProfiles });
