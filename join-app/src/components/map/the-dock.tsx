@@ -84,6 +84,7 @@ interface OfferingMeta {
   price_cents: number;
   image_url: string | null;
   type: string;
+  duration_minutes?: number | null;
 }
 
 interface CartItem {
@@ -1198,6 +1199,18 @@ export function TheDock({
   const cartCount = currentCart.reduce((sum, item) => sum + item.quantity, 0);
 
   const addToCart = useCallback((venueId: string, offeringId: string, name: string, priceCents: number) => {
+    // Check if this is a bookable offering — redirect to venue page for scheduling
+    const allMaps = offeringsMap[venueId] || {};
+    const meta = allMaps[offeringId] as { duration_minutes?: number | null; type?: string } | undefined;
+    if (meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type || "")) {
+      // Find the venue's slug and navigate to it
+      const venue = venues.find((v) => v.id === venueId);
+      if (venue?.slug) {
+        window.location.href = `/${venue.slug}`;
+        return;
+      }
+    }
+
     setCarts((prev) => {
       const next = new Map(prev);
       const items = [...(next.get(venueId) || [])];
@@ -1210,7 +1223,7 @@ export function TheDock({
       next.set(venueId, items);
       return next;
     });
-  }, []);
+  }, [venues, offeringsMap]);
 
   const removeFromCart = useCallback((venueId: string, offeringId: string) => {
     setCarts((prev) => {
