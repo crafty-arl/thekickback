@@ -799,6 +799,10 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         }),
       });
       const result = await res.json();
+      if (!res.ok) {
+        setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "ai", body: `Order failed: ${result.error || `HTTP ${res.status}`}`, timestamp: Date.now() }]);
+        return;
+      }
       const itemNames = msg.checkout.items.map((i) => i.quantity && i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name).join(", ");
       const bonusPts = Math.floor(subtotal / 10);
       const confirmMsg: Message = result.orderId
@@ -811,8 +815,10 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         setCartExpanded(false);
         walletStatus?.refresh?.();
       }
-    } catch {
-      setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "ai", body: "Couldn't process the order. Try again.", timestamp: Date.now() }]);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Unknown error";
+      console.error("Payment error:", errMsg);
+      setMessages((prev) => [...prev, { id: `err-${Date.now()}`, sender: "ai", body: `Order failed: ${errMsg}`, timestamp: Date.now() }]);
     } finally {
       setPaymentMode(null);
     }
