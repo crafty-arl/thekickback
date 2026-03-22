@@ -423,7 +423,6 @@ export function TheDrawer({
   const controls = useAnimationControls();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const conciergeHistoryLoaded = useRef(false);
 
   // ── Derived ──
   const currentVenueMessages = selectedVenue ? (venueThreads.get(selectedVenue.id) || []) : [];
@@ -463,10 +462,13 @@ export function TheDrawer({
 
   const clearThread = useCallback((venueId: string) => {
     setVenueThreads((prev) => { const next = new Map(prev); next.delete(venueId); return next; });
+    // Clear DB thread (non-blocking)
+    fetch(`/api/threads?venueId=${venueId}`, { method: "DELETE" }).then(() => {}, () => {});
   }, []);
 
   const clearConcierge = useCallback(() => {
     setConciergeMessages([{ id: "welcome", sender: "ai", body: "Hey. I\u2019m KickBack. Ask me anything \u2014 what\u2019s happening tonight, where to go, or vibe check a spot.", timestamp: Date.now() }]);
+    fetch("/api/threads?master=true", { method: "DELETE" }).then(() => {}, () => {});
   }, []);
 
   // ── Navigation helpers ──
@@ -547,20 +549,6 @@ export function TheDrawer({
     };
   }, []);
 
-  // ── Load thread history ──
-  const loadThreadHistory = useCallback(async (venueId: string | null) => {
-    try {
-      const url = venueId ? `/api/threads?venueId=${venueId}` : "/api/threads?master=true";
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (!data.messages?.length) return null;
-      return data.messages.map((m: { id: string; sender_type: string; body: string; created_at: string }) => ({
-        id: m.id, sender: m.sender_type as "guest" | "ai", body: m.body, timestamp: new Date(m.created_at).getTime(),
-      })) as Message[];
-    } catch { return null; }
-  }, []);
-
   // ── Load explore offerings ──
   useEffect(() => {
     if (view !== "explore" || snap === "peek" || exploreOfferingsLoaded.current) return;
@@ -569,12 +557,6 @@ export function TheDrawer({
     Promise.all(claimed.map((v) => fetch(`/api/offerings?venueId=${v.id}`).then((r) => r.ok ? r.json() : { offerings: [] }).then((d) => (d.offerings || []).map((o: { id: string; name: string; type: string; price_cents: number; description: string | null; image_url?: string | null; category?: string | null }) => ({ ...o, venue_id: v.id, image_url: o.image_url || null, category: o.category || null }))).catch(() => []))).then((results) => setExploreOfferings(results.flat()));
     Promise.all(claimed.map((v) => fetch(`/api/digital-assets?venueId=${v.id}`).then((r) => r.ok ? r.json() : { assets: [] }).then((d) => (d.assets || []).map((a: { id: string; name: string; asset_type: string; category: string; xp_cost: number | null; cash_price_cents: number | null; is_animated: boolean; description: string | null }) => ({ ...a, venue_id: v.id }))).catch(() => []))).then((results) => setExploreDigitalAssets(results.flat()));
   }, [view, snap, venues]);
-
-  // ── Load concierge history on first open ──
-  useEffect(() => {
-    if (view !== "explore" || conciergeHistoryLoaded.current) return;
-    // Delay concierge history loading — only when chat is opened
-  }, [view]);
 
   // ── Sync selectedVenue → view ──
   useEffect(() => {
@@ -597,7 +579,6 @@ export function TheDrawer({
       const welcomeMsg: Message = { id: `welcome-${selectedVenue.id}`, sender: "ai", body: welcomeBody, timestamp: Date.now() };
       setVenueThreads((prev) => { const next = new Map(prev); next.set(selectedVenue.id, [welcomeMsg]); return next; });
       const vid = selectedVenue.id;
-      loadThreadHistory(vid).then((messages) => { if (messages?.length) setVenueThreads((prev) => { const next = new Map(prev); next.set(vid, messages); return next; }); });
       if (!venueOfferings[vid]) {
         fetch(`/api/offerings?venueId=${vid}`).then((r) => r.ok ? r.json() : { offerings: [] }).then((d) => { if (d.offerings?.length) setVenueOfferings((prev) => ({ ...prev, [vid]: d.offerings.map((o: { id: string; type: string; name: string }) => ({ id: o.id, type: o.type, name: o.name })) })); }).catch(() => {});
       }

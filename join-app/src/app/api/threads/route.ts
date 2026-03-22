@@ -100,3 +100,37 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ threads: threadList, unreadCount });
 }
+
+// DELETE /api/threads?venueId=xxx — clear messages for a venue thread
+// DELETE /api/threads?master=true — clear concierge thread
+export async function DELETE(req: NextRequest) {
+  const authClient = await createAuthClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const venueId = req.nextUrl.searchParams.get("venueId");
+  const isMaster = req.nextUrl.searchParams.get("master") === "true";
+
+  let threadQuery = supabase
+    .from("chat_threads")
+    .select("id")
+    .eq("user_id", user.id);
+
+  if (isMaster) {
+    threadQuery = threadQuery.is("venue_id", null);
+  } else if (venueId) {
+    threadQuery = threadQuery.eq("venue_id", venueId);
+  } else {
+    return NextResponse.json({ error: "Missing venueId or master param" }, { status: 400 });
+  }
+
+  const { data: threads } = await threadQuery.limit(1);
+  const thread = threads?.[0];
+  if (!thread) return NextResponse.json({ ok: true });
+
+  // Delete messages, then the thread
+  await supabase.from("chat_messages").delete().eq("thread_id", thread.id);
+  await supabase.from("chat_threads").delete().eq("id", thread.id);
+
+  return NextResponse.json({ ok: true });
+}
