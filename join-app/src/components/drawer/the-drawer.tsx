@@ -849,7 +849,7 @@ export function TheDrawer({
     } catch {
       setVenueThreads((prev) => { const next = new Map(prev); next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), { id: `err-${Date.now()}`, sender: "ai", body: "Couldn't process the order. Try again.", timestamp: Date.now() }]); return next; });
     } finally { setPaymentMode(null); }
-  }, [selectedVenue, clearCart, walletStatus, user]);
+  }, [selectedVenue, clearCart, setCartExpanded, walletStatus, user]);
 
   const handleCheckoutConfirm = useCallback(async (msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number, method: "wallet" | "card" = "card") => {
     if (!selectedVenue || !msg.checkout) return;
@@ -875,7 +875,8 @@ export function TheDrawer({
 
   const handleCheckoutDismiss = useCallback(() => {
     if (!selectedVenue) return;
-    setVenueThreads((prev) => { const next = new Map(prev); next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), { id: `cancel-${Date.now()}`, sender: "ai", body: "No worries \u2014 let me know if you change your mind.", timestamp: Date.now() }]); return next; });
+    // Remove checkout card and add cancel message
+    setVenueThreads((prev) => { const next = new Map(prev); next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []).filter((m) => !m.checkout), { id: `cancel-${Date.now()}`, sender: "ai", body: "No worries \u2014 let me know if you change your mind.", timestamp: Date.now() }]); return next; });
   }, [selectedVenue]);
 
   // ── Drag handling ──

@@ -18,6 +18,16 @@ export function DrawerLogin({ onSuccess, onBack }: DrawerLoginProps) {
   const [step, setStep] = useState<"email" | "otp" | "waitlisted">("email");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [kbOpen, setKbOpen] = useState(false);
+
+  // Detect mobile keyboard open via visualViewport resize
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => setKbOpen(vv.height < window.innerHeight * 0.75);
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, []);
 
   const refKey = useRef<string | null>(null);
   useEffect(() => {
@@ -67,8 +77,8 @@ export function DrawerLogin({ onSuccess, onBack }: DrawerLoginProps) {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center px-6 py-8">
-      <Image src="/logo.png" alt="theKickBack" width={160} height={53} className="mb-4 h-10 w-auto" />
+    <div className="flex flex-1 flex-col items-center overflow-y-auto px-6" style={{ paddingTop: kbOpen ? 12 : 32, paddingBottom: kbOpen ? 12 : 32, transition: "padding 0.2s ease" }}>
+      {!kbOpen && <Image src="/logo.png" alt="theKickBack" width={160} height={53} className="mb-4 h-10 w-auto" />}
       <h2 className="mb-1 font-sans text-[18px] font-bold text-white">Sign in to explore</h2>
       <p className="mb-5 font-sans text-[15px] text-white/35">
         {step === "email" ? "Enter your email to get a code" : `Code sent to ${email}`}
