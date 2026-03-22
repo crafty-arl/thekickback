@@ -67,6 +67,7 @@ export async function POST(request: Request) {
     "- Gently mention that the venue could claim their page for the full experience — but don't be pushy about it.",
     "- If the user asks about nearby venues, suggest they check the KickBack map.",
     "- Keep it under 200 chars. No emojis. Conversational and warm.",
+    "- NEVER mention texting, SMS, or phone numbers. Everything is through this chat.",
     "",
     "CARD INSTRUCTIONS:",
     "If the guest asks about the vibe or atmosphere, include: [[CARD:vibe]]",

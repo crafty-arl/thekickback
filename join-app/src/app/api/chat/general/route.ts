@@ -105,6 +105,13 @@ export async function POST(request: Request) {
     "",
     "Keep responses concise (1-3 sentences). No emojis. Be direct and helpful.",
     "Always use VENUE_CARD when the user asks where to go, what's good, or for recommendations.",
+    "",
+    "IMPORTANT RULES:",
+    "- NEVER tell users to text, SMS, or call any number. There is no texting feature.",
+    "- Everything happens through this chat — browsing, ordering, booking, joining.",
+    "- To get started: users just tap a venue on the map and start chatting.",
+    "- To join a membership: tap the venue, browse offerings, and purchase through the chat.",
+    "- No app download needed. No phone numbers. No texting.",
   ].join("\n");
 
   let reply = "Something went wrong. Try again in a moment.";
