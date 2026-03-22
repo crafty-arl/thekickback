@@ -204,17 +204,17 @@ function AiMessageBody({ body, theme, onTapOffer, onAddToCart, offeringsMap }: {
       {textParts.length > 0 && (
         <p className="font-sans text-[14px] leading-[1.6]">{textParts.join("")}</p>
       )}
-      <div className="flex flex-col gap-1.5 mt-1">
+      <div className="flex flex-col gap-2 mt-1.5">
         {offerParts.map((offer) => {
           const meta = offeringsMap[offer.id];
           const emoji = TYPE_EMOJI[meta?.type || "custom"] || "✦";
 
           return (
-            <div key={offer.id} className="flex items-center gap-0 overflow-hidden" style={{ backgroundColor: `${theme}08`, border: `1px solid ${theme}20` }}>
+            <div key={offer.id} className="flex items-center gap-0 overflow-hidden" style={{ backgroundColor: `${theme}06`, border: `1px solid ${theme}12` }}>
               {/* Tap to open detail drawer */}
               <button
                 onClick={() => onTapOffer(offer.id)}
-                className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-left active:opacity-70"
+                className="flex flex-1 items-center gap-2.5 px-3.5 py-3 text-left transition-colors duration-150 active:opacity-70"
               >
                 {meta?.image_url ? (
                   <img src={meta.image_url} alt="" className="h-10 w-10 shrink-0 object-cover" />
@@ -353,7 +353,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
           backgroundColor: "rgba(12,12,15,0.97)",
           backdropFilter: "blur(40px)",
           WebkitBackdropFilter: "blur(40px)",
-          borderRight: "1px solid rgba(255,255,255,0.08)",
+          borderRight: "1px solid rgba(255,255,255,0.05)",
         }}
       >
         {/* Image or gradient hero */}
@@ -378,7 +378,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
         </div>
 
         {/* Content */}
-        <div className="flex flex-1 flex-col px-5 pt-4 pb-6">
+        <div className="flex flex-1 flex-col px-5 pt-5 pb-7">
           <h2 className="font-sans text-[22px] font-bold text-white">{offer.name}</h2>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="font-mono text-[24px] font-bold" style={{ color: theme }}>
@@ -526,7 +526,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
               <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">ADD-ONS</p>
               <div className="flex flex-col gap-1.5">
                 {meta.add_ons.map((addon) => (
-                  <div key={addon.name} className="flex items-center justify-between px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div key={addon.name} className="flex items-center justify-between px-3.5 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" }}>
                     <span className="font-sans text-[13px] text-white/60">{addon.name}</span>
                     <span className="font-mono text-[13px] font-semibold" style={{ color: theme }}>+${(addon.price_cents / 100).toFixed(2)}</span>
                   </div>
@@ -946,7 +946,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         </div>
 
         {/* Venue identity */}
-        <div className="absolute inset-x-0 bottom-0 px-5 pb-5">
+        <div className="absolute inset-x-0 bottom-0 px-5 pb-6">
           <div className="flex items-center gap-2 mb-2">
             <div className="flex items-center gap-1.5 px-2.5 py-1" style={{ backgroundColor: theme }}>
               <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
@@ -961,8 +961,8 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
             </div>
           </div>
           <h1 className="font-sans text-[28px] font-bold leading-tight tracking-tight">{venue.name}</h1>
-          {page.tagline && <p className="mt-1 font-sans text-[14px] text-white/50">{page.tagline}</p>}
-          {venue.neighborhood && <p className="mt-1 font-sans text-[12px] text-white/30">{venue.neighborhood}{venue.address ? ` · ${venue.address}` : ""}</p>}
+          {page.tagline && <p className="mt-1.5 font-sans text-[14px] leading-relaxed text-white/50">{page.tagline}</p>}
+          {venue.neighborhood && <p className="mt-1.5 font-sans text-[12px] text-white/30">{venue.neighborhood}{venue.address ? ` · ${venue.address}` : ""}</p>}
         </div>
       </div>
 
@@ -975,11 +975,14 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
       {/* ═══ SCROLLABLE BODY ═══ */}
       <div className="pb-[100px]">
 
+        {/* Spacer between hero and content */}
+        <div className="h-2" />
+
         {/* Quick info row */}
-        <div className="flex gap-2 overflow-x-auto px-4 py-4 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+        <div className="flex gap-2.5 overflow-x-auto px-5 py-4 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
           {page.hours.length > 0 && (
-            <div className="shrink-0 px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 140 }}>
-              <p className="font-sans text-[10px] font-semibold tracking-[1px] text-white/25 mb-1.5">HOURS</p>
+            <div className="shrink-0 px-5 py-3.5" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: "1px solid rgba(255,255,255,0.04)", minWidth: 140 }}>
+              <p className="font-sans text-[10px] font-semibold tracking-[1px] text-white/25 mb-2">HOURS</p>
               {page.hours.slice(0, 3).map((h) => (
                 <div key={h.day} className="flex justify-between gap-4 py-0.5">
                   <span className="font-sans text-[11px] text-white/40">{h.day}</span>
@@ -991,7 +994,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
           )}
           {venue.address && (
             <a href={`https://maps.google.com/?q=${encodeURIComponent(venue.address)}`} target="_blank" rel="noopener noreferrer"
-              className="shrink-0 flex items-center gap-3 px-4 py-3 active:opacity-80" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 140 }}>
+              className="shrink-0 flex items-center gap-3.5 px-5 py-3.5 transition-colors duration-150 active:opacity-80" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: "1px solid rgba(255,255,255,0.04)", minWidth: 140 }}>
               <div className="flex h-9 w-9 items-center justify-center" style={{ backgroundColor: `${theme}20` }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={theme} strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
               </div>
@@ -1002,8 +1005,8 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
             </a>
           )}
           {offerings.filter((o) => o.type === "membership").length > 0 && (
-            <button onClick={() => setChatOpen(true)} className="shrink-0 px-4 py-3 text-left active:scale-[0.98]" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}20`, minWidth: 140 }}>
-              <p className="font-sans text-[10px] font-semibold tracking-[1px] mb-1.5" style={{ color: `${theme}80` }}>MEMBERSHIP</p>
+            <button onClick={() => setChatOpen(true)} className="shrink-0 px-5 py-3.5 text-left transition-colors duration-150 active:scale-[0.98]" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}15`, minWidth: 140 }}>
+              <p className="font-sans text-[10px] font-semibold tracking-[1px] mb-2" style={{ color: `${theme}80` }}>MEMBERSHIP</p>
               <p className="font-sans text-[13px] font-semibold" style={{ color: theme }}>
                 {offerings.filter((o) => o.type === "membership")[0]?.name}
               </p>
@@ -1014,21 +1017,21 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
         {/* Description */}
         {page.description && (
-          <div className="px-5 pb-4">
+          <div className="px-5 pb-5">
             <p className="font-sans text-[14px] leading-[1.7] text-white/50">{page.description}</p>
           </div>
         )}
 
         {/* Gallery */}
         {gallery.length > 0 && (
-          <div className="px-5 pb-5">
+          <div className="px-5 pb-6">
             <VenueGallery gallery={gallery} themeColor={theme} />
           </div>
         )}
 
         {/* Staff */}
         {staff.length > 0 && (
-          <div className="px-5 pb-5">
+          <div className="px-5 pb-6">
             <VenueStaff
               staff={staff}
               themeColor={theme}
@@ -1050,9 +1053,9 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
         {/* Events — shown separately with location + RSVP */}
         {offerings.filter((o) => o.type === "event").length > 0 && (
-          <div className="px-5 pb-5">
-            <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">UPCOMING EVENTS</p>
-            <div className="flex flex-col gap-3">
+          <div className="px-5 pb-6">
+            <p className="mb-3.5 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">UPCOMING EVENTS</p>
+            <div className="flex flex-col gap-3.5">
               {offerings.filter((o) => o.type === "event").map((event) => (
                 <button
                   key={event.id}
@@ -1062,8 +1065,8 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                     }
                     setDrawerOfferId(event.id);
                   }}
-                  className="w-full overflow-hidden text-left active:scale-[0.98]"
-                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${theme}15` }}
+                  className="w-full overflow-hidden text-left transition-colors duration-150 active:scale-[0.98]"
+                  style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: `1px solid ${theme}10` }}
                 >
                   {event.image_url && (
                     <div className="relative h-32 w-full">
@@ -1071,13 +1074,13 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                       <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)" }} />
                     </div>
                   )}
-                  <div className="px-4 py-3">
-                    <div className="flex items-center gap-2 mb-1">
+                  <div className="px-5 py-3.5">
+                    <div className="flex items-center gap-2.5 mb-1.5">
                       <span className="text-[14px]">🎟️</span>
                       <h3 className="font-sans text-[15px] font-bold text-white/90">{event.name}</h3>
                     </div>
                     {event.description && (
-                      <p className="font-sans text-[12px] text-white/40 line-clamp-2">{event.description}</p>
+                      <p className="font-sans text-[12px] leading-relaxed text-white/40 line-clamp-2">{event.description}</p>
                     )}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {event.location_name && (
@@ -1105,7 +1108,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
         {/* Offerings */}
         {offerings.length > 0 && (
-          <div className="px-5 pb-5">
+          <div className="px-5 pb-6">
             <VenueOfferings offerings={offerings} themeColor={theme} venueName={venue.name} staffByOffering={staffByOffering} onTapOffering={(id) => {
               // Populate offeringsMap for the drawer if not already present
               const o = offerings.find((off) => off.id === id);
@@ -1119,15 +1122,15 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
         {/* Menu */}
         {page.menu_sections.length > 0 && (
-          <div className="px-5 pb-5">
-            <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MENU</p>
-            <div className="flex flex-col gap-3">
+          <div className="px-5 pb-6">
+            <p className="mb-3.5 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MENU</p>
+            <div className="flex flex-col gap-3.5">
               {page.menu_sections.map((section) => (
-                <div key={section.name} className="p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <p className="mb-2.5 font-sans text-[13px] font-semibold text-white/60">{section.name}</p>
-                  <div className="flex flex-wrap gap-1.5">
+                <div key={section.name} className="px-5 py-4" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                  <p className="mb-3 font-sans text-[13px] font-semibold text-white/60">{section.name}</p>
+                  <div className="flex flex-wrap gap-2">
                     {section.items.map((item) => (
-                      <span key={item} className="px-2.5 py-1 font-sans text-[12px] text-white/45" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{item}</span>
+                      <span key={item} className="px-3 py-1 font-sans text-[12px] text-white/45" style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>{item}</span>
                     ))}
                   </div>
                 </div>
@@ -1138,13 +1141,13 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
         {/* Rules */}
         {venue.rules?.length > 0 && (
-          <div className="px-5 pb-5">
-            <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">HOUSE RULES</p>
-            <div className="flex flex-col gap-2">
+          <div className="px-5 pb-6">
+            <p className="mb-3.5 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">HOUSE RULES</p>
+            <div className="flex flex-col gap-2.5">
               {venue.rules.map((rule) => (
                 <div key={rule} className="flex items-center gap-2.5">
                   <div className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: theme }} />
-                  <span className="font-sans text-[13px] text-white/40">{rule}</span>
+                  <span className="font-sans text-[13px] leading-relaxed text-white/40">{rule}</span>
                 </div>
               ))}
             </div>
@@ -1393,12 +1396,12 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
             background: "rgba(12, 12, 14, 0.92)",
             backdropFilter: "blur(40px) saturate(1.8)",
             WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-            boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 -4px 30px rgba(0,0,0,0.3)",
+            boxShadow: "0 -4px 20px rgba(0,0,0,0.3), 0 -1px 0 rgba(255,255,255,0.06)",
           }}
         >
           {/* Collapsed: input bar (shown when not expanded) */}
           {!chatOpen && (
-            <div className="flex h-[56px] items-center gap-2 px-3">
+            <div className="flex h-[56px] items-center gap-2.5 px-4">
               <button onClick={() => setChatOpen(true)} className="flex items-center gap-2 pl-1 shrink-0">
                 <motion.div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }} transition={{ duration: 2, repeat: Infinity }} />
                 <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-white/90">{venue.name}</span>
@@ -1444,7 +1447,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               </AnimatePresence>
 
               {/* Header */}
-              <div className="flex items-center justify-between px-4 pt-3 pb-1">
+              <div className="flex items-center justify-between px-4 pt-4 pb-1.5">
                 <div className="flex items-center gap-2">
                   <motion.div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }} transition={{ duration: 2, repeat: Infinity }} />
                   <span className="font-sans text-[15px] font-semibold text-white/90">{venue.name}</span>
@@ -1455,16 +1458,16 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                 </motion.button>
               </div>
 
-              <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
+              <div className="mx-5 h-px" style={{ backgroundColor: "rgba(255,255,255,0.04)" }} />
 
               {/* Messages */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
-                <div className="flex flex-col gap-2.5">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3.5" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
+                <div className="flex flex-col gap-3.5">
                   {messages.map((msg) => {
                     if (msg.sender === "guest") {
                       return (
                         <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-end">
-                          <div className="max-w-[80%] px-3.5 py-2.5" style={{ backgroundColor: theme, color: "#000", boxShadow: `0 2px 12px ${theme}33` }}>
+                          <div className="max-w-[80%] px-4 py-3" style={{ backgroundColor: theme, color: "#000", boxShadow: `0 2px 12px ${theme}33` }}>
                             <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
                           </div>
                         </motion.div>
@@ -1483,7 +1486,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                         <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
                           {msg.body && (
                             <div className="flex justify-start">
-                              <div className="max-w-[85%] px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                              <div className="max-w-[85%] px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.04)" }}>
                                 <AiMessageBody body={msg.body} theme={theme} offeringsMap={offeringsMap} onTapOffer={(id) => setDrawerOfferId(id)} onAddToCart={(id, name, price) => addToCart(id, name, price)} />
                               </div>
                             </div>
@@ -1571,7 +1574,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
                     return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                        <div className="max-w-[85%] px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <div className="max-w-[85%] px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.04)" }}>
                           <AiMessageBody body={msg.body} theme={theme} offeringsMap={offeringsMap} onTapOffer={(id) => setDrawerOfferId(id)} onAddToCart={(id, name, price) => addToCart(id, name, price)} />
                         </div>
                       </motion.div>
@@ -1579,7 +1582,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                   })}
                   {loading && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                      <div className="px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div className="px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.04)" }}>
                         <div className="flex gap-1.5">
                           {[0, 0.15, 0.3].map((d, i) => <motion.div key={i} className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: d }} />)}
                         </div>
@@ -1667,22 +1670,22 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
               {/* Quick replies */}
               {messages.length <= 2 && (
-                <div className="flex gap-1.5 overflow-x-auto px-3 pb-1.5 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                <div className="flex gap-2.5 overflow-x-auto px-3 pb-1.5 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
                   {QUICK_REPLIES.map((qr) => (
                     <button key={qr.label} onClick={() => send(qr.cmd)} disabled={loading}
-                      className="shrink-0 px-3.5 py-2 font-sans text-[12px] font-medium text-white/50 active:scale-95 disabled:opacity-30"
-                      style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                      className="shrink-0 px-4 py-2 font-sans text-[12px] font-medium text-white/50 transition-colors duration-150 active:scale-95 disabled:opacity-30"
+                      style={{ backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}
                     >{qr.label}</button>
                   ))}
                 </div>
               )}
 
               {/* Input */}
-              <div className="flex items-center gap-2 px-3 pb-2 pt-1">
+              <div className="flex items-center gap-2.5 px-3.5 pb-2.5 pt-1.5">
                 <input ref={inputRef} type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
                   placeholder={user ? "Ask anything..." : "Swipe up for more info"} enterKeyHint="send" autoComplete="off" autoCorrect="off"
                   className="min-w-0 flex-1 px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
-                  style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  style={{ height: 40, backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}
                 />
                 <motion.button onClick={() => send()} disabled={!input.trim() || loading} whileTap={{ scale: 0.9 }}
                   className="flex h-9 w-9 shrink-0 items-center justify-center disabled:opacity-30"

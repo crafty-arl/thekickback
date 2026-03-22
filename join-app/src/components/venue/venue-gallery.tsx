@@ -27,7 +27,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
             {/* Section header */}
             <div>
                 <p
-                    className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px]"
+                    className="mb-3.5 font-sans text-[10px] font-semibold tracking-[1.5px]"
                     style={{ color: "rgba(255,255,255,0.25)" }}
                 >
                     GALLERY
@@ -36,7 +36,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
                 {/* Horizontal scrolling strip */}
                 <div
                     ref={scrollRef}
-                    className="flex gap-2 overflow-x-auto pb-2"
+                    className="flex gap-2.5 overflow-x-auto pb-2"
                     style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
                 >
                     {gallery.map((img, i) => (
@@ -46,9 +46,9 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
                             whileTap={{ scale: 0.95 }}
                             className="relative shrink-0 overflow-hidden"
                             style={{
-                                width: 140,
-                                height: 100,
-                                border: "1px solid rgba(255,255,255,0.08)",
+                                width: 148,
+                                height: 105,
+                                border: "1px solid rgba(255,255,255,0.04)",
                             }}
                         >
                             <Image
@@ -67,7 +67,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
                                 }}
                             />
                             {img.caption && (
-                                <span className="absolute bottom-1.5 left-2 right-2 truncate font-sans text-[9px] text-white/60">
+                                <span className="absolute bottom-2 left-2.5 right-2.5 truncate font-sans text-[9px] text-white/60">
                                     {img.caption}
                                 </span>
                             )}
@@ -210,7 +210,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
 
                         {/* Dot indicators */}
                         {gallery.length > 1 && (
-                            <div className="mt-4 flex gap-1.5">
+                            <div className="mt-4 flex gap-2">
                                 {gallery.map((_, i) => (
                                     <button
                                         key={i}

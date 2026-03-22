@@ -48,15 +48,15 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-4"
         >
             {/* Membership card — hero treatment */}
             {membership && (
                 <div
-                    className="relative overflow-hidden border p-5"
+                    className="relative overflow-hidden border px-5 py-5"
                     style={{
-                        borderColor: `${themeColor}40`,
-                        background: `linear-gradient(135deg, ${themeColor}15 0%, ${themeColor}05 100%)`,
+                        borderColor: `${themeColor}25`,
+                        background: `linear-gradient(180deg, ${themeColor}12 0%, ${themeColor}04 100%)`,
                     }}
                 >
                     {/* Subtle glow */}
@@ -71,12 +71,12 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                             <h3 className="font-sans text-[15px] font-bold text-white">{membership.name}</h3>
                         </div>
                         {membership.description && (
-                            <p className="mt-1 font-sans text-[13px] text-white/40">{membership.description}</p>
+                            <p className="mt-1.5 font-sans text-[13px] leading-relaxed text-white/40">{membership.description}</p>
                         )}
 
                         {/* Perks */}
                         {membership.perks.length > 0 && (
-                            <div className="mt-3 flex flex-col gap-1.5">
+                            <div className="mt-3.5 flex flex-col gap-2">
                                 {membership.perks.map((perk) => (
                                     <div key={perk} className="flex items-center gap-2">
                                         <div className="h-1 w-1 shrink-0 rounded-full" style={{ backgroundColor: themeColor }} />
@@ -89,7 +89,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                         {/* CTA */}
                         <button
                             onClick={() => onTapOffering?.(membership.id)}
-                            className="mt-4 flex w-full items-center justify-center gap-2 py-3 font-sans text-[14px] font-bold text-black active:scale-[0.97]"
+                            className="mt-5 flex w-full items-center justify-center gap-2 py-3 font-sans text-[14px] font-bold text-black transition-colors duration-150 active:scale-[0.97]"
                             style={{ backgroundColor: themeColor }}
                         >
                             Join — {formatPrice(membership.price_cents, true, membership.interval)}
@@ -104,10 +104,10 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                     {others.map((o) => (
                         <div
                             key={o.id}
-                            className="flex flex-col justify-between border p-4"
+                            className="flex flex-col justify-between border px-5 py-4"
                             style={{
-                                borderColor: "rgba(255,255,255,0.06)",
-                                backgroundColor: "rgba(255,255,255,0.02)",
+                                borderColor: "rgba(255,255,255,0.04)",
+                                background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)",
                             }}
                         >
                             <div>
@@ -116,7 +116,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                                     <h4 className="font-sans text-[13px] font-semibold text-white/80">{o.name}</h4>
                                 </div>
                                 {o.description && (
-                                    <p className="mt-1 font-sans text-[11px] text-white/30">{o.description}</p>
+                                    <p className="mt-1.5 font-sans text-[11px] leading-relaxed text-white/30">{o.description}</p>
                                 )}
                                 {/* Staff assigned to this offering */}
                                 {staffByOffering[o.id] && staffByOffering[o.id].length > 0 && (
@@ -138,7 +138,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                             </div>
                             <button
                                 onClick={() => onTapOffering?.(o.id)}
-                                className="mt-3 flex w-full items-center justify-center py-2 font-sans text-[12px] font-semibold active:scale-[0.97]"
+                                className="mt-3.5 flex w-full items-center justify-center py-2.5 font-sans text-[12px] font-semibold transition-colors duration-150 active:scale-[0.97]"
                                 style={{
                                     backgroundColor: `${themeColor}20`,
                                     color: themeColor,

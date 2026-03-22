@@ -31,7 +31,7 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
             {/* Section header */}
             <div>
                 <p
-                    className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px]"
+                    className="mb-3.5 font-sans text-[10px] font-semibold tracking-[1.5px]"
                     style={{ color: "rgba(255,255,255,0.25)" }}
                 >
                     THE TEAM
@@ -39,7 +39,7 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
 
                 {/* Horizontal scrolling staff strip */}
                 <div
-                    className="flex gap-3 overflow-x-auto pb-2"
+                    className="flex gap-3.5 overflow-x-auto pb-2"
                     style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
                 >
                     {staff.map((member) => (
@@ -47,7 +47,7 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
                             key={member.id}
                             onClick={() => setSelectedId(member.id)}
                             whileTap={{ scale: 0.95 }}
-                            className="flex shrink-0 flex-col items-center gap-2"
+                            className="flex shrink-0 flex-col items-center gap-2.5 transition-colors duration-150"
                             style={{ width: 72 }}
                         >
                             {/* Avatar */}
@@ -100,14 +100,14 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
                         className="overflow-hidden"
                     >
                         <div
-                            className="p-4"
+                            className="px-5 py-4"
                             style={{
-                                backgroundColor: "rgba(255,255,255,0.04)",
-                                border: "1px solid rgba(255,255,255,0.08)",
+                                background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)",
+                                border: "1px solid rgba(255,255,255,0.05)",
                             }}
                         >
                             {/* Header row */}
-                            <div className="flex items-start gap-3">
+                            <div className="flex items-start gap-3.5">
                                 {/* Avatar */}
                                 <div
                                     className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full"
@@ -146,8 +146,8 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
                                 {/* Close */}
                                 <button
                                     onClick={() => setSelectedId(null)}
-                                    className="flex h-7 w-7 items-center justify-center"
-                                    style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                                    className="flex h-7 w-7 items-center justify-center transition-colors duration-150 hover:bg-white/[0.08]"
+                                    style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
                                 >
                                     <svg
                                         width="10"
@@ -165,18 +165,18 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
 
                             {/* Bio */}
                             {selected.bio && (
-                                <p className="mt-3 font-sans text-[12px] leading-relaxed text-white/40">
+                                <p className="mt-3.5 font-sans text-[12px] leading-[1.6] text-white/40">
                                     {selected.bio}
                                 </p>
                             )}
 
                             {/* Specialties */}
                             {selected.specialties && selected.specialties.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-1.5">
+                                <div className="mt-3.5 flex flex-wrap gap-2">
                                     {selected.specialties.map((tag) => (
                                         <span
                                             key={tag}
-                                            className="px-2.5 py-0.5 font-sans text-[10px] font-medium"
+                                            className="px-3 py-1 font-sans text-[10px] font-medium"
                                             style={{
                                                 backgroundColor: `${themeColor}15`,
                                                 color: themeColor,
@@ -191,16 +191,16 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
 
                             {/* Schedule (if provided) */}
                             {selected.schedule && selected.schedule.length > 0 && (
-                                <div className="mt-3">
-                                    <p className="mb-1.5 font-sans text-[10px] font-semibold tracking-[1px] text-white/20">
+                                <div className="mt-4">
+                                    <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1px] text-white/20">
                                         SCHEDULE
                                     </p>
-                                    <div className="flex flex-wrap gap-1.5">
+                                    <div className="flex flex-wrap gap-2">
                                         {selected.schedule.map((slot, i) => (
                                             <span
                                                 key={i}
-                                                className="px-2 py-1 font-sans text-[10px] text-white/40"
-                                                style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
+                                                className="px-2.5 py-1 font-sans text-[10px] text-white/40"
+                                                style={{ backgroundColor: "rgba(255,255,255,0.03)" }}
                                             >
                                                 {slot.day} {slot.start}–{slot.end}
                                             </span>
@@ -211,11 +211,11 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
 
                             {/* Services this staff member provides */}
                             {offeringsByStaff[selected.id] && offeringsByStaff[selected.id].length > 0 && (
-                                <div className="mt-3">
-                                    <p className="mb-1.5 font-sans text-[10px] font-semibold tracking-[1px] text-white/20">
+                                <div className="mt-4">
+                                    <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1px] text-white/20">
                                         SERVICES
                                     </p>
-                                    <div className="flex flex-wrap gap-1.5">
+                                    <div className="flex flex-wrap gap-2">
                                         {offeringsByStaff[selected.id].map((name) => (
                                             <span
                                                 key={name}
