@@ -53,7 +53,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
             {/* Membership card — hero treatment */}
             {membership && (
                 <div
-                    className="relative overflow-hidden rounded-2xl border p-5"
+                    className="relative overflow-hidden border p-5"
                     style={{
                         borderColor: `${themeColor}40`,
                         background: `linear-gradient(135deg, ${themeColor}15 0%, ${themeColor}05 100%)`,
@@ -61,7 +61,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                 >
                     {/* Subtle glow */}
                     <div
-                        className="absolute -right-8 -top-8 h-24 w-24 rounded-full blur-3xl"
+                        className="absolute -right-8 -top-8 h-24 w-24 blur-3xl"
                         style={{ backgroundColor: `${themeColor}20` }}
                     />
 
@@ -89,7 +89,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                         {/* CTA */}
                         <button
                             onClick={() => onTapOffering?.(membership.id)}
-                            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-sans text-[14px] font-bold text-black active:scale-[0.97]"
+                            className="mt-4 flex w-full items-center justify-center gap-2 py-3 font-sans text-[14px] font-bold text-black active:scale-[0.97]"
                             style={{ backgroundColor: themeColor }}
                         >
                             Join — {formatPrice(membership.price_cents, true, membership.interval)}
@@ -104,7 +104,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                     {others.map((o) => (
                         <div
                             key={o.id}
-                            className="flex flex-col justify-between rounded-xl border p-4"
+                            className="flex flex-col justify-between border p-4"
                             style={{
                                 borderColor: "rgba(255,255,255,0.06)",
                                 backgroundColor: "rgba(255,255,255,0.02)",
@@ -122,7 +122,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                                 {staffByOffering[o.id] && staffByOffering[o.id].length > 0 && (
                                     <div className="mt-1.5 flex items-center gap-1">
                                         {staffByOffering[o.id].slice(0, 2).map((s, i) => (
-                                            <span key={i} className="flex h-4 w-4 items-center justify-center overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                                            <span key={i} className="flex h-4 w-4 items-center justify-center overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}>
                                                 {s.avatar_url ? (
                                                     <img src={s.avatar_url} alt="" className="h-full w-full object-cover" />
                                                 ) : (
@@ -138,7 +138,7 @@ export function VenueOfferings({ offerings, themeColor, venueName, staffByOfferi
                             </div>
                             <button
                                 onClick={() => onTapOffering?.(o.id)}
-                                className="mt-3 flex w-full items-center justify-center rounded-lg py-2 font-sans text-[12px] font-semibold active:scale-[0.97]"
+                                className="mt-3 flex w-full items-center justify-center py-2 font-sans text-[12px] font-semibold active:scale-[0.97]"
                                 style={{
                                     backgroundColor: `${themeColor}20`,
                                     color: themeColor,

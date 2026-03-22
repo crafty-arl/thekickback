@@ -100,7 +100,7 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
                         className="overflow-hidden"
                     >
                         <div
-                            className="rounded-2xl p-4"
+                            className="p-4"
                             style={{
                                 backgroundColor: "rgba(255,255,255,0.04)",
                                 border: "1px solid rgba(255,255,255,0.08)",
@@ -146,7 +146,7 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
                                 {/* Close */}
                                 <button
                                     onClick={() => setSelectedId(null)}
-                                    className="flex h-7 w-7 items-center justify-center rounded-full"
+                                    className="flex h-7 w-7 items-center justify-center"
                                     style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
                                 >
                                     <svg
@@ -176,7 +176,7 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
                                     {selected.specialties.map((tag) => (
                                         <span
                                             key={tag}
-                                            className="rounded-full px-2.5 py-0.5 font-sans text-[10px] font-medium"
+                                            className="px-2.5 py-0.5 font-sans text-[10px] font-medium"
                                             style={{
                                                 backgroundColor: `${themeColor}15`,
                                                 color: themeColor,
@@ -199,7 +199,7 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
                                         {selected.schedule.map((slot, i) => (
                                             <span
                                                 key={i}
-                                                className="rounded-lg px-2 py-1 font-sans text-[10px] text-white/40"
+                                                className="px-2 py-1 font-sans text-[10px] text-white/40"
                                                 style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
                                             >
                                                 {slot.day} {slot.start}–{slot.end}
@@ -219,7 +219,7 @@ export function VenueStaff({ staff, themeColor = "#F97316", offeringsByStaff = {
                                         {offeringsByStaff[selected.id].map((name) => (
                                             <span
                                                 key={name}
-                                                className="rounded-lg px-2 py-1 font-sans text-[10px] font-medium"
+                                                className="px-2 py-1 font-sans text-[10px] font-medium"
                                                 style={{
                                                     backgroundColor: `${themeColor}10`,
                                                     color: `${themeColor}`,

@@ -210,16 +210,16 @@ function AiMessageBody({ body, theme, onTapOffer, onAddToCart, offeringsMap }: {
           const emoji = TYPE_EMOJI[meta?.type || "custom"] || "✦";
 
           return (
-            <div key={offer.id} className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ backgroundColor: `${theme}08`, border: `1px solid ${theme}20` }}>
+            <div key={offer.id} className="flex items-center gap-0 overflow-hidden" style={{ backgroundColor: `${theme}08`, border: `1px solid ${theme}20` }}>
               {/* Tap to open detail drawer */}
               <button
                 onClick={() => onTapOffer(offer.id)}
                 className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-left active:opacity-70"
               >
                 {meta?.image_url ? (
-                  <img src={meta.image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                  <img src={meta.image_url} alt="" className="h-10 w-10 shrink-0 object-cover" />
                 ) : (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[16px]" style={{ backgroundColor: `${theme}15` }}>{emoji}</div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center text-[16px]" style={{ backgroundColor: `${theme}15` }}>{emoji}</div>
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="font-sans text-[13px] font-medium text-white/85 truncate">{offer.name}</p>
@@ -366,12 +366,12 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
             </div>
           )}
           <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 40%, rgba(12,12,15,0.97) 100%)" }} />
-          <button onClick={onClose} className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <button onClick={onClose} className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </button>
           {/* Type badge */}
           <div className="absolute bottom-4 left-4">
-            <span className="rounded-full px-2.5 py-1 font-sans text-[10px] font-bold tracking-wider" style={{ backgroundColor: `${theme}20`, color: theme, border: `1px solid ${theme}30` }}>
+            <span className="px-2.5 py-1 font-sans text-[10px] font-bold tracking-wider" style={{ backgroundColor: `${theme}20`, color: theme, border: `1px solid ${theme}30` }}>
               {(meta?.type || "item").toUpperCase()}
             </span>
           </div>
@@ -472,7 +472,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
                     <button
                       key={d.value}
                       onClick={() => setSelectedDate(d.value)}
-                      className="shrink-0 rounded-xl px-3 py-2 font-sans text-[12px] font-medium active:scale-95"
+                      className="shrink-0 px-3 py-2 font-sans text-[12px] font-medium active:scale-95"
                       style={{
                         backgroundColor: selectedDate === d.value ? `${theme}20` : "rgba(255,255,255,0.04)",
                         color: selectedDate === d.value ? theme : "rgba(255,255,255,0.5)",
@@ -494,7 +494,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
                     <span className="font-sans text-[12px] text-white/30">Loading availability...</span>
                   </div>
                 ) : displaySlots.length === 0 ? (
-                  <div className="rounded-xl py-4 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                  <div className="py-4 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
                     <p className="font-sans text-[12px] text-white/30">No slots available for this date</p>
                     <p className="mt-1 font-sans text-[10px] text-white/15">Try another day or staff member</p>
                   </div>
@@ -504,7 +504,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
                       <button
                         key={slot}
                         onClick={() => setSelectedTime(slot)}
-                        className="rounded-lg px-2.5 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                        className="px-2.5 py-1.5 font-sans text-[11px] font-medium active:scale-95"
                         style={{
                           backgroundColor: selectedTime === slot ? `${theme}25` : "rgba(255,255,255,0.04)",
                           color: selectedTime === slot ? theme : "rgba(255,255,255,0.5)",
@@ -526,7 +526,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
               <p className="mb-2 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">ADD-ONS</p>
               <div className="flex flex-col gap-1.5">
                 {meta.add_ons.map((addon) => (
-                  <div key={addon.name} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div key={addon.name} className="flex items-center justify-between px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
                     <span className="font-sans text-[13px] text-white/60">{addon.name}</span>
                     <span className="font-mono text-[13px] font-semibold" style={{ color: theme }}>+${(addon.price_cents / 100).toFixed(2)}</span>
                   </div>
@@ -543,7 +543,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
             !user ? (
               <a
                 href="/login"
-                className="mt-6 flex w-full items-center justify-center rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+                className="mt-6 flex w-full items-center justify-center py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
                 style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
               >
                 Log in to book
@@ -558,14 +558,14 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
                     staffName: selectedStaffName || undefined,
                   });
                 }}
-                className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+                className="mt-6 w-full py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
                 style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
               >
                 Add to cart — {selectedDateLabel} {selectedTime}
               </button>
             ) : (
               <div
-                className="mt-6 w-full rounded-2xl py-3.5 text-center font-sans text-[14px] font-bold"
+                className="mt-6 w-full py-3.5 text-center font-sans text-[14px] font-bold"
                 style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.25)" }}
               >
                 Pick a date & time above
@@ -574,7 +574,7 @@ function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, link
           ) : (
             <button
               onClick={onAdd}
-              className="mt-6 w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+              className="mt-6 w-full py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
               style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
             >
               Add to cart — ${price % 1 === 0 ? price : price.toFixed(2)}
@@ -670,7 +670,6 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   useEffect(() => {
     controls.start({
       height: chatOpen ? "70dvh" : "56px",
-      borderRadius: chatOpen ? "24px 24px 0 0" : "28px",
       transition: { type: "spring", damping: 30, stiffness: 300 },
     });
   }, [chatOpen, controls]);
@@ -920,7 +919,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         {/* Nav */}
         <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-4 pt-[max(12px,env(safe-area-inset-top))]">
           {user && (
-            <a href="/" className="flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+            <a href="/" className="flex h-9 w-9 items-center justify-center backdrop-blur-md" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
             </a>
           )}
@@ -929,7 +928,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
             {pointsData && (
               <button
                 onClick={() => setHistoryOpen(true)}
-                className="flex h-9 items-center gap-1.5 rounded-full px-3.5 backdrop-blur-md font-sans text-[12px] font-bold"
+                className="flex h-9 items-center gap-1.5 px-3.5 backdrop-blur-md font-sans text-[12px] font-bold"
                 style={{ backgroundColor: "rgba(0,0,0,0.4)", color: theme }}
               >
                 {pointsData.balance.toLocaleString()} pts
@@ -937,7 +936,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
             )}
             <button
               onClick={() => setWalletOpen(true)}
-              className="flex h-9 items-center gap-1.5 rounded-full px-3.5 backdrop-blur-md font-sans text-[12px] font-medium"
+              className="flex h-9 items-center gap-1.5 px-3.5 backdrop-blur-md font-sans text-[12px] font-medium"
               style={{ backgroundColor: walletStatus?.active ? "rgba(99,91,255,0.3)" : "rgba(0,0,0,0.4)", color: walletStatus?.active ? "#c4b5fd" : "rgba(255,255,255,0.7)" }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
@@ -949,15 +948,15 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         {/* Venue identity */}
         <div className="absolute inset-x-0 bottom-0 px-5 pb-5">
           <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ backgroundColor: theme }}>
+            <div className="flex items-center gap-1.5 px-2.5 py-1" style={{ backgroundColor: theme }}>
               <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
               <span className="font-sans text-[10px] font-bold tracking-[1px] text-black">LIVE</span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+            <div className="flex items-center gap-1.5 px-2.5 py-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
               <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
               <span className="font-sans text-[11px] font-semibold" style={{ color }}>{vl(venue.vibe)}</span>
             </div>
-            <div className="rounded-full px-2.5 py-1 font-sans text-[11px] text-white/60" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+            <div className="px-2.5 py-1 font-sans text-[11px] text-white/60" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
               {venue.occupancy}/{venue.max_occupancy} ({pct}%)
             </div>
           </div>
@@ -979,7 +978,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         {/* Quick info row */}
         <div className="flex gap-2 overflow-x-auto px-4 py-4 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
           {page.hours.length > 0 && (
-            <div className="shrink-0 rounded-2xl px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 140 }}>
+            <div className="shrink-0 px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 140 }}>
               <p className="font-sans text-[10px] font-semibold tracking-[1px] text-white/25 mb-1.5">HOURS</p>
               {page.hours.slice(0, 3).map((h) => (
                 <div key={h.day} className="flex justify-between gap-4 py-0.5">
@@ -992,8 +991,8 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
           )}
           {venue.address && (
             <a href={`https://maps.google.com/?q=${encodeURIComponent(venue.address)}`} target="_blank" rel="noopener noreferrer"
-              className="shrink-0 flex items-center gap-3 rounded-2xl px-4 py-3 active:opacity-80" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 140 }}>
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: `${theme}20` }}>
+              className="shrink-0 flex items-center gap-3 px-4 py-3 active:opacity-80" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 140 }}>
+              <div className="flex h-9 w-9 items-center justify-center" style={{ backgroundColor: `${theme}20` }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={theme} strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
               </div>
               <div>
@@ -1003,7 +1002,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
             </a>
           )}
           {offerings.filter((o) => o.type === "membership").length > 0 && (
-            <button onClick={() => setChatOpen(true)} className="shrink-0 rounded-2xl px-4 py-3 text-left active:scale-[0.98]" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}20`, minWidth: 140 }}>
+            <button onClick={() => setChatOpen(true)} className="shrink-0 px-4 py-3 text-left active:scale-[0.98]" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}20`, minWidth: 140 }}>
               <p className="font-sans text-[10px] font-semibold tracking-[1px] mb-1.5" style={{ color: `${theme}80` }}>MEMBERSHIP</p>
               <p className="font-sans text-[13px] font-semibold" style={{ color: theme }}>
                 {offerings.filter((o) => o.type === "membership")[0]?.name}
@@ -1063,7 +1062,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                     }
                     setDrawerOfferId(event.id);
                   }}
-                  className="w-full overflow-hidden rounded-2xl text-left active:scale-[0.98]"
+                  className="w-full overflow-hidden text-left active:scale-[0.98]"
                   style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${theme}15` }}
                 >
                   {event.image_url && (
@@ -1124,11 +1123,11 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
             <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MENU</p>
             <div className="flex flex-col gap-3">
               {page.menu_sections.map((section) => (
-                <div key={section.name} className="rounded-2xl p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div key={section.name} className="p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <p className="mb-2.5 font-sans text-[13px] font-semibold text-white/60">{section.name}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {section.items.map((item) => (
-                      <span key={item} className="rounded-lg px-2.5 py-1 font-sans text-[12px] text-white/45" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{item}</span>
+                      <span key={item} className="px-2.5 py-1 font-sans text-[12px] text-white/45" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{item}</span>
                     ))}
                   </div>
                 </div>
@@ -1172,17 +1171,17 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               {/* Header */}
               <div className="flex items-center justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] pb-4">
                 <h2 className="font-sans text-[16px] font-bold text-white">Your Balance</h2>
-                <button onClick={() => setHistoryOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                <button onClick={() => setHistoryOpen(false)} className="flex h-8 w-8 items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
                 </button>
               </div>
 
               {/* Balance card */}
-              <div className="mx-5 rounded-2xl p-5" style={{ background: `linear-gradient(135deg, ${theme}25 0%, ${theme}08 100%)`, border: `1px solid ${theme}30` }}>
+              <div className="mx-5 p-5" style={{ background: `linear-gradient(135deg, ${theme}25 0%, ${theme}08 100%)`, border: `1px solid ${theme}30` }}>
                 <p className="font-sans text-[11px] font-semibold tracking-[1px] text-white/30">POINTS BALANCE</p>
                 <p className="mt-1 font-mono text-[36px] font-bold text-white">{pointsData.balance.toLocaleString()}</p>
                 <div className="mt-3 flex items-center gap-3">
-                  <span className="rounded-full px-2.5 py-1 font-sans text-[10px] font-bold tracking-wider" style={{ backgroundColor: `${theme}25`, color: theme }}>{pointsData.tier.toUpperCase()}</span>
+                  <span className="px-2.5 py-1 font-sans text-[10px] font-bold tracking-wider" style={{ backgroundColor: `${theme}25`, color: theme }}>{pointsData.tier.toUpperCase()}</span>
                   {pointsData.current_streak > 0 && (
                     <span className="font-sans text-[11px] text-white/35">{pointsData.current_streak}wk streak</span>
                   )}
@@ -1203,7 +1202,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                     href={`https://thekickback.net/wallet/pass/${user.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-sans text-[12px] font-bold active:scale-[0.98]"
+                    className="flex w-full items-center justify-center gap-2 py-2.5 font-sans text-[12px] font-bold active:scale-[0.98]"
                     style={{ backgroundColor: `${theme}15`, color: theme, border: `1px solid ${theme}25` }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1218,7 +1217,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               <div className="mt-5 px-5">
                 <p className="mb-3 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">RECENT ACTIVITY</p>
                 {txHistory.length === 0 ? (
-                  <div className="rounded-2xl py-8 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                  <div className="py-8 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
                     <p className="text-[24px]">📊</p>
                     <p className="mt-2 font-sans text-[13px] text-white/30">No transactions yet</p>
                     <p className="mt-1 font-sans text-[11px] text-white/15">Check in, order, or earn points to see activity here</p>
@@ -1233,7 +1232,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                       const timeStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
                       return (
-                        <div key={tx.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <div key={tx.id} className="flex items-center gap-3 px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: isPositive ? "rgba(74,222,128,0.12)" : "rgba(239,68,68,0.12)" }}>
                             <span className="font-mono text-[11px] font-bold" style={{ color: isPositive ? "#4ade80" : "#ef4444" }}>
                               {isPositive ? "+" : "−"}
@@ -1267,7 +1266,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                       const muted = isPast || isCancelled;
 
                       return (
-                        <div key={b.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", opacity: muted ? 0.5 : 1 }}>
+                        <div key={b.id} className="flex items-center gap-3 px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", opacity: muted ? 0.5 : 1 }}>
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: isCancelled ? "rgba(239,68,68,0.12)" : "rgba(139,92,246,0.12)" }}>
                             <span className="text-[14px]">{isCancelled ? "\u2715" : "\uD83D\uDCC5"}</span>
                           </div>
@@ -1296,7 +1295,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                                 finally { setCancellingId(null); }
                               }}
                               disabled={cancellingId === b.id}
-                              className="shrink-0 rounded-lg px-2.5 py-1.5 font-sans text-[10px] font-semibold active:scale-95 disabled:opacity-50"
+                              className="shrink-0 px-2.5 py-1.5 font-sans text-[10px] font-semibold active:scale-95 disabled:opacity-50"
                               style={{ backgroundColor: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
                             >
                               {cancellingId === b.id ? "..." : "Cancel"}
@@ -1331,7 +1330,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
             >
               <div className="flex items-center justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] pb-2">
                 <h2 className="font-sans text-[16px] font-bold text-white">AI Wallet</h2>
-                <button onClick={() => setWalletOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                <button onClick={() => setWalletOpen(false)} className="flex h-8 w-8 items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
                 </button>
               </div>
@@ -1343,7 +1342,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                     href={`https://thekickback.net/wallet/pass/${user.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-sans text-[13px] font-bold text-white active:scale-[0.98]"
+                    className="flex w-full items-center justify-center gap-2 py-3.5 font-sans text-[13px] font-bold text-white active:scale-[0.98]"
                     style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1390,7 +1389,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
           className="relative mx-3 flex flex-col overflow-hidden"
           style={{
             height: 56,
-            borderRadius: 28,
+            borderRadius: 0,
             background: "rgba(12, 12, 14, 0.92)",
             backdropFilter: "blur(40px) saturate(1.8)",
             WebkitBackdropFilter: "blur(40px) saturate(1.8)",
@@ -1414,7 +1413,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               <motion.button
                 onClick={() => { setChatOpen(true); send(); }}
                 disabled={!input.trim() || loading} whileTap={{ scale: 0.9 }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+                className="flex h-9 w-9 shrink-0 items-center justify-center disabled:opacity-30"
                 style={{ backgroundColor: theme, boxShadow: `0 2px 10px ${theme}40` }}
               >
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1451,7 +1450,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                   <span className="font-sans text-[15px] font-semibold text-white/90">{venue.name}</span>
                   <span className="font-sans text-[11px] text-white/30">{vl(venue.vibe)} · {pct}%</span>
                 </div>
-                <motion.button onClick={() => { setChatOpen(false); setShowGestureHint(false); }} whileTap={{ scale: 0.85 }} className="flex h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                <motion.button onClick={() => { setChatOpen(false); setShowGestureHint(false); }} whileTap={{ scale: 0.85 }} className="flex h-7 w-7 items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-50"><polyline points="18 15 12 9 6 15" /></svg>
                 </motion.button>
               </div>
@@ -1465,7 +1464,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                     if (msg.sender === "guest") {
                       return (
                         <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-end">
-                          <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5" style={{ backgroundColor: theme, color: "#000", boxShadow: `0 2px 12px ${theme}33` }}>
+                          <div className="max-w-[80%] px-3.5 py-2.5" style={{ backgroundColor: theme, color: "#000", boxShadow: `0 2px 12px ${theme}33` }}>
                             <p className="font-sans text-[14px] leading-[1.5]">{msg.body}</p>
                           </div>
                         </motion.div>
@@ -1484,14 +1483,14 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                         <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
                           {msg.body && (
                             <div className="flex justify-start">
-                              <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                              <div className="max-w-[85%] px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
                                 <AiMessageBody body={msg.body} theme={theme} offeringsMap={offeringsMap} onTapOffer={(id) => setDrawerOfferId(id)} onAddToCart={(id, name, price) => addToCart(id, name, price)} />
                               </div>
                             </div>
                           )}
 
                           {/* Order summary */}
-                          <div className="w-full rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${theme}15` }}>
+                          <div className="w-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${theme}15` }}>
                             <div className="px-3.5 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                               <div className="flex items-center gap-2 mb-2">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1518,7 +1517,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                           {!user && (
                             <a
                               href="/login"
-                              className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-sans text-[14px] font-bold text-black active:scale-[0.97]"
+                              className="flex w-full items-center justify-center gap-2 py-3.5 font-sans text-[14px] font-bold text-black active:scale-[0.97]"
                               style={{ backgroundColor: theme }}
                             >
                               Log in to checkout
@@ -1531,7 +1530,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                             <button
                               onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
                               disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
-                              className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                              className="flex-1 flex flex-col items-center gap-1 py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
                               style={{ backgroundColor: canUseWallet ? "rgba(99,91,255,0.12)" : "rgba(99,91,255,0.05)", border: `1px solid ${canUseWallet ? "rgba(99,91,255,0.3)" : "rgba(99,91,255,0.1)"}` }}
                             >
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
@@ -1546,7 +1545,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                             <button
                               onClick={() => handleCheckoutConfirm(msg, [], 0, "card")}
                               disabled={paymentMode === "processing" || passkey.verifying}
-                              className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                              className="flex-1 flex flex-col items-center gap-1 py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
                               style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                             >
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
@@ -1561,7 +1560,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                           {/* Cancel */}
                           <button
                             onClick={handleCheckoutDismiss}
-                            className="w-full rounded-xl py-2.5 font-sans text-[12px] font-medium text-white/30 transition hover:bg-white/[0.04]"
+                            className="w-full py-2.5 font-sans text-[12px] font-medium text-white/30 transition hover:bg-white/[0.04]"
                             style={{ border: "1px solid rgba(255,255,255,0.05)" }}
                           >
                             Cancel
@@ -1572,7 +1571,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
 
                     return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                        <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <div className="max-w-[85%] px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
                           <AiMessageBody body={msg.body} theme={theme} offeringsMap={offeringsMap} onTapOffer={(id) => setDrawerOfferId(id)} onAddToCart={(id, name, price) => addToCart(id, name, price)} />
                         </div>
                       </motion.div>
@@ -1580,7 +1579,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                   })}
                   {loading && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                      <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div className="px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }}>
                         <div className="flex gap-1.5">
                           {[0, 0.15, 0.3].map((d, i) => <motion.div key={i} className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: d }} />)}
                         </div>
@@ -1599,7 +1598,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="mb-1.5 overflow-hidden rounded-xl"
+                        className="mb-1.5 overflow-hidden"
                         style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${theme}20` }}
                       >
                         <div className="flex flex-col gap-1 px-3 py-2">
@@ -1612,7 +1611,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={() => removeFromCart(item.id)}
-                                  className="flex h-5 w-5 items-center justify-center rounded-full active:scale-90"
+                                  className="flex h-5 w-5 items-center justify-center active:scale-90"
                                   style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
                                 >
                                   <span className="font-mono text-[11px] font-bold text-white/50">-</span>
@@ -1620,7 +1619,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                                 <span className="w-4 text-center font-mono text-[11px] font-bold text-white/60">{item.quantity}</span>
                                 <button
                                   onClick={() => addToCart(item.id, item.name, item.price_cents)}
-                                  className="flex h-5 w-5 items-center justify-center rounded-full active:scale-90"
+                                  className="flex h-5 w-5 items-center justify-center active:scale-90"
                                   style={{ backgroundColor: `${theme}20` }}
                                 >
                                   <span className="font-mono text-[11px] font-bold" style={{ color: theme }}>+</span>
@@ -1633,7 +1632,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                         <div className="flex items-center gap-2 border-t px-3 py-2" style={{ borderColor: `${theme}15` }}>
                           <button
                             onClick={() => clearCart()}
-                            className="rounded-full px-2.5 py-1 font-sans text-[10px] font-medium text-white/30 active:scale-95"
+                            className="px-2.5 py-1 font-sans text-[10px] font-medium text-white/30 active:scale-95"
                             style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
                           >
                             Clear
@@ -1641,7 +1640,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                           <div className="flex-1" />
                           <button
                             onClick={() => { setCartExpanded(false); send("__CHECKOUT__"); }}
-                            className="rounded-full px-4 py-1.5 font-sans text-[11px] font-bold text-black active:scale-95"
+                            className="px-4 py-1.5 font-sans text-[11px] font-bold text-black active:scale-95"
                             style={{ backgroundColor: theme }}
                           >
                             Checkout ${(cartTotal / 100).toFixed(2)}
@@ -1652,7 +1651,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                   </AnimatePresence>
                   <button
                     onClick={() => setCartExpanded(!cartExpanded)}
-                    className="flex w-full items-center justify-between rounded-full px-3 py-1.5 active:scale-[0.98]"
+                    className="flex w-full items-center justify-between px-3 py-1.5 active:scale-[0.98]"
                     style={{ backgroundColor: `${theme}12`, border: `1px solid ${theme}25` }}
                   >
                     <div className="flex items-center gap-1.5">
@@ -1671,7 +1670,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                 <div className="flex gap-1.5 overflow-x-auto px-3 pb-1.5 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
                   {QUICK_REPLIES.map((qr) => (
                     <button key={qr.label} onClick={() => send(qr.cmd)} disabled={loading}
-                      className="shrink-0 rounded-full px-3.5 py-2 font-sans text-[12px] font-medium text-white/50 active:scale-95 disabled:opacity-30"
+                      className="shrink-0 px-3.5 py-2 font-sans text-[12px] font-medium text-white/50 active:scale-95 disabled:opacity-30"
                       style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
                     >{qr.label}</button>
                   ))}
@@ -1682,11 +1681,11 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               <div className="flex items-center gap-2 px-3 pb-2 pt-1">
                 <input ref={inputRef} type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
                   placeholder={user ? "Ask anything..." : "Swipe up for more info"} enterKeyHint="send" autoComplete="off" autoCorrect="off"
-                  className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                  className="min-w-0 flex-1 px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
                   style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
                 />
                 <motion.button onClick={() => send()} disabled={!input.trim() || loading} whileTap={{ scale: 0.9 }}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center disabled:opacity-30"
                   style={{ backgroundColor: theme, boxShadow: `0 2px 10px ${theme}40` }}
                 >
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

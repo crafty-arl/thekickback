@@ -44,7 +44,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
                             key={img.id}
                             onClick={() => setLightboxIndex(i)}
                             whileTap={{ scale: 0.95 }}
-                            className="relative shrink-0 overflow-hidden rounded-xl"
+                            className="relative shrink-0 overflow-hidden"
                             style={{
                                 width: 140,
                                 height: 100,
@@ -90,7 +90,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
                         {/* Close button */}
                         <button
                             onClick={() => setLightboxIndex(null)}
-                            className="absolute top-[max(16px,env(safe-area-inset-top))] right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full"
+                            className="absolute top-[max(16px,env(safe-area-inset-top))] right-4 z-10 flex h-9 w-9 items-center justify-center"
                             style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
                         >
                             <svg
@@ -108,7 +108,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
 
                         {/* Image counter */}
                         <div
-                            className="absolute top-[max(16px,env(safe-area-inset-top))] left-4 rounded-full px-3 py-1 font-sans text-[11px] font-medium text-white/50"
+                            className="absolute top-[max(16px,env(safe-area-inset-top))] left-4 px-3 py-1 font-sans text-[11px] font-medium text-white/50"
                             style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
                         >
                             {lightboxIndex + 1} / {gallery.length}
@@ -121,7 +121,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="relative mx-4 max-h-[70vh] max-w-[90vw] overflow-hidden rounded-2xl"
+                            className="relative mx-4 max-h-[70vh] max-w-[90vw] overflow-hidden"
                             style={{ aspectRatio: "auto" }}
                             onClick={(e) => e.stopPropagation()}
                         >
@@ -130,7 +130,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
                                 alt={gallery[lightboxIndex].caption || "Venue photo"}
                                 width={800}
                                 height={600}
-                                className="h-auto max-h-[70vh] w-auto rounded-2xl object-contain"
+                                className="h-auto max-h-[70vh] w-auto object-contain"
                                 sizes="90vw"
                                 priority
                             />
@@ -157,7 +157,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
                         >
                             {gallery.length > 1 && (
                                 <div
-                                    className="flex h-10 w-10 items-center justify-center rounded-full"
+                                    className="flex h-10 w-10 items-center justify-center"
                                     style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
                                 >
                                     <svg
@@ -189,7 +189,7 @@ export function VenueGallery({ gallery, themeColor = "#F97316" }: Props) {
                         >
                             {gallery.length > 1 && (
                                 <div
-                                    className="flex h-10 w-10 items-center justify-center rounded-full"
+                                    className="flex h-10 w-10 items-center justify-center"
                                     style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
                                 >
                                     <svg
