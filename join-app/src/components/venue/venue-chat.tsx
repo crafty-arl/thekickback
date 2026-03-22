@@ -148,7 +148,7 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
         dragConstraints={{ top: 0 }}
         dragElastic={0.2}
         onDragEnd={handleDragEnd}
-        className="fixed inset-x-0 bottom-0 z-50 flex h-[90dvh] max-h-[700px] flex-col overflow-hidden rounded-t-[20px] bg-[#0D0D0F]"
+        className="fixed inset-x-0 bottom-0 z-50 flex h-[90dvh] max-h-[700px] flex-col overflow-hidden [20px] bg-[#0D0D0F]"
       >
         {/* Drag handle */}
         <div className="flex justify-center pb-2 pt-3" style={{ touchAction: "none" }}>
@@ -196,10 +196,10 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
                 className={`flex ${msg.sender === "guest" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${
+                  className={`max-w-[80%]  px-3.5 py-2.5 ${
                     msg.sender === "guest"
-                      ? "rounded-br-sm text-black"
-                      : "rounded-bl-sm text-white/80"
+                      ? " text-black"
+                      : " text-white/80"
                   }`}
                   style={
                     msg.sender === "guest"
@@ -214,7 +214,7 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
 
             {loading && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                <div className="  px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
                   <div className="flex gap-1.5">
                     <div className="h-2 w-2 animate-bounce rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.3)", animationDelay: "0ms" }} />
                     <div className="h-2 w-2 animate-bounce rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.3)", animationDelay: "150ms" }} />

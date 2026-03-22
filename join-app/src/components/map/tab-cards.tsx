@@ -14,7 +14,7 @@ interface TabCardProps {
 function AiContext({ body, vibeColor }: { body: string; vibeColor: string }) {
   if (!body) return null;
   return (
-    <div className="mb-3 rounded-xl px-3 py-2" style={{ borderLeft: `3px solid ${vibeColor}`, backgroundColor: "rgba(255,255,255,0.03)" }}>
+    <div className="mb-3  px-3 py-2" style={{ borderLeft: `3px solid ${vibeColor}`, backgroundColor: "rgba(255,255,255,0.03)" }}>
       <p className="font-sans text-[12px] italic leading-relaxed text-white/50">{body}</p>
     </div>
   );
@@ -27,7 +27,7 @@ function Card({ children }: { children: React.ReactNode }) {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      className="w-full overflow-hidden rounded-2xl"
+      className="w-full overflow-hidden "
       style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
     >
       {children}
@@ -105,7 +105,7 @@ export function VibeCard({ body, venue, vibeColor }: TabCardProps) {
             {[1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
-                className="w-2 rounded-sm"
+                className="w-2 "
                 style={{
                   height: 6 + i * 4,
                   backgroundColor: i <= noise.bars ? vibeColor : "rgba(255,255,255,0.06)",
@@ -195,7 +195,7 @@ export function MenuCard({ body, venue, vibeColor }: TabCardProps) {
         {sections.length > 0 ? (
           <div className="flex flex-col gap-1.5">
             {sections[activeSection]?.items.map((item, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>
+              <div key={i} className="flex items-center justify-between  px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>
                 <span className="font-sans text-[12px] text-white/60">{item.name}</span>
                 {item.price && <span className="font-mono text-[11px] font-bold" style={{ color: vibeColor }}>{item.price}</span>}
               </div>
@@ -243,7 +243,7 @@ export function EventsCard({ body, venue, vibeColor }: TabCardProps) {
         {events.length > 0 ? (
           <div className="flex flex-col gap-2">
             {events.map((ev) => (
-              <div key={ev.id} className="rounded-xl p-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div key={ev.id} className=" p-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
                 <div className="flex items-center justify-between">
                   <span className="font-sans text-[13px] font-semibold text-white/80">{ev.name}</span>
                   <span
@@ -306,8 +306,8 @@ export function ReserveCard({ body, venue, vibeColor }: TabCardProps) {
         {reservables.length > 0 ? (
           <div className="flex flex-col gap-2">
             {reservables.map((r) => (
-              <div key={r.id} className="flex items-center gap-3 rounded-xl p-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${vibeColor}12` }}>
+              <div key={r.id} className="flex items-center gap-3  p-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center " style={{ backgroundColor: `${vibeColor}12` }}>
                   <span className="text-[16px]">🪑</span>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -369,7 +369,7 @@ export function ShopCard({ body, venue, vibeColor }: TabCardProps) {
         {items.length > 0 ? (
           <div className="grid grid-cols-2 gap-2">
             {items.map((item) => (
-              <div key={item.id} className="flex flex-col rounded-xl p-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div key={item.id} className="flex flex-col  p-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-[14px]">{typeIcons[item.type] || "✦"}</span>
                   <span className="truncate font-sans text-[12px] font-semibold text-white/70">{item.name}</span>
@@ -415,7 +415,7 @@ export function SubscribeCard({ body, venue, vibeColor }: TabCardProps) {
 
         <div className="flex flex-col gap-2">
           {["Events & specials", "Vibe alerts (when it gets busy)", "New menu items", "Member perks"].map((opt) => (
-            <div key={opt} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div key={opt} className="flex items-center gap-3  px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
               <div className="h-2 w-2 rounded-full" style={{ backgroundColor: subscribed ? vibeColor : "rgba(255,255,255,0.1)" }} />
               <span className="flex-1 font-sans text-[12px] text-white/50">{opt}</span>
             </div>
@@ -424,7 +424,7 @@ export function SubscribeCard({ body, venue, vibeColor }: TabCardProps) {
 
         <button
           onClick={() => setSubscribed(!subscribed)}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-sans text-[13px] font-bold active:scale-[0.97]"
+          className="mt-3 flex w-full items-center justify-center gap-2  py-3 font-sans text-[13px] font-bold active:scale-[0.97]"
           style={{
             backgroundColor: subscribed ? "rgba(255,255,255,0.06)" : vibeColor,
             color: subscribed ? "rgba(255,255,255,0.5)" : "#000",
@@ -494,7 +494,7 @@ export function JoinCard({ body, venue, vibeColor }: TabCardProps) {
 
         {/* XP Progress */}
         {milestones.length > 0 && (
-          <div className="mb-4 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+          <div className="mb-4  px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
             <div className="flex items-center justify-between mb-1.5">
               <span className="font-sans text-[10px] font-semibold" style={{ color: currentMilestone?.color || vibeColor }}>
                 {currentMilestone?.name || "New"}
@@ -543,7 +543,7 @@ export function JoinCard({ body, venue, vibeColor }: TabCardProps) {
             {memberships.map((m) => {
               const price = m.price_cents === 0 ? "Free" : `$${(m.price_cents / 100).toFixed(0)}/${m.interval || "mo"}`;
               return (
-                <div key={m.id} className="rounded-xl p-3" style={{ background: `linear-gradient(135deg, ${vibeColor}08 0%, transparent 60%)`, border: `1px solid ${vibeColor}20` }}>
+                <div key={m.id} className=" p-3" style={{ background: `linear-gradient(135deg, ${vibeColor}08 0%, transparent 60%)`, border: `1px solid ${vibeColor}20` }}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-[14px]">👑</span>

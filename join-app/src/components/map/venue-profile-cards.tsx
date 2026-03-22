@@ -132,7 +132,7 @@ export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="overflow-hidden rounded-2xl"
+        className="overflow-hidden "
         style={{ border: `1px solid ${theme}20` }}
       >
         <div
@@ -180,14 +180,14 @@ export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
             <button
               key={m.id}
               onClick={() => handleOfferingTap(m)}
-              className="w-full overflow-hidden rounded-2xl text-left transition-all active:scale-[0.98]"
+              className="w-full overflow-hidden  text-left transition-all active:scale-[0.98]"
               style={{
                 background: `linear-gradient(135deg, ${theme}12 0%, ${theme}04 100%)`,
                 border: `1px solid ${theme}25`,
               }}
             >
               <div className="flex items-center gap-3 px-4 py-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${theme}15` }}>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center " style={{ backgroundColor: `${theme}15` }}>
                   <span className="text-[18px]">{"\u{1F451}"}</span>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -234,7 +234,7 @@ export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
                   onAction(cmds[type] || `show me ${type} options`);
                 }
               }}
-              className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 transition-all active:scale-[0.96]"
+              className="flex shrink-0 items-center gap-2  px-3 py-2.5 transition-all active:scale-[0.96]"
               style={{
                 backgroundColor: "rgba(255,255,255,0.03)",
                 border: "1px solid rgba(255,255,255,0.06)",
@@ -278,7 +278,7 @@ export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
                 <button
                   key={asset.id}
                   onClick={() => onAction?.(`I want the ${asset.name} ${asset.asset_type}`)}
-                  className="flex shrink-0 flex-col items-center gap-1 rounded-xl px-3 py-2.5 transition-all active:scale-[0.96]"
+                  className="flex shrink-0 flex-col items-center gap-1  px-3 py-2.5 transition-all active:scale-[0.96]"
                   style={{
                     backgroundColor: "rgba(255,255,255,0.03)",
                     border: `1px solid ${colors.fg}20`,
@@ -314,10 +314,10 @@ export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="flex gap-1.5 overflow-x-auto rounded-2xl no-scrollbar"
+          className="flex gap-1.5 overflow-x-auto  no-scrollbar"
         >
           {gallery.slice(0, 4).map((img) => (
-            <div key={img.id} className="h-20 w-28 shrink-0 overflow-hidden rounded-xl" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div key={img.id} className="h-20 w-28 shrink-0 overflow-hidden " style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
               <img src={img.image_url} alt={img.caption || ""} className="h-full w-full object-cover" />
             </div>
           ))}

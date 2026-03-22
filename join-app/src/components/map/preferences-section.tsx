@@ -67,7 +67,7 @@ export function PreferencesSection() {
   if (loading) return null;
   if (prefs.length === 0) {
     return (
-      <div className="mt-2 rounded-xl px-3 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+      <div className="mt-2  px-3 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
         <div className="flex items-center justify-between mb-1">
           <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">ABOUT YOU</span>
         </div>
@@ -79,7 +79,7 @@ export function PreferencesSection() {
   }
 
   return (
-    <div className="mt-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+    <div className="mt-2  px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
       <div className="flex items-center justify-between mb-2">
         <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">ABOUT YOU</span>
         <span className="font-sans text-[9px] text-white/15">{prefs.length} learned</span>

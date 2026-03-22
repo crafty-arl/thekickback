@@ -66,7 +66,7 @@ export function PwaInstallPrompt() {
         style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
       >
         <div
-          className="mx-auto max-w-md overflow-hidden rounded-2xl"
+          className="mx-auto max-w-md overflow-hidden "
           style={{
             backgroundColor: "rgba(20,20,20,0.98)",
             border: "1px solid rgba(255,255,255,0.08)",
@@ -75,7 +75,7 @@ export function PwaInstallPrompt() {
           }}
         >
           <div className="flex items-center gap-3 p-4">
-            <img src="/logo.png" alt="KickBack" className="h-10 w-10 rounded-xl" />
+            <img src="/logo.png" alt="KickBack" className="h-10 w-10 " />
             <div className="flex-1 min-w-0">
               <p className="font-sans text-[14px] font-semibold text-white">Add to Home Screen</p>
               <p className="font-sans text-[12px] text-white/40 truncate">
@@ -84,7 +84,7 @@ export function PwaInstallPrompt() {
             </div>
             <button
               onClick={handleInstall}
-              className="shrink-0 rounded-xl px-4 py-2 font-sans text-[13px] font-bold text-black"
+              className="shrink-0  px-4 py-2 font-sans text-[13px] font-bold text-black"
               style={{ backgroundColor: "#F97316" }}
             >
               Install
@@ -164,7 +164,7 @@ export function PwaUpdatePrompt() {
         <motion.div
           initial={{ scale: 0.9, y: 20 }}
           animate={{ scale: 1, y: 0 }}
-          className="mx-6 flex max-w-sm flex-col items-center rounded-3xl px-8 py-10 text-center"
+          className="mx-6 flex max-w-sm flex-col items-center  px-8 py-10 text-center"
           style={{ backgroundColor: "rgba(20,20,20,0.98)", border: "1px solid rgba(255,255,255,0.08)" }}
         >
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(249,115,22,0.1)" }}>
@@ -180,7 +180,7 @@ export function PwaUpdatePrompt() {
           </p>
           <button
             onClick={handleUpdate}
-            className="w-full rounded-2xl py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+            className="w-full  py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
             style={{ backgroundColor: "#F97316" }}
           >
             Update Now

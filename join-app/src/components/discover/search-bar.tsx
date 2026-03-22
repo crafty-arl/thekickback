@@ -7,7 +7,7 @@ interface SearchBarProps {
 
 export function SearchBar({ value, onChange }: SearchBarProps) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-black/80 px-4 py-3 backdrop-blur-xl">
+    <div className="flex items-center gap-3  border border-white/[0.08] bg-black/80 px-4 py-3 backdrop-blur-xl">
       <svg
         width="20"
         height="20"

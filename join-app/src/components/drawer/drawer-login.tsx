@@ -64,7 +64,7 @@ export function DrawerLogin({ onSuccess, onBack }: DrawerLoginProps) {
   if (step === "waitlisted") {
     return (
       <div className="flex flex-1 flex-col items-center px-6 py-8">
-        <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: "rgba(249,115,22,0.12)" }}>
+        <div className="mb-3 flex h-14 w-14 items-center justify-center " style={{ backgroundColor: "rgba(249,115,22,0.12)" }}>
           <span className="text-[28px]">{"\u23F3"}</span>
         </div>
         <h2 className="mb-1 font-sans text-[18px] font-bold text-white">You're on the waitlist</h2>
@@ -85,7 +85,7 @@ export function DrawerLogin({ onSuccess, onBack }: DrawerLoginProps) {
       </p>
 
       {refKey.current && step === "email" && (
-        <div className="mb-3 w-full max-w-xs rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
+        <div className="mb-3 w-full max-w-xs  px-3 py-2" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
           <p className="text-center font-sans text-[12px] font-medium" style={{ color: "#4ADE80" }}>Referral key detected - you'll skip the waitlist</p>
         </div>
       )}
@@ -99,13 +99,13 @@ export function DrawerLogin({ onSuccess, onBack }: DrawerLoginProps) {
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="you@email.com"
             autoComplete="email"
-            className="w-full rounded-xl px-4 font-sans text-[16px] text-white outline-none placeholder:text-white/20"
+            className="w-full  px-4 font-sans text-[16px] text-white outline-none placeholder:text-white/20"
             style={{ height: 48, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
           />
           <button
             onClick={handleSend}
             disabled={loading || !email}
-            className="w-full rounded-xl font-sans text-[15px] font-bold text-black active:scale-[0.97] disabled:opacity-50"
+            className="w-full  font-sans text-[15px] font-bold text-black active:scale-[0.97] disabled:opacity-50"
             style={{ height: 48, backgroundColor: ACCENT }}
           >
             {loading ? "Sending..." : "Send Code"}
@@ -122,13 +122,13 @@ export function DrawerLogin({ onSuccess, onBack }: DrawerLoginProps) {
             onKeyDown={(e) => e.key === "Enter" && handleVerify()}
             placeholder="000000"
             autoComplete="one-time-code"
-            className="w-full rounded-xl px-4 text-center font-mono text-[24px] tracking-[0.3em] text-white outline-none"
+            className="w-full  px-4 text-center font-mono text-[24px] tracking-[0.3em] text-white outline-none"
             style={{ height: 48, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
           />
           <button
             onClick={handleVerify}
             disabled={loading || otp.length < 6}
-            className="w-full rounded-xl font-sans text-[15px] font-bold text-black active:scale-[0.97] disabled:opacity-50"
+            className="w-full  font-sans text-[15px] font-bold text-black active:scale-[0.97] disabled:opacity-50"
             style={{ height: 48, backgroundColor: ACCENT }}
           >
             {loading ? "Verifying..." : "Verify"}

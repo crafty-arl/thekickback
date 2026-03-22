@@ -31,7 +31,7 @@ export function DrawerCheckout({
   return (
     <div className="flex flex-col gap-4 px-4 py-4">
       {/* Order summary */}
-      <div className="w-full rounded-2xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}15` }}>
+      <div className="w-full  overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}15` }}>
         <div className="px-4 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
           <div className="flex items-center gap-2 mb-3">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,7 +62,7 @@ export function DrawerCheckout({
         <button
           onClick={() => onConfirm(message, [], 0, "wallet")}
           disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
-          className="flex-1 flex flex-col items-center gap-1.5 rounded-2xl py-4 px-3 transition active:scale-[0.97] disabled:opacity-40"
+          className="flex-1 flex flex-col items-center gap-1.5  py-4 px-3 transition active:scale-[0.97] disabled:opacity-40"
           style={{
             backgroundColor: canUseWallet ? "rgba(99,91,255,0.12)" : "rgba(99,91,255,0.05)",
             border: `1px solid ${canUseWallet ? "rgba(99,91,255,0.3)" : "rgba(99,91,255,0.1)"}`,
@@ -82,7 +82,7 @@ export function DrawerCheckout({
         <button
           onClick={() => onConfirm(message, [], 0, "card")}
           disabled={paymentMode === "processing" || passkey.verifying}
-          className="flex-1 flex flex-col items-center gap-1.5 rounded-2xl py-4 px-3 transition active:scale-[0.97] disabled:opacity-40"
+          className="flex-1 flex flex-col items-center gap-1.5  py-4 px-3 transition active:scale-[0.97] disabled:opacity-40"
           style={{
             backgroundColor: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.08)",
@@ -104,7 +104,7 @@ export function DrawerCheckout({
       {/* Cancel */}
       <button
         onClick={onDismiss}
-        className="w-full rounded-xl py-3 font-sans text-[15px] font-medium text-white/30 transition hover:bg-white/[0.04]"
+        className="w-full  py-3 font-sans text-[15px] font-medium text-white/30 transition hover:bg-white/[0.04]"
         style={{ border: "1px solid rgba(255,255,255,0.05)", minHeight: 48 }}
       >
         Cancel

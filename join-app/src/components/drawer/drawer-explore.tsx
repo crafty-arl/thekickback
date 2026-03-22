@@ -46,7 +46,7 @@ function VenueCard({ venue, onClick, delay, distance, xp }: { venue: Venue; onCl
       transition={{ type: "spring", damping: 25, stiffness: 300, delay }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
-      className="relative flex shrink-0 overflow-hidden rounded-2xl text-left"
+      className="relative flex shrink-0 overflow-hidden  text-left"
       style={{ width: 180, height: 140, scrollSnapAlign: "start", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
     >
       <div className="flex w-full flex-col">
@@ -66,7 +66,7 @@ function VenueCard({ venue, onClick, delay, distance, xp }: { venue: Venue; onCl
         <div className="flex flex-1 flex-col justify-between px-3 py-2">
           <p className="truncate font-sans text-[16px] font-bold text-white/90">{venue.name}</p>
           <div className="flex items-center gap-1.5">
-            <span className="rounded-md px-1.5 py-0.5 font-sans text-[10px] font-semibold capitalize text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{catLabel}</span>
+            <span className=" px-1.5 py-0.5 font-sans text-[10px] font-semibold capitalize text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{catLabel}</span>
             {venue.neighborhood && <span className="truncate font-sans text-[10px] text-white/20">{venue.neighborhood}</span>}
             {distance !== undefined && <span className="ml-auto shrink-0 font-sans text-[10px] font-medium text-white/25">{distance.toFixed(1)} mi</span>}
           </div>
@@ -173,7 +173,7 @@ export function DrawerExplore({
                     const venue = venues.find((v) => v.id === item.venue_id);
                     const color = venue?.themeColor || getVibeHexColor(venue?.vibe || "quiet");
                     return (
-                      <motion.button key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.15) }} onClick={() => { if (venue) onVenueSelect(venue); }} className="flex shrink-0 flex-col overflow-hidden rounded-2xl text-left active:scale-[0.97]" style={{ width: 180, scrollSnapAlign: "start", backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${color}15` }}>
+                      <motion.button key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.15) }} onClick={() => { if (venue) onVenueSelect(venue); }} className="flex shrink-0 flex-col overflow-hidden  text-left active:scale-[0.97]" style={{ width: 180, scrollSnapAlign: "start", backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${color}15` }}>
                         <div className="relative h-20 w-full" style={{ background: item.image_url ? undefined : `linear-gradient(135deg, ${color}20 0%, ${color}06 100%)` }}>
                           {item.image_url ? <img src={item.image_url} alt="" className="h-full w-full object-cover" /> : (
                             <div className="flex h-full w-full items-center justify-center">

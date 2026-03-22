@@ -167,7 +167,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                             exit={{ opacity: 0, x: -20 }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
                             onClick={() => navigateVenue(-1)}
-                            className="fixed left-0 top-1/2 z-[55] flex h-12 w-8 -translate-y-1/2 items-center justify-center rounded-r-xl"
+                            className="fixed left-0 top-1/2 z-[55] flex h-12 w-8 -translate-y-1/2 items-center justify-center "
                             style={{
                                 backgroundColor: "rgba(15, 15, 18, 0.6)",
                                 backdropFilter: "blur(20px)",
@@ -188,7 +188,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                             exit={{ opacity: 0, x: 20 }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
                             onClick={() => navigateVenue(1)}
-                            className="fixed right-0 top-1/2 z-[55] flex h-12 w-8 -translate-y-1/2 items-center justify-center rounded-l-xl"
+                            className="fixed right-0 top-1/2 z-[55] flex h-12 w-8 -translate-y-1/2 items-center justify-center "
                             style={{
                                 backgroundColor: "rgba(15, 15, 18, 0.6)",
                                 backdropFilter: "blur(20px)",

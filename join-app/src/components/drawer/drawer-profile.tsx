@@ -37,12 +37,12 @@ function DeviceManager() {
     setRemoving(null);
   }, [loadDevices]);
 
-  if (loading) return <div className="px-4 py-3"><div className="h-20 animate-pulse rounded-2xl" style={{ backgroundColor: "rgba(255,255,255,0.03)" }} /></div>;
+  if (loading) return <div className="px-4 py-3"><div className="h-20 animate-pulse " style={{ backgroundColor: "rgba(255,255,255,0.03)" }} /></div>;
 
   return (
     <div className="px-4 py-2">
       <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+        <div className="flex h-8 w-8 items-center justify-center " style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2" /><line x1="12" y1="18" x2="12.01" y2="18" /></svg>
         </div>
         <div>
@@ -57,7 +57,7 @@ function DeviceManager() {
           const isToday = new Date().toDateString() === lastActive.toDateString();
           const timeLabel = isToday ? "Active today" : lastActive.toLocaleDateString(undefined, { month: "short", day: "numeric" });
           return (
-            <div key={d.id} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ backgroundColor: isCurrent ? "rgba(99,91,255,0.06)" : "rgba(255,255,255,0.02)", border: isCurrent ? "1px solid rgba(99,91,255,0.15)" : "1px solid rgba(255,255,255,0.04)" }}>
+            <div key={d.id} className="flex items-center justify-between  px-3 py-2.5" style={{ backgroundColor: isCurrent ? "rgba(99,91,255,0.06)" : "rgba(255,255,255,0.02)", border: isCurrent ? "1px solid rgba(99,91,255,0.15)" : "1px solid rgba(255,255,255,0.04)" }}>
               <div className="flex items-center gap-2.5">
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -68,7 +68,7 @@ function DeviceManager() {
                 </div>
               </div>
               {!isCurrent && (
-                <motion.button onClick={() => handleRemove(d.id)} disabled={removing === d.id} whileTap={{ scale: 0.9 }} className="rounded-lg px-2.5 py-1.5 font-sans text-[12px] font-medium text-red-400/60 transition hover:bg-red-500/10 disabled:opacity-40">
+                <motion.button onClick={() => handleRemove(d.id)} disabled={removing === d.id} whileTap={{ scale: 0.9 }} className=" px-2.5 py-1.5 font-sans text-[12px] font-medium text-red-400/60 transition hover:bg-red-500/10 disabled:opacity-40">
                   {removing === d.id ? "..." : "Remove"}
                 </motion.button>
               )}
@@ -134,7 +134,7 @@ export function DrawerProfile({
           </div>
 
           {/* XP progress */}
-          <div className="mt-4 rounded-xl px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+          <div className="mt-4  px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
             <div className="mb-2 flex items-center justify-between">
               <span className="font-sans text-[12px] font-semibold tracking-[2px] text-white/25">KICKBACK SCORE</span>
               <span className="font-mono text-[15px] font-bold" style={{ color: tierColor }}>
@@ -161,10 +161,10 @@ export function DrawerProfile({
             href={`https://thekickback.net/wallet/pass/${user.authId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 flex w-full items-center gap-3 rounded-xl px-4 py-3 active:scale-[0.98]"
+            className="mt-3 flex w-full items-center gap-3  px-4 py-3 active:scale-[0.98]"
             style={{ background: `linear-gradient(135deg, ${tierColor}15, ${tierColor}05)`, border: `1px solid ${tierColor}25`, minHeight: 48 }}
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${tierColor}20` }}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center " style={{ backgroundColor: `${tierColor}20` }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={tierColor} strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
             </div>
             <div className="flex-1">
@@ -175,7 +175,7 @@ export function DrawerProfile({
           </a>
 
           {/* Biometric */}
-          <div className="mt-3 rounded-xl px-4 py-3" style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.06)" : "rgba(249,115,22,0.06)", border: `1px solid ${passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "rgba(249,115,22,0.15)"}` }}>
+          <div className="mt-3  px-4 py-3" style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.06)" : "rgba(249,115,22,0.06)", border: `1px solid ${passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "rgba(249,115,22,0.15)"}` }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={passkey.hasPasskey ? "#4ADE80" : "#F97316"} strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
@@ -197,7 +197,7 @@ export function DrawerProfile({
                   }
                 }}
                 disabled={passkey.verifying}
-                className="rounded-lg px-3 py-2 font-sans text-[12px] font-bold active:scale-95 disabled:opacity-50"
+                className=" px-3 py-2 font-sans text-[12px] font-bold active:scale-95 disabled:opacity-50"
                 style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "#F97316", color: passkey.hasPasskey ? "#4ADE80" : "#000", minHeight: 44 }}
               >
                 {passkey.verifying ? "Setting up..." : passkey.hasPasskey ? "Add this device" : "Enable"}
@@ -214,7 +214,7 @@ export function DrawerProfile({
               <span className="font-sans text-[12px] font-semibold tracking-[2px] text-white/25">MEMBERSHIPS</span>
               <div className="mt-2 flex flex-col gap-1.5">
                 {memberships.map((m) => (
-                  <div key={m.venue_id} className="flex items-center gap-2.5 rounded-xl px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
+                  <div key={m.venue_id} className="flex items-center gap-2.5  px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
                     <span className="text-[16px]">{"\u{1F451}"}</span>
                     <div className="flex-1 min-w-0">
                       <p className="font-sans text-[15px] font-semibold text-white/80">{m.venue_name}</p>
@@ -228,7 +228,7 @@ export function DrawerProfile({
 
           {/* Referral Keys */}
           {referralKeys.length > 0 && (
-            <div className="mt-4 rounded-xl px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.1)" }}>
+            <div className="mt-4  px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.1)" }}>
               <div className="mb-2 flex items-center justify-between">
                 <span className="font-sans text-[12px] font-semibold tracking-[2px] text-white/25">REFERRAL KEYS</span>
                 <span className="font-mono text-[12px] font-bold" style={{ color: "#F97316" }}>{referralKeys.filter((k) => !k.used_by_email).length}/{referralKeys.length} left</span>
@@ -240,7 +240,7 @@ export function DrawerProfile({
                     {k.used_by_email ? (
                       <span className="font-sans text-[10px] text-white/15">used</span>
                     ) : (
-                      <button onClick={() => { navigator.clipboard?.writeText(`https://join.thekickback.net?ref=${k.key}`); }} className="rounded-md px-2 py-1 font-sans text-[12px] font-bold active:scale-95" style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316" }}>Copy</button>
+                      <button onClick={() => { navigator.clipboard?.writeText(`https://join.thekickback.net?ref=${k.key}`); }} className=" px-2 py-1 font-sans text-[12px] font-bold active:scale-95" style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316" }}>Copy</button>
                     )}
                   </div>
                 ))}
@@ -254,7 +254,7 @@ export function DrawerProfile({
               <span className="font-sans text-[12px] font-semibold tracking-[2px] text-white/25">PERKS</span>
               <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
                 {perks.slice(0, 8).map((p) => (
-                  <div key={p.id} className="flex shrink-0 flex-col items-center rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", width: 90 }}>
+                  <div key={p.id} className="flex shrink-0 flex-col items-center  px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", width: 90 }}>
                     <span className="font-sans text-[12px] font-semibold text-white/70 text-center leading-tight line-clamp-2">{p.name}</span>
                     <span className="mt-1 font-mono text-[12px] font-bold text-orange">{p.point_cost} pts</span>
                   </div>
@@ -304,7 +304,7 @@ export function DrawerProfile({
         <div className="px-4 pb-6 pt-3">
           <button
             onClick={async () => { const supabase = createClient(); await supabase.auth.signOut(); window.location.reload(); }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 font-sans text-[15px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
+            className="flex w-full items-center justify-center gap-2  py-3 font-sans text-[15px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
             style={{ border: "1px solid rgba(255,255,255,0.05)", minHeight: 48 }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>

@@ -65,7 +65,7 @@ export function ThreadsList({ onThreadSelect }: ThreadsListProps) {
     return (
       <div className="flex flex-col gap-2 px-4 py-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 animate-pulse rounded-2xl" style={{ backgroundColor: "rgba(255,255,255,0.03)" }} />
+          <div key={i} className="h-16 animate-pulse " style={{ backgroundColor: "rgba(255,255,255,0.03)" }} />
         ))}
       </div>
     );
@@ -102,7 +102,7 @@ export function ThreadsList({ onThreadSelect }: ThreadsListProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
               onClick={() => onThreadSelect(thread.venueId)}
-              className="flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-colors active:scale-[0.98]"
+              className="flex w-full items-center gap-3  px-3.5 py-3 text-left transition-colors active:scale-[0.98]"
               style={{
                 backgroundColor: thread.unread ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.02)",
                 border: `1px solid ${thread.unread ? `${color}20` : "rgba(255,255,255,0.04)"}`,

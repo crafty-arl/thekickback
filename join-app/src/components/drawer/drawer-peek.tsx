@@ -24,9 +24,9 @@ export function DrawerPeek({ user, selectedVenue, vibeColor, onSignIn, input, se
   if (!user) {
     return (
       <div className="flex h-full items-center gap-3 px-4">
-        <div className="absolute left-1/2 top-2 h-1 w-8 -translate-x-1/2 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+        <div className="absolute left-1/2 top-2 h-1 w-8 -translate-x-1/2 " style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
         <motion.div
-          className="h-2.5 w-2.5 shrink-0 rounded-full"
+          className="h-2.5 w-2.5 shrink-0 "
           style={{ backgroundColor: ACCENT }}
           animate={{ scale: [1, 1.3, 1], opacity: [0.7, 1, 0.7] }}
           transition={{ duration: 3, repeat: Infinity }}
@@ -34,7 +34,7 @@ export function DrawerPeek({ user, selectedVenue, vibeColor, onSignIn, input, se
         <span className="font-sans text-[16px] font-semibold text-white/60">theKickBack</span>
         <button
           onClick={onSignIn}
-          className="ml-auto shrink-0 rounded-full px-3 py-1.5 font-sans text-[15px] font-semibold active:scale-95"
+          className="ml-auto shrink-0  px-3 py-1.5 font-sans text-[15px] font-semibold active:scale-95"
           style={{ backgroundColor: `${ACCENT}15`, color: ACCENT, border: `1px solid ${ACCENT}30` }}
         >
           Sign in &#9656;
@@ -48,7 +48,7 @@ export function DrawerPeek({ user, selectedVenue, vibeColor, onSignIn, input, se
 
   return (
     <div className="flex h-full flex-col justify-end px-3" style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}>
-      <div className="absolute left-1/2 top-2 h-1 w-8 -translate-x-1/2 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+      <div className="absolute left-1/2 top-2 h-1 w-8 -translate-x-1/2 " style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
       <div className="flex items-center gap-2">
         <input
           ref={inputRef}
@@ -61,7 +61,7 @@ export function DrawerPeek({ user, selectedVenue, vibeColor, onSignIn, input, se
           enterKeyHint="send"
           autoComplete="off"
           autoCorrect="off"
-          className="min-w-0 flex-1 rounded-full px-4 font-sans text-[16px] text-white placeholder:text-white/25 focus:outline-none"
+          className="min-w-0 flex-1  px-4 font-sans text-[16px] text-white placeholder:text-white/25 focus:outline-none"
           style={{ height: 44, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
         />
         {input.trim() && (
@@ -69,7 +69,7 @@ export function DrawerPeek({ user, selectedVenue, vibeColor, onSignIn, input, se
             onClick={onSend}
             disabled={loading}
             whileTap={{ scale: 0.9 }}
-            className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+            className="flex h-[44px] w-[44px] shrink-0 items-center justify-center  disabled:opacity-30"
             style={{ backgroundColor: color, boxShadow: `0 2px 10px ${color}40` }}
           >
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

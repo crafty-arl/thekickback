@@ -227,7 +227,7 @@ export function DrawerVenue({
         <div className="px-4 pb-3">
           <div className="flex items-start gap-3">
             {/* Venue pic */}
-            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl" style={{ backgroundColor: `${vibeColor}15`, border: `2px solid ${vibeColor}30` }}>
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden " style={{ backgroundColor: `${vibeColor}15`, border: `2px solid ${vibeColor}30` }}>
               {venue.heroImage ? (
                 <img src={venue.heroImage} alt="" className="h-full w-full object-cover" />
               ) : (
@@ -260,7 +260,7 @@ export function DrawerVenue({
               <button
                 onClick={handleCheckIn}
                 disabled={checkingIn || checkedIn}
-                className="flex h-[48px] w-[48px] items-center justify-center rounded-2xl active:scale-95 transition-all"
+                className="flex h-[48px] w-[48px] items-center justify-center  active:scale-95 transition-all"
                 style={{
                   backgroundColor: checkedIn ? "rgba(74,222,128,0.15)" : "rgba(255,255,255,0.06)",
                   border: `1px solid ${checkedIn ? "rgba(74,222,128,0.3)" : "rgba(255,255,255,0.08)"}`,
@@ -318,21 +318,21 @@ export function DrawerVenue({
               </AnimatePresence>
             </div>
           )}
-          <button onClick={onChat} className="flex h-[48px] flex-1 items-center justify-center gap-2 rounded-2xl font-sans text-[15px] font-bold text-black active:scale-[0.97]" style={{ backgroundColor: vibeColor }}>
+          <button onClick={onChat} className="flex h-[48px] flex-1 items-center justify-center gap-2  font-sans text-[15px] font-bold text-black active:scale-[0.97]" style={{ backgroundColor: vibeColor }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
             {user ? "Chat" : "Sign in to chat"}
           </button>
-          <button className="flex h-[48px] w-[48px] items-center justify-center rounded-2xl active:scale-95" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <button className="flex h-[48px] w-[48px] items-center justify-center  active:scale-95" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" /></svg>
           </button>
-          <button className="flex h-[48px] w-[48px] items-center justify-center rounded-2xl active:scale-95" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <button className="flex h-[48px] w-[48px] items-center justify-center  active:scale-95" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
           </button>
         </div>
 
         {/* Hero image — below the fold, scrollable */}
         {venue.heroImage && (
-          <div className="mx-4 mb-4 overflow-hidden rounded-2xl" style={{ height: 140 }}>
+          <div className="mx-4 mb-4 overflow-hidden " style={{ height: 140 }}>
             <img src={venue.heroImage} alt={venue.name} className="h-full w-full object-cover" />
           </div>
         )}
@@ -340,7 +340,7 @@ export function DrawerVenue({
         {/* Navigation directions */}
         <AnimatePresence>
           {navInfo && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-4 overflow-hidden rounded-2xl" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${vibeColor}15` }}>
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-4 overflow-hidden " style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${vibeColor}15` }}>
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className="flex rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -403,7 +403,7 @@ export function DrawerVenue({
               const progress = nextMilestone ? Math.min(((currentXp - prevThreshold) / (nextMilestone.threshold - prevThreshold)) * 100, 100) : 100;
               const currentTier = [...milestones].reverse().find((m) => m.threshold <= currentXp);
               return (
-                <div className="mt-2 rounded-xl px-3 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${vibeColor}15` }}>
+                <div className="mt-2  px-3 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: `1px solid ${vibeColor}15` }}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-[20px] font-bold" style={{ color: vibeColor }}>{currentXp}</span>
@@ -449,7 +449,7 @@ export function DrawerVenue({
                   {milestones.map((m) => {
                     const reached = venueXp && venueXp.xp >= m.threshold;
                     return (
-                      <div key={m.name} className="flex shrink-0 flex-col items-center rounded-xl px-3 py-2" style={{ backgroundColor: reached ? `${m.color}10` : "rgba(255,255,255,0.02)", border: `1px solid ${reached ? `${m.color}25` : "rgba(255,255,255,0.04)"}`, opacity: reached ? 1 : 0.5, minWidth: 80 }}>
+                      <div key={m.name} className="flex shrink-0 flex-col items-center  px-3 py-2" style={{ backgroundColor: reached ? `${m.color}10` : "rgba(255,255,255,0.02)", border: `1px solid ${reached ? `${m.color}25` : "rgba(255,255,255,0.04)"}`, opacity: reached ? 1 : 0.5, minWidth: 80 }}>
                         <span className="font-mono text-[13px] font-bold" style={{ color: m.color }}>{m.threshold}</span>
                         <span className="font-sans text-[11px] font-semibold" style={{ color: reached ? m.color : "rgba(255,255,255,0.3)" }}>{m.name}</span>
                       </div>
@@ -467,7 +467,7 @@ export function DrawerVenue({
             <span className="font-sans text-[12px] font-semibold tracking-[2px] text-white/25">OFFERINGS</span>
             <div className="mt-2 flex flex-col gap-2">
               {offerings.slice(0, 6).map((o) => (
-                <div key={o.id} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div key={o.id} className="flex items-center justify-between  px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <div className="flex-1 min-w-0">
                     <span className="font-sans text-[14px] font-semibold text-white/80">{o.name}</span>
                     {o.description && <p className="truncate font-sans text-[12px] text-white/30">{o.description}</p>}
@@ -491,7 +491,7 @@ export function DrawerVenue({
                 <button
                   key={p.id}
                   onClick={() => setSelectedPerk(selectedPerk?.id === p.id ? null : p)}
-                  className="w-full text-left rounded-xl px-3 py-2.5 active:scale-[0.98] transition"
+                  className="w-full text-left  px-3 py-2.5 active:scale-[0.98] transition"
                   style={{ backgroundColor: selectedPerk?.id === p.id ? `${vibeColor}10` : "rgba(255,255,255,0.03)", border: `1px solid ${selectedPerk?.id === p.id ? `${vibeColor}25` : "rgba(255,255,255,0.06)"}` }}
                 >
                   <div className="flex items-center justify-between">
@@ -539,7 +539,7 @@ export function DrawerVenue({
 
         {/* Ghost venue CTA */}
         {venue.claimed === false && (
-          <div className="mt-5 mx-4 rounded-2xl px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.1)" }}>
+          <div className="mt-5 mx-4  px-4 py-3" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.1)" }}>
             <div className="flex items-center justify-between">
               <span className="font-sans text-[12px] text-white/25">This venue hasn&apos;t claimed their page yet</span>
               <a href="https://dash.thekickback.net" target="_blank" rel="noopener noreferrer" className="rounded-full px-3 py-1.5 font-sans text-[12px] font-bold text-black" style={{ backgroundColor: "#F97316" }}>Claim</a>

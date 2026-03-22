@@ -76,7 +76,7 @@ export function CheckoutCard({ data, vibeColor, onConfirm, onDismiss }: Checkout
       initial={{ opacity: 0, scale: 0.95, y: 8 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      className="w-full overflow-hidden rounded-2xl"
+      className="w-full overflow-hidden "
       style={{
         backgroundColor: "rgba(255,255,255,0.05)",
         border: `1px solid ${vibeColor}30`,
@@ -165,14 +165,14 @@ export function CheckoutCard({ data, vibeColor, onConfirm, onDismiss }: Checkout
                     else next.add(i);
                     setSelectedAddOns(next);
                   }}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2 transition-all"
+                  className="flex items-center gap-3  px-3 py-2 transition-all"
                   style={{
                     backgroundColor: isSelected ? `${vibeColor}12` : "rgba(255,255,255,0.03)",
                     border: `1px solid ${isSelected ? `${vibeColor}30` : "rgba(255,255,255,0.06)"}`,
                   }}
                 >
                   <div
-                    className="flex h-5 w-5 items-center justify-center rounded-md"
+                    className="flex h-5 w-5 items-center justify-center "
                     style={{
                       backgroundColor: isSelected ? vibeColor : "rgba(255,255,255,0.06)",
                       border: `1.5px solid ${isSelected ? vibeColor : "rgba(255,255,255,0.15)"}`,
@@ -205,14 +205,14 @@ export function CheckoutCard({ data, vibeColor, onConfirm, onDismiss }: Checkout
         <div className="px-4 py-2.5">
           <button
             onClick={() => setUsePoints(!usePoints)}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 transition-all"
+            className="flex w-full items-center gap-3  px-3 py-2 transition-all"
             style={{
               backgroundColor: usePoints ? "rgba(249,115,22,0.08)" : "rgba(255,255,255,0.02)",
               border: `1px solid ${usePoints ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.04)"}`,
             }}
           >
             <div
-              className="flex h-5 w-5 items-center justify-center rounded-md"
+              className="flex h-5 w-5 items-center justify-center "
               style={{
                 backgroundColor: usePoints ? "#F97316" : "rgba(255,255,255,0.06)",
                 border: `1.5px solid ${usePoints ? "#F97316" : "rgba(255,255,255,0.15)"}`,
@@ -251,7 +251,7 @@ export function CheckoutCard({ data, vibeColor, onConfirm, onDismiss }: Checkout
 
       {/* Multiplier bonus hint */}
       {data.multiplier && data.multiplier > 1 && (
-        <div className="mx-4 mb-3 flex items-center gap-2 rounded-lg px-3 py-1.5" style={{ backgroundColor: "rgba(249,115,22,0.06)" }}>
+        <div className="mx-4 mb-3 flex items-center gap-2  px-3 py-1.5" style={{ backgroundColor: "rgba(249,115,22,0.06)" }}>
           <span className="font-sans text-[11px]" style={{ color: "#F97316" }}>
             🔥 {data.multiplier}x points tonight — earn {Math.round((total / 100) * 10 * data.multiplier)} pts on this purchase
           </span>
@@ -262,7 +262,7 @@ export function CheckoutCard({ data, vibeColor, onConfirm, onDismiss }: Checkout
       <div className="flex gap-2 px-4 pb-4">
         <button
           onClick={onDismiss}
-          className="flex-1 rounded-xl py-3 font-sans text-[13px] font-medium text-white/40 transition hover:bg-white/[0.04]"
+          className="flex-1  py-3 font-sans text-[13px] font-medium text-white/40 transition hover:bg-white/[0.04]"
           style={{ border: "1px solid rgba(255,255,255,0.06)" }}
         >
           Cancel
@@ -270,7 +270,7 @@ export function CheckoutCard({ data, vibeColor, onConfirm, onDismiss }: Checkout
         <button
           onClick={handleConfirm}
           disabled={confirming}
-          className="flex flex-[2] items-center justify-center gap-2 rounded-xl py-3 font-sans text-[13px] font-bold text-black transition active:scale-[0.97] disabled:opacity-50"
+          className="flex flex-[2] items-center justify-center gap-2  py-3 font-sans text-[13px] font-bold text-black transition active:scale-[0.97] disabled:opacity-50"
           style={{ backgroundColor: vibeColor }}
         >
           {confirming ? (

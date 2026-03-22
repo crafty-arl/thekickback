@@ -137,7 +137,7 @@ export function DrawerChat({
             if (msg.sender === "guest") {
               return (
                 <motion.div key={msg.id} initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-end">
-                  <div className="max-w-[80%] rounded-2xl rounded-br-sm px-3.5 py-2.5" style={{ backgroundColor: vibeColor, color: "#000", boxShadow: `0 2px 12px ${vibeColor}33` }}>
+                  <div className="max-w-[80%]   px-3.5 py-2.5" style={{ backgroundColor: vibeColor, color: "#000", boxShadow: `0 2px 12px ${vibeColor}33` }}>
                     <p className="font-sans text-[15px] leading-[1.5]">{msg.body}</p>
                   </div>
                 </motion.div>
@@ -149,7 +149,7 @@ export function DrawerChat({
                 <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
                   {msg.body && (
                     <div className="flex justify-start">
-                      <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div className="max-w-[85%]   px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
                         <AiMessageBody body={msg.body} theme={vibeColor} offeringsMap={offeringsMap} onAddToCart={addToCart} />
                       </div>
                     </div>
@@ -176,13 +176,13 @@ export function DrawerChat({
                 <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex flex-col gap-2">
                   {msg.body && (
                     <div className="flex justify-start">
-                      <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div className="max-w-[85%]   px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
                         <AiMessageBody body={msg.body} theme={vibeColor} offeringsMap={offeringsMap} onAddToCart={addToCart} />
                       </div>
                     </div>
                   )}
                   {/* Order summary */}
-                  <div className="w-full rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}15` }}>
+                  <div className="w-full  overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}15` }}>
                     <div className="px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                       <div className="flex items-center gap-2 mb-2">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
@@ -205,7 +205,7 @@ export function DrawerChat({
                     {hasWallet && !canUseWallet ? (
                       <button
                         onClick={() => onOpenFundWallet?.()}
-                        className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97]"
+                        className="flex-1 flex flex-col items-center gap-1  py-3 px-2 transition active:scale-[0.97]"
                         style={{ backgroundColor: "rgba(99,91,255,0.12)", border: "1px solid rgba(99,91,255,0.3)", minHeight: 48 }}
                       >
                         <span className="font-mono text-[18px] font-bold" style={{ color: "#a78bfa" }}>${(subtotal / 100).toFixed(2)}</span>
@@ -216,7 +216,7 @@ export function DrawerChat({
                       <button
                         onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
                         disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
-                        className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                        className="flex-1 flex flex-col items-center gap-1  py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
                         style={{ backgroundColor: canUseWallet ? "rgba(99,91,255,0.12)" : "rgba(99,91,255,0.05)", border: `1px solid ${canUseWallet ? "rgba(99,91,255,0.3)" : "rgba(99,91,255,0.1)"}`, minHeight: 48 }}
                       >
                         <span className="font-mono text-[18px] font-bold" style={{ color: "#a78bfa" }}>${(subtotal / 100).toFixed(2)}</span>
@@ -227,7 +227,7 @@ export function DrawerChat({
                     <button
                       onClick={() => handleCheckoutConfirm(msg, [], 0, "card")}
                       disabled={paymentMode === "processing" || passkey.verifying}
-                      className="flex-1 flex flex-col items-center gap-1 rounded-xl py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
+                      className="flex-1 flex flex-col items-center gap-1  py-3 px-2 transition active:scale-[0.97] disabled:opacity-40"
                       style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                     >
                       <span className="font-mono text-[18px] font-bold text-white/80">${(cardTotal / 100).toFixed(2)}</span>
@@ -235,14 +235,14 @@ export function DrawerChat({
                       <span className="font-mono text-[10px] text-white/20">+${((stripeFee + platformFee) / 100).toFixed(2)} fees</span>
                     </button>
                   </div>
-                  <button onClick={handleCheckoutDismiss} className="w-full rounded-xl py-2.5 font-sans text-[15px] font-medium text-white/30 transition hover:bg-white/[0.04]" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>Cancel</button>
+                  <button onClick={handleCheckoutDismiss} className="w-full  py-2.5 font-sans text-[15px] font-medium text-white/30 transition hover:bg-white/[0.04]" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>Cancel</button>
                 </motion.div>
               );
             }
 
             return (
               <motion.div key={msg.id} initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="flex justify-start">
-                <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <div className="max-w-[85%]   px-3.5 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
                   <AiMessageBody body={msg.body} theme={vibeColor} offeringsMap={offeringsMap} onAddToCart={addToCart} />
                 </div>
               </motion.div>
@@ -257,7 +257,7 @@ export function DrawerChat({
         <div className="px-3 pb-1">
           <AnimatePresence>
             {cartExpanded && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-1.5 overflow-hidden rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}>
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-1.5 overflow-hidden " style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}>
                 <div className="flex flex-col gap-1 px-4 py-3">
                   {currentCart.map((item) => (
                     <div key={item.offeringId} className="flex items-center justify-between gap-2">

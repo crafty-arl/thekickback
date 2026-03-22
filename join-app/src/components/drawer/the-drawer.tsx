@@ -246,7 +246,7 @@ export function parseVenueChips(
       const catIcon = CATEGORY_ICONS[rv?.type || ""] || CATEGORY_ICONS.cafe;
       const vibeLabel = vibe.charAt(0).toUpperCase() + vibe.slice(1);
       return (
-        <div key={i} className="my-2 w-full overflow-hidden rounded-2xl" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}>
+        <div key={i} className="my-2 w-full overflow-hidden " style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}>
           <div className="relative flex items-center justify-center" style={{ height: 80, background: `linear-gradient(135deg, ${vibeColor}18 0%, ${vibeColor}06 50%, rgba(0,0,0,0.2) 100%)` }}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={`${vibeColor}35`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
             <div className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
@@ -268,7 +268,7 @@ export function parseVenueChips(
                 <p className="truncate font-sans text-[14px] font-bold text-white/90">{name}</p>
                 {rv?.tagline && <p className="mt-0.5 line-clamp-1 font-sans text-[10px] italic text-white/30">&ldquo;{rv.tagline}&rdquo;</p>}
                 <div className="mt-1 flex items-center gap-1.5">
-                  {rv?.type && rv.type !== "venue" && <span className="rounded-md px-1.5 py-0.5 font-sans text-[8px] font-medium capitalize text-white/25" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{rv.type}</span>}
+                  {rv?.type && rv.type !== "venue" && <span className=" px-1.5 py-0.5 font-sans text-[8px] font-medium capitalize text-white/25" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{rv.type}</span>}
                   {(rv?.neighborhood || venue?.neighborhood) && <span className="font-sans text-[9px] text-white/20">{rv?.neighborhood || venue?.neighborhood}</span>}
                 </div>
               </div>
@@ -324,7 +324,7 @@ export function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
           const meta = offeringsMap[offer.id];
           const isExpanded = expandedId === offer.id;
           return (
-            <div key={offer.id} className="rounded-xl overflow-hidden transition" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}>
+            <div key={offer.id} className=" overflow-hidden transition" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}>
               {isExpanded && meta?.image_url && (
                 <div className="relative" style={{ height: 120 }}>
                   <img src={meta.image_url} alt={offer.name} className="h-full w-full object-cover" />
@@ -332,7 +332,7 @@ export function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
                 </div>
               )}
               <button onClick={() => setExpandedId(isExpanded ? null : offer.id)} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left active:opacity-80">
-                {!isExpanded && meta?.image_url && <img src={meta.image_url} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />}
+                {!isExpanded && meta?.image_url && <img src={meta.image_url} alt="" className="h-9 w-9 shrink-0  object-cover" />}
                 <div className="min-w-0 flex-1">
                   <span className="font-sans text-[15px] font-medium text-white/85">{offer.name}</span>
                   {isExpanded && meta?.description && <p className="mt-0.5 font-sans text-[12px] leading-[1.4] text-white/40">{meta.description}</p>}
@@ -351,7 +351,7 @@ export function AiMessageBody({ body, theme, onAddToCart, offeringsMap }: {
 export function LoadingDots() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-      <div className="rounded-2xl rounded-bl-sm px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }}>
+      <div className="  px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.05)" }}>
         <div className="flex gap-1.5">
           <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} />
           <motion.div className="h-2 w-2 rounded-full bg-white/30" animate={{ y: [0, -6, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }} />
@@ -1131,7 +1131,7 @@ export function TheDrawer({
         {walletSheetOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setWalletSheetOpen(false); walletStatus?.refresh?.(); }} className="fixed inset-0 z-[100]" style={{ backgroundColor: "rgba(0,0,0,0.7)" }} />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="fixed inset-x-0 bottom-0 z-[101] rounded-t-3xl" style={{ backgroundColor: "#0A0A0E", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "80dvh" }}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="fixed inset-x-0 bottom-0 z-[101] " style={{ backgroundColor: "#0A0A0E", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "80dvh" }}>
               <div className="flex items-center justify-between px-5 pt-4 pb-2">
                 <span className="font-sans text-[15px] font-bold text-white/80">Add Funds</span>
                 <button onClick={() => { setWalletSheetOpen(false); walletStatus?.refresh?.(); }} className="flex h-[48px] w-[48px] items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
@@ -1151,7 +1151,7 @@ export function TheDrawer({
         {showAbout && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAbout(false)} className="fixed inset-0 z-[100]" style={{ backgroundColor: "rgba(0,0,0,0.7)" }} />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="fixed inset-x-0 bottom-0 z-[101] rounded-t-3xl" style={{ backgroundColor: "#0A0A0E", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "70dvh" }}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="fixed inset-x-0 bottom-0 z-[101] " style={{ backgroundColor: "#0A0A0E", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "70dvh" }}>
               <div className="flex items-center justify-between px-5 pt-4 pb-2">
                 <span className="font-sans text-[15px] font-bold text-white/80">About</span>
                 <button onClick={() => setShowAbout(false)} className="flex h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>

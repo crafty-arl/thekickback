@@ -190,12 +190,12 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
                       onChange={(e) => setEmail(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && sendOtpEmail()}
                       placeholder="your@email.com"
-                      className="min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 focus:border-orange/40 focus:outline-none"
+                      className="min-w-0 flex-1 border border-white/[0.08] bg-white/[0.04] px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 focus:border-orange/40 focus:outline-none"
                     />
                     <button
                       onClick={sendOtpEmail}
                       disabled={!email || loading}
-                      className="shrink-0 rounded-xl px-5 py-3 font-sans text-[13px] font-bold text-black active:scale-95 disabled:opacity-40"
+                      className="shrink-0 px-5 py-3 font-sans text-[13px] font-bold text-black active:scale-95 disabled:opacity-40"
                       style={{ backgroundColor: themeColor }}
                     >
                       {loading ? "..." : "Go"}
@@ -213,12 +213,12 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
                         onKeyDown={(e) => e.key === "Enter" && verifyOtpCode()}
                         placeholder="6-digit code"
                         maxLength={6}
-                        className="min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-center font-mono text-[18px] tracking-[0.3em] text-white placeholder:text-white/20 focus:outline-none"
+                        className="min-w-0 flex-1 border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-center font-mono text-[18px] tracking-[0.3em] text-white placeholder:text-white/20 focus:outline-none"
                       />
                       <button
                         onClick={verifyOtpCode}
                         disabled={otp.length < 6 || loading}
-                        className="shrink-0 rounded-xl px-5 py-3 font-sans text-[13px] font-bold text-black active:scale-95 disabled:opacity-40"
+                        className="shrink-0 px-5 py-3 font-sans text-[13px] font-bold text-black active:scale-95 disabled:opacity-40"
                         style={{ backgroundColor: themeColor }}
                       >
                         {loading ? "..." : "Verify"}
@@ -270,7 +270,7 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="w-full rounded-2xl border border-white/[0.06] p-4"
+                className="w-full border border-white/[0.06] p-4"
                 style={{ backgroundColor: "rgba(255,255,255,0.03)" }}
               >
                 <div className="flex items-center justify-between">
@@ -313,7 +313,7 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.6 }}
-                    className="mt-3 rounded-xl p-3 text-center"
+                    className="mt-3 p-3 text-center"
                     style={{ backgroundColor: `${currentMilestone?.color || themeColor}15`, border: `1px solid ${currentMilestone?.color || themeColor}30` }}
                   >
                     <p className="font-sans text-[13px] font-bold" style={{ color: currentMilestone?.color || themeColor }}>
@@ -346,7 +346,7 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
                 />
                 <button
                   onClick={() => fileRef.current?.click()}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] py-3.5 font-sans text-[14px] font-semibold text-white/60 active:scale-[0.97]"
+                  className="flex w-full items-center justify-center gap-2 border border-white/[0.08] py-3.5 font-sans text-[14px] font-semibold text-white/60 active:scale-[0.97]"
                   style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -395,7 +395,7 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
                 <p className="mt-1 font-sans text-[14px] text-white/40">{venue.name}</p>
               </div>
 
-              <div className="w-full rounded-2xl border border-white/[0.06] p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>
+              <div className="w-full border border-white/[0.06] p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>
                 {/* Purchase total */}
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-sans text-[11px] font-semibold tracking-[1.5px] text-white/25">PURCHASE</span>
@@ -406,7 +406,7 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
                 {receiptResult.items.length > 0 && (
                   <div className="mb-3 flex flex-wrap gap-1.5">
                     {receiptResult.items.map((item, i) => (
-                      <span key={i} className="rounded-lg px-2 py-1 font-sans text-[11px] text-white/40" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <span key={i} className="px-2 py-1 font-sans text-[11px] text-white/40" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
                         {item}
                       </span>
                     ))}
@@ -414,7 +414,7 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
                 )}
 
                 {/* Bonus XP */}
-                <div className="flex items-center justify-between rounded-xl p-3" style={{ backgroundColor: `${themeColor}10`, border: `1px solid ${themeColor}20` }}>
+                <div className="flex items-center justify-between p-3" style={{ backgroundColor: `${themeColor}10`, border: `1px solid ${themeColor}20` }}>
                   <span className="font-sans text-[13px] font-semibold text-white/60">Purchase Bonus</span>
                   <span className="font-mono text-[18px] font-bold" style={{ color: themeColor }}>+{receiptResult.xp_awarded} XP</span>
                 </div>
@@ -445,14 +445,14 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
               <div className="flex w-full gap-3">
                 <button
                   onClick={() => { setPhase("checked-in"); setReceiptResult(null); }}
-                  className="flex-1 rounded-xl border border-white/[0.08] py-3 font-sans text-[13px] font-medium text-white/40"
+                  className="flex-1 border border-white/[0.08] py-3 font-sans text-[13px] font-medium text-white/40"
                 >
                   Another Receipt
                 </button>
                 {slug && (
                   <a
                     href={`/${slug}`}
-                    className="flex flex-1 items-center justify-center rounded-xl py-3 font-sans text-[13px] font-bold text-black"
+                    className="flex flex-1 items-center justify-center py-3 font-sans text-[13px] font-bold text-black"
                     style={{ backgroundColor: themeColor }}
                   >
                     Open {venue.name}

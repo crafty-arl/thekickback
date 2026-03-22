@@ -129,17 +129,17 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
             className="absolute inset-x-0 bottom-0"
           >
             <div className="relative h-[45vh]">
-              <div className="absolute bottom-0 left-[5%] h-[70%] w-[8%] bg-gradient-to-t from-[#1a1a2e] to-[#16162a] rounded-t-sm opacity-80" />
-              <div className="absolute bottom-0 left-[15%] h-[85%] w-[5%] bg-gradient-to-t from-[#1a1a2e] to-[#0f0f23] rounded-t-sm opacity-70">
-                <div className="absolute right-0 top-[10%] h-[15%] w-[40%] bg-gradient-to-t from-[#1a1a2e] to-[#0f0f23] rounded-t-sm" />
+              <div className="absolute bottom-0 left-[5%] h-[70%] w-[8%] bg-gradient-to-t from-[#1a1a2e] to-[#16162a]  opacity-80" />
+              <div className="absolute bottom-0 left-[15%] h-[85%] w-[5%] bg-gradient-to-t from-[#1a1a2e] to-[#0f0f23]  opacity-70">
+                <div className="absolute right-0 top-[10%] h-[15%] w-[40%] bg-gradient-to-t from-[#1a1a2e] to-[#0f0f23] " />
               </div>
-              <div className="absolute bottom-0 left-[22%] h-[55%] w-[10%] bg-gradient-to-t from-[#1a1a2e] to-[#12122b] rounded-t-sm opacity-75" />
-              <div className="absolute bottom-0 left-[35%] h-[90%] w-[4%] bg-gradient-to-t from-[#1a1a2e] to-[#0d0d20] rounded-t-sm opacity-85" />
-              <div className="absolute bottom-0 left-[40%] h-[60%] w-[12%] bg-gradient-to-t from-[#1a1a2e] to-[#131330] rounded-t-sm opacity-65" />
-              <div className="absolute bottom-0 right-[30%] h-[95%] w-[3%] bg-gradient-to-t from-[#1a1a2e] to-[#0a0a1e] rounded-t-sm opacity-90" />
-              <div className="absolute bottom-0 right-[20%] h-[50%] w-[14%] bg-gradient-to-t from-[#1a1a2e] to-[#151530] rounded-t-sm opacity-60" />
-              <div className="absolute bottom-0 right-[8%] h-[75%] w-[6%] bg-gradient-to-t from-[#1a1a2e] to-[#111128] rounded-t-sm opacity-80" />
-              <div className="absolute bottom-0 right-[0%] h-[65%] w-[9%] bg-gradient-to-t from-[#1a1a2e] to-[#0e0e25] rounded-t-sm opacity-70" />
+              <div className="absolute bottom-0 left-[22%] h-[55%] w-[10%] bg-gradient-to-t from-[#1a1a2e] to-[#12122b]  opacity-75" />
+              <div className="absolute bottom-0 left-[35%] h-[90%] w-[4%] bg-gradient-to-t from-[#1a1a2e] to-[#0d0d20]  opacity-85" />
+              <div className="absolute bottom-0 left-[40%] h-[60%] w-[12%] bg-gradient-to-t from-[#1a1a2e] to-[#131330]  opacity-65" />
+              <div className="absolute bottom-0 right-[30%] h-[95%] w-[3%] bg-gradient-to-t from-[#1a1a2e] to-[#0a0a1e]  opacity-90" />
+              <div className="absolute bottom-0 right-[20%] h-[50%] w-[14%] bg-gradient-to-t from-[#1a1a2e] to-[#151530]  opacity-60" />
+              <div className="absolute bottom-0 right-[8%] h-[75%] w-[6%] bg-gradient-to-t from-[#1a1a2e] to-[#111128]  opacity-80" />
+              <div className="absolute bottom-0 right-[0%] h-[65%] w-[9%] bg-gradient-to-t from-[#1a1a2e] to-[#0e0e25]  opacity-70" />
 
               {/* Window lights */}
               {Array.from({ length: 40 }).map((_, i) => (
@@ -295,7 +295,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: i * 0.08 }}
-                  className="flex flex-col items-center rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-5 text-center backdrop-blur-sm"
+                  className="flex flex-col items-center  border border-white/8 bg-white/[0.03] px-4 py-5 text-center backdrop-blur-sm"
                 >
                   <span className="text-2xl">{item.icon}</span>
                   <span className="mt-2 text-sm font-semibold text-white/80">{item.label}</span>
@@ -324,7 +324,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: i * 0.1 }}
-                  className="flex items-center gap-4 rounded-2xl border border-white/8 bg-white/[0.03] px-5 py-4 backdrop-blur-sm"
+                  className="flex items-center gap-4  border border-white/8 bg-white/[0.03] px-5 py-4 backdrop-blur-sm"
                 >
                   <span className="text-2xl">{tier.emoji}</span>
                   <div className="flex-1 min-w-0">
@@ -347,7 +347,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.25 }}
-            className="mt-16 rounded-2xl border border-[#a78bfa]/15 bg-[#a78bfa]/[0.04] px-6 py-8 text-center sm:px-10"
+            className="mt-16  border border-[#a78bfa]/15 bg-[#a78bfa]/[0.04] px-6 py-8 text-center sm:px-10"
           >
             <h3 className="font-[family-name:var(--font-fraunces)] text-xl font-semibold tracking-tight sm:text-2xl">
               The higher your score, the more the city gives back
@@ -401,7 +401,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-50px" }}
                   transition={{ duration: 0.5, delay: i * 0.08 }}
-                  className="group relative flex w-[280px] shrink-0 flex-col rounded-2xl border border-white/8 bg-white/[0.03] p-5 backdrop-blur-sm transition-colors hover:border-white/15 hover:bg-white/[0.06] sm:w-[320px]"
+                  className="group relative flex w-[280px] shrink-0 flex-col  border border-white/8 bg-white/[0.03] p-5 backdrop-blur-sm transition-colors hover:border-white/15 hover:bg-white/[0.06] sm:w-[320px]"
                 >
                   {/* Vibe indicator */}
                   <div className="flex items-center justify-between">
@@ -471,7 +471,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 backdrop-blur-sm"
+                className=" border border-white/8 bg-white/[0.03] p-4 backdrop-blur-sm"
               >
                 <div className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: stat.color }}>
                   <AnimatedNumber value={stat.value} />
@@ -522,7 +522,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="rounded-2xl border border-white/8 bg-white/[0.03] p-6 text-center backdrop-blur-sm"
+                className=" border border-white/8 bg-white/[0.03] p-6 text-center backdrop-blur-sm"
               >
                 <span className="text-3xl">{card.emoji}</span>
                 <h3 className="mt-3 text-sm font-semibold text-white/80">{card.title}</h3>

@@ -33,9 +33,9 @@ export function VenueInfo({ page, venue }: Props) {
             href={`https://maps.google.com/?q=${encodeURIComponent(venue.address)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 active:opacity-80"
+            className="flex items-center gap-3  border border-white/[0.06] bg-white/[0.02] p-4 active:opacity-80"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${page.theme_color}25` }}>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center " style={{ backgroundColor: `${page.theme_color}25` }}>
               <span className="text-[16px]">📍</span>
             </div>
             <div className="min-w-0 flex-1">
@@ -80,7 +80,7 @@ export function VenueInfo({ page, venue }: Props) {
             {page.menu_sections.map((section) => (
               <div
                 key={section.name}
-                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4"
+                className=" border border-white/[0.06] bg-white/[0.02] p-4"
               >
                 <h3 className="mb-2 font-sans text-sm font-semibold text-white/70">
                   {section.name}
@@ -89,7 +89,7 @@ export function VenueInfo({ page, venue }: Props) {
                   {section.items.map((item) => (
                     <span
                       key={item}
-                      className="rounded-lg border border-white/[0.06] px-3 py-1.5 font-sans text-xs text-white/50"
+                      className=" border border-white/[0.06] px-3 py-1.5 font-sans text-xs text-white/50"
                     >
                       {item}
                     </span>
@@ -111,7 +111,7 @@ export function VenueInfo({ page, venue }: Props) {
           <h2 className="mb-3 font-sans text-[11px] font-medium tracking-[2px] text-white/30">
             HOURS
           </h2>
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+          <div className=" border border-white/[0.06] bg-white/[0.02] p-4">
             {page.hours.map((h) => (
               <div key={h.day} className="flex justify-between py-1.5">
                 <span className="font-sans text-sm text-white/50">{h.day}</span>
@@ -138,7 +138,7 @@ export function VenueInfo({ page, venue }: Props) {
             {venue.rules.map((rule: string) => (
               <div
                 key={rule}
-                className="flex items-center gap-3 rounded-lg px-1 py-1"
+                className="flex items-center gap-3  px-1 py-1"
               >
                 <div
                   className="h-1.5 w-1.5 shrink-0 rounded-full"

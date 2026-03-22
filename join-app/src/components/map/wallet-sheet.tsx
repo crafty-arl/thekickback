@@ -200,7 +200,7 @@ export function WalletSheet() {
   if (loading) {
     return (
       <div className="px-4 py-6">
-        <div className="h-32 animate-pulse rounded-2xl" style={{ backgroundColor: "rgba(255,255,255,0.03)" }} />
+        <div className="h-32 animate-pulse " style={{ backgroundColor: "rgba(255,255,255,0.03)" }} />
       </div>
     );
   }
@@ -209,7 +209,7 @@ export function WalletSheet() {
     <div className="px-4 py-2">
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "rgba(99,91,255,0.1)" }}>
+        <div className="flex h-8 w-8 items-center justify-center " style={{ backgroundColor: "rgba(99,91,255,0.1)" }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#635bff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
           </svg>
@@ -224,7 +224,7 @@ export function WalletSheet() {
       {wallet?.hasCard && (
         <>
           {/* Balance */}
-          <div className="rounded-2xl p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className=" p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-sans text-[10px] font-semibold tracking-[1px] text-white/25">BALANCE</p>
@@ -249,7 +249,7 @@ export function WalletSheet() {
             <button
               onClick={handleAddCard}
               disabled={addingCard}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 font-sans text-[11px] font-medium text-white/40 transition active:scale-95 disabled:opacity-40"
+              className="flex flex-1 items-center justify-center gap-1.5  py-2 font-sans text-[11px] font-medium text-white/40 transition active:scale-95 disabled:opacity-40"
               style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -260,7 +260,7 @@ export function WalletSheet() {
             <button
               onClick={handleRemoveCard}
               disabled={removingCard}
-              className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 font-sans text-[11px] font-medium text-red-400/60 transition active:scale-95 disabled:opacity-40"
+              className="flex items-center justify-center gap-1.5  px-4 py-2 font-sans text-[11px] font-medium text-red-400/60 transition active:scale-95 disabled:opacity-40"
               style={{ backgroundColor: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.1)" }}
             >
               {removingCard ? "..." : "Remove"}
@@ -277,7 +277,7 @@ export function WalletSheet() {
                   onClick={() => setConfirmAmount(amount)}
                   disabled={funding}
                   whileTap={{ scale: 0.95 }}
-                  className="flex-1 rounded-xl py-2.5 font-mono text-[13px] font-bold transition disabled:opacity-40"
+                  className="flex-1  py-2.5 font-mono text-[13px] font-bold transition disabled:opacity-40"
                   style={{
                     backgroundColor: "rgba(99,91,255,0.1)",
                     color: "#a78bfa",
@@ -301,7 +301,7 @@ export function WalletSheet() {
                   placeholder="Custom"
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
-                  className="w-full rounded-xl py-2.5 pl-7 pr-3 font-mono text-[13px] font-bold text-white placeholder:text-white/20 focus:outline-none"
+                  className="w-full  py-2.5 pl-7 pr-3 font-mono text-[13px] font-bold text-white placeholder:text-white/20 focus:outline-none"
                   style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                 />
               </div>
@@ -312,7 +312,7 @@ export function WalletSheet() {
                 }}
                 disabled={funding || !customAmount || parseFloat(customAmount) < 10}
                 whileTap={{ scale: 0.95 }}
-                className="rounded-xl px-5 py-2.5 font-sans text-[13px] font-bold text-white transition disabled:opacity-30"
+                className=" px-5 py-2.5 font-sans text-[13px] font-bold text-white transition disabled:opacity-30"
                 style={{ backgroundColor: "#635bff" }}
               >
                 {funding ? "..." : "Add"}
@@ -326,14 +326,14 @@ export function WalletSheet() {
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-2 rounded-xl px-4 py-2"
+              className="mt-2  px-4 py-2"
               style={{ backgroundColor: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)" }}
             >
               <p className="font-sans text-[12px] text-green-400">{fundSuccess}</p>
             </motion.div>
           )}
           {fundError && (
-            <div className="mt-2 rounded-xl px-4 py-2" style={{ backgroundColor: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)" }}>
+            <div className="mt-2  px-4 py-2" style={{ backgroundColor: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)" }}>
               <p className="font-sans text-[12px] text-red-400">{fundError}</p>
             </div>
           )}
@@ -345,7 +345,7 @@ export function WalletSheet() {
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-3 rounded-2xl p-4"
+                className="mt-3  p-4"
                 style={{ backgroundColor: "rgba(99,91,255,0.06)", border: "1px solid rgba(99,91,255,0.2)" }}
               >
                 <p className="font-sans text-[13px] font-semibold text-white/80">Confirm payment</p>
@@ -376,14 +376,14 @@ export function WalletSheet() {
                     onClick={handleFundConfirm}
                     disabled={funding}
                     whileTap={{ scale: 0.95 }}
-                    className="flex-1 rounded-xl py-2.5 font-sans text-[13px] font-bold text-white transition disabled:opacity-50"
+                    className="flex-1  py-2.5 font-sans text-[13px] font-bold text-white transition disabled:opacity-50"
                     style={{ backgroundColor: "#635bff" }}
                   >
                     {funding ? "Processing..." : `Pay ${formatDollars(fees.totalCharge)}`}
                   </motion.button>
                   <button
                     onClick={() => setConfirmAmount(null)}
-                    className="rounded-xl px-4 py-2.5 font-sans text-[13px] font-medium text-white/40 transition active:scale-95"
+                    className=" px-4 py-2.5 font-sans text-[13px] font-medium text-white/40 transition active:scale-95"
                     style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                   >
                     Cancel
@@ -401,7 +401,7 @@ export function WalletSheet() {
                 {transactions.slice(0, 5).map((tx) => {
                   const isFund = tx.description?.startsWith("Added funds");
                   return (
-                    <div key={tx.id} className="flex items-center justify-between rounded-xl px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                    <div key={tx.id} className="flex items-center justify-between  px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
                       <div>
                         <p className="font-sans text-[11px] text-white/50">{tx.venueName || tx.description || "Transaction"}</p>
                         <p className="font-sans text-[9px] text-white/20">{new Date(tx.createdAt).toLocaleDateString()}</p>
@@ -425,7 +425,7 @@ export function WalletSheet() {
 
       {/* ── Has wallet, no card yet ── */}
       {wallet && !wallet.hasCard && (
-        <div className="rounded-2xl p-4" style={{ backgroundColor: "rgba(99,91,255,0.05)", border: "1px solid rgba(99,91,255,0.15)" }}>
+        <div className=" p-4" style={{ backgroundColor: "rgba(99,91,255,0.05)", border: "1px solid rgba(99,91,255,0.15)" }}>
           <p className="font-sans text-[13px] font-semibold text-white/80">Add a card to load funds</p>
           <p className="mt-1 font-sans text-[11px] text-white/35">
             Save a payment method, then add money. The AI will spend from your balance.
@@ -434,7 +434,7 @@ export function WalletSheet() {
           <button
             onClick={handleAddCard}
             disabled={addingCard}
-            className="mt-3 w-full rounded-xl py-2.5 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+            className="mt-3 w-full  py-2.5 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
             style={{ backgroundColor: "#635bff" }}
           >
             {addingCard ? "Setting up..." : "Add Payment Method"}
@@ -444,7 +444,7 @@ export function WalletSheet() {
 
       {/* ── No wallet ── */}
       {!wallet && (
-        <div className="rounded-2xl p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className=" p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <p className="font-sans text-[13px] font-semibold text-white/80">Let AI handle payments</p>
           <p className="mt-1 font-sans text-[11px] leading-[1.5] text-white/35">
             Load funds into your wallet and the AI orders for you at any venue — no checkout needed.
@@ -455,7 +455,7 @@ export function WalletSheet() {
           <button
             onClick={createWallet}
             disabled={creating}
-            className="mt-3 w-full rounded-xl py-2.5 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+            className="mt-3 w-full  py-2.5 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
             style={{ backgroundColor: "#635bff" }}
           >
             {creating ? "Setting up..." : "Set Up AI Wallet"}
