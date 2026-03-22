@@ -570,7 +570,7 @@ export function JoinCard({ body, venue, vibeColor }: TabCardProps) {
           <p className="font-sans text-[11px] text-white/20">Ask about membership options.</p>
         )}
 
-        <p className="mt-3 font-sans text-[9px] text-white/15">Say &quot;I want to join&quot; to sign up</p>
+        <p className="mt-3 font-sans text-[9px] text-white/15">Ask about membership to get started</p>
       </div>
     </Card>
   );

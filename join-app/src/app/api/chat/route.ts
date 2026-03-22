@@ -186,6 +186,7 @@ export async function POST(request: Request) {
     `Venue is ${vibe}, ${occupancy} people.`,
     table ? `Guest is at Table ${table}.` : "",
     "Keep it under 400 chars. No emojis. Be direct and helpful.",
+    "NEVER tell users to text, SMS, or call a number. Everything happens through this chat. Don't mention phone numbers or texting.",
     "",
     "OFFERING LINK INSTRUCTIONS:",
     "When mentioning a specific offering, link it inline using: [[OFFER:id:name:price_cents]]",

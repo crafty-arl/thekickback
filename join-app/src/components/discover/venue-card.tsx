@@ -73,7 +73,7 @@ export function VenueCard({ venue }: { venue: Venue }) {
             </span>
           )}
           <span className=" bg-black px-4 py-2 font-mono text-xs font-medium text-orange transition-colors group-hover:bg-black/90">
-            text JOIN
+            Chat
           </span>
         </div>
       </div>
