@@ -2494,7 +2494,7 @@ export function TheDock({
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", damping: 28, stiffness: 280 }}
         className="fixed inset-x-0 bottom-0 z-40"
-        style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}
+        style={{ paddingBottom: 0 }}
       >
         <motion.div
           animate={controls}
@@ -2502,14 +2502,13 @@ export function TheDock({
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={0.12}
           onDragEnd={handleDrag}
-          className="relative mx-3 flex flex-col overflow-hidden"
+          className="relative flex flex-col overflow-hidden"
           style={{
             height: 56,
-            borderRadius: 0,
             backgroundColor: "rgba(12, 12, 14, 0.55)",
             backdropFilter: "blur(40px) saturate(1.8)",
             WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-            boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
+            boxShadow: "0 -1px 0 rgba(255,255,255,0.06)",
             touchAction: "none",
           }}
         >
