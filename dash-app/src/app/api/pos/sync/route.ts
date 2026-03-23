@@ -1,33 +1,101 @@
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 
-// ─── Category mapping: POS data → our offering types ────────────────
-// POS systems use varying category/type names. We normalize to our types:
-// product, service, event, reservation, membership, package, custom
+// ─── AI-powered category classification ─────────────────────────────
+// Sends a batch of POS items to an LLM for accurate type classification.
+// Falls back to keyword matching if AI is unavailable.
 
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  service: ["service", "haircut", "cut", "trim", "color", "styling", "massage", "facial", "manicure", "pedicure", "wax", "treatment", "consultation", "session", "lesson", "class", "training", "repair", "cleaning", "wash", "detail"],
-  event: ["event", "ticket", "admission", "entry", "cover", "show", "concert", "performance", "workshop", "seminar", "party", "night", "festival", "meetup"],
-  reservation: ["reservation", "booking", "table", "room", "space", "booth", "lane", "court", "rental", "hire"],
-  membership: ["membership", "subscription", "member", "plan", "pass", "unlimited", "monthly", "annual", "vip"],
-  package: ["package", "bundle", "combo", "deal", "set", "kit", "box"],
-};
+const VALID_TYPES = ["product", "service", "event", "reservation", "membership", "package"];
 
-function classifyOffering(item: { name?: string; description?: string; product_type?: string; category?: string; type?: string }): string {
-  // Check explicit POS type/category fields first
-  const posType = (item.product_type || item.type || item.category || "").toLowerCase();
-  if (posType.includes("service")) return "service";
-  if (posType.includes("event") || posType.includes("ticket")) return "event";
-  if (posType.includes("membership") || posType.includes("subscription")) return "membership";
+async function classifyOfferingsBatch(
+  items: { id: string; name: string; description?: string; product_type?: string; category?: string }[],
+  venueType?: string
+): Promise<Record<string, string>> {
+  if (items.length === 0) return {};
 
-  // Keyword match on name + description
-  const text = `${item.name || ""} ${item.description || ""}`.toLowerCase();
-  for (const [type, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (keywords.some(kw => text.includes(kw))) return type;
+  const itemList = items.map((item, i) =>
+    `${i + 1}. "${item.name}" — ${item.description || "no description"} (POS category: ${item.category || item.product_type || "none"})`
+  ).join("\n");
+
+  const prompt = `You are classifying menu/catalog items from a POS system for a ${venueType || "venue"}.
+
+For each item, assign exactly ONE type from: product, service, event, reservation, membership, package
+
+Guidelines:
+- product: food, drinks, merchandise, physical goods
+- service: haircuts, massages, lessons, classes, consultations, repairs
+- event: tickets, shows, concerts, workshops, admission, live performances
+- reservation: table bookings, room rentals, booth holds, space rentals
+- membership: subscriptions, monthly passes, VIP access, recurring plans
+- package: bundles, combos, deals, multi-item sets
+
+Items:
+${itemList}
+
+Respond with ONLY a JSON object mapping item number to type, like: {"1":"product","2":"service","3":"event"}`;
+
+  try {
+    const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL;
+    const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+
+    if (!gatewayUrl || !gatewayToken) throw new Error("No AI gateway configured");
+
+    const res = await fetch(`${gatewayUrl}/v1/responses`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${gatewayToken}`,
+        "Content-Type": "application/json",
+        "x-openclaw-agent-id": "pos-classifier",
+      },
+      body: JSON.stringify({
+        model: "openrouter/anthropic/claude-haiku-4-5-20251001",
+        input: prompt,
+      }),
+    });
+
+    if (!res.ok) throw new Error(`AI returned ${res.status}`);
+
+    const data = await res.json();
+    const text = typeof data === "string" ? data : data.output_text || data.output || JSON.stringify(data);
+
+    // Extract JSON from the response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON in AI response");
+
+    const classifications = JSON.parse(jsonMatch[0]) as Record<string, string>;
+
+    // Map back to item IDs
+    const result: Record<string, string> = {};
+    items.forEach((item, i) => {
+      const type = classifications[String(i + 1)]?.toLowerCase();
+      result[item.id] = VALID_TYPES.includes(type || "") ? type! : "product";
+    });
+    return result;
+  } catch (err) {
+    console.error("[pos/sync] AI classification failed, using fallback:", err);
+    return fallbackClassify(items);
   }
+}
 
-  // Default: product (food, drink, merch, etc.)
-  return "product";
+// Keyword fallback if AI is down
+function fallbackClassify(items: { id: string; name: string; description?: string }[]): Record<string, string> {
+  const keywords: Record<string, string[]> = {
+    service: ["haircut", "cut", "trim", "massage", "facial", "wax", "treatment", "consultation", "lesson", "class", "training", "repair", "cleaning"],
+    event: ["event", "ticket", "admission", "entry", "cover", "show", "concert", "workshop", "party", "night", "festival"],
+    reservation: ["reservation", "booking", "table", "room", "booth", "lane", "court", "rental"],
+    membership: ["membership", "subscription", "member", "pass", "unlimited", "vip"],
+    package: ["package", "bundle", "combo", "deal", "kit", "box"],
+  };
+  const result: Record<string, string> = {};
+  for (const item of items) {
+    const text = `${item.name} ${item.description || ""}`.toLowerCase();
+    let type = "product";
+    for (const [t, kws] of Object.entries(keywords)) {
+      if (kws.some(kw => text.includes(kw))) { type = t; break; }
+    }
+    result[item.id] = type;
+  }
+  return result;
 }
 
 export async function POST(request: Request) {
@@ -82,6 +150,20 @@ export async function POST(request: Request) {
   // Determine provider from the Apideck response metadata
   const posProvider = data.service?.name || data.service?.id || "pos";
 
+  // Get venue type for better AI classification context
+  const { data: venueRow } = await service.from("venues").select("type").eq("id", venueId).single();
+  const venueType = venueRow?.type || undefined;
+
+  // Batch classify all items with AI
+  const classifiableItems = items.map((item: Record<string, unknown>) => ({
+    id: item.id as string,
+    name: (item.name as string) || "Unnamed",
+    description: item.description as string | undefined,
+    product_type: item.product_type as string | undefined,
+    category: item.category as string | undefined,
+  }));
+  const classifications = await classifyOfferingsBatch(classifiableItems, venueType);
+
   let added = 0;
   let updated = 0;
   const syncedPosItemIds: string[] = [];
@@ -90,14 +172,12 @@ export async function POST(request: Request) {
     const posItemId = item.id;
     syncedPosItemIds.push(posItemId);
 
-    // Resolve price: Apideck POS items may have price in various formats
     const priceCents = item.price
       ? Math.round(parseFloat(item.price) * 100)
       : item.price_amount
         ? Math.round(item.price_amount * 100)
         : 0;
 
-    // Check if this POS item already exists for this venue
     const { data: existing } = await service
       .from("venue_offerings")
       .select("id")
@@ -105,7 +185,7 @@ export async function POST(request: Request) {
       .eq("pos_item_id", posItemId)
       .single();
 
-    const offeringType = classifyOffering(item);
+    const offeringType = classifications[posItemId] || "product";
     const category = item.category || item.product_type || null;
 
     if (existing) {
