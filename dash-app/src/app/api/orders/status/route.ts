@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Missing orderId or status" }, { status: 400 });
   }
 
-  const validStatuses = ["pending", "confirmed", "fulfilled", "cancelled"];
+  const validStatuses = ["pending", "confirmed", "fulfilled", "cancelled", "refunded"];
   if (!validStatuses.includes(status)) {
     return Response.json({ error: "Invalid status" }, { status: 400 });
   }

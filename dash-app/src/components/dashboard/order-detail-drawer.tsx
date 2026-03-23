@@ -17,6 +17,7 @@ interface OrderDetailDrawerProps {
   feeRate: number;
   drawerSaving: boolean;
   onStatusUpdate: (orderId: string, status: string) => Promise<void>;
+  onRefundOrder: (orderId: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -27,15 +28,18 @@ export function OrderDetailDrawer({
   feeRate,
   drawerSaving,
   onStatusUpdate,
+  onRefundOrder,
   onClose,
 }: OrderDetailDrawerProps) {
   const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [refundConfirm, setRefundConfirm] = useState(false);
 
   const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
     pending: { label: "Pending", color: "#FACC15", bg: "#FACC1512" },
     confirmed: { label: "Confirmed", color: "#16a34a", bg: "#16a34a12" },
     fulfilled: { label: "Fulfilled", color: "#94a3b8", bg: "#94a3b812" },
     cancelled: { label: "Cancelled", color: "#ef4444", bg: "#ef444412" },
+    refunded: { label: "Refunded", color: "#ec4899", bg: "#ec489912" },
   };
   const sc = statusConfig[order.status] || statusConfig.pending;
   const guestName = order.profiles?.display_name || order.guest_name || "Guest";
@@ -52,7 +56,7 @@ export function OrderDetailDrawer({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={() => { onClose(); setCancelConfirm(false); }}
+        onClick={() => { onClose(); setCancelConfirm(false); setRefundConfirm(false); }}
         className="fixed inset-0 z-50 bg-black/30"
       />
       <motion.div
@@ -80,7 +84,7 @@ export function OrderDetailDrawer({
               {sc.label}
             </span>
             <button
-              onClick={() => { onClose(); setCancelConfirm(false); }}
+              onClick={() => { onClose(); setCancelConfirm(false); setRefundConfirm(false); }}
               className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition hover:bg-gray-200"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -134,7 +138,7 @@ export function OrderDetailDrawer({
 
         {/* Actions */}
         <div className="shrink-0 border-t border-gray-100 px-5 py-4 space-y-2" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
-          {order.status !== "fulfilled" && order.status !== "cancelled" && (
+          {order.status !== "fulfilled" && order.status !== "cancelled" && order.status !== "refunded" && (
             <button
               onClick={() => onStatusUpdate(order.id, "fulfilled")}
               disabled={drawerSaving}
@@ -144,7 +148,34 @@ export function OrderDetailDrawer({
               {drawerSaving ? "Updating..." : "Mark Fulfilled"}
             </button>
           )}
-          {order.status !== "cancelled" && (
+          {(order.status === "confirmed" || order.status === "fulfilled") && (
+            refundConfirm ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onRefundOrder(order.id)}
+                  disabled={drawerSaving}
+                  className="flex flex-1 items-center justify-center rounded-xl py-3 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                  style={{ backgroundColor: "#ec4899" }}
+                >
+                  {drawerSaving ? "Refunding..." : `Refund ${fmtCents(order.total_cents)}`}
+                </button>
+                <button
+                  onClick={() => setRefundConfirm(false)}
+                  className="flex flex-1 items-center justify-center rounded-xl border border-gray-200 py-3 font-sans text-[13px] font-medium text-gray-500 transition active:scale-[0.98]"
+                >
+                  Go Back
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setRefundConfirm(true)}
+                className="flex w-full items-center justify-center rounded-xl border border-pink-200 py-3 font-sans text-[13px] font-medium text-pink-500 transition active:scale-[0.98]"
+              >
+                Refund Order
+              </button>
+            )
+          )}
+          {order.status !== "cancelled" && order.status !== "refunded" && (
             cancelConfirm ? (
               <div className="flex gap-2">
                 <button

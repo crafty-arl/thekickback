@@ -258,7 +258,7 @@ export function OwnerDock({
   const topSellingItems = useMemo(() => {
     const itemMap = new Map<string, { name: string; count: number; revenue: number }>();
     for (const order of ordersState) {
-      if (order.status === "cancelled") continue;
+      if (order.status === "cancelled" || order.status === "refunded") continue;
       for (const item of (order.order_items || []) as OrderItem[]) {
         const key = item.name || "Unknown";
         const existing = itemMap.get(key);
@@ -281,7 +281,7 @@ export function OwnerDock({
 
   const recentPurchases = useMemo(() => {
     return ordersState
-      .filter((o) => o.status !== "cancelled")
+      .filter((o) => o.status !== "cancelled" && o.status !== "refunded")
       .slice(0, 5)
       .map((o) => ({
         id: o.id,
@@ -337,7 +337,7 @@ export function OwnerDock({
   // ─── Today tab data ──────────────────────────────────────────
   const ordersToday = useMemo(() => {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    return ordersState.filter(o => new Date(o.created_at) >= todayStart && o.status !== "cancelled");
+    return ordersState.filter(o => new Date(o.created_at) >= todayStart && o.status !== "cancelled" && o.status !== "refunded");
   }, [ordersState]);
 
   const pendingRequests = useMemo(() => {
@@ -582,6 +582,31 @@ export function OwnerDock({
     []
   );
 
+  // ─── Drawer: Refund order ──────────────────────────────────
+  const handleRefundOrder = useCallback(
+    async (orderId: string) => {
+      setDrawerSaving(true);
+      try {
+        const res = await fetch("/api/orders/refund", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId }),
+        });
+        if (res.ok) {
+          setOrdersState((prev) =>
+            prev.map((o) => (o.id === orderId ? { ...o, status: "refunded" as Order["status"] } : o))
+          );
+          setSelectedOrder((prev) =>
+            prev && prev.id === orderId ? { ...prev, status: "refunded" as Order["status"] } : prev
+          );
+        }
+      } finally {
+        setDrawerSaving(false);
+      }
+    },
+    []
+  );
+
   // ─── Drawer: Offering actions ──────────────────────────────
   const handleOpenOfferingDrawer = useCallback(
     (offering: { id: string; name: string; type: string; price_cents: number; description?: string }) => {
@@ -680,7 +705,7 @@ export function OwnerDock({
     <main className="flex h-dvh flex-col bg-gray-50">
       {/* Header */}
       <header
-        className="flex h-14 shrink-0 items-center justify-between bg-white px-4"
+        className="relative z-10 flex h-14 shrink-0 items-center justify-between bg-white px-4"
         style={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}
       >
         <div className="flex items-center gap-3">
@@ -721,7 +746,7 @@ export function OwnerDock({
       >
         {/* Desktop top tab bar */}
         <div
-          className="hidden lg:block shrink-0 bg-white px-4"
+          className="relative z-10 hidden lg:block shrink-0 bg-white px-4"
           style={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}
         >
           <TabsList
@@ -830,7 +855,7 @@ export function OwnerDock({
 
         {/* Mobile Bottom Tab Bar */}
         <div
-          className="flex shrink-0 items-stretch lg:hidden bg-white"
+          className="relative z-10 flex shrink-0 items-stretch lg:hidden bg-white"
           style={{
             borderTop: "1px solid rgba(0,0,0,0.08)",
             paddingBottom: "env(safe-area-inset-bottom)",
@@ -882,6 +907,7 @@ export function OwnerDock({
             feeRate={feeRate}
             drawerSaving={drawerSaving}
             onStatusUpdate={handleOrderStatusUpdate}
+            onRefundOrder={handleRefundOrder}
             onClose={() => setSelectedOrder(null)}
           />
         )}

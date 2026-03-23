@@ -17,7 +17,7 @@ export interface Order {
   user_id: string | null;
   guest_name: string | null;
   guest_email: string | null;
-  status: "pending" | "confirmed" | "fulfilled" | "cancelled";
+  status: "pending" | "confirmed" | "fulfilled" | "cancelled" | "refunded";
   total_cents: number;
   created_at: string;
   order_items: OrderItem[];
@@ -71,6 +71,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   confirmed: { label: "Confirmed", color: "#16a34a", bg: "#16a34a12", icon: "✓" },
   fulfilled: { label: "Fulfilled", color: "#94a3b8", bg: "#94a3b812", icon: "✓" },
   cancelled: { label: "Cancelled", color: "#ef4444", bg: "#ef444412", icon: "✕" },
+  refunded: { label: "Refunded", color: "#ec4899", bg: "#ec489912", icon: "↩" },
 };
 
 // ─── Component ───────────────────────────────────────────────────

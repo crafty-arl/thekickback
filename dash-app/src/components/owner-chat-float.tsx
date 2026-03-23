@@ -108,7 +108,7 @@ export const OwnerChatFloat = forwardRef<OwnerChatFloatHandle, OwnerChatFloatPro
               exit={{ scale: 0, opacity: 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
               onClick={toggle}
-              className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-orange-500 shadow-lg shadow-orange-500/25 active:scale-95 transition-transform"
+              className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-orange-500 shadow-lg shadow-orange-500/25 active:scale-95 transition-transform"
               aria-label="Open chat"
             >
               {/* Chat icon */}
@@ -142,7 +142,7 @@ export const OwnerChatFloat = forwardRef<OwnerChatFloatHandle, OwnerChatFloatPro
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="fixed bottom-0 right-0 z-50 flex flex-col bg-white shadow-2xl border border-gray-200/60
+              className="fixed bottom-0 right-0 z-40 flex flex-col bg-white shadow-2xl border border-gray-200/60
                          w-full max-h-[70vh]
                          lg:bottom-6 lg:right-6 lg:w-[380px] lg:rounded-2xl lg:max-h-[70vh]"
             >
