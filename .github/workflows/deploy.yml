@@ -178,6 +178,19 @@ jobs:
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
+      # ── session-worker ──
+      - name: Deploy session-worker
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: session-worker
+          secrets: |
+            SUPABASE_SERVICE_KEY
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
   # ═══════════════════════════════════════════════════════════
   # 3. TEST — runs after VPS deploy succeeds
   #    (workers deploy runs independently, won't block tests)
@@ -304,7 +317,7 @@ jobs:
 
             echo ""
             echo "═══ 6. CLOUDFLARE WORKERS ═══"
-            for WORKER in kickback-email kickback-digest kickback-renewal; do
+            for WORKER in kickback-email kickback-digest kickback-renewal kickback-session; do
               CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 8 "https://${WORKER}.carl-lewis.workers.dev/health" 2>/dev/null)
               if [ "$CODE" = "200" ]; then
                 BODY=$(curl -sf --max-time 5 "https://${WORKER}.carl-lewis.workers.dev/health" 2>/dev/null)

@@ -206,7 +206,6 @@ export async function POST() {
       neighborhood: p.location?.locality || "Milwaukee",
       vibe: VIBES[Math.floor(Math.random() * VIBES.length)],
       max_occupancy: 50 + Math.floor(Math.random() * 150),
-      occupancy: isClaimed ? Math.floor(Math.random() * 30) : 0,
       claimed: isClaimed,
       seeded: true,
       fsq_place_id: p.fsq_id,

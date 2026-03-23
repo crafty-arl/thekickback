@@ -70,7 +70,6 @@ export async function createVenue(formData: VenueFormData) {
     .insert({
       name: formData.name,
       state: "active",
-      occupancy: 0,
       max_occupancy: formData.maxOccupancy || 100,
       vibe: "quiet",
       type: formData.type || "venue",

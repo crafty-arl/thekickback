@@ -28,7 +28,7 @@ export default async function RootPage() {
 
     const [pagesRes, allVenuesRes, memberCountRes, sessionCountRes, knowledgeCountRes, offeringCountRes, configRes, waitlistRes] = await Promise.all([
         service.from("venue_pages").select("*, venues(id, name, type, address, neighborhood, lat, lng, max_occupancy)").order("created_at", { ascending: false }),
-        service.from("venues").select("id, name, type, address, neighborhood, lat, lng, max_occupancy, state, vibe, occupancy, created_at").order("created_at", { ascending: false }),
+        service.from("venues").select("id, name, type, address, neighborhood, lat, lng, max_occupancy, state, vibe, created_at").order("created_at", { ascending: false }),
         service.from("memberships").select("id", { count: "exact", head: true }),
         service.from("sessions").select("id", { count: "exact", head: true }),
         service.from("venue_knowledge").select("id", { count: "exact", head: true }),

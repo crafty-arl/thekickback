@@ -355,7 +355,6 @@ async function createVenueFromAI(data: {
     body: JSON.stringify({
       name: data.name,
       state: "active",
-      occupancy: 0,
       max_occupancy: data.maxOccupancy || 100,
       vibe: "quiet",
       type: data.type,

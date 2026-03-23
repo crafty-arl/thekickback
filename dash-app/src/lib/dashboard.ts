@@ -49,8 +49,8 @@ export interface ChatMessage {
 }
 
 export interface VenueStats {
-  currentOccupancy: number;
-  capacity: number;
+  currentOccupancy: number; // active GPS sessions (replaces legacy occupancy)
+  capacity: number; // deprecated — always 0
   totalToday: number;
   totalMessages: number;
   members: number;

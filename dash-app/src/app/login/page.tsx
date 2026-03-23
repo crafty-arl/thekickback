@@ -5,7 +5,7 @@ import Image from "next/image";
 import { sendOtp, verifyOtp } from "./actions";
 
 const PERKS = [
-  { icon: "\ud83d\udcca", title: "Live Dashboard", desc: "Real-time occupancy, vibe tracking, and guest activity" },
+  { icon: "\ud83d\udcca", title: "Live Dashboard", desc: "Real-time check-ins, vibe tracking, and guest activity" },
   { icon: "\ud83e\udd16", title: "AI Interactions", desc: "Guests email or text \u2014 AI handles responses automatically" },
   { icon: "\ud83d\udcf2", title: "Wallet Passes", desc: "Your venue lives on every guest's lock screen" },
   { icon: "\ud83d\udcb3", title: "Memberships", desc: "Built-in tiers, payments, and member recognition" },

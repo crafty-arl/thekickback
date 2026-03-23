@@ -44,36 +44,23 @@ const tierColors: Record<string, string> = {
 /* ------------------------------------------------------------------ */
 
 export function StatsCard({
-  occupancy,
-  capacity,
+  activeSessions,
   visitorsToday,
   revenue,
   members,
 }: {
-  occupancy: number;
-  capacity: number;
+  activeSessions: number;
   visitorsToday: number;
   revenue: number;
   members: number;
 }) {
-  const pct = capacity > 0 ? Math.round((occupancy / capacity) * 100) : 0;
-
   return (
     <motion.div {...enter} className={`${cardStyle} space-y-3`}>
-      {/* Occupancy bar */}
+      {/* Active sessions */}
       <div>
-        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Occupancy</p>
-        <div className="h-2 bg-gray-100 overflow-hidden">
-          <motion.div
-            className="h-full bg-orange-500"
-            initial={{ width: 0 }}
-            animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-          />
-        </div>
+        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Checked In</p>
         <p className="font-mono text-2xl font-bold text-gray-900 mt-1">
-          {occupancy}
-          <span className="text-xs text-gray-400 font-normal"> / {capacity}</span>
+          {activeSessions}
         </p>
       </div>
 
@@ -82,7 +69,7 @@ export function StatsCard({
         <StatBox label="Visitors Today" value={String(visitorsToday)} />
         <StatBox label="Revenue" value={fmt$(revenue)} />
         <StatBox label="Members" value={String(members)} />
-        <StatBox label="Occupancy %" value={`${pct}%`} />
+        <StatBox label="Active Sessions" value={String(activeSessions)} />
       </div>
     </motion.div>
   );

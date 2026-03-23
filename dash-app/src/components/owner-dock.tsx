@@ -69,8 +69,6 @@ interface OwnerDockProps {
     id: string;
     name: string;
     state: string;
-    occupancy: number;
-    max_occupancy: number;
     vibe: string;
     type?: string;
     address?: string;
@@ -228,7 +226,7 @@ export function OwnerDock({
       description: pageData?.description || "",
       themeColor: pageData?.theme_color || "#F97316",
       hours: hoursStr,
-      capacity: venue.max_occupancy,
+      capacity: 0,
       slug: pageData?.slug || "",
     };
   });
@@ -384,13 +382,12 @@ export function OwnerDock({
       const hour = new Date().getHours();
       const greeting = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
       const statsJson = JSON.stringify({
-        occupancy: initialData.stats.currentOccupancy,
-        capacity: initialData.stats.capacity,
+        activeSessions: initialData.stats.currentOccupancy,
         visitorsToday: initialData.stats.totalToday,
         revenue: 0,
         members: initialData.stats.members,
       });
-      const welcome = `${greeting}. ${initialData.stats.currentOccupancy} people in, ${pendingBookings} bookings pending, ${initialData.stats.totalToday} visitors today. What do you need?\n\n[[STATS:${statsJson}]]`;
+      const welcome = `${greeting}. ${initialData.stats.currentOccupancy} checked in, ${pendingBookings} bookings pending, ${initialData.stats.totalToday} visitors today. What do you need?\n\n[[STATS:${statsJson}]]`;
       setMessages([{ id: "welcome", sender: "agent", body: welcome, timestamp: Date.now() }]);
     } else {
       const statusLabel =

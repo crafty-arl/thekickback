@@ -1175,6 +1175,9 @@ export function TheDock({
   // ── GPS check-in state ──
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [checkinResult, setCheckinResult] = useState<{ xp: number; distance: number; venueName: string } | null>(null);
+  const [activeSessionMap, setActiveSessionMap] = useState<Map<string, string>>(new Map()); // venueId → sessionId
+  const [endSessionLoading, setEndSessionLoading] = useState(false);
+  const [endSessionResult, setEndSessionResult] = useState<{ duration: number; xp: number } | null>(null);
 
   // ── Cart (venueId → items) ──
   const [carts, setCarts] = useState<Map<string, CartItem[]>>(new Map());
@@ -1294,6 +1297,9 @@ export function TheDock({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Check-in failed");
       setCheckinResult({ xp: data.xp || 0, distance: Math.round(data.distance), venueName: data.venueName || "venue" });
+      if (data.sessionId) {
+        setActiveSessionMap((prev) => { const next = new Map(prev); next.set(venueId, data.sessionId); return next; });
+      }
       // Auto-dismiss after 4s
       setTimeout(() => setCheckinResult(null), 4000);
     } catch (err) {
@@ -1303,6 +1309,29 @@ export function TheDock({
       setCheckinLoading(false);
     }
   }, [user, checkinLoading]);
+
+  const handleEndSession = useCallback(async (venueId: string) => {
+    if (!user || endSessionLoading) return;
+    setEndSessionLoading(true);
+    setEndSessionResult(null);
+    try {
+      const sessionId = activeSessionMap.get(venueId);
+      const res = await fetch("/api/checkin/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sessionId ? { sessionId } : { venueId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "End session failed");
+      setActiveSessionMap((prev) => { const next = new Map(prev); next.delete(venueId); return next; });
+      setEndSessionResult({ duration: data.duration_minutes || 0, xp: data.xp_earned || 0 });
+      setTimeout(() => setEndSessionResult(null), 4000);
+    } catch (err) {
+      console.error("[end-session]", err);
+    } finally {
+      setEndSessionLoading(false);
+    }
+  }, [user, endSessionLoading, activeSessionMap]);
 
   // ── Navigation helpers ──
   const fetchDirections = useCallback(async (profile: "walking" | "driving") => {
@@ -2633,6 +2662,21 @@ export function TheDock({
               </div>
             </motion.div>
           )}
+          {endSessionResult && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-2 left-4 right-4 z-30 flex items-center gap-3 rounded-xl px-4 py-3"
+              style={{ backgroundColor: "rgba(249,115,22,0.15)", border: "1px solid rgba(249,115,22,0.25)", backdropFilter: "blur(12px)" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+              <div>
+                <p className="font-sans text-[13px] font-semibold text-orange-400">Session ended · {endSessionResult.duration} min</p>
+                {endSessionResult.xp > 0 && <p className="font-sans text-[11px] text-white/40">+{endSessionResult.xp} XP</p>}
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
 
         <motion.div
@@ -2712,23 +2756,41 @@ export function TheDock({
                 </button>
               )}
 
-              {/* GPS Check-in — nearby venue */}
+              {/* GPS Check-in / End Session — nearby venue */}
               {nearbyVenue && user && (
-                <button
-                  onClick={() => handleGpsCheckin(nearbyVenue.venue.id)}
-                  disabled={checkinLoading}
-                  className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 active:scale-95 disabled:opacity-50"
-                  style={{ backgroundColor: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)" }}
-                >
-                  {checkinLoading ? (
-                    <span className="font-sans text-[11px] font-semibold text-green-400">...</span>
-                  ) : (
-                    <>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                      <span className="font-sans text-[11px] font-semibold text-green-400 whitespace-nowrap">Check in</span>
-                    </>
-                  )}
-                </button>
+                activeSessionMap.has(nearbyVenue.venue.id) ? (
+                  <button
+                    onClick={() => handleEndSession(nearbyVenue.venue.id)}
+                    disabled={endSessionLoading}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 active:scale-95 disabled:opacity-50"
+                    style={{ backgroundColor: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)" }}
+                  >
+                    {endSessionLoading ? (
+                      <span className="font-sans text-[11px] font-semibold text-orange-400">...</span>
+                    ) : (
+                      <>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                        <span className="font-sans text-[11px] font-semibold text-orange-400 whitespace-nowrap">End Session</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleGpsCheckin(nearbyVenue.venue.id)}
+                    disabled={checkinLoading}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 active:scale-95 disabled:opacity-50"
+                    style={{ backgroundColor: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)" }}
+                  >
+                    {checkinLoading ? (
+                      <span className="font-sans text-[11px] font-semibold text-green-400">...</span>
+                    ) : (
+                      <>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                        <span className="font-sans text-[11px] font-semibold text-green-400 whitespace-nowrap">Check in</span>
+                      </>
+                    )}
+                  </button>
+                )
               )}
 
               {/* Threads — opens threads mode */}
@@ -2773,7 +2835,19 @@ export function TheDock({
 
               {(() => {
                 const venueInRange = userLocation && selectedVenue?.latitude && selectedVenue?.longitude && haversineMeters(userLocation.latitude, userLocation.longitude, selectedVenue.latitude, selectedVenue.longitude) <= 150;
-                return venueInRange && user ? (
+                const hasActiveSession = activeSessionMap.has(selectedVenue.id);
+                if (!user || !venueInRange) return null;
+                return hasActiveSession ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleEndSession(selectedVenue.id); }}
+                    disabled={endSessionLoading}
+                    className="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 active:scale-95 disabled:opacity-50"
+                    style={{ backgroundColor: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.2)" }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                    <span className="font-sans text-[10px] font-bold text-orange-400">{endSessionLoading ? "..." : "End"}</span>
+                  </button>
+                ) : (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleGpsCheckin(selectedVenue.id); }}
                     disabled={checkinLoading}
@@ -2783,7 +2857,7 @@ export function TheDock({
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                     <span className="font-sans text-[10px] font-bold text-green-400">{checkinLoading ? "..." : "Check In"}</span>
                   </button>
-                ) : null;
+                );
               })()}
 
               <input

@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   // Check if user has a venue
   const { data: ownership } = await supabase
     .from("venue_owners")
-    .select("venue_id, role, venues(id, name, state, occupancy, max_occupancy, vibe, type, address, platform_fee_rate, pos_provider, pos_connected_at)")
+    .select("venue_id, role, venues(id, name, state, vibe, type, address, platform_fee_rate, pos_provider, pos_connected_at)")
     .eq("user_id", user.id)
     .limit(1)
     .single();
@@ -39,8 +39,6 @@ export default async function DashboardPage() {
     id: string;
     name: string;
     state: string;
-    occupancy: number;
-    max_occupancy: number;
     vibe: string;
     type: string;
     address: string;
@@ -412,8 +410,8 @@ export default async function DashboardPage() {
   }));
 
   const stats: VenueStats = {
-    currentOccupancy: venue.occupancy,
-    capacity: venue.max_occupancy,
+    currentOccupancy: sessions.length,
+    capacity: 0,
     totalToday: todaySessionsRes.count || 0,
     totalMessages: todayMessagesRes.count || 0,
     members: membersRes.count || 0,

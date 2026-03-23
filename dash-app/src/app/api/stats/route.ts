@@ -30,8 +30,7 @@ export async function GET(request: Request) {
   const todayISO = todayStart.toISOString();
 
   // Parallel fetch core stats
-  const [venueRes, sessionsRes, todaySessionsRes, membersRes, bookingsRes] = await Promise.all([
-    service.from("venues").select("occupancy, max_occupancy").eq("id", venueId).single(),
+  const [sessionsRes, todaySessionsRes, membersRes, bookingsRes] = await Promise.all([
     service.from("sessions").select("id", { count: "exact", head: true }).eq("venue_id", venueId).eq("status", "active"),
     service.from("sessions").select("id", { count: "exact", head: true }).eq("venue_id", venueId).gte("started_at", todayISO),
     service.from("memberships").select("id", { count: "exact", head: true }).eq("venue_id", venueId),
@@ -40,8 +39,8 @@ export async function GET(request: Request) {
 
   return Response.json({
     stats: {
-      currentOccupancy: venueRes.data?.occupancy || 0,
-      capacity: venueRes.data?.max_occupancy || 0,
+      currentOccupancy: sessionsRes.count || 0,
+      capacity: 0,
       activeSessions: sessionsRes.count || 0,
       totalToday: todaySessionsRes.count || 0,
       members: membersRes.count || 0,

@@ -47,7 +47,6 @@ interface OrphanVenue {
     max_occupancy: number;
     state: string;
     vibe: string;
-    occupancy: number;
     created_at: string;
 }
 

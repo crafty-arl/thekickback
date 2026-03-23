@@ -267,7 +267,7 @@ async function handleAction(
 
       case "update_venue": {
         if (!action.data) throw new Error("Missing venue data");
-        const vd = action.data as { name?: string; type?: string; address?: string; neighborhood?: string; max_occupancy?: number; vibe?: string; rules?: string[] };
+        const vd = action.data as { name?: string; type?: string; address?: string; neighborhood?: string; vibe?: string; rules?: string[] };
         // Geocode if address changed
         if (vd.address) {
           try {
@@ -476,7 +476,7 @@ export async function POST(request: NextRequest) {
     const svc = getService();
     const [venueRes, pageRes, bookingsRes, sessionsRes, offeringsRes, knowledgeRes, xpActionsRes, xpMilestonesRes, aiLimitsRes, membersRes, multipliersRes] =
       await Promise.all([
-        svc.from("venues").select("name, type, address, neighborhood, max_occupancy, occupancy, vibe, rules").eq("id", venueId).single(),
+        svc.from("venues").select("name, type, address, neighborhood, vibe, rules").eq("id", venueId).single(),
         svc.from("venue_pages").select("tagline, description, theme_color, hours, slug, review_status, published").eq("venue_id", venueId).single(),
         svc.from("venue_bookings").select("id, guest_name, offering_name, starts_at, cal_status").eq("venue_id", venueId).eq("cal_status", "pending").order("starts_at", { ascending: true }),
         svc.from("sessions").select("id, user_id, started_at, status, profiles(display_name, phone)").eq("venue_id", venueId).eq("status", "active"),
@@ -492,11 +492,10 @@ export async function POST(request: NextRequest) {
     const venue = venueRes.data;
     const venuePage = pageRes.data;
     const venueName = venue?.name || "your venue";
-    const occupancy = venue?.occupancy ?? 0;
-    const capacity = venue?.max_occupancy ?? 0;
 
     const pendingBookings = bookingsRes.data || [];
     const sessions = sessionsRes.data || [];
+    const activeSessions = sessions.length;
     const offerings = offeringsRes.data || [];
     const knowledgeEntries = knowledgeRes.data || [];
     const xpActions = xpActionsRes.data || [];
@@ -522,7 +521,7 @@ export async function POST(request: NextRequest) {
 CURRENT VENUE CONFIG:
 - Name: ${venue?.name || "?"} | Type: ${venue?.type || "?"} | Vibe: ${venue?.vibe || "?"}
 - Address: ${venue?.address || "not set"} | Neighborhood: ${venue?.neighborhood || "?"}
-- Capacity: ${capacity} | Current occupancy: ${occupancy}
+- Active check-ins: ${activeSessions}
 - Rules: ${(venue?.rules || []).join(", ") || "none set"}
 - Tagline: ${venuePage?.tagline || "not set"}
 - Description: ${venuePage?.description || "not set"}
@@ -532,8 +531,7 @@ CURRENT VENUE CONFIG:
 - Public page: ${venuePage?.slug ? `join.thekickback.net/${venuePage.slug}` : "not set"}
 
 LIVE DATA:
-- Occupancy: ${occupancy}/${capacity}
-- Active sessions: ${sessions.length} guests checked in
+- Active sessions: ${activeSessions} guests checked in
 - Members: ${memberCount}
 - Pending bookings: ${pendingBookings.length}
 ${pendingBookings.map((b: { guest_name: string; offering_name: string; starts_at: string }) => `  - ${b.guest_name}: ${b.offering_name} at ${new Date(b.starts_at).toLocaleString()}`).join("\n")}
@@ -547,7 +545,7 @@ ${knowledgeEntries.length > 0 ? knowledgeEntries.map((k: { id: string; content: 
 - Active multipliers: ${multipliers.length > 0 ? multipliers.map((m: { multiplier: number; reason: string }) => `${m.multiplier}x "${m.reason}"`).join(", ") : "none"}
 
 RESPONSE FORMAT — include data cards using these tags:
-- [[STATS:{"occupancy":N,"capacity":N,"visitorsToday":N,"revenue":N,"members":N}]]
+- [[STATS:{"activeSessions":N,"visitorsToday":N,"revenue":N,"members":N}]]
 - [[BOOKINGS:[{"id":"...","guest_name":"...","offering_name":"...","starts_at":"...","cal_status":"..."}]]]
 - [[GUESTS:[{"id":"...","display_name":"...","tier":"...","venue_xp":N,"started_at":"..."}]]]
 - [[REVENUE:{"today":N,"thisWeek":N,"pendingPayouts":N}]]

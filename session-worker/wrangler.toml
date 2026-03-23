@@ -1,0 +1,11 @@
+name = "kickback-session"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[triggers]
+crons = [
+  "*/30 * * * *"   # Every 30 minutes
+]
+
+[vars]
+SUPABASE_URL = "https://wofvgfhejrvudvfxdytc.supabase.co"
