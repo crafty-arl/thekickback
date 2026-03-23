@@ -42,11 +42,13 @@ jobs:
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
           NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          APIDECK_APP_ID: ${{ secrets.APIDECK_APP_ID }}
+          APIDECK_API_KEY: ${{ secrets.APIDECK_API_KEY }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: CAL_API_KEY,STRIPE_SECRET_KEY,STRIPE_TEST_SECRET_KEY,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY,RESEND_API_KEY
+          envs: CAL_API_KEY,STRIPE_SECRET_KEY,STRIPE_TEST_SECRET_KEY,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY,RESEND_API_KEY,APIDECK_APP_ID,APIDECK_API_KEY
           command_timeout: 10m
           script: |
             set -e
@@ -62,6 +64,8 @@ jobs:
             grep -q '^NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY=' .env 2>/dev/null && sed -i "s|^NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY=.*|NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY}|" .env || echo "NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY}" >> .env
             sed -i '/^SMTP_/d' .env 2>/dev/null || true
             grep -q '^RESEND_API_KEY=' .env 2>/dev/null && sed -i "s|^RESEND_API_KEY=.*|RESEND_API_KEY=${RESEND_API_KEY}|" .env || echo "RESEND_API_KEY=${RESEND_API_KEY}" >> .env
+            grep -q '^APIDECK_APP_ID=' .env 2>/dev/null && sed -i "s|^APIDECK_APP_ID=.*|APIDECK_APP_ID=${APIDECK_APP_ID}|" .env || echo "APIDECK_APP_ID=${APIDECK_APP_ID}" >> .env
+            grep -q '^APIDECK_API_KEY=' .env 2>/dev/null && sed -i "s|^APIDECK_API_KEY=.*|APIDECK_API_KEY=${APIDECK_API_KEY}|" .env || echo "APIDECK_API_KEY=${APIDECK_API_KEY}" >> .env
             source .env
 
             # ── Cleanup ALL stale containers ──
@@ -257,6 +261,29 @@ jobs:
               fi
             else
               warn "claw not running"
+            fi
+
+            echo ""
+            echo "═══ 4b. POS AI CLASSIFIER ═══"
+            if [ -n "$CLAW_IP" ] && [ "$S" = "healthy" ]; then
+              CLASSIFY_RESP=$(curl -sf --max-time 30 "http://$CLAW_IP:18789/v1/responses" -X POST \
+                -H "Authorization: Bearer ${OPENCLAW_GATEWAY_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -H "x-openclaw-agent-id: pos-classifier" \
+                -d '{"model":"openrouter/anthropic/claude-haiku-4-5-20251001","input":"You are classifying menu items for a cafe.\nFor each item assign ONE type from: product, service, event, reservation, membership, package\n\nItems:\n1. \"Night Owl Blend\" — Dark roast coffee\n2. \"Latte Art Workshop\" — Learn to pour latte art, 90 min\n3. \"Monthly Coffee Pass\" — One free drip per day for 30 days\n4. \"Study Room\" — Private room rental, 2 hours\n5. \"Birthday Package\" — Table + cake + drinks for 10\n\nRespond with ONLY JSON: {\"1\":\"type\",\"2\":\"type\",...}"}' 2>/dev/null)
+
+              if echo "$CLASSIFY_RESP" | grep -q "output_text"; then
+                TEXT=$(echo "$CLASSIFY_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); m=[o for o in d.get('output',[]) if o.get('type')=='message']; t=m[0]['content'][0]['text'] if m else d.get('output_text',''); print(t[:200])" 2>/dev/null)
+                if echo "$TEXT" | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); assert d.get('1')=='product'; assert d.get('2') in ('service','event'); assert d.get('3')=='membership'; print('Classifications correct')" 2>/dev/null; then
+                  ok "POS classifier → $TEXT"
+                else
+                  warn "POS classifier — unexpected types: $TEXT"
+                fi
+              else
+                warn "POS classifier — no response"
+              fi
+            else
+              warn "POS classifier — skipped (claw not ready)"
             fi
 
             echo ""
