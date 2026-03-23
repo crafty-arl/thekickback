@@ -2024,6 +2024,17 @@ export function TheDock({
         if (metadata) {
           const data = metadata as Record<string, unknown>;
 
+          // Show "putting it together" while processing components
+          const hasComponents = data.offerings || data.checkout || data.booking;
+          if (hasComponents) {
+            setVenueThreads((prev) => {
+              const next = new Map(prev);
+              const thread = next.get(selectedVenue.id) || [];
+              next.set(selectedVenue.id, thread.map((m) => m.id === aiMsgId ? { ...m, body: stripTags(fullReply) + "\n\n⏳ Loading details..." } : m));
+              return next;
+            });
+          }
+
           // Store offerings metadata for rendering inline cards
           if (data.offerings && typeof data.offerings === "object" && Object.keys(data.offerings as object).length > 0) {
             setOfferingsMap((prev) => ({
@@ -2134,6 +2145,26 @@ export function TheDock({
         if (metadata) {
           const data = metadata as Record<string, unknown>;
           const venuesList = data.venues as ApiVenue[] | undefined;
+
+          // Show "putting it together" while loading venue cards
+          if (venuesList?.length || data.offerings) {
+            setConciergeMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: stripTags(fullReply) + "\n\n⏳ Finding places..." } : m));
+          }
+
+          // Store offerings from concierge response
+          if (data.offerings && typeof data.offerings === "object") {
+            const offerMap = data.offerings as Record<string, OfferingMeta>;
+            // Group by venue (offerings have venue_id in the concierge response)
+            for (const [oid, ometa] of Object.entries(offerMap)) {
+              const venueId = (ometa as unknown as Record<string, unknown>).venue_id as string | undefined;
+              if (venueId) {
+                setOfferingsMap((prev) => ({
+                  ...prev,
+                  [venueId]: { ...(prev[venueId] || {}), [oid]: ometa },
+                }));
+              }
+            }
+          }
 
           if (venuesList?.length) {
             setApiVenues((prev) => {
