@@ -354,11 +354,11 @@ function parseVenueChips(
         <div key={i} className="my-2 w-full overflow-hidden " style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}>
           <div className="relative flex items-center justify-center" style={{ height: 80, background: `linear-gradient(135deg, ${vibeColor}18 0%, ${vibeColor}06 50%, rgba(0,0,0,0.2) 100%)` }}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={`${vibeColor}35`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
-            <div className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+            <div className="absolute left-2.5 top-2.5 flex items-center gap-1 px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
               <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: VIBE_COLORS[vibe], boxShadow: `0 0 4px ${VIBE_COLORS[vibe]}` }} />
               <span className="font-sans text-[9px] font-semibold" style={{ color: VIBE_COLORS[vibe] }}>{vibeLabel}</span>
             </div>
-            <div className="absolute right-2.5 top-2.5 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <div className="absolute right-2.5 top-2.5 px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
               <span className="font-mono text-[9px] font-semibold text-white/40">{occ}/{cap}</span>
             </div>
             <div className="absolute inset-x-3 bottom-2">
@@ -382,7 +382,7 @@ function parseVenueChips(
               </div>
               <button
                 onClick={() => { if (venue) onTap(venue); }}
-                className="ml-2 flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[10px] font-bold text-black active:scale-95"
+                className="ml-2 flex shrink-0 items-center gap-1.5 px-3 py-1.5 font-sans text-[10px] font-bold text-black active:scale-95"
                 style={{ backgroundColor: vibeColor }}
               >
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
@@ -408,7 +408,7 @@ function parseVenueChips(
         <button
           key={i}
           onClick={() => { if (venue) onTap(venue); }}
-          className="mx-0.5 inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-sans text-[12px] font-semibold active:scale-95"
+          className="mx-0.5 inline-flex items-center gap-1 px-2.5 py-1 font-sans text-[12px] font-semibold active:scale-95"
           style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}30` }}
         >
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -471,7 +471,7 @@ function LandscapeVenueCard({
       >
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={`${themeColor}50`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
         {venue.occupancy > 0 && (
-          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 px-2 py-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
             <span className="font-sans text-[9px] font-semibold text-white/50">{venue.occupancy} in</span>
           </div>
@@ -479,7 +479,7 @@ function LandscapeVenueCard({
       </div>
       <div className="flex w-[60%] flex-col justify-between p-3">
         {xp !== undefined && xp > 0 && (
-          <div className="absolute right-2.5 top-2.5 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+          <div className="absolute right-2.5 top-2.5 px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
             <span className="font-mono text-[9px] font-bold" style={{ color: themeColor }}>&#9889; {xp}</span>
           </div>
         )}
@@ -528,7 +528,7 @@ function PerkBadge({
       </div>
       <p className="mt-1.5 w-full truncate text-center font-sans text-[9px] font-medium text-white/40">{venueName}</p>
       <div
-        className="mt-0.5 rounded-full px-2 py-0.5"
+        className="mt-0.5 px-2 py-0.5"
         style={{
           backgroundColor: canAfford ? "rgba(249,115,22,0.1)" : "rgba(255,255,255,0.04)",
           border: `1px solid ${canAfford ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.06)"}`,
@@ -630,7 +630,7 @@ function AiMessageBody({ body, theme, onAddToCart, onBookOffer, offeringsMap }: 
                 {meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type) ? (
                   <button
                     onClick={(e) => { e.stopPropagation(); onBookOffer?.(offer.id); }}
-                    className="shrink-0 rounded-full px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
+                    className="shrink-0 px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
                     style={{ backgroundColor: theme, color: "#000" }}
                   >
                     BOOK
@@ -638,7 +638,7 @@ function AiMessageBody({ body, theme, onAddToCart, onBookOffer, offeringsMap }: 
                 ) : (
                   <button
                     onClick={(e) => { e.stopPropagation(); onAddToCart(offer.id, offer.name, Math.round(offer.price * 100)); }}
-                    className="shrink-0 rounded-full px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
+                    className="shrink-0 px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
                     style={{ backgroundColor: theme, color: "#000" }}
                   >
                     ADD
@@ -773,7 +773,7 @@ function KeyboardShortcutsPanel({
       </div>
 
       {/* Current mode indicator */}
-      <div className="mx-4 mb-2 flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ backgroundColor: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.15)" }}>
+      <div className="mx-4 mb-2 flex items-center gap-1.5 px-2.5 py-1" style={{ backgroundColor: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.15)" }}>
         <div className="h-1.5 w-1.5 rounded-full bg-[#a78bfa]" />
         <span className="font-sans text-[9px] font-semibold text-[#a78bfa]">
           {mode === "idle" ? "Idle" : mode === "explore" ? "Explore" : mode === "concierge" ? "Concierge" : mode === "venueChat" ? "Venue Chat" : "Profile"}
@@ -928,7 +928,7 @@ function DeviceManager() {
                   <div className="flex items-center gap-1.5">
                     <p className="font-sans text-[11px] font-medium text-white/60">{d.device_name || "Unknown device"}</p>
                     {isCurrent && (
-                      <span className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-bold uppercase tracking-wider" style={{ backgroundColor: "rgba(99,91,255,0.15)", color: "#a78bfa" }}>
+                      <span className="px-1.5 py-0.5 font-sans text-[8px] font-bold uppercase tracking-wider" style={{ backgroundColor: "rgba(99,91,255,0.15)", color: "#a78bfa" }}>
                         This device
                       </span>
                     )}
@@ -2456,14 +2456,14 @@ export function TheDock({
                   <div className="mt-2 flex items-center gap-2">
                     <button
                       onClick={() => { dismissOnboarding(); setShowShortcuts(true); }}
-                      className="rounded-full px-3 py-1 font-sans text-[11px] font-semibold text-black active:scale-95"
+                      className="px-3 py-1 font-sans text-[11px] font-semibold text-black active:scale-95"
                       style={{ backgroundColor: "#a78bfa" }}
                     >
                       View all shortcuts
                     </button>
                     <button
                       onClick={dismissOnboarding}
-                      className="rounded-full px-3 py-1 font-sans text-[11px] font-medium text-white/40 active:scale-95"
+                      className="px-3 py-1 font-sans text-[11px] font-medium text-white/40 active:scale-95"
                       style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
                     >
                       Got it
@@ -2610,7 +2610,7 @@ export function TheDock({
               <motion.button
                 onClick={handleKBBack}
                 whileTap={{ scale: 0.9 }}
-                className="flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5"
+                className="flex h-8 shrink-0 items-center gap-1.5 px-2.5"
                 style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -2659,7 +2659,7 @@ export function TheDock({
                 {/* Tier badge + XP bar */}
                 {user && (
                   <div className="flex flex-1 items-center gap-2">
-                    <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
+                    <span className="px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
                       {TIER_CONFIG[user.tier]?.label || "Explorer"}
                     </span>
                     <div className="relative h-1.5 max-w-[100px] flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
@@ -2671,7 +2671,7 @@ export function TheDock({
 
                 {/* Streak */}
                 {user && user.streak > 0 && (
-                  <div className="flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(249,115,22,0.08)" }}>
+                  <div className="flex shrink-0 items-center gap-0.5 px-2 py-1" style={{ backgroundColor: "rgba(249,115,22,0.08)" }}>
                     <span className="text-[10px]">&#x1f525;</span>
                     <span className="font-mono text-[10px] font-bold text-orange">{user.streak}</span>
                   </div>
@@ -2679,7 +2679,7 @@ export function TheDock({
 
                 {/* Thread count */}
                 {threadInfo.count > 0 && (
-                  <div className="relative flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(167,139,250,0.08)" }}>
+                  <div className="relative flex shrink-0 items-center gap-0.5 px-2 py-1" style={{ backgroundColor: "rgba(167,139,250,0.08)" }}>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
@@ -2711,7 +2711,7 @@ export function TheDock({
                         {activeTag && (
                           <button
                             onClick={() => onTagSelect(null)}
-                            className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                            className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
                             style={{ backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.12)" }}
                           >
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
@@ -2724,7 +2724,7 @@ export function TheDock({
                             <button
                               key={tag.id}
                               onClick={() => onTagSelect(isActive ? null : tag)}
-                              className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                              className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
                               style={{
                                 backgroundColor: isActive ? `${tag.color}20` : "rgba(255,255,255,0.04)",
                                 color: isActive ? tag.color : "rgba(255,255,255,0.45)",
@@ -2797,7 +2797,7 @@ export function TheDock({
                                       </div>
                                     )}
                                     {/* Price badge */}
-                                    <div className="absolute bottom-1.5 right-1.5 rounded-full px-1.5 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+                                    <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
                                       <span className="font-mono text-[10px] font-bold" style={{ color }}>${(item.price_cents / 100).toFixed(item.price_cents % 100 === 0 ? 0 : 2)}</span>
                                     </div>
                                   </div>
@@ -2890,7 +2890,7 @@ export function TheDock({
                               <span className="text-[28px]">{assetEmoji}</span>
                             </div>
                             <p className="mt-1.5 w-full truncate text-center font-sans text-[9px] font-medium text-white/40">{venueNameMap.get(asset.venue_id) || "Venue"}</p>
-                            <span className="rounded-full px-2 py-0.5 font-mono text-[9px] font-bold" style={{ backgroundColor: `${assetColor}15`, color: assetColor, border: `1px solid ${assetColor}25` }}>
+                            <span className="px-2 py-0.5 font-mono text-[9px] font-bold" style={{ backgroundColor: `${assetColor}15`, color: assetColor, border: `1px solid ${assetColor}25` }}>
                               {priceLabel}
                             </span>
                             {asset.is_animated && <span className="mt-0.5 font-sans text-[7px] text-white/15">{"\u2728"} animated</span>}
@@ -2993,7 +2993,7 @@ export function TheDock({
                     enterKeyHint="send"
                     autoComplete="off"
                     autoCorrect="off"
-                    className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                    className="min-w-0 flex-1 px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
                     style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
                   />
                   {input.trim() && (
@@ -3097,7 +3097,7 @@ export function TheDock({
                     <button
                       key={q}
                       onClick={() => send(q)}
-                      className="shrink-0 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                      className="shrink-0 px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
                       style={{ backgroundColor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
                     >
                       {q}
@@ -3118,7 +3118,7 @@ export function TheDock({
                   enterKeyHint="send"
                   autoComplete="off"
                   autoCorrect="off"
-                  className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                  className="min-w-0 flex-1 px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
                   style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
                 />
                 <motion.button
@@ -3168,7 +3168,7 @@ export function TheDock({
                     <motion.button
                       onClick={handleKBBack}
                       whileTap={{ scale: 0.9 }}
-                      className="flex h-7 items-center gap-1.5 rounded-full px-2.5"
+                      className="flex h-7 items-center gap-1.5 px-2.5"
                       style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -3234,12 +3234,12 @@ export function TheDock({
 
                 {/* Stats strip */}
                 <div className="mt-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                  <div className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: `${vibeColor}15`, border: `1px solid ${vibeColor}20` }}>
+                  <div className="flex shrink-0 items-center gap-1 px-2 py-0.5" style={{ backgroundColor: `${vibeColor}15`, border: `1px solid ${vibeColor}20` }}>
                     <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor }} />
                     <span className="font-sans text-[9px] font-semibold" style={{ color: vibeColor }}>{getVibeLabel(selectedVenue.vibe)}</span>
                   </div>
                   {selectedVenue.occupancy > 0 && (
-                    <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/[0.04] px-2 py-0.5" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="flex shrink-0 items-center gap-1 bg-white/[0.04] px-2 py-0.5" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
                       </svg>
@@ -3259,7 +3259,7 @@ export function TheDock({
                     </div>
                   )}
                   {walletStatus?.active && (
-                    <div className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: "rgba(99,91,255,0.1)", border: "1px solid rgba(99,91,255,0.2)" }}>
+                    <div className="flex shrink-0 items-center gap-1 px-2 py-0.5" style={{ backgroundColor: "rgba(99,91,255,0.1)", border: "1px solid rgba(99,91,255,0.2)" }}>
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#635bff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
                       </svg>
@@ -3271,7 +3271,7 @@ export function TheDock({
                     <button
                       onClick={() => navInfo ? clearNav() : fetchDirections(navProfile)}
                       disabled={navLoading}
-                      className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 active:scale-95"
+                      className="flex shrink-0 items-center gap-1 px-2 py-0.5 active:scale-95"
                       style={{
                         backgroundColor: navInfo ? `${vibeColor}20` : "rgba(255,255,255,0.04)",
                         border: `1px solid ${navInfo ? `${vibeColor}30` : "rgba(255,255,255,0.06)"}`,
@@ -3306,10 +3306,10 @@ export function TheDock({
                     <div className="flex items-center justify-between px-3 py-2">
                       <div className="flex items-center gap-2">
                         {/* Walking / Driving toggle */}
-                        <div className="flex rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <div className="flex" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
                           <button
                             onClick={() => fetchDirections("walking")}
-                            className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold transition"
+                            className="flex items-center gap-1 px-2 py-1 font-sans text-[9px] font-semibold transition"
                             style={{
                               backgroundColor: navProfile === "walking" ? `${vibeColor}20` : "transparent",
                               color: navProfile === "walking" ? vibeColor : "rgba(255,255,255,0.35)",
@@ -3322,7 +3322,7 @@ export function TheDock({
                           </button>
                           <button
                             onClick={() => fetchDirections("driving")}
-                            className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold transition"
+                            className="flex items-center gap-1 px-2 py-1 font-sans text-[9px] font-semibold transition"
                             style={{
                               backgroundColor: navProfile === "driving" ? `${vibeColor}20` : "transparent",
                               color: navProfile === "driving" ? vibeColor : "rgba(255,255,255,0.35)",
@@ -3347,7 +3347,7 @@ export function TheDock({
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={openInMaps}
-                          className="flex items-center gap-1 rounded-full px-2 py-1 font-sans text-[9px] font-semibold active:scale-95"
+                          className="flex items-center gap-1 px-2 py-1 font-sans text-[9px] font-semibold active:scale-95"
                           style={{ backgroundColor: `${vibeColor}15`, color: vibeColor, border: `1px solid ${vibeColor}25` }}
                         >
                           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -3429,7 +3429,7 @@ export function TheDock({
                           <div className="ml-1">
                             <button
                               onClick={() => handleTabTap(msg.tab!)}
-                              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[10px] font-medium active:scale-95"
+                              className="flex items-center gap-1.5 px-3 py-1.5 font-sans text-[10px] font-medium active:scale-95"
                               style={{ backgroundColor: `${vibeColor}12`, color: vibeColor, border: `1px solid ${vibeColor}25` }}
                             >
                               <TabIcon path={TABS.find((t) => t.id === msg.tab)?.icon || ""} size={10} />
@@ -3601,7 +3601,7 @@ export function TheDock({
                         <div className="flex items-center gap-2 border-t px-3 py-2" style={{ borderColor: `${vibeColor}15` }}>
                           <button
                             onClick={() => clearCart(selectedVenue.id)}
-                            className="rounded-full px-2.5 py-1 font-sans text-[10px] font-medium text-white/30 active:scale-95"
+                            className="px-2.5 py-1 font-sans text-[10px] font-medium text-white/30 active:scale-95"
                             style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
                           >
                             Clear
@@ -3609,7 +3609,7 @@ export function TheDock({
                           <div className="flex-1" />
                           <button
                             onClick={() => { setCartExpanded(false); send("__CHECKOUT__"); }}
-                            className="rounded-full px-4 py-1.5 font-sans text-[11px] font-bold text-black active:scale-95"
+                            className="px-4 py-1.5 font-sans text-[11px] font-bold text-black active:scale-95"
                             style={{ backgroundColor: vibeColor }}
                           >
                             Checkout ${(cartTotal / 100).toFixed(2)}
@@ -3620,7 +3620,7 @@ export function TheDock({
                   </AnimatePresence>
                   <button
                     onClick={() => setCartExpanded(!cartExpanded)}
-                    className="flex w-full items-center justify-between rounded-full px-3 py-1.5 active:scale-[0.98]"
+                    className="flex w-full items-center justify-between px-3 py-1.5 active:scale-[0.98]"
                     style={{ backgroundColor: `${vibeColor}12`, border: `1px solid ${vibeColor}25` }}
                   >
                     <div className="flex items-center gap-1.5">
@@ -3644,7 +3644,7 @@ export function TheDock({
                       <button
                         key={r.label}
                         onClick={() => send(r.action)}
-                        className="shrink-0 rounded-full px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
+                        className="shrink-0 px-3 py-1.5 font-sans text-[11px] font-medium active:scale-95"
                         style={{ backgroundColor: `${vibeColor}08`, color: `${vibeColor}cc`, border: `1px solid ${vibeColor}20` }}
                       >
                         {r.label}
@@ -3666,7 +3666,7 @@ export function TheDock({
                   enterKeyHint="send"
                   autoComplete="off"
                   autoCorrect="off"
-                  className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                  className="min-w-0 flex-1 px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
                   style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
                 />
                 <motion.button
@@ -3702,9 +3702,9 @@ export function TheDock({
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#6b7280" }} />
                     <span className="font-sans text-[15px] font-semibold text-white/90">{selectedVenue.name}</span>
-                    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 font-sans text-[8px] font-semibold tracking-wider text-white/20">PUBLIC DATA</span>
+                    <span className="bg-white/[0.06] px-2 py-0.5 font-sans text-[8px] font-semibold tracking-wider text-white/20">PUBLIC DATA</span>
                   </div>
-                  <motion.button onClick={handleKBBack} whileTap={{ scale: 0.85 }} className="flex h-7 items-center gap-1.5 rounded-full px-2.5" style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}>
+                  <motion.button onClick={handleKBBack} whileTap={{ scale: 0.85 }} className="flex h-7 items-center gap-1.5 px-2.5" style={{ backgroundColor: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                     <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
                   </motion.button>
@@ -3763,7 +3763,7 @@ export function TheDock({
               <div className="mx-4 mb-2  px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.1)" }}>
                 <div className="flex items-center justify-between">
                   <span className="font-sans text-[10px] text-white/25">This venue hasn&apos;t claimed their page yet</span>
-                  <a href="https://dash.thekickback.net" target="_blank" rel="noopener noreferrer" className="rounded-full px-2.5 py-1 font-sans text-[9px] font-bold text-black" style={{ backgroundColor: "#F97316" }}>
+                  <a href="https://dash.thekickback.net" target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 font-sans text-[9px] font-bold text-black" style={{ backgroundColor: "#F97316" }}>
                     Claim
                   </a>
                 </div>
@@ -3781,7 +3781,7 @@ export function TheDock({
                   enterKeyHint="send"
                   autoComplete="off"
                   autoCorrect="off"
-                  className="min-w-0 flex-1 rounded-full px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
+                  className="min-w-0 flex-1 px-4 font-sans text-[13px] text-white placeholder:text-white/25 focus:outline-none"
                   style={{ height: 40, backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.06)" }}
                 />
                 <motion.button onClick={() => send()} disabled={!input.trim() || loading} whileTap={{ scale: 0.9 }} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-30" style={{ backgroundColor: "#6b7280" }}>
@@ -3822,7 +3822,7 @@ export function TheDock({
                       <div className="flex-1">
                         <p className="font-sans text-[13px] font-semibold text-white/80">{user.email}</p>
                         <div className="mt-0.5 flex items-center gap-2">
-                          <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
+                          <span className="px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
                             {TIER_CONFIG[user.tier]?.label || "Explorer"}
                           </span>
                           {user.streak > 0 && (
