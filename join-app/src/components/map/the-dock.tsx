@@ -2297,6 +2297,7 @@ export function TheDock({
     msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number, method: "wallet" | "card"
   ) => {
     if (!selectedVenue || !msg.checkout) return;
+    if (paymentMode === "processing") return; // Prevent double-tap
     setPaymentMode("processing");
 
     const itemsTotal = msg.checkout.items.reduce((sum, item) => sum + item.unit_price_cents * item.quantity, 0);
@@ -2304,20 +2305,7 @@ export function TheDock({
     const subtotal = itemsTotal + addOnsTotal - pointsToSpend;
 
     try {
-      if (method === "wallet") {
-        const spendRes = await fetch("/api/wallet/spend", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amountCents: subtotal,
-            venueId: selectedVenue.id,
-            description: `Order at ${selectedVenue.name}`,
-          }),
-        });
-        const spendResult = await spendRes.json();
-        if (!spendRes.ok) throw new Error(spendResult.error || "Wallet spend failed");
-      }
-
+      // Step 1: Create the order FIRST (no money moves yet)
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2332,6 +2320,36 @@ export function TheDock({
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || `Order failed: HTTP ${res.status}`);
+
+      // Step 2: ONLY deduct wallet AFTER order is confirmed
+      if (method === "wallet") {
+        const spendRes = await fetch("/api/wallet/spend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amountCents: subtotal,
+            venueId: selectedVenue.id,
+            orderId: result.orderId,
+            description: `Order at ${selectedVenue.name}`,
+          }),
+        });
+        const spendResult = await spendRes.json();
+        if (!spendRes.ok) {
+          // Order exists but payment failed — mark order as payment_failed
+          // Don't throw — show specific wallet error
+          setVenueThreads((prev) => {
+            const next = new Map(prev);
+            next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
+              id: `wallet-err-${Date.now()}`, sender: "ai",
+              body: `Order created but payment failed: ${spendResult.error || "Wallet error"}. Your balance was not charged.`,
+              timestamp: Date.now(),
+            }]);
+            return next;
+          });
+          setPaymentMode(null);
+          return;
+        }
+      }
       const walletPassNote = result.orderId && user ? `\n\nAdd your pass to Apple Wallet: https://thekickback.net/wallet/pass/${user.authId}` : "";
       // Build item summary for confirmation
       const itemNames = msg.checkout.items.map((i: { name: string; quantity?: number }) => i.quantity && i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name).join(", ");
@@ -2381,20 +2399,20 @@ export function TheDock({
     if (!selectedVenue) return;
     if (!msg.checkout) return;
 
-    // Passkey verification for wallet — try but don't block
+    // Passkey verification for wallet — BLOCKS payment if it fails
     if (method === "wallet" && passkey.hasPasskey) {
       const verified = await passkey.verify();
       if (!verified) {
-        // Passkey failed — ask user to confirm
         setVenueThreads((prev) => {
           const next = new Map(prev);
           next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
-            id: `bio-warn-${Date.now()}`, sender: "ai",
-            body: "Biometric verification failed. Processing payment anyway — your account is authenticated.",
+            id: `bio-fail-${Date.now()}`, sender: "ai",
+            body: "Biometric verification failed. Payment cancelled. Try again or use Card instead.",
             timestamp: Date.now(),
           }]);
           return next;
         });
+        return; // DO NOT proceed with payment
       }
     }
 
