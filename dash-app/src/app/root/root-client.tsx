@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { KBWordmark } from "@/components/kb-logo";
 import { rootSendOtp, rootVerifyOtp, approveVenue, rejectVenue, unpublishVenue, deleteVenue, updateAiConfig, approveWaitlistEntry, rejectWaitlistEntry } from "./actions";
 
 const DEFAULT_CHAT_MODELS = [
@@ -218,7 +219,7 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig, waitlistEntries 
         <main className="min-h-svh" style={{ backgroundColor: "#0A0A0A" }}>
             <header className="sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 backdrop-blur-xl sm:px-6" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(10,10,10,0.9)" }}>
                 <div className="flex items-center gap-3">
-                    <Link href="/"><img src="/logo.png" alt="theKickBack" className="h-6 w-auto" /></Link>
+                    <Link href="/"><KBWordmark height={18} /></Link>
                     <div className="hidden h-4 w-px sm:block" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
                     <span className="font-sans text-[13px] font-bold" style={{ color: "#EF4444" }}>ROOT</span>
                 </div>

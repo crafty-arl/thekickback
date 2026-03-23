@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import Image from "next/image";
+import { KBWordmark } from "@/components/kb-logo";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { PlacePreview } from "@/components/place-preview";
@@ -416,7 +416,7 @@ export default function OnboardingPage() {
       <div className={`flex w-full flex-col lg:w-1/2 ${showPreview ? "hidden lg:flex" : ""}`}>
         {/* Header */}
         <header className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
-          <Image src="/logo.png" alt="theKickBack" width={120} height={40} className="h-7 w-auto" />
+          <KBWordmark height={22} />
           <div className="hidden h-4 w-px bg-white/10 sm:block" />
           <span className="font-sans text-[13px] font-medium text-white/35">
             {phase === "checklist" ? "Finish setting up" : "Set up your place"}

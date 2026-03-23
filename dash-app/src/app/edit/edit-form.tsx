@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { KBWordmark } from "@/components/kb-logo";
 import Link from "next/link";
 import { updateVenue, updateVenuePage } from "./actions";
 
@@ -90,7 +90,7 @@ export function EditForm({ venue, page }: Props) {
       {/* Top bar */}
       <header className="sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 backdrop-blur-xl sm:px-6" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(10,10,10,0.9)" }}>
         <div className="flex items-center gap-3">
-          <Link href="/"><Image src="/logo.png" alt="theKickBack" width={100} height={33} className="h-6 w-auto" /></Link>
+          <Link href="/"><KBWordmark height={18} /></Link>
           <div className="hidden h-4 w-px sm:block" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
           <span className="hidden font-sans text-[13px] font-medium sm:block" style={{ color: "rgba(255,255,255,0.35)" }}>Edit Venue</span>
         </div>

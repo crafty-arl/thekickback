@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
+import { KBWordmark } from "@/components/kb-logo";
 import { sendOtp, verifyOtp } from "./actions";
 import { getDeviceId } from "@/lib/device-id";
 
@@ -88,7 +88,7 @@ export function LoginForm() {
       <main className="flex min-h-svh flex-col items-center justify-center bg-black px-4">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex justify-center">
-            <Image src="/logo.png" alt="theKickBack" width={160} height={53} className="h-10 w-auto" priority />
+            <KBWordmark height={28} />
           </div>
           <div className=" p-8 text-center" style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}>
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center " style={{ backgroundColor: "rgba(249,115,22,0.12)" }}>
@@ -120,14 +120,7 @@ export function LoginForm() {
     <main className="flex min-h-svh flex-col items-center justify-center bg-black px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
-          <Image
-            src="/logo.png"
-            alt="theKickBack"
-            width={160}
-            height={53}
-            className="h-10 w-auto"
-            priority
-          />
+          <KBWordmark height={28} />
         </div>
 
         <div className=" p-8" style={{ backgroundColor: "#111", border: "1px solid rgba(255,255,255,0.08)" }}>

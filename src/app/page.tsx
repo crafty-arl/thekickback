@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, FormEvent } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapBackdrop } from "@/components/map-backdrop";
+import { KBWordmark, KBMark } from "@/components/kb-logo";
 
 const O = "#f97316";
 
@@ -134,7 +134,7 @@ export default function Home() {
       {/* ═══ MOBILE ═══ */}
       <div className="lg:hidden fixed inset-0 flex flex-col" style={{ background: "#0a0a0a" }}>
         <nav className="flex items-center justify-between px-4 py-2.5 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <Image src="/logo.png" alt="theKickBack" width={90} height={28} priority style={{ height: "auto" }} />
+          <KBMark size={28} />
           <div className="flex items-center gap-1.5">
             <a href="https://join.thekickback.net" className="rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.1)" }}>Explore</a>
             <a href="https://dash.thekickback.net" className="rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Add Place</a>
@@ -169,7 +169,7 @@ export default function Home() {
       }}>
         {/* Nav */}
         <nav className="col-span-2 flex items-center justify-between px-8 py-3 relative z-20" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,10,10,0.8)", backdropFilter: "blur(12px)" }}>
-          <Image src="/logo.png" alt="theKickBack" width={120} height={38} priority style={{ height: "auto" }} />
+          <KBWordmark height={32} />
           <div className="flex items-center gap-3">
             <Link href="/membership" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>Membership</Link>
             <Link href="/about" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>About</Link>

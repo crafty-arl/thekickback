@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { KBMark } from "@/components/kb-logo";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Install Prompt ─────────────────────────────────────────────
@@ -75,7 +76,7 @@ export function PwaInstallPrompt() {
           }}
         >
           <div className="flex items-center gap-3 p-4">
-            <img src="/logo.png" alt="KickBack" className="h-10 w-10 " />
+            <KBMark size={40} />
             <div className="flex-1 min-w-0">
               <p className="font-sans text-[14px] font-semibold text-white">Add to Home Screen</p>
               <p className="font-sans text-[12px] text-white/40 truncate">
