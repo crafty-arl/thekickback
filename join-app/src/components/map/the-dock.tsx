@@ -1953,46 +1953,61 @@ export function TheDock({
         });
 
         const aiMsgId = `ai-${Date.now()}`;
-        // Add empty AI message immediately for streaming
-        setVenueThreads((prev) => {
-          const next = new Map(prev);
-          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), { id: aiMsgId, sender: "ai" as const, body: "", timestamp: Date.now() }]);
-          return next;
-        });
-        setLoading(false);
-
-        const reader = res.body!.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
+        const contentType = res.headers.get("content-type") || "";
         let fullReply = "";
         let metadata: Record<string, unknown> | null = null;
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        if (contentType.includes("text/event-stream") && res.body) {
+          // SSE streaming response
+          setVenueThreads((prev) => {
+            const next = new Map(prev);
+            next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), { id: aiMsgId, sender: "ai" as const, body: "", timestamp: Date.now() }]);
+            return next;
+          });
+          setLoading(false);
 
-          buffer += decoder.decode(value, { stream: true });
-          const chunks = buffer.split("\n\n");
-          buffer = chunks.pop() || "";
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
 
-          for (const chunk of chunks) {
-            if (!chunk.startsWith("data: ")) continue;
-            try {
-              const event = JSON.parse(chunk.slice(6));
-              if (event.type === "delta") {
-                fullReply += event.text;
-                const displayText = stripTags(fullReply);
-                setVenueThreads((prev) => {
-                  const next = new Map(prev);
-                  const thread = next.get(selectedVenue.id) || [];
-                  next.set(selectedVenue.id, thread.map((m) => m.id === aiMsgId ? { ...m, body: displayText } : m));
-                  return next;
-                });
-              } else if (event.type === "done") {
-                metadata = event;
-              }
-            } catch { /* skip */ }
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const chunks = buffer.split("\n\n");
+            buffer = chunks.pop() || "";
+
+            for (const chunk of chunks) {
+              if (!chunk.startsWith("data: ")) continue;
+              try {
+                const event = JSON.parse(chunk.slice(6));
+                if (event.type === "delta") {
+                  fullReply += event.text;
+                  const displayText = stripTags(fullReply);
+                  setVenueThreads((prev) => {
+                    const next = new Map(prev);
+                    const thread = next.get(selectedVenue.id) || [];
+                    next.set(selectedVenue.id, thread.map((m) => m.id === aiMsgId ? { ...m, body: displayText } : m));
+                    return next;
+                  });
+                } else if (event.type === "done") {
+                  metadata = event;
+                }
+              } catch { /* skip */ }
+            }
           }
+        } else {
+          // JSON fallback (non-streaming)
+          const data = await res.json();
+          fullReply = data.reply || "Couldn't reach the venue right now.";
+          metadata = { type: "done", reply: fullReply, offerings: data.offerings, checkout: data.checkout, booking: data.booking };
+          setVenueThreads((prev) => {
+            const next = new Map(prev);
+            next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), { id: aiMsgId, sender: "ai" as const, body: stripTags(fullReply), timestamp: Date.now() }]);
+            return next;
+          });
+          setLoading(false);
         }
 
         // Process metadata after stream completes
@@ -2063,37 +2078,46 @@ export function TheDock({
         });
 
         const aiMsgId = `ai-${Date.now()}`;
-        // Add empty AI message immediately for streaming
-        setConciergeMessages((prev) => [...prev, { id: aiMsgId, sender: "ai" as const, body: "", timestamp: Date.now() }]);
-        setLoading(false);
-
-        const reader = res.body!.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
+        const contentType = res.headers.get("content-type") || "";
         let fullReply = "";
         let metadata: Record<string, unknown> | null = null;
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        if (contentType.includes("text/event-stream") && res.body) {
+          // SSE streaming
+          setConciergeMessages((prev) => [...prev, { id: aiMsgId, sender: "ai" as const, body: "", timestamp: Date.now() }]);
+          setLoading(false);
 
-          buffer += decoder.decode(value, { stream: true });
-          const chunks = buffer.split("\n\n");
-          buffer = chunks.pop() || "";
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
 
-          for (const chunk of chunks) {
-            if (!chunk.startsWith("data: ")) continue;
-            try {
-              const event = JSON.parse(chunk.slice(6));
-              if (event.type === "delta") {
-                fullReply += event.text;
-                const displayText = stripTags(fullReply);
-                setConciergeMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: displayText } : m));
-              } else if (event.type === "done") {
-                metadata = event;
-              }
-            } catch { /* skip */ }
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const chunks = buffer.split("\n\n");
+            buffer = chunks.pop() || "";
+            for (const chunk of chunks) {
+              if (!chunk.startsWith("data: ")) continue;
+              try {
+                const event = JSON.parse(chunk.slice(6));
+                if (event.type === "delta") {
+                  fullReply += event.text;
+                  const displayText = stripTags(fullReply);
+                  setConciergeMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: displayText } : m));
+                } else if (event.type === "done") {
+                  metadata = event;
+                }
+              } catch { /* skip */ }
+            }
           }
+        } else {
+          // JSON fallback
+          const data = await res.json();
+          fullReply = data.reply || "Something went wrong.";
+          metadata = { type: "done", reply: fullReply, venues: data.venues };
+          setConciergeMessages((prev) => [...prev, { id: aiMsgId, sender: "ai" as const, body: stripTags(fullReply), timestamp: Date.now() }]);
+          setLoading(false);
         }
 
         // Process metadata after stream completes
