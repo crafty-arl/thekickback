@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -10,10 +10,11 @@ import type { PlaceData } from "./place-preview";
 import { updateVenue, updateVenuePage, updateOffering, deleteOffering } from "@/app/settings/actions";
 import { uploadGalleryImage } from "@/app/edit/gallery-actions";
 
-import { PlaceTab } from "@/components/dashboard/place-tab";
+import { TodayTab, type ActivityItem } from "@/components/dashboard/today-tab";
 import { OrdersTab } from "@/components/dashboard/orders-tab";
 import { GuestsTab } from "@/components/dashboard/guests-tab";
-import { MoreTab } from "@/components/dashboard/more-tab";
+import { HubTab } from "@/components/dashboard/hub-tab";
+import { OwnerChatFloat, type OwnerChatFloatHandle } from "@/components/owner-chat-float";
 import { OrderDetailDrawer } from "@/components/dashboard/order-detail-drawer";
 import { GuestDetailDrawer } from "@/components/dashboard/guest-detail-drawer";
 import { OfferingDetailDrawer } from "@/components/dashboard/offering-detail-drawer";
@@ -123,11 +124,10 @@ function extractTopics(messages: ChatMessage[]): { topic: string; count: number 
 
 // ─── Tab icon components ────────────────────────────────────────────
 
-function PlaceIcon({ active }: { active: boolean }) {
+function TodayIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
     </svg>
   );
 }
@@ -154,12 +154,11 @@ function GuestsIcon({ active }: { active: boolean }) {
   );
 }
 
-function MoreIcon({ active }: { active: boolean }) {
+function HubIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="12" cy="5" r="1" />
-      <circle cx="12" cy="19" r="1" />
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
     </svg>
   );
 }
@@ -332,11 +331,37 @@ export function OwnerDock({
     return extractTopics(initialData.messages as ChatMessage[]);
   }, [initialData.messages]);
 
-  // ─── Scroll helper ──────────────────────────────────────────────
+  // ─── Chat float ref ───────────────────────────────────────────
+  const chatFloatRef = useRef<OwnerChatFloatHandle>(null);
 
-  const scrollToBottom = useCallback(() => {
-    // no-op: scroll is handled inside PlaceTab
-  }, []);
+  // ─── Today tab data ──────────────────────────────────────────
+  const ordersToday = useMemo(() => {
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    return ordersState.filter(o => new Date(o.created_at) >= todayStart && o.status !== "cancelled");
+  }, [ordersState]);
+
+  const pendingRequests = useMemo(() => {
+    return initialData.requests.filter(r => r.status === "pending");
+  }, [initialData.requests]);
+
+  const upcomingBookings = useMemo(() => {
+    return initialData.bookings
+      .filter(b => new Date(b.starts_at) > new Date())
+      .slice(0, 3);
+  }, [initialData.bookings]);
+
+  const recentActivity = useMemo((): ActivityItem[] => {
+    const items: ActivityItem[] = [];
+    for (const o of ordersState.slice(0, 5)) {
+      const guestName = (o.profiles as Record<string, unknown> | null)?.display_name as string || "Guest";
+      const itemNames = ((o.order_items || []) as { name?: string }[]).map(i => i.name || "Item").join(", ");
+      items.push({ kind: "order", id: o.id, name: guestName, desc: itemNames, time: o.created_at, order: o });
+    }
+    for (const s of initialData.sessions.slice(0, 5)) {
+      items.push({ kind: "checkin", id: s.id, name: s.profiles?.display_name || "Guest", desc: "Checked in", time: s.started_at, guest: s });
+    }
+    return items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
+  }, [ordersState, initialData.sessions]);
 
   // ─── Welcome message on mount ───────────────────────────────────
 
@@ -707,8 +732,8 @@ export function OwnerDock({
               value={0}
               className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
             >
-              <PlaceIcon active={activeTab === 0} />
-              Place
+              <TodayIcon active={activeTab === 0} />
+              Today
             </TabsTrigger>
             <TabsTrigger
               value={1}
@@ -728,54 +753,27 @@ export function OwnerDock({
               value={3}
               className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
             >
-              <MoreIcon active={activeTab === 3} />
-              More
+              <HubIcon active={activeTab === 3} />
+              Hub
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* Tab 1: Place */}
-        <TabsContent value={0} className="flex-1 min-h-0 flex flex-col">
-          <PlaceTab
-            hubData={hubData}
-            venueId={venue.id}
-            offeringsState={offeringsState}
-            galleryImages={galleryImages}
-            initialXpActions={initialXpActions}
-            initialXpMilestones={initialXpMilestones}
-            checklistPercent={checklistPercent}
-            messages={messages}
-            loading={loading}
-            input={input}
-            onInputChange={setInput}
-            onSendMessage={sendMessage}
-            quickReplies={getQuickReplies()}
-            onFieldSave={handleFieldSave}
-            onPhotoUpload={handlePhotoUpload}
-            onSectionEdited={handleSectionEdited}
-            onOfferingTap={handleOpenOfferingDrawer}
-            onApproveBooking={handleApproveBooking}
-            onDeclineBooking={handleDeclineBooking}
+        {/* Tab 1: Today */}
+        <TabsContent value={0} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+          <TodayTab
+            revenueToday={initialData.revenueStats?.todayRevenue || 0}
+            ordersToday={ordersToday.length}
+            activeGuests={initialData.sessions.length}
+            members={initialData.stats.members}
+            feeRate={feeRate}
+            pendingRequests={pendingRequests}
+            upcomingBookings={upcomingBookings}
+            recentActivity={recentActivity}
+            onRequestsTap={() => setActiveTab(2)}
+            onOrderTap={(order) => setSelectedOrder(order)}
+            onGuestTap={(guest) => setSelectedGuest(guest)}
           />
-
-          {/* Mobile: Preview button */}
-          {hubData.slug && (
-            <div className="lg:hidden shrink-0 px-4 pb-2">
-              <a
-                href={`https://join.thekickback.net/${hubData.slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 border border-gray-200 py-2.5 font-sans text-[13px] font-semibold text-gray-500 transition active:scale-[0.98]"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-                Preview Place Page
-              </a>
-            </div>
-          )}
         </TabsContent>
 
         {/* Tab 2: Orders */}
@@ -802,15 +800,30 @@ export function OwnerDock({
             recentXp={recentXp}
             topics={topics}
             onGuestTap={(guest) => setSelectedGuest(guest)}
+            requests={initialData.requests}
+            perks={initialData.perks}
+            redemptions={initialData.redemptions}
+            multipliers={initialData.multipliers}
+            leaderboard={initialData.leaderboard}
+            pointsIssuedToday={initialData.stats.pointsIssuedToday || 0}
+            perksRedeemedToday={initialData.stats.perksRedeemedToday || 0}
           />
         </TabsContent>
 
-        {/* Tab 4: More */}
+        {/* Tab 4: Hub */}
         <TabsContent value={3} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
-          <MoreTab
+          <HubTab
+            hubData={hubData}
+            venueId={venue.id}
             offeringsState={offeringsState}
+            galleryImages={galleryImages}
             initialXpActions={initialXpActions}
             initialXpMilestones={initialXpMilestones}
+            checklistPercent={checklistPercent}
+            onFieldSave={handleFieldSave}
+            onPhotoUpload={handlePhotoUpload}
+            onSectionEdited={handleSectionEdited}
+            onOfferingTap={handleOpenOfferingDrawer}
             user={user}
           />
         </TabsContent>
@@ -825,10 +838,10 @@ export function OwnerDock({
         >
           {(
             [
-              { idx: 0, label: "Place", Icon: PlaceIcon },
+              { idx: 0, label: "Today", Icon: TodayIcon },
               { idx: 1, label: "Orders", Icon: OrdersIcon },
               { idx: 2, label: "Guests", Icon: GuestsIcon },
-              { idx: 3, label: "More", Icon: MoreIcon },
+              { idx: 3, label: "Hub", Icon: HubIcon },
             ] as const
           ).map(({ idx, label, Icon }) => {
             const isActive = activeTab === idx;
@@ -847,6 +860,19 @@ export function OwnerDock({
           })}
         </div>
       </Tabs>
+
+      {/* ─── Floating AI Chat ─────────────────────────────────────── */}
+      <OwnerChatFloat
+        ref={chatFloatRef}
+        messages={messages}
+        loading={loading}
+        input={input}
+        onInputChange={setInput}
+        onSendMessage={sendMessage}
+        quickReplies={getQuickReplies()}
+        onApproveBooking={handleApproveBooking}
+        onDeclineBooking={handleDeclineBooking}
+      />
 
       {/* ─── Order Detail Drawer ────────────────────────────────────── */}
       <AnimatePresence>
@@ -872,7 +898,7 @@ export function OwnerDock({
             onOrderTap={(order) => setSelectedOrder(order)}
             onAskAboutGuest={(name) => {
               setSelectedGuest(null);
-              setActiveTab(0);
+              chatFloatRef.current?.open();
               setTimeout(() => {
                 sendMessage(`Tell me more about guest ${name}`);
               }, 300);
