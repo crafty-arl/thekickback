@@ -151,6 +151,17 @@ interface RichVenue {
 
 const ACCENT = "#a78bfa";
 
+const IDLE_SUGGESTIONS = [
+  "What's happening nearby?",
+  "Find a quiet spot to work",
+  "Any happy hours tonight?",
+  "Best coffee around here",
+  "Where's the vibe right now?",
+  "Book a haircut",
+  "Events this weekend",
+  "Somewhere good for a date",
+];
+
 const TIER_CONFIG: Record<string, { color: string; label: string; next: string; threshold: number }> = {
   explorer: { color: "#94a3b8", label: "Explorer", next: "Regular", threshold: 500 },
   regular: { color: "#4ade80", label: "Regular", next: "Member", threshold: 1500 },
@@ -527,6 +538,15 @@ function PerkBadge({
       </div>
     </motion.button>
   );
+}
+
+function IdleSuggestionRotator() {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 4000);
+    return () => clearInterval(t);
+  }, []);
+  return null;
 }
 
 function LoadingDots() {
@@ -2492,97 +2512,63 @@ export function TheDock({
         >
           {/* ═══ IDLE MODE ═══ */}
           {mode === "idle" && (
-            <div className="flex h-full items-center gap-1.5 px-2">
-              {/* Avatar */}
+            <div className="flex h-full items-center gap-3 px-4">
+              {/* KB Logo — K orange, B white */}
+              <button
+                onClick={() => { setMode("explore"); setExploreSnap("half"); }}
+                className="flex shrink-0 items-center"
+              >
+                <span className="font-sans text-[22px] font-black tracking-tighter" style={{ color: "#F97316" }}>K</span>
+                <span className="font-sans text-[22px] font-black tracking-tighter text-white/90">B</span>
+              </button>
+
+              {/* Rotating search suggestions — tap to explore */}
+              <button
+                onClick={() => { setMode("explore"); setExploreSnap("half"); }}
+                className="min-w-0 flex-1 text-left"
+              >
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={Math.floor(Date.now() / 4000) % IDLE_SUGGESTIONS.length}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.3 }}
+                    className="block font-sans text-[14px] text-white/30"
+                  >
+                    {IDLE_SUGGESTIONS[Math.floor(Date.now() / 4000) % IDLE_SUGGESTIONS.length]}
+                  </motion.span>
+                </AnimatePresence>
+              </button>
+
+              {/* Drag hint */}
+              <div className="flex shrink-0 flex-col items-center gap-0.5">
+                <div className="h-1 w-6" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+                <span className="font-sans text-[7px] text-white/15">swipe up</span>
+              </div>
+
+              {/* Profile */}
               <button
                 onClick={handleAvatarTap}
-                className="group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                 style={{
-                  background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`,
-                  border: `2px solid ${tierColor}40`,
+                  background: user ? `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)` : "rgba(255,255,255,0.06)",
+                  border: `2px solid ${user ? `${tierColor}40` : "rgba(255,255,255,0.1)"}`,
                 }}
               >
                 {user ? (
                   <span className="font-sans text-[14px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
                 ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
                   </svg>
                 )}
-                {isDesktop && <span className="absolute -bottom-1 -right-1 hidden h-4 min-w-[16px] items-center justify-center rounded bg-white/[0.08] px-0.5 font-mono text-[8px] font-bold text-white/40 group-hover:flex" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>P</span>}
-              </button>
-
-              {/* Center: pulsing dot + input/sign-in */}
-              <motion.div
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: ACCENT }}
-                animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
-                transition={{ duration: 3, repeat: Infinity }}
-              />
-
-              {user ? (
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && send()}
-                  onFocus={handleInputFocus}
-                  placeholder={isDesktop ? `Explore or ask anything...  ${isMac ? "\u2318" : "Ctrl+"}K` : "Explore or ask anything..."}
-                  enterKeyHint="send"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
-                />
-              ) : (
-                <button
-                  onClick={() => { setMode("explore"); setExploreSnap("half"); }}
-                  className="min-w-0 flex-1 text-left font-sans text-[13px] text-white/25"
-                >
-                  Sign in to explore...
-                </button>
-              )}
-
-              {/* Streak */}
-              {user && user.streak > 0 && (
-                <div className="flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(249,115,22,0.08)" }}>
-                  <span className="text-[10px]">&#x1f525;</span>
-                  <span className="font-mono text-[10px] font-bold text-orange">{user.streak}</span>
-                </div>
-              )}
-
-              {/* Thread count */}
-              {threadInfo.count > 0 && (
-                <div className="relative flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1" style={{ backgroundColor: "rgba(167,139,250,0.08)" }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                  <span className="font-mono text-[10px] font-bold text-[#a78bfa]">{threadInfo.count}</span>
-                  {threadInfo.unread > 0 && <div className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-orange" />}
-                </div>
-              )}
-
-              {/* Location */}
-              {hasLocation && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onRecenter(); }}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                  </svg>
-                </button>
-              )}
-
-              {/* Version badge */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowAbout(true); }}
-                className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[8px] text-white/15 active:scale-95"
-              >
-                v{APP_VERSION}
               </button>
             </div>
           )}
+
+          {/* Idle suggestion rotation timer */}
+          {mode === "idle" && <IdleSuggestionRotator />}
 
           {/* ═══ VENUE CHAT COLLAPSED ═══ */}
           {mode === "venueChat" && !venueChatExpanded && selectedVenue && (
