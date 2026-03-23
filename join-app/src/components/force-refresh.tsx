@@ -8,9 +8,9 @@ export function ForceRefresh() {
         if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
         window.location.href = window.location.pathname + "?t=" + Date.now();
       }}
-      style={{ position: "fixed", bottom: 6, left: 6, zIndex: 9999, fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "monospace", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", padding: "4px 8px", cursor: "pointer" }}
+      style={{ position: "fixed", top: 2, right: 4, zIndex: 80, fontSize: 8, color: "rgba(255,255,255,0.12)", fontFamily: "monospace", background: "none", border: "none", padding: "2px 4px", cursor: "pointer" }}
     >
-      {process.env.NEXT_PUBLIC_APP_VERSION || "dev"} ↻
+      v{process.env.NEXT_PUBLIC_APP_VERSION || "dev"}
     </button>
   );
 }

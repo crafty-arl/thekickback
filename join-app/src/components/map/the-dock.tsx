@@ -2770,6 +2770,33 @@ export function TheDock({
                     </div>
                   )}
 
+                  {/* ── Personalized recommendations (top) ── */}
+                  {recommended.length > 0 && (
+                    <Shelf title="FOR YOU" count={recommended.length}>
+                      {recommended.map((v, i) => (
+                        <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)} delay={Math.min(i * 0.04, 0.2)} />
+                      ))}
+                    </Shelf>
+                  )}
+
+                  {/* ── Your spots ── */}
+                  {yourSpots.length > 0 && (
+                    <Shelf title="YOUR SPOTS">
+                      {yourSpots.map(({ venue, xp }, i) => (
+                        <LandscapeVenueCard key={venue.id} venue={venue} onClick={() => handleExploreVenueTap(venue)} delay={Math.min(i * 0.04, 0.2)} xp={xp} />
+                      ))}
+                    </Shelf>
+                  )}
+
+                  {/* ── All Places ── */}
+                  {venues.length > 0 && (
+                    <Shelf title="PLACES" count={venues.length}>
+                      {venues.slice(0, 12).map((v, i) => (
+                        <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)} delay={Math.min(i * 0.04, 0.2)} />
+                      ))}
+                    </Shelf>
+                  )}
+
                   {/* ── Offerings by category ── */}
                   {exploreOfferings.length > 0 && (() => {
                     const OFFER_CATEGORIES: { key: string; label: string; types: string[]; icon: string }[] = [
@@ -2847,22 +2874,7 @@ export function TheDock({
                     });
                   })()}
 
-                  {/* Venue shelves */}
-                  {yourSpots.length > 0 && (
-                    <Shelf title="YOUR SPOTS">
-                      {yourSpots.map(({ venue, xp }, i) => (
-                        <LandscapeVenueCard key={venue.id} venue={venue} onClick={() => handleExploreVenueTap(venue)} delay={Math.min(i * 0.04, 0.2)} xp={xp} />
-                      ))}
-                    </Shelf>
-                  )}
-
-                  {recommended.length > 0 && (
-                    <Shelf title="RECOMMENDED" count={recommended.length}>
-                      {recommended.map((v, i) => (
-                        <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)} delay={Math.min(i * 0.04, 0.2)} />
-                      ))}
-                    </Shelf>
-                  )}
+                  {/* (Your Spots + Recommended moved above categories) */}
 
                   {affordablePerks.length > 0 && (
                     <Shelf title="PERKS YOU CAN CLAIM" count={affordablePerks.length}>

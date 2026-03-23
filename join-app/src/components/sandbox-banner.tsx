@@ -13,14 +13,10 @@ export function SandboxBanner() {
   if (!show) return null;
 
   return (
-    <div
-      className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center pt-[max(4px,env(safe-area-inset-top))]"
-    >
-      <div className="rounded-full px-3 py-1" style={{ backgroundColor: "rgba(249,115,22,0.9)" }}>
-        <span className="font-mono text-[10px] font-bold text-black tracking-wider">
-          SANDBOX — TEST MODE
-        </span>
-      </div>
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-[90] flex justify-center" style={{ paddingTop: "max(2px, env(safe-area-inset-top))" }}>
+      <span className="pointer-events-auto px-3 py-0.5 font-mono text-[9px] font-bold tracking-wider text-black" style={{ backgroundColor: "rgba(250,204,21,0.9)" }}>
+        SANDBOX
+      </span>
     </div>
   );
 }
