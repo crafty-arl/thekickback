@@ -56,6 +56,7 @@ interface HubTabProps {
   }) => void;
   onOfferingsChange?: (offerings: HubTabProps["offeringsState"]) => void;
   onPublish?: () => Promise<void>;
+  onReset?: () => Promise<void>;
   user: { id: string; email: string };
   initialStaff?: { id: string; display_name: string | null; role_title: string | null; avatar_url: string | null; bio: string | null; specialties: string[] | null; visible: boolean; schedule: unknown }[];
   initialKnowledge?: { id: string; content: string; category: string; created_at: string }[];
@@ -79,6 +80,7 @@ export function HubTab({
   onOfferingTap,
   onOfferingsChange,
   onPublish,
+  onReset,
   user,
   initialStaff,
   initialKnowledge,
@@ -91,6 +93,8 @@ export function HubTab({
   const [seeding, setSeeding] = useState(false);
   const [showSeed, setShowSeed] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
 
   useEffect(() => {
@@ -185,6 +189,26 @@ export function HubTab({
               <div className="flex-1 rounded-xl border border-orange-200 bg-orange-50 py-3 text-center font-sans text-[13px] font-semibold text-orange-500">
                 Under Review
               </div>
+            )}
+            {/* Reset hub */}
+            {!confirmReset ? (
+              <button
+                onClick={() => setConfirmReset(true)}
+                className="shrink-0 rounded-xl border border-gray-200 bg-white px-4 py-3 font-sans text-[13px] font-medium text-gray-400 transition hover:border-red-200 hover:text-red-400"
+              >
+                Reset
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  setResetting(true);
+                  try { await onReset?.(); } finally { setResetting(false); setConfirmReset(false); }
+                }}
+                disabled={resetting}
+                className="shrink-0 rounded-xl border border-red-300 bg-red-500 px-4 py-3 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+              >
+                {resetting ? "..." : "Confirm Reset"}
+              </button>
             )}
           </div>
         </div>

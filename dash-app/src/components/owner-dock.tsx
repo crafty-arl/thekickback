@@ -654,6 +654,24 @@ export function OwnerDock({
     } catch { /* ignore */ }
   }, [isApproved, venue.id]);
 
+  // ─── Reset hub to blank ──────────────────────────────────────
+  const handleResetHub = useCallback(async () => {
+    try {
+      const res = await fetch("/api/venue/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId: venue.id }),
+      });
+      if (res.ok) {
+        setHubData((prev) => ({ ...prev, tagline: "", description: "", hours: "", themeColor: "#F97316" }));
+        setOfferingsState([]);
+        setGalleryImages([]);
+        setChecklistState(DEFAULT_CHECKLIST);
+        setCurrentReviewStatus("draft");
+      }
+    } catch { /* ignore */ }
+  }, [venue.id]);
+
   // ─── Drawer: Order actions ──────────────────────────────────
   const handleOrderStatusUpdate = useCallback(
     async (orderId: string, status: string) => {
@@ -950,6 +968,7 @@ export function OwnerDock({
             onOfferingTap={handleOpenOfferingDrawer}
             onOfferingsChange={setOfferingsState}
             onPublish={handlePublishToggle}
+            onReset={handleResetHub}
             user={user}
             initialStaff={initialStaff}
             initialKnowledge={initialKnowledge}
