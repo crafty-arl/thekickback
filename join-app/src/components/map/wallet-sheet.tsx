@@ -400,18 +400,23 @@ export function WalletSheet() {
               <div className="flex flex-col gap-1">
                 {transactions.slice(0, 5).map((tx) => {
                   const isFund = tx.description?.startsWith("Added funds");
+                  const isRefund = /refund/i.test(tx.description || "");
+                  const isCredit = isFund || isRefund;
                   return (
-                    <div key={tx.id} className="flex items-center justify-between  px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                    <div key={tx.id} className="flex items-center justify-between  px-3 py-2" style={{ backgroundColor: isRefund ? "rgba(74,222,128,0.04)" : "rgba(255,255,255,0.02)" }}>
                       <div>
-                        <p className="font-sans text-[11px] text-white/50">{tx.venueName || tx.description || "Transaction"}</p>
+                        <p className="font-sans text-[11px] text-white/50">
+                          {isRefund && <span className="mr-1 font-semibold text-green-400">Refund</span>}
+                          {tx.venueName || (!isRefund ? (tx.description || "Transaction") : (tx.description?.replace(/^(Order refund|Refund:\s*)/i, "") || ""))}
+                        </p>
                         <p className="font-sans text-[9px] text-white/20">{new Date(tx.createdAt).toLocaleDateString()}</p>
                       </div>
                       <div className="text-right">
-                        <p className={`font-mono text-[12px] font-bold ${isFund ? "text-green-400" : "text-white/60"}`}>
-                          {isFund ? "+" : "-"}{formatDollars(tx.amountCents)}
+                        <p className={`font-mono text-[12px] font-bold ${isCredit ? "text-green-400" : "text-white/60"}`}>
+                          {isCredit ? "+" : "-"}{formatDollars(tx.amountCents)}
                         </p>
-                        <p className="font-sans text-[8px]" style={{ color: tx.status === "completed" ? "#4ade80" : tx.status === "failed" ? "#f87171" : "#facc15" }}>
-                          {tx.status}
+                        <p className="font-sans text-[8px]" style={{ color: isRefund ? "#4ade80" : tx.status === "completed" ? "#4ade80" : tx.status === "failed" ? "#f87171" : "#facc15" }}>
+                          {isRefund ? "refunded" : tx.status}
                         </p>
                       </div>
                     </div>

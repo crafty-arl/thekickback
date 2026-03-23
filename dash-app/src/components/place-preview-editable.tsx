@@ -10,6 +10,9 @@ interface Offering {
   type: string;
   price_cents: number;
   description?: string;
+  recurring?: boolean;
+  interval?: string | null;
+  perks?: string[];
 }
 
 interface XpAction {
@@ -40,6 +43,23 @@ type EditingSection = "name" | "tagline" | "color" | "hours" | "description" | "
 const COLOR_SWATCHES = [
   "#F97316", "#EF4444", "#4ADE80", "#8B5CF6", "#F59E0B", "#EC4899", "#3B82F6", "#06B6D4",
 ];
+
+const TYPE_ICONS: Record<string, string> = {
+  membership: "👑",
+  booth_hold: "🪑",
+  space_rental: "🏠",
+  event_ticket: "🎟️",
+  event: "🎟️",
+  service: "✂️",
+  reservation: "📅",
+  custom: "✦",
+};
+
+function formatPrice(cents: number, recurring?: boolean, interval?: string | null): string {
+  const dollars = (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
+  if (recurring) return `$${dollars}/${interval === "year" ? "yr" : "mo"}`;
+  return `$${dollars}`;
+}
 
 export function PlacePreviewEditable({
   data,
@@ -94,7 +114,7 @@ export function PlacePreviewEditable({
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full opacity-0 transition group-hover:opacity-100"
-      style={{ backgroundColor: "rgba(249,115,22,0.9)" }}
+      style={{ backgroundColor: `${themeColor}e6` }}
     >
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -110,7 +130,7 @@ export function PlacePreviewEditable({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 4 }}
       className="rounded-xl p-3"
-      style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.15)" }}
+      style={{ backgroundColor: `${themeColor}0f`, border: `1px solid ${themeColor}26` }}
     >
       {children}
       <div className="mt-2 flex gap-2">
@@ -118,7 +138,7 @@ export function PlacePreviewEditable({
           onClick={onSave}
           disabled={saving}
           className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold text-black disabled:opacity-50"
-          style={{ backgroundColor: "#F97316" }}
+          style={{ backgroundColor: themeColor }}
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -133,52 +153,61 @@ export function PlacePreviewEditable({
     </motion.div>
   );
 
+  const membership = offerings.find((o) => o.type === "membership");
+  const otherOfferings = offerings.filter((o) => o.type !== "membership" && o.type !== "event");
+  const events = offerings.filter((o) => o.type === "event");
+
   return (
-    <div className="flex h-full items-center justify-center p-8">
+    <div className="flex h-full">
       <div
-        className="relative w-[375px] overflow-hidden rounded-[40px] border-[3px]"
-        style={{ height: 720, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#0A0A0A" }}
+        className="relative w-full overflow-hidden rounded-2xl lg:rounded-3xl"
+        style={{ backgroundColor: "#000" }}
       >
-        {/* Phone notch */}
-        <div className="absolute left-1/2 top-0 z-10 h-7 w-32 -translate-x-1/2 rounded-b-2xl" style={{ backgroundColor: "#0A0A0A" }} />
+        <div className="h-full overflow-y-auto no-scrollbar">
 
-        <div className="h-full overflow-y-auto pt-10 no-scrollbar">
-          {/* Hero — name, tagline, type, address */}
-          <div className="group relative">
+          {/* ═══ HERO — matches slug page: 280px, radial gradient, name at bottom ═══ */}
+          <div className="group relative" style={{ height: 280 }}>
             <div
-              className="relative flex h-48 items-end p-5"
-              style={{ background: `linear-gradient(135deg, ${themeColor}30 0%, ${themeColor}08 50%, rgba(0,0,0,0.8) 100%)` }}
-            >
-              {/* Gallery thumbnails */}
-              {galleryImages.length > 0 && (
-                <div className="absolute right-3 top-10 flex gap-1">
-                  {galleryImages.slice(0, 3).map((img) => (
-                    <div key={img.id} className="h-8 w-8 overflow-hidden rounded-md" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
-                      <img src={img.image_url} alt="" className="h-full w-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              )}
+              className="absolute inset-0"
+              style={{ background: `radial-gradient(ellipse at 50% 30%, ${themeColor}40 0%, transparent 60%), linear-gradient(to bottom, ${themeColor}15 0%, #000 100%)` }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.85) 100%)" }}
+            />
 
-              <div>
-                <h2 className="font-sans text-[22px] font-bold text-white">{data.name || "Your Place"}</h2>
-                {data.tagline && (
-                  <p className="mt-1 font-sans text-[13px] italic text-white/40">&ldquo;{data.tagline}&rdquo;</p>
-                )}
-                <div className="mt-2 flex items-center gap-2">
-                  {data.type && (
-                    <span className="rounded-md px-2 py-0.5 font-sans text-[10px] font-medium capitalize text-white/40" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                      {data.type}
-                    </span>
-                  )}
-                  {data.address && <span className="font-sans text-[10px] text-white/25">{data.address}</span>}
-                </div>
+            {/* Gallery thumbnails in top-right (if available) */}
+            {galleryImages.length > 0 && (
+              <div className="absolute right-3 top-10 z-[2] flex gap-1">
+                {galleryImages.slice(0, 3).map((img) => (
+                  <div key={img.id} className="h-8 w-8 overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+                    <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                  </div>
+                ))}
               </div>
+            )}
+
+            {/* Venue identity — positioned at bottom like slug page */}
+            <div className="absolute inset-x-0 bottom-0 z-[2] px-5 pb-6">
+              <h1 className="font-sans text-[28px] font-bold leading-tight tracking-tight text-white">
+                {data.name || "Your Place"}
+              </h1>
+              {data.tagline && (
+                <p className="mt-1.5 font-sans text-[14px] leading-relaxed text-white/50">{data.tagline}</p>
+              )}
+              {(data.type || data.address) && (
+                <p className="mt-1.5 font-sans text-[12px] text-white/30">
+                  {data.type && <span className="capitalize">{data.type}</span>}
+                  {data.type && data.address && " · "}
+                  {data.address}
+                </p>
+              )}
             </div>
+
             <EditIcon onClick={() => startEdit("name", data.name)} />
           </div>
 
-          {/* Inline edit: Name/Tagline */}
+          {/* Inline edit: Name */}
           <AnimatePresence>
             {editing === "name" && (
               <div className="px-5 py-2">
@@ -199,28 +228,64 @@ export function PlacePreviewEditable({
             )}
           </AnimatePresence>
 
-          {/* Tagline edit */}
-          <div className="group relative px-5 py-2">
-            <button
-              onClick={() => startEdit("tagline", data.tagline)}
-              className="w-full text-left rounded-lg px-2 py-1.5 transition hover:bg-white/[0.03]"
+          {/* Spacer */}
+          <div className="h-2" />
+
+          {/* ═══ QUICK INFO ROW — horizontal scroll, matches slug page ═══ */}
+          <div className="flex gap-2.5 overflow-x-auto px-5 py-4 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+            {/* Hours card — tap to edit */}
+            <div
+              className="group relative shrink-0 cursor-pointer px-5 py-3.5 transition-colors duration-150 hover:border-white/10"
+              style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: "1px solid rgba(255,255,255,0.04)", minWidth: 140 }}
+              onClick={() => startEdit("hours", data.hours)}
             >
-              <p className="font-sans text-[10px] font-semibold text-white/20">TAGLINE</p>
-              <p className="font-sans text-[12px] text-white/50">{data.tagline || "Tap to add a tagline..."}</p>
-            </button>
+              <p className="font-sans text-[10px] font-semibold tracking-[1px] text-white/25 mb-2">HOURS</p>
+              <p className="font-sans text-[11px] text-white/50">{data.hours || "Tap to set hours..."}</p>
+              <EditIcon onClick={() => startEdit("hours", data.hours)} />
+            </div>
+
+            {/* Location card */}
+            {data.address && (
+              <div
+                className="shrink-0 flex items-center gap-3.5 px-5 py-3.5"
+                style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: "1px solid rgba(255,255,255,0.04)", minWidth: 140 }}
+              >
+                <div className="flex h-9 w-9 items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                </div>
+                <div>
+                  <p className="font-sans text-[10px] font-semibold tracking-[1px] text-white/25">LOCATION</p>
+                  <p className="font-sans text-[12px] text-white/50 mt-0.5">{data.address}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Theme color card — tap to edit */}
+            <div
+              className="group relative shrink-0 flex items-center gap-3.5 px-5 py-3.5 cursor-pointer transition-colors duration-150 hover:border-white/10"
+              style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: "1px solid rgba(255,255,255,0.04)", minWidth: 100 }}
+              onClick={() => startEdit("color", themeColor)}
+            >
+              <div className="h-6 w-6 rounded-full" style={{ backgroundColor: themeColor, boxShadow: `0 0 12px ${themeColor}40` }} />
+              <div>
+                <p className="font-sans text-[10px] font-semibold tracking-[1px] text-white/25">THEME</p>
+                <p className="font-sans text-[11px] text-white/40 mt-0.5">{themeColor}</p>
+              </div>
+            </div>
           </div>
 
+          {/* Inline edit: Hours */}
           <AnimatePresence>
-            {editing === "tagline" && (
+            {editing === "hours" && (
               <div className="px-5 py-2">
                 <InlineForm
-                  onSave={() => saveField("tagline", editValue, "branding")}
+                  onSave={() => saveField("hours", editValue, "hours")}
                   onCancel={() => setEditing(null)}
                 >
                   <input
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    placeholder="Your tagline"
+                    placeholder="e.g. Mon-Fri 9am-5pm, Sat 10am-3pm"
                     className="w-full rounded-lg px-3 py-2 font-sans text-[13px] text-white/90 placeholder:text-white/25 outline-none"
                     style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
                     autoFocus
@@ -230,17 +295,7 @@ export function PlacePreviewEditable({
             )}
           </AnimatePresence>
 
-          {/* Theme color */}
-          <div className="group relative px-5 py-2">
-            <button
-              onClick={() => startEdit("color", themeColor)}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-white/[0.03]"
-            >
-              <div className="h-4 w-4 rounded-full" style={{ backgroundColor: themeColor }} />
-              <p className="font-sans text-[10px] font-semibold text-white/20">THEME COLOR</p>
-            </button>
-          </div>
-
+          {/* Inline edit: Color */}
           <AnimatePresence>
             {editing === "color" && (
               <div className="px-5 py-2">
@@ -267,52 +322,20 @@ export function PlacePreviewEditable({
             )}
           </AnimatePresence>
 
-          {/* Hours */}
-          <div className="group relative">
-            <div
-              className="mx-5 rounded-xl p-3 cursor-pointer transition hover:border-orange/20"
-              style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-              onClick={() => startEdit("hours", data.hours)}
-            >
-              <p className="font-sans text-[10px] font-semibold tracking-wide text-white/25">HOURS</p>
-              <p className="mt-1 font-sans text-[12px] text-white/50">{data.hours || "Tap to set hours..."}</p>
-            </div>
-            <EditIcon onClick={() => startEdit("hours", data.hours)} />
-          </div>
-
-          <AnimatePresence>
-            {editing === "hours" && (
-              <div className="px-5 py-2">
-                <InlineForm
-                  onSave={() => saveField("hours", editValue, "hours")}
-                  onCancel={() => setEditing(null)}
-                >
-                  <input
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    placeholder="e.g. Mon-Fri 9am-5pm, Sat 10am-3pm"
-                    className="w-full rounded-lg px-3 py-2 font-sans text-[13px] text-white/90 placeholder:text-white/25 outline-none"
-                    style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-                    autoFocus
-                  />
-                </InlineForm>
-              </div>
-            )}
-          </AnimatePresence>
-
-          {/* Description */}
-          <div className="group relative px-5 py-3">
+          {/* ═══ DESCRIPTION — matches slug page: 14px, leading-[1.7] ═══ */}
+          <div className="group relative px-5 pb-5">
             <div
               className="cursor-pointer rounded-lg px-2 py-1.5 transition hover:bg-white/[0.03]"
               onClick={() => startEdit("description", data.description)}
             >
-              <p className="font-sans text-[13px] leading-relaxed text-white/50">
+              <p className="font-sans text-[14px] leading-[1.7] text-white/50">
                 {data.description || "Tap to add a description..."}
               </p>
             </div>
             <EditIcon onClick={() => startEdit("description", data.description)} />
           </div>
 
+          {/* Inline edit: Description */}
           <AnimatePresence>
             {editing === "description" && (
               <div className="px-5 py-2">
@@ -334,22 +357,48 @@ export function PlacePreviewEditable({
             )}
           </AnimatePresence>
 
-          {/* Photos */}
-          <div className="group relative px-5 py-3">
-            <p className="mb-2 font-sans text-[10px] font-semibold tracking-[2px] text-white/20">PHOTOS</p>
+          {/* Inline edit: Tagline */}
+          <AnimatePresence>
+            {editing === "tagline" && (
+              <div className="px-5 py-2">
+                <InlineForm
+                  onSave={() => saveField("tagline", editValue, "branding")}
+                  onCancel={() => setEditing(null)}
+                >
+                  <input
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    placeholder="Your tagline"
+                    className="w-full rounded-lg px-3 py-2 font-sans text-[13px] text-white/90 placeholder:text-white/25 outline-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                    autoFocus
+                  />
+                </InlineForm>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* ═══ GALLERY — horizontal strip matching slug page ═══ */}
+          <div className="group relative px-5 pb-6">
+            <p className="mb-3.5 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">GALLERY</p>
             {galleryImages.length > 0 ? (
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              <div className="flex gap-2.5 overflow-x-auto pb-2 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
                 {galleryImages.map((img) => (
-                  <div key={img.id} className="h-16 w-16 shrink-0 overflow-hidden rounded-lg" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div
+                    key={img.id}
+                    className="relative shrink-0 overflow-hidden"
+                    style={{ width: 148, height: 105, border: "1px solid rgba(255,255,255,0.04)" }}
+                  >
                     <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                    <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 50%)" }} />
                   </div>
                 ))}
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)" }}
+                  className="flex shrink-0 items-center justify-center"
+                  style={{ width: 148, height: 105, backgroundColor: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)" }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round" className="mb-1">
                     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                 </button>
@@ -357,7 +406,7 @@ export function PlacePreviewEditable({
             ) : (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full rounded-xl p-4 text-center transition hover:border-orange/20"
+                className="w-full py-6 text-center transition hover:border-white/10"
                 style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)" }}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round" className="mx-auto mb-1">
@@ -369,95 +418,193 @@ export function PlacePreviewEditable({
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
 
-          {/* Offerings */}
-          <div className="group relative px-5 py-3">
-            <p className="mb-2 font-sans text-[10px] font-semibold tracking-[2px] text-white/20">WHAT WE OFFER</p>
-            {offerings.length > 0 ? (
-              offerings.slice(0, 4).map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => onOfferingTap?.(o)}
-                  className="mb-2 w-full rounded-xl p-3 text-left transition hover:border-white/10"
-                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-sans text-[12px] font-medium text-white/70">{o.name}</span>
-                    <span className="font-sans text-[11px] text-white/30">${(o.price_cents / 100).toFixed(2)}</span>
-                  </div>
-                  {o.description && (
-                    <p className="mt-1 font-sans text-[10px] text-white/25">{o.description}</p>
-                  )}
-                </button>
-              ))
-            ) : (
-              [1, 2, 3].map((i) => (
-                <div key={i} className="mb-2 rounded-xl p-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <div className="h-3 w-24 rounded" style={{ backgroundColor: "rgba(255,255,255,0.08)" }} />
-                  <div className="mt-2 h-2 w-16 rounded" style={{ backgroundColor: "rgba(255,255,255,0.04)" }} />
-                </div>
-              ))
-            )}
-            {offerings.length > 4 && (
-              <p className="mt-1 text-center font-sans text-[10px] text-white/20">+{offerings.length - 4} more</p>
-            )}
-            {offerings.length > 0 && (
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  onClick={() => onSectionEdited("offerings")}
-                  className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold text-black"
-                  style={{ backgroundColor: "#4ADE80" }}
-                >
-                  Looks good
-                </button>
-                <a
-                  href="/settings#offerings"
-                  className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-medium text-white/40"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
-                >
-                  Edit in settings
-                </a>
+          {/* ═══ EVENTS — matches slug page event cards ═══ */}
+          {events.length > 0 && (
+            <div className="px-5 pb-6">
+              <p className="mb-3.5 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">UPCOMING EVENTS</p>
+              <div className="flex flex-col gap-3.5">
+                {events.map((event) => (
+                  <button
+                    key={event.id}
+                    onClick={() => onOfferingTap?.(event)}
+                    className="w-full overflow-hidden text-left transition-colors duration-150 active:scale-[0.98]"
+                    style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: `1px solid ${themeColor}10` }}
+                  >
+                    <div className="px-5 py-3.5">
+                      <div className="flex items-center gap-2.5 mb-1.5">
+                        <span className="text-[14px]">🎟️</span>
+                        <h3 className="font-sans text-[15px] font-bold text-white/90">{event.name}</h3>
+                      </div>
+                      {event.description && (
+                        <p className="font-sans text-[12px] leading-relaxed text-white/40 line-clamp-2">{event.description}</p>
+                      )}
+                      <div className="mt-2 flex items-center gap-2">
+                        {event.price_cents > 0 && (
+                          <span className="font-mono text-[12px] font-bold" style={{ color: themeColor }}>{formatPrice(event.price_cents, false, null)}</span>
+                        )}
+                        {event.price_cents === 0 && (
+                          <span className="font-sans text-[11px] font-semibold" style={{ color: "#4ade80" }}>Free</span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* XP / Loyalty */}
-          <div className="group relative px-5 py-3">
-            <p className="mb-2 font-sans text-[10px] font-semibold tracking-[2px] text-white/20">XP &amp; LOYALTY</p>
-            {xpActions && xpActions.length > 0 ? (
-              <>
-                {xpActions.slice(0, 4).map((a, i) => (
-                  <div
-                    key={i}
-                    className="mb-1.5 flex items-center justify-between rounded-lg px-3 py-2"
-                    style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                  >
-                    <span className="font-sans text-[12px] text-white/70">{a.label}</span>
-                    <span className="font-sans text-[11px] font-medium text-green-400/70">+{a.points} XP</span>
+          {/* ═══ OFFERINGS — matches slug page: membership hero + 2-col grid ═══ */}
+          {(offerings.length > 0 || true) && (
+            <div className="group relative px-5 pb-6">
+              {offerings.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                  {/* Membership card — hero treatment matching slug page */}
+                  {membership && (
+                    <div
+                      className="relative overflow-hidden border px-5 py-5"
+                      style={{
+                        borderColor: `${themeColor}25`,
+                        background: `linear-gradient(180deg, ${themeColor}12 0%, ${themeColor}04 100%)`,
+                      }}
+                    >
+                      <div className="absolute -right-8 -top-8 h-24 w-24 blur-3xl" style={{ backgroundColor: `${themeColor}20` }} />
+                      <div className="relative">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[18px]">👑</span>
+                          <h3 className="font-sans text-[15px] font-bold text-white">{membership.name}</h3>
+                        </div>
+                        {membership.description && (
+                          <p className="mt-1.5 font-sans text-[13px] leading-relaxed text-white/40">{membership.description}</p>
+                        )}
+                        {membership.perks && membership.perks.length > 0 && (
+                          <div className="mt-3.5 flex flex-col gap-2">
+                            {membership.perks.map((perk) => (
+                              <div key={perk} className="flex items-center gap-2">
+                                <div className="h-1 w-1 shrink-0 rounded-full" style={{ backgroundColor: themeColor }} />
+                                <span className="font-sans text-[12px] text-white/50">{perk}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <button
+                          onClick={() => onOfferingTap?.(membership)}
+                          className="mt-5 flex w-full items-center justify-center gap-2 py-3 font-sans text-[14px] font-bold text-black transition-colors duration-150 active:scale-[0.97]"
+                          style={{ backgroundColor: themeColor }}
+                        >
+                          Join — {formatPrice(membership.price_cents, membership.recurring, membership.interval)}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Other offerings — 2-col grid matching slug page */}
+                  {otherOfferings.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {otherOfferings.map((o) => (
+                        <div
+                          key={o.id}
+                          className="flex flex-col justify-between border px-5 py-4"
+                          style={{
+                            borderColor: "rgba(255,255,255,0.04)",
+                            background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)",
+                          }}
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[14px]">{TYPE_ICONS[o.type] || "✦"}</span>
+                              <h4 className="font-sans text-[13px] font-semibold text-white/80">{o.name}</h4>
+                            </div>
+                            {o.description && (
+                              <p className="mt-1.5 font-sans text-[11px] leading-relaxed text-white/30">{o.description}</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => onOfferingTap?.(o)}
+                            className="mt-3.5 flex w-full items-center justify-center py-2.5 font-sans text-[12px] font-semibold transition-colors duration-150 active:scale-[0.97]"
+                            style={{
+                              backgroundColor: `${themeColor}20`,
+                              color: themeColor,
+                              border: `1px solid ${themeColor}30`,
+                            }}
+                          >
+                            {formatPrice(o.price_cents, o.recurring, o.interval)}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Edit offerings link */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onSectionEdited("offerings")}
+                      className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold text-black"
+                      style={{ backgroundColor: "#4ADE80" }}
+                    >
+                      Looks good
+                    </button>
+                    <a
+                      href="/settings#offerings"
+                      className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-medium text-white/40"
+                      style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                    >
+                      Edit in settings
+                    </a>
                   </div>
-                ))}
-                {xpActions.length > 4 && (
-                  <p className="mt-1 text-center font-sans text-[10px] text-white/20">+{xpActions.length - 4} more actions</p>
-                )}
-              </>
-            ) : (
-              <p className="font-sans text-[11px] text-white/25">No XP actions generated yet.</p>
-            )}
-            {xpMilestones && xpMilestones.length > 0 && (
-              <div className="mt-2">
-                <p className="mb-1.5 font-sans text-[10px] font-semibold text-white/15">MILESTONES</p>
-                {xpMilestones.map((m, i) => (
-                  <div
-                    key={i}
-                    className="mb-1 flex items-center justify-between rounded-lg px-3 py-1.5"
-                    style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
-                  >
-                    <span className="font-sans text-[11px] text-white/50">{m.name}</span>
-                    <span className="font-sans text-[10px] text-white/25">{m.threshold} XP</span>
+                </div>
+              ) : (
+                <>
+                  <p className="mb-3.5 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">OFFERINGS</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="border px-5 py-4" style={{ borderColor: "rgba(255,255,255,0.04)", background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)" }}>
+                        <div className="h-3 w-16 rounded" style={{ backgroundColor: "rgba(255,255,255,0.08)" }} />
+                        <div className="mt-2 h-2 w-10 rounded" style={{ backgroundColor: "rgba(255,255,255,0.04)" }} />
+                        <div className="mt-4 h-7 w-full rounded" style={{ backgroundColor: "rgba(255,255,255,0.04)" }} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-            {((xpActions && xpActions.length > 0) || (xpMilestones && xpMilestones.length > 0)) && (
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ═══ XP & LOYALTY ═══ */}
+          {((xpActions && xpActions.length > 0) || (xpMilestones && xpMilestones.length > 0)) && (
+            <div className="px-5 pb-6">
+              <p className="mb-3.5 font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">XP &amp; LOYALTY</p>
+              {xpActions && xpActions.length > 0 && (
+                <>
+                  {xpActions.slice(0, 4).map((a, i) => (
+                    <div
+                      key={i}
+                      className="mb-1.5 flex items-center justify-between px-3 py-2"
+                      style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)", border: "1px solid rgba(255,255,255,0.04)" }}
+                    >
+                      <span className="font-sans text-[12px] text-white/70">{a.label}</span>
+                      <span className="font-sans text-[11px] font-medium text-green-400/70">+{a.points} XP</span>
+                    </div>
+                  ))}
+                  {xpActions.length > 4 && (
+                    <p className="mt-1 text-center font-sans text-[10px] text-white/20">+{xpActions.length - 4} more actions</p>
+                  )}
+                </>
+              )}
+              {xpMilestones && xpMilestones.length > 0 && (
+                <div className="mt-2">
+                  <p className="mb-1.5 font-sans text-[10px] font-semibold text-white/15">MILESTONES</p>
+                  {xpMilestones.map((m, i) => (
+                    <div
+                      key={i}
+                      className="mb-1 flex items-center justify-between px-3 py-1.5"
+                      style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+                    >
+                      <span className="font-sans text-[11px] text-white/50">{m.name}</span>
+                      <span className="font-sans text-[10px] text-white/25">{m.threshold} XP</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={() => onSectionEdited("xp")}
@@ -474,28 +621,54 @@ export function PlacePreviewEditable({
                   Edit in settings
                 </a>
               </div>
-            )}
-          </div>
-
-          {/* Chat preview dock */}
-          <div className="mx-5 mb-5 rounded-2xl p-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: `${themeColor}20` }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              </div>
-              <p className="flex-1 font-sans text-[12px] text-white/50">Ask about {data.name || "this place"}...</p>
             </div>
-          </div>
+          )}
+
+          {/* Bottom spacer for dock */}
+          <div className="h-24" />
         </div>
 
-        {/* URL bar */}
+        {/* ═══ CHAT DOCK — fixed bottom, matches slug page dock styling ═══ */}
         <div
-          className="absolute inset-x-0 bottom-0 flex items-center justify-center py-2"
-          style={{ backgroundColor: "rgba(10,10,10,0.95)", borderTop: "1px solid rgba(255,255,255,0.06)" }}
+          className="absolute inset-x-0 bottom-0 z-10"
+          style={{ paddingBottom: 0 }}
         >
-          <span className="font-mono text-[10px] text-white/20">join.thekickback.net/{data.slug || "your-place"}</span>
+          <div
+            className="mx-3 mb-2 flex items-center gap-2.5 px-4"
+            style={{
+              height: 56,
+              backgroundColor: "rgba(12, 12, 14, 0.88)",
+              backdropFilter: "blur(40px) saturate(1.8)",
+              WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+              boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
+            }}
+          >
+            <div className="flex items-center gap-2 shrink-0">
+              <motion.div
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: themeColor }}
+                animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+              <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-white/90">
+                {data.name || "Your Place"}
+              </span>
+            </div>
+            <p className="min-w-0 flex-1 font-sans text-[13px] text-white/25 truncate">Ask anything...</p>
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center"
+              style={{ backgroundColor: themeColor, boxShadow: `0 2px 10px ${themeColor}40` }}
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Slug URL */}
+          <div className="flex items-center justify-center py-3 border-t border-white/[0.06]">
+            <span className="font-mono text-xs text-white/20">join.thekickback.net/{data.slug || "your-place"}</span>
+          </div>
         </div>
       </div>
     </div>

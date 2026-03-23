@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
+import { AnimatePresence } from "framer-motion";
 import { PlacePreviewEditable } from "@/components/place-preview-editable";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
+import { SettingsOfferingsDrawer } from "@/components/dashboard/settings-offerings-drawer";
+import { SettingsKnowledgeDrawer } from "@/components/dashboard/settings-knowledge-drawer";
+import { SettingsStaffDrawer } from "@/components/dashboard/settings-staff-drawer";
+import { SettingsXpDrawer } from "@/components/dashboard/settings-xp-drawer";
 import type { PlaceData } from "@/components/place-preview";
 
 // ─── Types ──────────────────────────────────────────────────────────
+
+type SettingsDrawer = "offerings" | "knowledge" | "staff" | "xp" | null;
 
 interface HubTabProps {
   hubData: PlaceData;
@@ -32,7 +38,12 @@ interface HubTabProps {
     price_cents: number;
     description?: string;
   }) => void;
+  onOfferingsChange?: (offerings: HubTabProps["offeringsState"]) => void;
   user: { id: string; email: string };
+  // Optional data for drawers — passed from parent if available
+  initialStaff?: { id: string; display_name: string | null; role_title: string | null; avatar_url: string | null; bio: string | null; specialties: string[] | null; visible: boolean; schedule: unknown }[];
+  initialKnowledge?: { id: string; content: string; category: string; created_at: string }[];
+  initialAiLimits?: { enabled: boolean; free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
 }
 
 // ─── Component ─────────────────────────────────────────────────────
@@ -49,8 +60,13 @@ export function HubTab({
   onPhotoUpload,
   onSectionEdited,
   onOfferingTap,
+  onOfferingsChange,
   user,
+  initialStaff,
+  initialKnowledge,
+  initialAiLimits,
 }: HubTabProps) {
+  const [activeDrawer, setActiveDrawer] = useState<SettingsDrawer>(null);
   const [seeding, setSeeding] = useState(false);
   const [showSeed, setShowSeed] = useState(false);
 
@@ -69,9 +85,11 @@ export function HubTab({
     }
   };
 
+  const pillClass = "shrink-0 rounded-lg border border-black/[0.06] bg-white px-3 py-2 font-sans text-xs font-medium text-gray-500 hover:bg-black/[0.02] active:scale-95 transition cursor-pointer";
+
   return (
     <div className="flex flex-1 min-h-0">
-      {/* Main column — the editable preview IS the page */}
+      {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
         {/* Setup progress */}
         {checklistPercent < 100 && (
@@ -89,7 +107,7 @@ export function HubTab({
           </div>
         )}
 
-        {/* Editable venue preview — tap any section to edit inline */}
+        {/* Editable venue preview */}
         <div className="flex-1 overflow-y-auto no-scrollbar">
           <PlacePreviewEditable
             data={hubData}
@@ -104,43 +122,25 @@ export function HubTab({
             onOfferingTap={onOfferingTap}
           />
 
-          {/* Quick links — minimal row under the preview */}
+          {/* Quick-open pills — open drawers instead of navigating */}
           <div className="mx-4 mt-2 mb-1">
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-              <Link
-                href="/settings#offerings"
-                className="shrink-0 rounded-lg border border-black/[0.06] bg-white px-3 py-2 font-sans text-xs font-medium text-gray-500 hover:bg-black/[0.02] transition"
-              >
+              <button onClick={() => setActiveDrawer("offerings")} className={pillClass}>
                 Offerings ({offeringsState.length})
-              </Link>
-              <Link
-                href="/settings#knowledge"
-                className="shrink-0 rounded-lg border border-black/[0.06] bg-white px-3 py-2 font-sans text-xs font-medium text-gray-500 hover:bg-black/[0.02] transition"
-              >
+              </button>
+              <button onClick={() => setActiveDrawer("knowledge")} className={pillClass}>
                 AI Knowledge
-              </Link>
-              <Link
-                href="/settings#staff"
-                className="shrink-0 rounded-lg border border-black/[0.06] bg-white px-3 py-2 font-sans text-xs font-medium text-gray-500 hover:bg-black/[0.02] transition"
-              >
+              </button>
+              <button onClick={() => setActiveDrawer("staff")} className={pillClass}>
                 Staff
-              </Link>
-              <Link
-                href="/settings#xp"
-                className="shrink-0 rounded-lg border border-black/[0.06] bg-white px-3 py-2 font-sans text-xs font-medium text-gray-500 hover:bg-black/[0.02] transition"
-              >
+              </button>
+              <button onClick={() => setActiveDrawer("xp")} className={pillClass}>
                 XP & Loyalty
-              </Link>
-              <Link
-                href="/settings#gallery"
-                className="shrink-0 rounded-lg border border-black/[0.06] bg-white px-3 py-2 font-sans text-xs font-medium text-gray-500 hover:bg-black/[0.02] transition"
-              >
-                Gallery
-              </Link>
+              </button>
             </div>
           </div>
 
-          {/* Account + seed — compact footer */}
+          {/* Account footer */}
           <div className="mx-4 mt-2 mb-4 flex items-center justify-between rounded-xl border border-black/[0.06] bg-white px-4 py-3">
             <div>
               <p className="font-sans text-[13px] text-gray-600">{user.email}</p>
@@ -163,9 +163,7 @@ export function HubTab({
       </div>
 
       {/* Desktop: live iframe preview */}
-      <div
-        className="hidden lg:flex w-[420px] shrink-0 items-center justify-center bg-gray-50 border-l border-black/[0.08]"
-      >
+      <div className="hidden lg:flex w-[420px] shrink-0 items-center justify-center bg-gray-50 border-l border-black/[0.08]">
         {hubData.slug ? (
           <div className="flex flex-col items-center gap-3">
             <div className="overflow-hidden rounded-[32px] border-2 border-black/[0.08]" style={{ width: 375, height: 680 }}>
@@ -186,6 +184,50 @@ export function HubTab({
           </div>
         )}
       </div>
+
+      {/* ─── Settings Drawers ───────────────────────────────────── */}
+      <AnimatePresence>
+        {activeDrawer === "offerings" && (
+          <SettingsOfferingsDrawer
+            venueId={venueId}
+            initialOfferings={offeringsState}
+            onClose={() => setActiveDrawer(null)}
+            onOfferingsChange={(updated) => onOfferingsChange?.(updated.map(o => ({ id: o.id, name: o.name, type: o.type, price_cents: o.price_cents, description: o.description || undefined })))}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeDrawer === "knowledge" && (
+          <SettingsKnowledgeDrawer
+            venueId={venueId}
+            onClose={() => setActiveDrawer(null)}
+            initialKnowledge={initialKnowledge}
+            initialAiLimits={initialAiLimits}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeDrawer === "staff" && (
+          <SettingsStaffDrawer
+            venueId={venueId}
+            initialStaff={initialStaff || []}
+            onClose={() => setActiveDrawer(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeDrawer === "xp" && (
+          <SettingsXpDrawer
+            venueId={venueId}
+            initialXpActions={initialXpActions || []}
+            initialXpMilestones={initialXpMilestones || []}
+            onClose={() => setActiveDrawer(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

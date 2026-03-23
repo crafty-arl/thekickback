@@ -119,6 +119,7 @@ export default async function DashboardPage() {
     leaderboardRes, pointsTodayRes, perksTodayRes,
     bookingsRes, ordersRes, walletTxRes,
     xpActivityRes,
+    staffRes, knowledgeRes, aiLimitsRes,
   ] = await Promise.all([
     // Active sessions with profile info
     service
@@ -244,6 +245,27 @@ export default async function DashboardPage() {
       .gt("amount", 0)
       .order("created_at", { ascending: false })
       .limit(20),
+
+    // Staff for hub settings drawer
+    service
+      .from("venue_staff")
+      .select("id, display_name, role_title, avatar_url, bio, specialties, visible, schedule")
+      .eq("venue_id", venue.id)
+      .order("sort_order", { ascending: true }),
+
+    // Knowledge base for hub settings drawer
+    service
+      .from("venue_knowledge")
+      .select("id, content, category, created_at")
+      .eq("venue_id", venue.id)
+      .order("created_at", { ascending: false }),
+
+    // AI limits for hub settings drawer
+    service
+      .from("venue_ai_limits")
+      .select("*")
+      .eq("venue_id", venue.id)
+      .maybeSingle(),
   ]);
 
   // Supabase joins return related records as arrays — extract first element
@@ -429,6 +451,9 @@ export default async function DashboardPage() {
       xpMilestones={previewXpMilestones}
       checklist={pageData?.onboarding_checklist || undefined}
       xpActivity={xpActivity}
+      staff={staffRes.data || []}
+      knowledge={knowledgeRes.data || []}
+      aiLimits={aiLimitsRes.data || null}
     />
   );
 }

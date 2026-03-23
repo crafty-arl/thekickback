@@ -97,6 +97,9 @@ interface OwnerDockProps {
   xpMilestones?: { name: string; threshold: number }[];
   checklist?: Record<string, boolean>;
   xpActivity?: XpActivityEntry[];
+  staff?: { id: string; display_name: string | null; role_title: string | null; avatar_url: string | null; bio: string | null; specialties: string[] | null; visible: boolean; schedule: unknown }[];
+  knowledge?: { id: string; content: string; category: string; created_at: string }[];
+  aiLimits?: { enabled: boolean; free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
 }
 
 const DEFAULT_CHECKLIST: ChecklistState = {
@@ -188,6 +191,9 @@ export function OwnerDock({
   xpMilestones: initialXpMilestones,
   checklist: initialChecklist,
   xpActivity,
+  staff: initialStaff,
+  knowledge: initialKnowledge,
+  aiLimits: initialAiLimits,
 }: OwnerDockProps) {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -849,7 +855,11 @@ export function OwnerDock({
             onPhotoUpload={handlePhotoUpload}
             onSectionEdited={handleSectionEdited}
             onOfferingTap={handleOpenOfferingDrawer}
+            onOfferingsChange={setOfferingsState}
             user={user}
+            initialStaff={initialStaff}
+            initialKnowledge={initialKnowledge}
+            initialAiLimits={initialAiLimits}
           />
         </TabsContent>
 
