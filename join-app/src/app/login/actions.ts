@@ -153,8 +153,8 @@ export async function verifyOtp(email: string, token: string, deviceId: string, 
       .maybeSingle();
 
     if (existing?.status === "approved") {
-      // Already approved — proceed
-      redirect(returnTo || "/");
+      // Already approved — return success, client handles navigation
+      return { success: true };
     }
 
     if (existing?.status === "rejected") {
@@ -239,7 +239,7 @@ export async function verifyOtp(email: string, token: string, deviceId: string, 
           }
         } catch (e) { console.error("Referral notify email failed:", e); }
 
-        redirect(returnTo || "/");
+        return { success: true };
       }
     }
 
@@ -283,12 +283,8 @@ export async function verifyOtp(email: string, token: string, deviceId: string, 
     await supabase.auth.signOut();
     return { error: null, waitlisted: true };
   } catch (e: unknown) {
-    // redirect() throws a NEXT_REDIRECT "error" — let it propagate
-    if (e && typeof e === "object" && "digest" in e && typeof (e as { digest: string }).digest === "string" && (e as { digest: string }).digest.startsWith("NEXT_REDIRECT")) {
-      throw e;
-    }
     console.error("Waitlist check error:", e);
     // If waitlist check fails, let user through (fail-open)
-    redirect(returnTo || "/");
+    return { success: true };
   }
 }
