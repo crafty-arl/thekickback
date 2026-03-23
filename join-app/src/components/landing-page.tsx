@@ -174,7 +174,6 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                 width={500}
                 height={250}
                 className="h-48 w-auto drop-shadow-2xl sm:h-56 md:h-64"
-                style={{ filter: "invert(1)" }}
                 priority
               />
             </motion.div>
