@@ -1,4 +1,4 @@
-import { KBWordmark } from "@/components/kb-logo";
+import Image from "next/image";
 import Link from "next/link";
 
 export const metadata = {
@@ -15,7 +15,7 @@ export default function AboutPage() {
             {/* Nav */}
             <nav className="flex items-center justify-between px-6 py-5 mx-auto" style={{ maxWidth: 900 }}>
                 <Link href="/">
-                    <KBWordmark height={28} />
+                    <Image src="/logo.png" alt="theKickBack" width={140} height={46} style={{ height: "auto" }} priority />
                 </Link>
                 <div className="flex items-center gap-3">
                     <Link href="/privacy" className="text-[12px] text-white/40 hover:text-white/70 transition">Privacy</Link>

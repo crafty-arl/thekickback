@@ -20,7 +20,7 @@ import { usePasskey } from "@/lib/use-passkey";
 import { sendOtp, verifyOtp } from "@/app/login/actions";
 import { getDeviceId } from "@/lib/device-id";
 import { APP_VERSION, BUILD_NUMBER, BUILD_DATE } from "@/lib/version";
-import { KBWordmark } from "@/components/kb-logo";
+import Image from "next/image";
 import { ProductDrawer, type OfferingMeta as SharedOfferingMeta } from "@/components/shared/product-drawer";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -4260,7 +4260,7 @@ export function TheDock({
               </div>
               <div className="overflow-y-auto px-5 pb-8" style={{ maxHeight: "calc(70dvh - 60px)" }}>
                 <div className="flex flex-col items-center gap-3 py-4">
-                  <KBWordmark height={28} />
+                  <Image src="/logo.png" alt="theKickBack" width={160} height={53} className="h-10 w-auto" />
                   <span className="font-mono text-[12px] text-white/30">v{APP_VERSION}</span>
                 </div>
                 <div className="flex flex-col gap-2">

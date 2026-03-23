@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { KBWordmark } from "@/components/kb-logo";
+import Image from "next/image";
 
 interface Props {
   venue: { id: string; name: string; vibe: string; occupancy: number; max_occupancy: number };
@@ -158,7 +158,7 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
     <main className="flex min-h-dvh flex-col items-center justify-center px-5 text-white" style={{ backgroundColor: "#0A0A0A" }}>
       {/* Logo */}
       <div className="absolute inset-x-0 top-0 flex justify-center pt-[max(16px,env(safe-area-inset-top))]">
-        <KBWordmark height={18} />
+        <Image src="/logo.png" alt="theKickBack" width={120} height={40} className="h-6 w-auto invert" priority />
       </div>
 
       <div className="w-full max-w-sm">

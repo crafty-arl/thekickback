@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useLayoutEffect } from "react";
 import dynamic from "next/dynamic";
-import { KBWordmark } from "@/components/kb-logo";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Venue } from "@/lib/venues";
 import { TheDock as TheDrawer, type Tag } from "@/components/map/the-dock";
@@ -145,7 +145,14 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
             {/* Header overlay — logo */}
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)", paddingBottom: 20 }}>
                 <header className="pointer-events-auto flex items-center justify-center px-4 pt-[max(16px,env(safe-area-inset-top))] pb-2">
-                    <KBWordmark height={32} style={{ filter: "drop-shadow(0 2px 12px rgba(0,0,0,0.8))" }} />
+                    <Image
+                        src="/logo.png"
+                        alt="theKickBack"
+                        width={500}
+                        height={250}
+                        className="h-12 w-auto drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:h-14"
+                        priority
+                    />
                 </header>
             </div>
 

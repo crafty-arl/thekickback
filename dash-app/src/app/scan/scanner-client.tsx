@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { KBWordmark } from "@/components/kb-logo";
+import Image from "next/image";
 import Link from "next/link";
 
 interface PendingItem {
@@ -161,7 +161,7 @@ export function ScannerClient({ venueId, venueName }: Props) {
       <header className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
         <div className="flex items-center gap-3">
           <Link href="/">
-            <KBWordmark height={18} />
+            <Image src="/logo.png" alt="theKickBack" width={100} height={33} className="h-6 w-auto" />
           </Link>
           <div className="h-4 w-px bg-white/10" />
           <span className="font-sans text-[12px] text-white/30">Scanner</span>

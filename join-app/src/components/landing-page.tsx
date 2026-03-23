@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { KBWordmark } from "@/components/kb-logo";
+import Image from "next/image";
 import Link from "next/link";
 import {
   motion,
@@ -169,7 +169,15 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
-              <KBWordmark height={72} style={{ filter: "drop-shadow(0 4px 32px rgba(249,115,22,0.3))" }} />
+              <Image
+                src="/logo.png"
+                alt="theKickBack"
+                width={500}
+                height={250}
+                className="h-48 w-auto drop-shadow-2xl sm:h-56 md:h-64"
+                style={{ filter: "invert(1)" }}
+                priority
+              />
             </motion.div>
 
             {/* Hero tagline */}

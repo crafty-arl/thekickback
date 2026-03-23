@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { KBWordmark } from "@/components/kb-logo";
+import Image from "next/image";
 import { sendOtp, verifyOtp } from "./actions";
 
 const PERKS = [
@@ -44,7 +44,14 @@ export default function LoginPage() {
       <div className="flex w-full flex-col md:w-1/2 lg:w-[55%]" style={{ background: "linear-gradient(165deg, #FFF7ED 0%, #FFFFFF 40%, #F8FAFC 100%)" }}>
         {/* Logo — large and prominent */}
         <div className="flex items-center justify-between px-8 pt-8 lg:px-14 lg:pt-12">
-          <KBWordmark height={36} variant="dark" />
+          <Image
+            src="/logo.png"
+            alt="theKickBack"
+            width={400}
+            height={200}
+            className="h-16 w-auto sm:h-20 lg:h-24"
+            priority
+          />
           <a
             href="https://thekickback.net"
             className="hidden rounded-full border px-4 py-2 font-sans text-[13px] font-medium text-neutral-500 transition hover:border-neutral-300 hover:text-neutral-700 md:block"
@@ -96,7 +103,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="mb-10 md:hidden">
-            <KBWordmark height={28} variant="dark" />
+            <Image src="/logo.png" alt="theKickBack" width={200} height={100} className="h-14 w-auto" />
           </div>
 
           <h2 className="mb-1.5 font-sans text-[28px] font-bold tracking-tight text-neutral-900 sm:text-[32px]">
