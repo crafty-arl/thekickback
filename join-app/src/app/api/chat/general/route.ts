@@ -294,7 +294,7 @@ export async function POST(request: Request) {
             "x-openclaw-agent-id": "main",
           },
           body: JSON.stringify({
-            model: "openclaw",
+            model: "openrouter/anthropic/claude-sonnet-4",
             input: context,
             stream: true,
           }),
