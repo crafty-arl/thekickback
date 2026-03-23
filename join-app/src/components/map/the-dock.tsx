@@ -565,14 +565,13 @@ function LoadingDots() {
 
 /* ── AI message body — parses [[OFFER:id:name:price]] into tappable cards ── */
 
-function AiMessageBody({ body, theme, onAddToCart, onBookOffer, offeringsMap }: {
+function AiMessageBody({ body, theme, onAddToCart, onBookOffer, onTapOffer, offeringsMap }: {
   body: string; theme: string;
   onAddToCart: (offeringId: string, name: string, priceCents: number) => void;
   onBookOffer?: (offeringId: string) => void;
+  onTapOffer?: (offeringId: string) => void;
   offeringsMap: Record<string, OfferingMeta>;
 }) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
   const parts = body.split(/(\[\[OFFER:[^\]]+\]\])/g);
 
   if (parts.length === 1) {
@@ -599,53 +598,36 @@ function AiMessageBody({ body, theme, onAddToCart, onBookOffer, offeringsMap }: 
       <div className="flex flex-col gap-1.5 mt-1">
         {offerParts.map((offer) => {
           const meta = offeringsMap[offer.id];
-          const isExpanded = expandedId === offer.id;
           const hasImage = meta?.image_url;
           const hasDesc = meta?.description;
 
           return (
-            <div key={offer.id} className=" overflow-hidden transition" style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}>
-              {isExpanded && hasImage && (
-                <div className="relative" style={{ height: 120 }}>
+            <button
+              key={offer.id}
+              onClick={() => onTapOffer?.(offer.id)}
+              className="w-full overflow-hidden text-left transition active:opacity-80"
+              style={{ backgroundColor: `${theme}10`, border: `1px solid ${theme}25` }}
+            >
+              {hasImage && (
+                <div className="relative" style={{ height: 80 }}>
                   <img src={meta.image_url!} alt={offer.name} className="h-full w-full object-cover" />
-                  <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.6) 100%)" }} />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.7) 100%)" }} />
                 </div>
               )}
-              <button
-                onClick={() => setExpandedId(isExpanded ? null : offer.id)}
-                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left active:opacity-80"
-              >
-                {!isExpanded && hasImage && (
-                  <img src={meta.image_url!} alt="" className="h-9 w-9 shrink-0  object-cover" />
-                )}
+              <div className="flex items-center gap-2.5 px-3 py-2.5">
                 <div className="min-w-0 flex-1">
                   <span className="font-sans text-[13px] font-medium text-white/85">{offer.name}</span>
-                  {isExpanded && hasDesc && (
-                    <p className="mt-0.5 font-sans text-[11px] leading-[1.4] text-white/40">{meta.description}</p>
-                  )}
+                  {hasDesc && <p className="mt-0.5 font-sans text-[10px] leading-[1.3] text-white/30 line-clamp-1">{meta.description}</p>}
+                  {meta?.duration_minutes && <span className="font-sans text-[9px] text-white/20">{meta.duration_minutes} min</span>}
                 </div>
-                <span className="shrink-0 font-mono text-[13px] font-bold" style={{ color: theme }}>
+                <span className="shrink-0 font-mono text-[14px] font-bold" style={{ color: theme }}>
                   ${offer.price % 1 === 0 ? offer.price : offer.price.toFixed(2)}
                 </span>
-                {meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type) ? (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onBookOffer?.(offer.id); }}
-                    className="shrink-0 px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
-                    style={{ backgroundColor: theme, color: "#000" }}
-                  >
-                    BOOK
-                  </button>
-                ) : (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onAddToCart(offer.id, offer.name, Math.round(offer.price * 100)); }}
-                    className="shrink-0 px-2.5 py-1 font-sans text-[10px] font-bold active:scale-90"
-                    style={{ backgroundColor: theme, color: "#000" }}
-                  >
-                    ADD
-                  </button>
-                )}
-              </button>
-            </div>
+                <span className="shrink-0 px-2.5 py-1.5 font-sans text-[10px] font-bold" style={{ backgroundColor: theme, color: "#000" }}>
+                  {meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type) ? "BOOK" : "VIEW"}
+                </span>
+              </div>
+            </button>
           );
         })}
       </div>
@@ -3500,7 +3482,7 @@ export function TheDock({
                                   body={msg.body}
                                   theme={vibeColor}
                                   offeringsMap={offeringsMap[selectedVenue.id] || {}}
-                                  onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)} onBookOffer={(oid) => setDrawerOfferId(oid)}
+                                  onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)} onBookOffer={(oid) => setDrawerOfferId(oid)} onTapOffer={(oid) => setDrawerOfferId(oid)}
                                 />
                               </div>
                             </div>
@@ -3538,7 +3520,7 @@ export function TheDock({
                                   body={msg.body}
                                   theme={vibeColor}
                                   offeringsMap={offeringsMap[selectedVenue.id] || {}}
-                                  onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)} onBookOffer={(oid) => setDrawerOfferId(oid)}
+                                  onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)} onBookOffer={(oid) => setDrawerOfferId(oid)} onTapOffer={(oid) => setDrawerOfferId(oid)}
                                 />
                               </div>
                             </div>
@@ -3631,7 +3613,7 @@ export function TheDock({
                             body={msg.body}
                             theme={vibeColor}
                             offeringsMap={offeringsMap[selectedVenue.id] || {}}
-                            onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)} onBookOffer={(oid) => setDrawerOfferId(oid)}
+                            onAddToCart={(oid, name, price) => addToCart(selectedVenue.id, oid, name, price)} onBookOffer={(oid) => setDrawerOfferId(oid)} onTapOffer={(oid) => setDrawerOfferId(oid)}
                           />
                         </div>
                       </motion.div>
