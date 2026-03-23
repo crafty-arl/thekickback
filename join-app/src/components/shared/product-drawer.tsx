@@ -64,6 +64,9 @@ export function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMet
   const [slotsLoading, setSlotsLoading] = useState(false);
   // Bookable = has duration, regardless of whether staff are linked
   const isBookable = meta && ["service", "reservation", "event"].includes(meta.type) && meta.duration_minutes;
+
+  // Debug: log what meta we received
+  if (meta) console.log("[ProductDrawer] meta:", meta.name, "type:", meta.type, "duration:", meta.duration_minutes, "isBookable:", !!isBookable);
   const hasStaff = linkedStaff && linkedStaff.length > 0;
   const dates = getBookingDates();
 
