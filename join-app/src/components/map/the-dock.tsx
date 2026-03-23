@@ -363,30 +363,13 @@ function parseVenueChips(
       if (!venue && !rv) return null;
 
       const name = rv?.name || venue?.name || "Venue";
-      const vibe = rv?.vibe || venue?.vibe || "quiet";
-      const vibeColor = rv?.themeColor || VIBE_COLORS[vibe] || "#9ca3af";
-      const occ = rv?.occupancy || venue?.occupancy || 0;
-      const cap = rv?.capacity || venue?.capacity || 100;
-      const pct = cap > 0 ? Math.round((occ / cap) * 100) : 0;
+      const cardTheme = rv?.themeColor || venue?.themeColor || "#F97316";
       const catIcon = CATEGORY_ICONS[rv?.type || ""] || CATEGORY_ICONS.cafe;
-      const vibeLabel = vibe.charAt(0).toUpperCase() + vibe.slice(1);
 
       return (
-        <div key={i} className="my-2 w-full overflow-hidden " style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${vibeColor}20` }}>
-          <div className="relative flex items-center justify-center" style={{ height: 80, background: `linear-gradient(135deg, ${vibeColor}18 0%, ${vibeColor}06 50%, rgba(0,0,0,0.2) 100%)` }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={`${vibeColor}35`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
-            <div className="absolute left-2.5 top-2.5 flex items-center gap-1 px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
-              <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: VIBE_COLORS[vibe], boxShadow: `0 0 4px ${VIBE_COLORS[vibe]}` }} />
-              <span className="font-sans text-[9px] font-semibold" style={{ color: VIBE_COLORS[vibe] }}>{vibeLabel}</span>
-            </div>
-            <div className="absolute right-2.5 top-2.5 px-2 py-0.5" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-              <span className="font-mono text-[9px] font-semibold text-white/40">{occ}/{cap}</span>
-            </div>
-            <div className="absolute inset-x-3 bottom-2">
-              <div className="h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
-                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: VIBE_COLORS[vibe] }} />
-              </div>
-            </div>
+        <div key={i} className="my-2 w-full overflow-hidden " style={{ backgroundColor: "rgba(255,255,255,0.04)", border: `1px solid ${cardTheme}20` }}>
+          <div className="relative flex items-center justify-center" style={{ height: 80, background: `linear-gradient(135deg, ${cardTheme}18 0%, ${cardTheme}06 50%, rgba(0,0,0,0.2) 100%)` }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={`${cardTheme}35`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
           </div>
           <div className="px-3 py-2.5">
             <div className="flex items-start justify-between">
@@ -408,7 +391,7 @@ function parseVenueChips(
                   }
                 }}
                 className="ml-2 flex shrink-0 items-center gap-1.5 px-3 py-1.5 font-sans text-[10px] font-bold text-black active:scale-95"
-                style={{ backgroundColor: vibeColor }}
+                style={{ backgroundColor: cardTheme }}
               >
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                 Chat
@@ -477,8 +460,7 @@ function LandscapeVenueCard({
 }: {
   venue: Venue; onClick: () => void; delay: number; distance?: number; xp?: number;
 }) {
-  const vibeColor = getVibeHexColor(venue.vibe);
-  const themeColor = venue.themeColor || vibeColor;
+  const themeColor = venue.themeColor || "#F97316";
   const catIcon = CATEGORY_ICONS[venue.category] || CATEGORY_ICONS.venue;
   const catLabel = venue.category === "coworking" ? "Cowork" : venue.category;
 
@@ -501,12 +483,6 @@ function LandscapeVenueCard({
         style={{ background: `linear-gradient(135deg, ${themeColor}25 0%, ${themeColor}08 60%, rgba(0,0,0,0.4) 100%)` }}
       >
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={`${themeColor}50`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
-        {venue.occupancy > 0 && (
-          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 px-2 py-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
-            <span className="font-sans text-[9px] font-semibold text-white/50">{venue.occupancy} in</span>
-          </div>
-        )}
       </div>
       <div className="flex w-[60%] flex-col justify-between p-3">
         {xp !== undefined && xp > 0 && (
@@ -1314,7 +1290,7 @@ export function TheDock({
       });
 
       // Draw route on map
-      const color = selectedVenue ? getVibeHexColor(selectedVenue.vibe) : ACCENT;
+      const color = selectedVenue ? (selectedVenue.themeColor || "#F97316") : ACCENT;
       onRouteChange?.({
         geometry: route.geometry,
         color,
@@ -1414,7 +1390,7 @@ export function TheDock({
       if (types.has("event")) replies.push({ label: "What's happening tonight?", action: "any events tonight?" });
       if (types.has("membership")) replies.push({ label: "Tell me about membership", action: "tell me about membership" });
       if (types.has("reservation")) replies.push({ label: "Reserve a spot", action: "I'd like to reserve a spot" });
-      replies.push({ label: "What's the vibe?", action: "what's the vibe right now?" });
+      replies.push({ label: "Tell me more", action: "tell me more about this place" });
       return replies.slice(0, 4);
     }
 
@@ -1663,7 +1639,7 @@ export function TheDock({
       const isGhost = selectedVenue.claimed === false;
       const welcomeBody = isGhost
         ? `Hey — I know a bit about ${selectedVenue.name} from public info. ${selectedVenue.category ? `It's a ${selectedVenue.category}` : ""}${selectedVenue.neighborhood ? ` in ${selectedVenue.neighborhood}` : ""}. Ask me what you want to know.`
-        : `Welcome to ${selectedVenue.name}. ${getVibeLabel(selectedVenue.vibe)} right now, ${selectedVenue.occupancy} people. Ask me anything.`;
+        : `Welcome to ${selectedVenue.name}. Ask me anything.`;
       setVenueThreads((prev) => {
         const next = new Map(prev);
         next.set(selectedVenue.id, [{
@@ -1791,17 +1767,7 @@ export function TheDock({
       result.push({ id: `cat-${cat}`, label, type: "category", color: "#a78bfa", venueIds: ids });
     }
 
-    const vibeGroups = new Map<string, string[]>();
-    for (const v of venues) {
-      if (!vibeGroups.has(v.vibe)) vibeGroups.set(v.vibe, []);
-      vibeGroups.get(v.vibe)!.push(v.id);
-    }
-    for (const [vibe, ids] of vibeGroups) {
-      const label = VIBE_LABELS[vibe] || vibe;
-      if (seen.has(label)) continue;
-      seen.add(label);
-      result.push({ id: `vibe-${vibe}`, label, type: "vibe", color: getVibeHexColor(vibe), venueIds: ids });
-    }
+    // Vibe filter tags removed from UI
 
     const hoodGroups = new Map<string, string[]>();
     for (const v of venues) {
@@ -1818,7 +1784,7 @@ export function TheDock({
 
     for (const v of venues) {
       if (v.claimed === false) continue;
-      result.push({ id: `venue-${v.id}`, label: v.name, type: "venue", color: v.themeColor || getVibeHexColor(v.vibe), venueIds: [v.id] });
+      result.push({ id: `venue-${v.id}`, label: v.name, type: "venue", color: v.themeColor || "#F97316", venueIds: [v.id] });
     }
 
     return result;
@@ -2913,7 +2879,7 @@ export function TheDock({
                           <div className="flex gap-2.5 overflow-x-auto px-5 pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory" }}>
                             {items.map((item, i) => {
                               const venue = venues.find((v) => v.id === item.venue_id);
-                              const color = venue?.themeColor || getVibeHexColor(venue?.vibe || "quiet");
+                              const color = venue?.themeColor || "#F97316";
                               return (
                                 <motion.button
                                   key={item.id}
@@ -3346,7 +3312,7 @@ export function TheDock({
                           if (!selectedVenue) return;
                           const welcomeBody = selectedVenue.claimed === false
                             ? `Hey — I know a bit about ${selectedVenue.name} from public info. Ask me what you want to know.`
-                            : `Welcome to ${selectedVenue.name}. ${getVibeLabel(selectedVenue.vibe)} right now, ${selectedVenue.occupancy} people. Ask me anything.`;
+                            : `Welcome to ${selectedVenue.name}. Ask me anything.`;
                           setVenueThreads((prev) => {
                             const next = new Map(prev);
                             next.set(selectedVenue.id, [{ id: `welcome-${Date.now()}`, sender: "ai", body: welcomeBody, timestamp: Date.now() }]);
@@ -3397,18 +3363,6 @@ export function TheDock({
 
                 {/* Stats strip */}
                 <div className="mt-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                  <div className="flex shrink-0 items-center gap-1 px-2 py-0.5" style={{ backgroundColor: `${vibeColor}15`, border: `1px solid ${vibeColor}20` }}>
-                    <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: vibeColor }} />
-                    <span className="font-sans text-[9px] font-semibold" style={{ color: vibeColor }}>{getVibeLabel(selectedVenue.vibe)}</span>
-                  </div>
-                  {selectedVenue.occupancy > 0 && (
-                    <div className="flex shrink-0 items-center gap-1 bg-white/[0.04] px-2 py-0.5" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-                      </svg>
-                      <span className="font-mono text-[9px] font-semibold text-white/40">{selectedVenue.occupancy} in</span>
-                    </div>
-                  )}
                   {selectedVenue.category && selectedVenue.category !== "venue" && (
                     <span className="shrink-0 rounded-full bg-white/[0.04] px-2 py-0.5 font-sans text-[8px] font-medium capitalize text-white/25" style={{ border: "1px solid rgba(255,255,255,0.04)" }}>{selectedVenue.category}</span>
                   )}
@@ -4476,7 +4430,7 @@ export function TheDock({
             <ProductDrawer
               offer={{ id: drawerOfferId, name: meta.name, price: meta.price_cents }}
               meta={meta as SharedOfferingMeta}
-              theme={selectedVenue.themeColor || getVibeHexColor(selectedVenue.vibe)}
+              theme={selectedVenue.themeColor || "#F97316"}
               onClose={() => setDrawerOfferId(null)}
               onAdd={() => {
                 setCarts((prev) => {

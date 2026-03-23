@@ -150,7 +150,7 @@ const TAB_COMMANDS: Record<Tab, string> = {
 };
 
 const QUICK_REPLIES = [
-  { label: "What's the vibe?", cmd: "what's the vibe right now?" },
+  { label: "Tell me more", cmd: "tell me more about this place" },
   { label: "See the menu", cmd: "show me the menu" },
   { label: "Any events?", cmd: "any events tonight?" },
   { label: "Reserve a spot", cmd: "I'd like to reserve a spot" },
@@ -261,7 +261,7 @@ function AiMessageBody({ body, theme, onTapOffer, onAddToCart, offeringsMap }: {
    ═══════════════════════════════════════════════════ */
 
 export function VenuePageClient({ page, venue, table, user, offerings, gallery = [], staff = [], staffByOffering = {} }: Props) {
-  const color = vc(venue.vibe);
+  const color = page.theme_color || "#F97316";
   const theme = page.theme_color;
   const pct = Math.round((venue.occupancy / venue.max_occupancy) * 100);
   /* ── Chat state — starts expanded so guests see venue info immediately ── */
@@ -272,7 +272,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
   });
   const activeTab: Tab = "chat";
   const controls = useAnimationControls();
-  const welcomeMsg: Message = { id: "welcome", sender: "ai", body: `Hey! ${vl(venue.vibe)} vibes right now, ${venue.occupancy} people in. Ask me anything about ${venue.name}.`, timestamp: Date.now() };
+  const welcomeMsg: Message = { id: "welcome", sender: "ai", body: `Hey! Welcome to ${venue.name}. Ask me anything.`, timestamp: Date.now() };
   const [messages, setMessages] = useState<Message[]>([welcomeMsg]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -630,11 +630,6 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
         {/* Venue identity */}
         <div className="absolute inset-x-0 bottom-0 px-5 pb-6">
           <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center gap-1.5 px-2.5 py-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
-              <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
-              <span className="font-sans text-[11px] font-semibold" style={{ color }}>{vl(venue.vibe)}</span>
-              <span className="font-sans text-[10px] text-white/40">{venue.occupancy} in</span>
-            </div>
           </div>
           <h1 className="font-sans text-[28px] font-bold leading-tight tracking-tight">{venue.name}</h1>
           {page.tagline && <p className="mt-1.5 font-sans text-[14px] leading-relaxed text-white/50">{page.tagline}</p>}
@@ -960,7 +955,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                 <div className="flex items-center gap-2">
                   <motion.div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }} transition={{ duration: 2, repeat: Infinity }} />
                   <span className="font-sans text-[15px] font-semibold text-white/90">{venue.name}</span>
-                  <span className="font-sans text-[11px] text-white/30">{vl(venue.vibe)} · {pct}%</span>
+                  <span className="font-sans text-[11px] text-white/30">{venue.neighborhood || ""}</span>
                 </div>
                 <motion.button onClick={() => { setChatOpen(false); setShowGestureHint(false); }} whileTap={{ scale: 0.85 }} className="flex h-7 w-7 items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-50"><polyline points="18 15 12 9 6 15" /></svg>
