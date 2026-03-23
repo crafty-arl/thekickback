@@ -165,8 +165,8 @@ export function HubTab({
       </div>
 
       {/* Desktop: live iframe preview */}
-      <div className="hidden lg:flex w-[420px] shrink-0 items-center justify-center bg-gray-50 border-l border-black/[0.08]">
-        {hubData.slug ? (
+      {hubData.slug && (
+        <div className="hidden lg:flex w-[420px] shrink-0 items-center justify-center bg-gray-50 border-l border-black/[0.08]">
           <div className="flex flex-col items-center gap-3">
             <div className="overflow-hidden rounded-[32px] border-2 border-black/[0.08]" style={{ width: 375, height: 680 }}>
               <iframe
@@ -180,13 +180,8 @@ export function HubTab({
               join.thekickback.net/{hubData.slug}
             </span>
           </div>
-        ) : (
-          <div className="text-center">
-            <p className="font-sans text-sm text-gray-400">Preview will appear here</p>
-            <p className="mt-1 font-sans text-xs text-gray-300">Complete setup to see your live page</p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ─── Settings Drawers ───────────────────────────────────── */}
       <AnimatePresence>
