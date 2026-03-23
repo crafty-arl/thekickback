@@ -49,11 +49,15 @@ export default function RootLayout({
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <head>
         <link rel="apple-touch-icon" href="/logo.png" />
+        <meta name="kb-build" content={process.env.NEXT_PUBLIC_APP_VERSION || "dev"} />
       </head>
       <body className={`${dmSans.variable} ${fraunces.variable} antialiased`}>
         <SandboxBanner />
         {children}
         <PwaInstallPrompt />
+        <div style={{ position: "fixed", bottom: 2, left: 4, zIndex: 9999, fontSize: 8, color: "rgba(255,255,255,0.15)", fontFamily: "monospace", pointerEvents: "none" }}>
+          {process.env.NEXT_PUBLIC_APP_VERSION || "dev"}
+        </div>
         <Script id="sw-cleanup" strategy="afterInteractive">
           {`if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){r.unregister()})});if('caches' in window){caches.keys().then(function(keys){keys.forEach(function(k){caches.delete(k)})})}}`}
         </Script>
