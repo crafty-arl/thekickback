@@ -55,13 +55,20 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 const { latitude, longitude } = pos.coords;
                 setUserLocation({ latitude, longitude });
 
-                // Fly to user's location on launch
-                mapRef.current?.flyTo({
-                    center: [longitude, latitude],
-                    zoom: 14,
-                    pitch: 40,
-                    duration: 1200,
-                });
+                // Fly to user's location — retry until map is ready
+                const fly = () => {
+                    if (mapRef.current) {
+                        mapRef.current.flyTo({
+                            center: [longitude, latitude],
+                            zoom: 14,
+                            pitch: 40,
+                            duration: 1200,
+                        });
+                    } else {
+                        setTimeout(fly, 200);
+                    }
+                };
+                fly();
 
                 try {
                     const res = await fetch(`/api/discover?lat=${latitude}&lng=${longitude}`);
@@ -81,7 +88,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
             () => {
                 // Geolocation denied or unavailable
             },
-            { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
         );
     }, [serverVenues]);
 
