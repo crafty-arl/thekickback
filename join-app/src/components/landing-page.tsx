@@ -607,7 +607,7 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
         >
           <a
             href="https://thekickback.net/blog"
-            className="text-sm text-white/30 underline underline-offset-4 decoration-white/10 hover:text-[#f97316]/70 hover:decoration-[#f97316]/30 transition-all"
+            className="text-sm text-white/70 underline underline-offset-4 decoration-white/30 hover:text-orange-500 hover:decoration-orange-500/50 transition-all"
           >
             Read the research →
           </a>
