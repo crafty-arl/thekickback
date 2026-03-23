@@ -15,8 +15,6 @@ interface Thread {
     id: string;
     name: string;
     vibe: string;
-    occupancy: number;
-    capacity: number;
     type: string;
     neighborhood: string | null;
   } | null;
@@ -91,10 +89,6 @@ export function ThreadsList({ onThreadSelect }: ThreadsListProps) {
           const name = isMaster ? "KickBack" : (thread.venue?.name || "Venue");
           const vibe = thread.venue?.vibe || "quiet";
           const color = isMaster ? ACCENT : (VIBE_COLORS[vibe] || "#9ca3af");
-          const occ = thread.venue?.occupancy || 0;
-          const cap = thread.venue?.capacity || 100;
-          const pct = cap > 0 ? Math.round((occ / cap) * 100) : 0;
-
           return (
             <motion.button
               key={thread.id}
@@ -153,14 +147,6 @@ export function ThreadsList({ onThreadSelect }: ThreadsListProps) {
                 <span className="font-sans text-[10px] text-white/20">{timeAgo(thread.lastMessageAt)}</span>
                 {thread.unread && (
                   <div className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-                )}
-                {!isMaster && thread.venue && (
-                  <div className="flex items-center gap-1">
-                    <div className="h-1 w-8 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
-                    </div>
-                    <span className="font-mono text-[8px] text-white/15">{occ}</span>
-                  </div>
                 )}
               </div>
             </motion.button>

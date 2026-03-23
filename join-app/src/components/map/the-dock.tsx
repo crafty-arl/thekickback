@@ -6,7 +6,6 @@ import {
   type Venue,
   getVibeHexColor,
   getVibeLabel,
-  getOccupancyPercent,
 } from "@/lib/venues";
 import { createClient } from "@/lib/supabase/client";
 import { PreferencesSection } from "./preferences-section";
@@ -125,8 +124,6 @@ interface ApiVenue {
   id: string;
   name: string;
   vibe: string;
-  occupancy: number;
-  capacity: number;
   latitude: number | null;
   longitude: number | null;
   neighborhood: string | null;
@@ -136,8 +133,6 @@ interface RichVenue {
   id: string;
   name: string;
   vibe: string;
-  occupancy: number;
-  capacity: number;
   neighborhood?: string | null;
   type?: string | null;
   tagline?: string | null;
@@ -276,8 +271,6 @@ function buildVenueFromApi(av: ApiVenue): Venue {
     category: "lounge",
     neighborhood: av.neighborhood || "",
     vibe: (av.vibe || "quiet") as Venue["vibe"],
-    occupancy: av.occupancy,
-    capacity: av.capacity,
     description: "",
     tags: [],
     hours: "",
@@ -1950,7 +1943,7 @@ export function TheDock({
         const chatUrl = isGhost ? "/api/chat/ghost" : "/api/chat";
         const chatBody = isGhost
           ? { message: msg, venueId: selectedVenue.id, venueName: selectedVenue.name, category: selectedVenue.category, neighborhood: selectedVenue.neighborhood, description: selectedVenue.description, tags: selectedVenue.tags }
-          : { message: msg, venueId: selectedVenue.id, venueName: selectedVenue.name, vibe: selectedVenue.vibe, occupancy: selectedVenue.occupancy };
+          : { message: msg, venueId: selectedVenue.id, venueName: selectedVenue.name, vibe: selectedVenue.vibe };
 
         const res = await fetch(chatUrl, {
           method: "POST",

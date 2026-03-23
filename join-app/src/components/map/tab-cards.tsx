@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { type Venue, getVibeLabel, getOccupancyPercent } from "@/lib/venues";
+import { type Venue, getVibeLabel } from "@/lib/venues";
 
 interface TabCardProps {
   body: string;
@@ -48,33 +48,11 @@ const NOISE_MAP: Record<string, { label: string; bars: number }> = {
    VIBE — Occupancy, noise, atmosphere
    ═══════════════════════════════════════════════════ */
 export function VibeCard({ body, venue, vibeColor }: TabCardProps) {
-  const pct = getOccupancyPercent(venue);
   const noise = NOISE_MAP[venue.vibe] || { label: "Unknown", bars: 0 };
 
   return (
     <Card>
       <AiContext body={body} vibeColor={vibeColor} />
-
-      {/* Occupancy meter */}
-      <div className="px-4 pb-3">
-        <p className="mb-2 font-sans text-[9px] font-semibold tracking-[1.5px] text-white/25">OCCUPANCY</p>
-        <div className="flex items-end gap-1">
-          <span className="font-mono text-[32px] font-bold leading-none" style={{ color: vibeColor }}>{pct}</span>
-          <span className="mb-1 font-sans text-[14px] text-white/30">%</span>
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-          <div className="h-3 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${pct}%` }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="h-full rounded-full"
-              style={{ backgroundColor: vibeColor, boxShadow: `0 0 12px ${vibeColor}40` }}
-            />
-          </div>
-          <span className="shrink-0 font-mono text-[11px] text-white/30">{venue.occupancy}/{venue.capacity}</span>
-        </div>
-      </div>
 
       {/* Vibe gauge */}
       <div className="px-4 pb-3">
@@ -283,24 +261,16 @@ export function ReserveCard({ body, venue, vibeColor }: TabCardProps) {
       .catch(() => {});
   }, [venue.id]);
 
-  const spotsLeft = venue.capacity - venue.occupancy;
-
   return (
     <Card>
       <AiContext body={body} vibeColor={vibeColor} />
 
       <div className="px-4 pb-3">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
-            <span className="font-sans text-[14px] font-bold text-white/90">Reserve</span>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ backgroundColor: `${vibeColor}12` }}>
-            <span className="font-mono text-[11px] font-bold" style={{ color: vibeColor }}>{spotsLeft}</span>
-            <span className="font-sans text-[9px] text-white/30">spots open</span>
-          </div>
+        <div className="flex items-center gap-2 mb-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={vibeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+          </svg>
+          <span className="font-sans text-[14px] font-bold text-white/90">Reserve</span>
         </div>
 
         {reservables.length > 0 ? (

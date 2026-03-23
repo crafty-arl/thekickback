@@ -110,8 +110,6 @@ export async function fetchDiscoveryVenuesForLocation(
                 category: mapCategory(place.categories),
                 neighborhood: place.location?.neighborhood?.[0] || "",
                 vibe: "moderate",
-                occupancy: 0,
-                capacity: 100,
                 description: place.location?.formatted_address || "",
                 tags: (place.categories || []).map((c) => c.name),
                 hours: "",

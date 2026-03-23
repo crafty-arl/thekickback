@@ -19,8 +19,6 @@ interface Venue {
   id: string;
   name: string;
   state: string;
-  occupancy: number;
-  max_occupancy: number;
   vibe: string;
   rules: string[];
   address?: string;
@@ -162,7 +160,7 @@ function toCardVenue(venue: Venue) {
   return {
     id: venue.id, name: venue.name, category: "lounge" as const,
     neighborhood: venue.neighborhood || "", vibe: (venue.vibe || "quiet") as "quiet" | "moderate" | "busy" | "lit",
-    occupancy: venue.occupancy, capacity: venue.max_occupancy, description: "",
+    description: "",
     tags: [] as string[], hours: "", memberOnly: false, textNumber: "", latitude: 0, longitude: 0,
   };
 }
@@ -263,7 +261,6 @@ function AiMessageBody({ body, theme, onTapOffer, onAddToCart, offeringsMap }: {
 export function VenuePageClient({ page, venue, table, user, offerings, gallery = [], staff = [], staffByOffering = {} }: Props) {
   const color = page.theme_color || "#F97316";
   const theme = page.theme_color;
-  const pct = Math.round((venue.occupancy / venue.max_occupancy) * 100);
   /* ── Chat state — starts expanded so guests see venue info immediately ── */
   const [chatOpen, setChatOpen] = useState(true);
   const [showGestureHint, setShowGestureHint] = useState(() => {
@@ -369,7 +366,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, venueId: venue.id, venueName: venue.name, vibe: venue.vibe, occupancy: venue.occupancy, table }),
+        body: JSON.stringify({ message: msg, venueId: venue.id, venueName: venue.name, vibe: venue.vibe, table }),
       });
 
       const aiMsgId = `ai-${Date.now()}`;

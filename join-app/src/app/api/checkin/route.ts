@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   // Verify venue exists and is active
   const { data: venue } = await service
     .from("venues")
-    .select("id, occupancy")
+    .select("id")
     .eq("id", venueId)
     .eq("state", "active")
     .single();
@@ -59,12 +59,6 @@ export async function POST(request: Request) {
     .insert({ user_id: user.id, venue_id: venueId, status: "active" })
     .select("id")
     .single();
-
-  // Update occupancy
-  await service
-    .from("venues")
-    .update({ occupancy: venue.occupancy + 1 })
-    .eq("id", venueId);
 
   // Grant venue XP
   let xpResult = { xp: 0, venue_xp_total: 0, milestone: null, milestone_changed: false };

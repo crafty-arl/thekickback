@@ -8,8 +8,6 @@ export interface Venue {
   category: VenueCategory;
   neighborhood: string;
   vibe: VibeLevel;
-  occupancy: number;
-  capacity: number;
   description: string;
   tagline?: string;
   address?: string;
@@ -88,9 +86,4 @@ export function getVibeLabel(vibe: VibeLevel | string): string {
     case "packed": return "Packed";
     default: return vibe.charAt(0).toUpperCase() + vibe.slice(1);
   }
-}
-
-export function getOccupancyPercent(venue: Venue): number {
-  if (!venue.capacity) return 0;
-  return Math.round((venue.occupancy / venue.capacity) * 100);
 }

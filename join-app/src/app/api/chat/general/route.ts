@@ -13,8 +13,6 @@ interface VenueRow {
   name: string;
   state: string;
   vibe: string;
-  occupancy: number;
-  max_occupancy: number;
   latitude: number | null;
   longitude: number | null;
   neighborhood: string | null;
@@ -35,7 +33,7 @@ interface OfferingRow {
 async function getActiveVenues(): Promise<VenueRow[]> {
   const { data } = await supabase
     .from("venues")
-    .select("id, name, state, vibe, occupancy, max_occupancy, latitude, longitude, neighborhood, type, address")
+    .select("id, name, state, vibe, latitude, longitude, neighborhood, type, address")
     .eq("state", "active")
     .order("name");
 
@@ -135,10 +133,9 @@ function findRelevantVenues(
     }
   }
 
-  // If no matches, return top 5 by occupancy (most popular)
+  // If no matches, return first 5 venues
   if (matched.size === 0) {
     return venues
-      .sort((a, b) => b.occupancy - a.occupancy)
       .slice(0, 5)
       .map(v => v.id);
   }
@@ -151,7 +148,7 @@ function buildVenueDirectoryLine(v: VenueRow, vOfferings: OfferingRow[]): string
   const offeringList = vOfferings.length > 0
     ? `\n  Offerings: ${vOfferings.map((o) => `${o.name} (${o.type}, $${(o.price_cents / 100).toFixed(2)}, id:${o.id})`).join(", ")}`
     : "";
-  return `- ${v.name} (id: ${v.id}) — ${v.type || "venue"}, ${v.vibe}, ${v.occupancy}/${v.max_occupancy} people${v.neighborhood ? `, ${v.neighborhood}` : ""}${offeringList}`;
+  return `- ${v.name} (id: ${v.id}) — ${v.type || "venue"}, ${v.vibe}${v.neighborhood ? `, ${v.neighborhood}` : ""}${offeringList}`;
 }
 
 // Resolve [[venue:uuid]] tags into [[venue:uuid:Name]] so the client can render chips
@@ -222,7 +219,7 @@ export async function POST(request: Request) {
   const venueBlocks = knowledgeBases.map(({ venue, knowledge, offerings: vOff }) => {
     return [
       `VENUE: ${venue.name} (id: ${venue.id})`,
-      `Type: ${venue.type || "venue"} | Vibe: ${venue.vibe} | Occupancy: ${venue.occupancy}/${venue.max_occupancy}${venue.neighborhood ? ` | Area: ${venue.neighborhood}` : ""}${venue.address ? ` | Address: ${venue.address}` : ""}`,
+      `Type: ${venue.type || "venue"} | Vibe: ${venue.vibe}${venue.neighborhood ? ` | Area: ${venue.neighborhood}` : ""}${venue.address ? ` | Address: ${venue.address}` : ""}`,
       knowledge ? `Knowledge:\n${knowledge}` : "",
       `Offerings:\n${formatOfferingsForPrompt(vOff)}`,
     ].filter(Boolean).join("\n");
@@ -380,8 +377,6 @@ export async function POST(request: Request) {
             id: v.id,
             name: v.name,
             vibe: v.vibe,
-            occupancy: v.occupancy,
-            capacity: v.max_occupancy,
             latitude: v.latitude,
             longitude: v.longitude,
             neighborhood: v.neighborhood,

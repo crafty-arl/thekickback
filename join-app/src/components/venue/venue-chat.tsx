@@ -11,7 +11,7 @@ interface Message {
 }
 
 interface Props {
-  venue: { id: string; name: string; vibe: string; occupancy: number };
+  venue: { id: string; name: string; vibe: string };
   page: { theme_color: string };
   table?: string;
   onClose: () => void;
@@ -30,7 +30,7 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
     {
       id: "welcome",
       sender: "ai",
-      body: `Hey — welcome to ${venue.name}. ${venue.vibe === "quiet" ? "Quiet right now." : venue.vibe === "busy" ? "Pretty lively." : "Moderate crowd."} ${venue.occupancy} people here. Ask me anything.`,
+      body: `Hey — welcome to ${venue.name}. ${venue.vibe === "quiet" ? "Quiet right now." : venue.vibe === "busy" ? "Pretty lively." : "Moderate crowd."} Ask me anything.`,
       timestamp: Date.now(),
     },
   ]);
@@ -87,7 +87,6 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
           venueId: venue.id,
           venueName: venue.name,
           vibe: venue.vibe,
-          occupancy: venue.occupancy,
           table,
         }),
       });

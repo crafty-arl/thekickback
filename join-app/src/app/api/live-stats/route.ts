@@ -11,10 +11,10 @@ export async function GET() {
 
   // Run queries in parallel
   const [venuesRes, checkinsRes, challengesRes] = await Promise.all([
-    // All approved venues with occupancy
+    // All approved venues
     supabase
       .from("venue_pages")
-      .select("venues(id, name, type, neighborhood, vibe, occupancy, max_occupancy, latitude, longitude, lat, lng)")
+      .select("venues(id, name, type, neighborhood, vibe, latitude, longitude, lat, lng)")
       .eq("published", true)
       .eq("review_status", "approved"),
     // Check-ins in the last hour
@@ -35,14 +35,11 @@ export async function GET() {
     .filter(Boolean) as Record<string, unknown>[];
 
   const totalVenues = venues.length;
-  const totalPeopleOut = venues.reduce((sum, v) => sum + ((v.occupancy as number) || 0), 0);
   const recentCheckins = checkinsRes.data?.length || 0;
   const activeChallenges = challengesRes.data?.length || 0;
 
-  // Trending: venues with highest occupancy right now
+  // Trending: first 5 venues
   const trending = venues
-    .filter((v) => ((v.occupancy as number) || 0) > 0)
-    .sort((a, b) => ((b.occupancy as number) || 0) - ((a.occupancy as number) || 0))
     .slice(0, 5)
     .map((v) => ({
       id: v.id,
@@ -50,8 +47,6 @@ export async function GET() {
       type: v.type || "venue",
       neighborhood: v.neighborhood || "",
       vibe: v.vibe || "quiet",
-      occupancy: v.occupancy || 0,
-      capacity: v.max_occupancy || 100,
     }));
 
   // Vibe breakdown
@@ -64,7 +59,6 @@ export async function GET() {
 
   return NextResponse.json({
     totalVenues,
-    totalPeopleOut,
     recentCheckins,
     activeChallenges,
     trending,

@@ -9,8 +9,6 @@ export interface VenueData {
     category: string;
     neighborhood: string;
     vibe: string;
-    occupancy: number;
-    capacity: number;
     description: string;
     tags: string[];
     hours: string;
@@ -56,8 +54,6 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
         longitude,
         lat,
         lng,
-        occupancy,
-        max_occupancy,
         vibe,
         phone,
         twilio_number
@@ -107,8 +103,6 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
                 category: (v.type as string) || "venue",
                 neighborhood: (v.neighborhood as string) || "",
                 vibe: (v.vibe as string) || "quiet",
-                occupancy: (v.occupancy as number) || 0,
-                capacity: (v.max_occupancy as number) || 100,
                 description: (p.description as string) || (p.tagline as string) || "",
                 tagline: (p.tagline as string) || "",
                 address: (v.address as string) || "",
@@ -178,8 +172,6 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
                 category: "event",
                 neighborhood: "",
                 vibe: parentVenue ? ((parentVenue.vibe as string) || "moderate") : "moderate",
-                occupancy: 0,
-                capacity: parentVenue ? ((parentVenue.max_occupancy as number) || 100) : 100,
                 description: (ev.description as string) || "",
                 tags: [],
                 hours: "",

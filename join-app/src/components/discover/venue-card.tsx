@@ -1,8 +1,6 @@
-import { Venue, getVibeColor, getVibeLabel, getOccupancyPercent } from "@/lib/venues";
+import { Venue, getVibeColor, getVibeLabel } from "@/lib/venues";
 
 export function VenueCard({ venue }: { venue: Venue }) {
-  const pct = getOccupancyPercent(venue);
-
   return (
     <div className="group flex flex-col gap-4  border border-black/5 bg-white p-5 transition-shadow hover:shadow-lg sm:p-6">
       {/* Top row: category + vibe */}
@@ -30,26 +28,6 @@ export function VenueCard({ venue }: { venue: Venue }) {
       <p className="font-sans text-sm leading-relaxed text-black/60">
         {venue.description}
       </p>
-
-      {/* Occupancy bar */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <span className="font-sans text-[11px] font-medium text-black/40">
-            {venue.occupancy} / {venue.capacity} people
-          </span>
-          <span className="font-sans text-[11px] font-medium text-black/40">
-            {pct}%
-          </span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.06]">
-          <div
-            className={`h-full rounded-full transition-all ${
-              pct >= 90 ? "bg-red-400/80" : pct >= 65 ? "bg-orange" : pct >= 35 ? "bg-yellow-400/80" : "bg-green-400/80"
-            }`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      </div>
 
       {/* Tags */}
       <div className="flex flex-wrap gap-1.5">

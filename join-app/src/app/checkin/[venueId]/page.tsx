@@ -33,7 +33,7 @@ export default async function CheckinPage({ params, searchParams }: Props) {
   // Fetch venue
   const { data: venue } = await service
     .from("venues")
-    .select("id, name, state, vibe, occupancy, max_occupancy")
+    .select("id, name, state, vibe")
     .eq("id", venueId)
     .eq("state", "active")
     .single();

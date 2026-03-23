@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, venue_id, thread_type, last_message, last_message_at,
       message_count, unread,
-      venues (id, name, vibe, occupancy, max_occupancy, type, neighborhood)
+      venues (id, name, vibe, type, neighborhood)
     `)
     .eq("user_id", user.id)
     .order("last_message_at", { ascending: false })
@@ -87,8 +87,6 @@ export async function GET(req: NextRequest) {
         id: (venue as Record<string, unknown>).id,
         name: (venue as Record<string, unknown>).name,
         vibe: (venue as Record<string, unknown>).vibe,
-        occupancy: (venue as Record<string, unknown>).occupancy,
-        capacity: (venue as Record<string, unknown>).max_occupancy,
         type: (venue as Record<string, unknown>).type,
         neighborhood: (venue as Record<string, unknown>).neighborhood,
       } : null,

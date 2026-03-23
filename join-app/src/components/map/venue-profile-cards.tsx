@@ -152,11 +152,6 @@ export function VenueProfileCards({ venue, onAction }: VenueProfileCardsProps) {
                 <div className="h-1 w-1 rounded-full bg-black animate-pulse" />
                 <span className="font-sans text-[8px] font-bold tracking-[1px] text-black">LIVE</span>
               </div>
-              {venue.occupancy > 0 && (
-                <span className="rounded-full px-2 py-0.5 font-mono text-[9px] text-white/50" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
-                  {venue.occupancy} in
-                </span>
-              )}
             </div>
             <h2 className="font-sans text-[18px] font-bold text-white leading-tight">{venue.name}</h2>
             {page?.tagline && <p className="mt-0.5 font-sans text-[11px] text-white/50">{page.tagline}</p>}

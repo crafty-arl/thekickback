@@ -99,7 +99,6 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
 
   const displayStats = {
     totalVenues: stats?.totalVenues ?? venues.length,
-    totalPeopleOut: stats?.totalPeopleOut ?? venues.reduce((s, v) => s + v.occupancy, 0),
     recentCheckins: stats?.recentCheckins ?? 0,
     trending: stats?.trending ?? [],
     vibeBreakdown: stats?.vibeBreakdown ?? { quiet: 0, moderate: 0, busy: 0, lit: 0 },
@@ -214,11 +213,6 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                 <div className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
                 <span className="text-sm text-white/80">
                   <strong className="text-white"><AnimatedNumber value={displayStats.totalVenues} /></strong> venues live
-                </span>
-              </div>
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-md">
-                <span className="text-sm text-white/80">
-                  <strong className="text-white"><AnimatedNumber value={displayStats.totalPeopleOut} /></strong> building their score
                 </span>
               </div>
             </motion.div>
@@ -423,24 +417,6 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
                   </h3>
                   <p className="mt-1 text-sm text-white/40">{venue.neighborhood}</p>
 
-                  {/* Occupancy bar */}
-                  <div className="mt-4 flex-1">
-                    <div className="flex items-center justify-between text-xs text-white/40">
-                      <span>{venue.occupancy} people</span>
-                      <span>{venue.capacity} capacity</span>
-                    </div>
-                    <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/10">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        whileInView={{ width: `${Math.min(100, Math.round((venue.occupancy / venue.capacity) * 100))}%` }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 1, delay: i * 0.08, ease: "easeOut" }}
-                        className="h-full rounded-full"
-                        style={{ backgroundColor: vibeColor(venue.vibe) }}
-                      />
-                    </div>
-                  </div>
-
                   {/* Description */}
                   {venue.description && (
                     <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-white/30">
@@ -461,7 +437,6 @@ export function LandingPage({ venues }: { venues: VenueData[] }) {
           <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {[
               { label: "Venues Live", value: displayStats.totalVenues, color: "#4ade80" },
-              { label: "People Out", value: displayStats.totalPeopleOut, color: "#f97316" },
               { label: "Check-ins This Hour", value: displayStats.recentCheckins, color: "#a78bfa" },
               { label: "Quiet Spots", value: displayStats.vibeBreakdown.quiet, color: "#4ade80" },
             ].map((stat, i) => (

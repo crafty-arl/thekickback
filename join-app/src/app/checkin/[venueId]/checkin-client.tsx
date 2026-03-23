@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
 interface Props {
-  venue: { id: string; name: string; vibe: string; occupancy: number; max_occupancy: number };
+  venue: { id: string; name: string; vibe: string };
   themeColor: string;
   tagline: string | null;
   slug: string | null;
@@ -469,7 +469,7 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
         <div className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="h-2 w-2 rounded-full" style={{ backgroundColor: vColor }} />
           <span className="font-sans text-[11px] text-white/30">
-            {venue.vibe} · {venue.occupancy}/{venue.max_occupancy}
+            {venue.vibe}
           </span>
         </div>
       </div>

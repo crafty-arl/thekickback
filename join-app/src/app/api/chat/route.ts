@@ -131,7 +131,7 @@ async function checkAiUsageGate(
 export async function POST(request: Request) {
   // Parse body and auth in parallel
   const [body, authClient] = await Promise.all([request.json(), createAuthClient()]);
-  const { message, venueId, venueName, vibe, occupancy, table, deviceId, timezone } = body;
+  const { message, venueId, venueName, vibe, table, deviceId, timezone } = body;
   const userTimezone = timezone || "America/Chicago";
 
   if (!message || !venueId) {
@@ -186,7 +186,7 @@ export async function POST(request: Request) {
     prefsContext || "",
     chatHistory || "",
     `A guest says: "${message}".`,
-    `Venue is ${vibe}, ${occupancy} people.`,
+    `Venue vibe is ${vibe}.`,
     table ? `Guest is at Table ${table}.` : "",
     "Keep it under 400 chars. No emojis. Be direct and helpful.",
     "NEVER tell users to text, SMS, or call a number. Everything happens through this chat. Don't mention phone numbers or texting.",

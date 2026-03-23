@@ -18,8 +18,6 @@ export default async function HomePage() {
     category: v.category,
     neighborhood: v.neighborhood,
     vibe: v.vibe as Venue["vibe"],
-    occupancy: v.occupancy,
-    capacity: v.capacity,
     description: v.description,
     tags: v.tags,
     hours: v.hours,
