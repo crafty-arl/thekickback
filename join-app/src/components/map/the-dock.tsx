@@ -318,7 +318,8 @@ function parseVenueChips(
   apiVenues: Record<string, ApiVenue>,
   richVenues: Record<string, RichVenue>,
   text: string,
-  onTap: (venue: Venue, prompt?: string) => void
+  onTap: (venue: Venue, prompt?: string) => void,
+  offeringsMap?: Record<string, Record<string, OfferingMeta>>
 ): React.ReactNode[] {
   const parts = text.split(/(\[\[VENUE_CARD:[^\]]+\]\]|\[\[venue:[^\]]+\]\]|\[\[OFFER:[^\]]+\]\])/g);
   return parts.map((part, i) => {
@@ -333,16 +334,19 @@ function parseVenueChips(
         <button
           key={i}
           onClick={() => {
-            // Find which venue owns this offering from richVenues data
-            const ownerVenue = venues.find((v) => {
-              const rv = richVenues[v.id];
-              return rv;
-            }) || Object.values(apiVenues).map(av => venues.find(v => v.id === av.id)).find(Boolean);
+            // Find which venue owns this offering via offeringsMap (venueId → offerId → meta)
+            let ownerVenueId: string | undefined;
+            if (offeringsMap) {
+              for (const [vid, offers] of Object.entries(offeringsMap)) {
+                if (offers[offerId]) { ownerVenueId = vid; break; }
+              }
+            }
+            const ownerVenue = ownerVenueId
+              ? (venues.find((v) => v.id === ownerVenueId) || (apiVenues[ownerVenueId] ? buildVenueFromApi(apiVenues[ownerVenueId]) : null))
+              : null;
 
             if (ownerVenue) {
-              if (confirm(`Chat with ${ownerVenue.name} about ${offerName}?`)) {
-                onTap(ownerVenue, `Tell me about ${offerName}`);
-              }
+              onTap(ownerVenue, `Tell me about ${offerName}`);
             }
           }}
           className="mx-0.5 my-1 inline-flex items-center gap-1.5 px-3 py-1.5 font-sans text-[12px] font-semibold active:scale-95"
@@ -3194,7 +3198,7 @@ export function TheDock({
                       >
                         <div className="font-sans text-[14px] leading-[1.5]">
                           {msg.sender === "ai"
-                            ? parseVenueChips(venues, apiVenues, richVenues, msg.body, handleConciergeVenueTap)
+                            ? parseVenueChips(venues, apiVenues, richVenues, msg.body, handleConciergeVenueTap, offeringsMap)
                             : msg.body}
                         </div>
                       </div>
