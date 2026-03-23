@@ -44,14 +44,26 @@ export async function POST(req: NextRequest) {
     if (!existing) {
       const { error: insertErr } = await supabase.from("user_wallets").insert({
         user_id: user.id,
-        balance_cents: 50000, // $500 test balance
-        spending_limit_cents: 50000,
-        spending_period: "daily",
+        balance_cents: 100000, // $1000 test balance
+        spending_limit_cents: 100000,
         spent_this_period_cents: 0,
         active: true,
         mode: "test",
       });
       if (insertErr) console.error("[wallet/spend] Auto-create wallet failed:", insertErr.message, insertErr.code);
+    } else {
+      // Reset spending limit if it's blocking — test wallets should always work
+      const { data: wallet } = await supabase
+        .from("user_wallets")
+        .select("spending_limit_cents, spent_this_period_cents")
+        .eq("id", existing.id)
+        .single();
+      if (wallet && wallet.spent_this_period_cents >= wallet.spending_limit_cents) {
+        await supabase.from("user_wallets").update({
+          spent_this_period_cents: 0,
+          spending_limit_cents: 100000,
+        }).eq("id", existing.id);
+      }
     }
   }
 

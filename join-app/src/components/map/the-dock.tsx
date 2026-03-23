@@ -12,7 +12,6 @@ import { createClient } from "@/lib/supabase/client";
 import { PreferencesSection } from "./preferences-section";
 import { ThreadsList, useThreadCount } from "./threads-list";
 import { VibeCard, MenuCard, EventsCard, ReserveCard, ShopCard, SubscribeCard, JoinCard } from "./tab-cards";
-import { PointsBadge } from "./points-badge";
 import { VenueProfileCards } from "./venue-profile-cards";
 import { VenueContact } from "./venue-contact";
 import { type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
@@ -2592,7 +2591,6 @@ export function TheDock({
                 <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-white/90">{selectedVenue.name}</span>
               </button>
 
-              <PointsBadge venueId={selectedVenue.id} vibeColor={vibeColor} expanded={false} />
 
               <input
                 type="text"
@@ -3405,7 +3403,6 @@ export function TheDock({
               </AnimatePresence>
 
               {/* Points / Member Perks */}
-              <PointsBadge venueId={selectedVenue.id} vibeColor={vibeColor} expanded={true} />
 
               <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
 
