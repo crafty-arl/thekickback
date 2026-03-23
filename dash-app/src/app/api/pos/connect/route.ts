@@ -74,5 +74,5 @@ export async function POST(request: Request) {
   }
 
   const data = await res.json();
-  return Response.json({ session_url: data.data?.session_url });
+  return Response.json({ session_url: data.data?.session_uri || data.data?.session_url });
 }
