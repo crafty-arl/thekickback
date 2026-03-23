@@ -2626,10 +2626,10 @@ export function TheDock({
             <>
               {/* Drag handle */}
               <div className="flex shrink-0 justify-center pt-2 pb-1">
-                <div className="h-1 w-8 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+                <div className="h-1 w-8" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
               </div>
 
-              {/* Profile strip (peek row) */}
+              {/* KB header strip */}
               <button
                 onClick={() => {
                   if (exploreSnap === "peek") setExploreSnap("half");
@@ -2638,13 +2638,19 @@ export function TheDock({
                 }}
                 className="flex shrink-0 items-center gap-3 px-4 pb-2"
               >
-                {/* Avatar */}
+                {/* KB Logo */}
+                <div className="flex shrink-0 items-center">
+                  <span className="font-sans text-[18px] font-black tracking-tighter" style={{ color: "#F97316" }}>K</span>
+                  <span className="font-sans text-[18px] font-black tracking-tighter text-white/90" style={{ marginLeft: -2 }}>B</span>
+                </div>
+
+                {/* Profile */}
                 <button
                   onClick={(e) => { e.stopPropagation(); handleAvatarTap(); }}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
                   style={{
-                    background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`,
-                    border: `2px solid ${tierColor}40`,
+                    background: user ? `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)` : "rgba(255,255,255,0.06)",
+                    border: `2px solid ${user ? `${tierColor}40` : "rgba(255,255,255,0.1)"}`,
                   }}
                 >
                   {user ? (
@@ -2989,7 +2995,7 @@ export function TheDock({
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && send()}
                     onFocus={handleInputFocus}
-                    placeholder="Ask KickBack anything..."
+                    placeholder="What are you looking for?"
                     enterKeyHint="send"
                     autoComplete="off"
                     autoCorrect="off"
@@ -3017,23 +3023,18 @@ export function TheDock({
           {/* ═══ CONCIERGE MODE ═══ */}
           {mode === "concierge" && (
             <>
-              {/* Header */}
+              {/* Header — KB branding + profile */}
               <div className="flex items-center justify-between px-4 pt-3 pb-2">
                 <div className="flex items-center gap-2">
-                  <motion.div
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: ACCENT }}
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
-                    transition={{ duration: 3, repeat: Infinity }}
-                  />
-                  <span className="font-sans text-[15px] font-semibold text-white/90">KickBack</span>
-                  <span className="font-sans text-[11px] text-white/30">Concierge</span>
+                  <span className="font-sans text-[20px] font-black tracking-tighter" style={{ color: "#F97316" }}>K</span>
+                  <span className="font-sans text-[20px] font-black tracking-tighter text-white/90" style={{ marginLeft: -6 }}>B</span>
+                  <span className="font-sans text-[11px] text-white/25 ml-1">Concierge</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {hasLocation && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onRecenter(); }}
-                      className="flex h-7 w-7 items-center justify-center rounded-full transition-transform active:scale-90"
+                      className="flex h-7 w-7 items-center justify-center transition-transform active:scale-90"
                       style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -3041,10 +3042,27 @@ export function TheDock({
                       </svg>
                     </button>
                   )}
+                  {/* Profile */}
+                  <button
+                    onClick={handleAvatarTap}
+                    className="flex h-8 w-8 items-center justify-center rounded-full"
+                    style={{
+                      background: user ? `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)` : "rgba(255,255,255,0.06)",
+                      border: `2px solid ${user ? `${tierColor}40` : "rgba(255,255,255,0.1)"}`,
+                    }}
+                  >
+                    {user ? (
+                      <span className="font-sans text-[12px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
+                    ) : (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                      </svg>
+                    )}
+                  </button>
                   <motion.button
                     onClick={() => setMode("idle")}
                     whileTap={{ scale: 0.85 }}
-                    className="flex h-7 w-7 items-center justify-center rounded-full"
+                    className="flex h-7 w-7 items-center justify-center"
                     style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-50">
