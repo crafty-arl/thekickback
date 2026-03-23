@@ -33,7 +33,7 @@ export interface Tag {
   venueIds: string[];
 }
 
-type DockMode = "idle" | "explore" | "concierge" | "venueChat" | "profile";
+type DockMode = "idle" | "explore" | "concierge" | "venueChat" | "profile" | "threads";
 type SnapPoint = "peek" | "half" | "full";
 type Tab = "chat" | "vibe" | "menu" | "events" | "reserve" | "shop" | "subscribe" | "join";
 
@@ -249,6 +249,7 @@ function getDockHeight(mode: DockMode, exploreSnap: SnapPoint, venueChatSnap: Ve
     case "concierge": return "70dvh";
     case "venueChat": return venueChatSnap === "full" ? "92dvh" : venueChatSnap === "expanded" ? "70dvh" : "56px";
     case "profile": return "70dvh";
+    case "threads": return "70dvh";
   }
 }
 
@@ -1462,6 +1463,7 @@ export function TheDock({
         if (inInput) { (target as HTMLInputElement).blur(); return; }
         e.preventDefault();
         if (mode === "profile") { setMode(previousMode); return; }
+        if (mode === "threads") { setMode(previousMode === "threads" ? "idle" : previousMode); return; }
         if (mode === "concierge") { setMode("idle"); return; }
         if (mode === "venueChat") {
           if (venueChatSnap === "full") { setVenueChatSnap("expanded"); return; }
@@ -2289,7 +2291,7 @@ export function TheDock({
   const vibeColor = selectedVenue ? (selectedVenue.themeColor || "#F97316") : ACCENT;
   const sendColor = mode === "venueChat" ? vibeColor : ACCENT;
   const venueChatExpanded = venueChatSnap !== "collapsed";
-  const showExpandedContent = mode === "explore" || mode === "concierge" || mode === "profile" || (mode === "venueChat" && venueChatExpanded);
+  const showExpandedContent = mode === "explore" || mode === "concierge" || mode === "profile" || mode === "threads" || (mode === "venueChat" && venueChatExpanded);
   const isCollapsedPill = mode === "idle" || (mode === "venueChat" && !venueChatExpanded);
 
   // ─── Checkout handler for venue chat ──
@@ -2596,10 +2598,10 @@ export function TheDock({
                 </AnimatePresence>
               </button>
 
-              {/* Threads — shows unread count */}
+              {/* Threads — opens threads mode */}
               {threadInfo.count > 0 && (
                 <button
-                  onClick={() => { setMode("explore"); setExploreSnap("half"); }}
+                  onClick={() => { setPreviousMode(mode); setMode("threads"); }}
                   className="relative flex shrink-0 items-center gap-1.5 px-2.5 py-1.5"
                   style={{ backgroundColor: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.15)" }}
                 >
@@ -4228,6 +4230,62 @@ export function TheDock({
                     Sign Out
                   </button>
                 </div>
+              </div>
+            </>
+          )}
+
+          {/* ═══ THREADS MODE ═══ */}
+          {mode === "threads" && (
+            <>
+              <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                <div className="flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span className="font-sans text-[15px] font-semibold text-white/90">Conversations</span>
+                  {threadInfo.unread > 0 && <span className="px-1.5 py-0.5 font-mono text-[9px] font-bold" style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316" }}>{threadInfo.unread} new</span>}
+                </div>
+                <motion.button
+                  onClick={() => setMode(previousMode === "threads" ? "idle" : previousMode)}
+                  whileTap={{ scale: 0.85 }}
+                  className="flex h-7 w-7 items-center justify-center"
+                  style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="opacity-50">
+                    <polyline points="18 15 12 9 6 15" />
+                  </svg>
+                </motion.button>
+              </div>
+
+              <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
+
+              <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
+                <ThreadsList
+                  onThreadSelect={(venueId) => {
+                    if (venueId) {
+                      const venue = venues.find((v) => v.id === venueId);
+                      if (venue) {
+                        onVenueSelect(venue);
+                      }
+                    } else {
+                      loadThreadHistory(null).then((messages) => {
+                        if (messages && messages.length > 0) {
+                          setConciergeMessages(messages);
+                        }
+                      });
+                      setMode("concierge");
+                    }
+                  }}
+                />
+                {threadInfo.count === 0 && (
+                  <div className="flex flex-col items-center py-12 text-center">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <p className="mt-3 font-sans text-[13px] text-white/25">No conversations yet</p>
+                    <p className="mt-1 font-sans text-[11px] text-white/15">Chat with a venue to start one</p>
+                  </div>
+                )}
               </div>
             </>
           )}
