@@ -57,6 +57,7 @@ export function getBookingDates(): { label: string; value: string }[] {
 /* ── Product Detail Drawer — slides in from left ── */
 
 export function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMeta, linkedStaff, venueId, user }: ProductDrawerProps) {
+  const [subscribing, setSubscribing] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<string | null>(null); // null = "Anyone"
   const [selectedDate, setSelectedDate] = useState<string>(getBookingDates()[0]?.value || "");
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -311,7 +312,48 @@ export function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMet
           <div className="flex-1" />
 
           {/* Action button */}
-          {isBookable ? (
+          {meta?.type === "membership" ? (
+            !user ? (
+              <a
+                href="/login"
+                className="mt-6 flex w-full items-center justify-center py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+                style={{ backgroundColor: theme, boxShadow: `0 4px 20px ${theme}40` }}
+              >
+                Log in to subscribe
+              </a>
+            ) : (
+              <button
+                disabled={subscribing}
+                onClick={async () => {
+                  setSubscribing(true);
+                  try {
+                    const res = await fetch("/api/membership/checkout", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ offeringId: offer.id, venueId }),
+                    });
+                    const data = await res.json();
+                    if (data.url) {
+                      window.location.href = data.url;
+                    } else {
+                      console.error("Checkout error:", data.error);
+                      setSubscribing(false);
+                    }
+                  } catch (err) {
+                    console.error("Checkout failed:", err);
+                    setSubscribing(false);
+                  }
+                }}
+                className="mt-6 w-full py-3.5 font-sans text-[15px] font-bold text-black active:scale-[0.98]"
+                style={{
+                  backgroundColor: subscribing ? `${theme}80` : theme,
+                  boxShadow: `0 4px 20px ${theme}40`,
+                }}
+              >
+                {subscribing ? "Redirecting..." : `Subscribe with Stripe — $${price % 1 === 0 ? price : price.toFixed(2)}/${meta.interval || "month"}`}
+              </button>
+            )
+          ) : isBookable ? (
             !user ? (
               <a
                 href="/login"

@@ -104,11 +104,12 @@ export async function GET(req: NextRequest) {
   // Fetch memberships if requested
   if (wantMemberships) {
     const memberRows = await supabaseGet(
-      `memberships?user_id=eq.${userId}&select=venue_id,tier,expires_at,venues(name)&expires_at=gt.${new Date().toISOString()}`
+      `memberships?user_id=eq.${userId}&select=venue_id,tier,expires_at,charge_method,stripe_subscription_id,venues(name)&expires_at=gt.${new Date().toISOString()}`
     );
     response.memberships = (Array.isArray(memberRows) ? memberRows : []).map((m: Record<string, unknown>) => {
       const v = Array.isArray(m.venues) ? m.venues[0] : m.venues;
-      return { venue_id: m.venue_id, venue_name: (v as Record<string, unknown>)?.name || "Venue", tier: m.tier, expires_at: m.expires_at };
+      const isStripe = m.charge_method === "stripe" || !!m.stripe_subscription_id;
+      return { venue_id: m.venue_id, venue_name: (v as Record<string, unknown>)?.name || "Venue", tier: m.tier, expires_at: m.expires_at, billing: isStripe ? "stripe" : "wallet" };
     });
   }
 

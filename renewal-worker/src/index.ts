@@ -2,6 +2,10 @@
 // Runs daily via cron to renew expiring memberships.
 // Priority: wallet first → card fallback → cancel if both fail.
 //
+// Stripe-managed memberships (charge_method='stripe') are renewed
+// automatically by Stripe Billing. This worker only handles legacy
+// wallet-purchased memberships.
+//
 // Also exposes POST /renew for OpenClaw to trigger per-user renewal.
 // ─────────────────────────────────────────────────────────────────
 
@@ -51,6 +55,7 @@ interface Membership {
   mode: string;
   expires_at: string;
   charge_method: string;
+  stripe_subscription_id: string | null;
 }
 
 interface Offering {
@@ -474,14 +479,21 @@ export default {
   async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext) {
     console.log("─── Membership renewal cron started ───");
 
-    // Find memberships expiring in the next 24 hours
+    // Find memberships expiring in the next 24 hours.
+    // Skip Stripe-managed memberships — Stripe Billing handles their renewal via webhooks.
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    const memberships = (await supabaseGet(
+    const allMemberships = (await supabaseGet(
       env,
-      `memberships?auto_renew=eq.true&offering_id=not.is.null&expires_at=lt.${tomorrow}&select=id,user_id,venue_id,offering_id,mode,expires_at,charge_method`
+      `memberships?auto_renew=eq.true&offering_id=not.is.null&expires_at=lt.${tomorrow}&select=id,user_id,venue_id,offering_id,mode,expires_at,charge_method,stripe_subscription_id`
     )) as Membership[];
 
-    console.log(`Found ${memberships.length} memberships to renew`);
+    // Filter out Stripe-managed memberships (charge_method='stripe' or has stripe_subscription_id)
+    const memberships = allMemberships.filter(
+      (m) => m.charge_method !== "stripe" && !m.stripe_subscription_id
+    );
+
+    console.log(`Found ${allMemberships.length} expiring memberships (${allMemberships.length - memberships.length} Stripe-managed, skipped)`);
+    console.log(`Processing ${memberships.length} legacy wallet/card memberships`);
 
     let renewed = 0;
     let failed = 0;
@@ -643,7 +655,7 @@ export default {
       };
 
       // Find the specific membership
-      let query = "memberships?auto_renew=eq.true&offering_id=not.is.null&select=id,user_id,venue_id,offering_id,mode,expires_at,charge_method";
+      let query = "memberships?auto_renew=eq.true&offering_id=not.is.null&select=id,user_id,venue_id,offering_id,mode,expires_at,charge_method,stripe_subscription_id";
       if (membershipId) {
         query += `&id=eq.${membershipId}`;
       } else if (userId && venueId) {
@@ -657,7 +669,13 @@ export default {
         return new Response(JSON.stringify({ error: "Membership not found" }), { status: 404 });
       }
 
-      const result = await renewMembership(env, memberships[0]);
+      // Skip Stripe-managed memberships — Stripe Billing handles their renewal
+      const m = memberships[0];
+      if (m.charge_method === "stripe" || m.stripe_subscription_id) {
+        return new Response(JSON.stringify({ error: "Stripe-managed membership — renewal handled by Stripe Billing" }), { status: 400 });
+      }
+
+      const result = await renewMembership(env, m);
       return new Response(JSON.stringify(result), {
         status: result.renewed ? 200 : 400,
         headers: { "Content-Type": "application/json" },

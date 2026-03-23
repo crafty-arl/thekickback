@@ -1163,7 +1163,7 @@ export function TheDock({
   // ── User / profile state ──
   const [user, setUser] = useState<UserProfile | null>(null);
   const [perks, setPerks] = useState<Perk[]>([]);
-  const [memberships, setMemberships] = useState<{ venue_id: string; venue_name: string; tier: string; expires_at: string }[]>([]);
+  const [memberships, setMemberships] = useState<{ venue_id: string; venue_name: string; tier: string; expires_at: string; billing?: "stripe" | "wallet" }[]>([]);
   const [balance, setBalance] = useState(0);
   const [myCollectibles, setMyCollectibles] = useState<{ unlock_id: string; asset_id: string; name: string; asset_type: string; category: string; description: string | null; is_animated: boolean; hub_id: string | null; hub_name: string; payment_method: string; unlocked_at: string }[]>([]);
   const [referralKeys, setReferralKeys] = useState<{ id: string; key: string; used_by_email: string | null }[]>([]);
@@ -4031,6 +4031,9 @@ export function TheDock({
                                   <p className="font-sans text-[12px] font-semibold text-white/80">{m.venue_name}</p>
                                   <p className="font-sans text-[10px] text-white/30">{m.tier} · {new Date(m.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
                                 </div>
+                                <span className="shrink-0 rounded-full px-1.5 py-0.5 font-sans text-[9px] font-semibold" style={{ backgroundColor: m.billing === "stripe" ? "rgba(99,102,241,0.12)" : "rgba(249,115,22,0.12)", color: m.billing === "stripe" ? "#818CF8" : "#F97316" }}>
+                                  {m.billing === "stripe" ? "Stripe" : "Wallet"}
+                                </span>
                               </div>
                             ))}
                           </div>
