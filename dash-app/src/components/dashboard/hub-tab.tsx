@@ -9,10 +9,24 @@ import { SettingsKnowledgeDrawer } from "@/components/dashboard/settings-knowled
 import { SettingsStaffDrawer } from "@/components/dashboard/settings-staff-drawer";
 import { SettingsXpDrawer } from "@/components/dashboard/settings-xp-drawer";
 import type { PlaceData } from "@/components/place-preview";
+import type { ChecklistState } from "@/components/onboarding-checklist";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
 type SettingsDrawer = "offerings" | "knowledge" | "staff" | "xp" | null;
+
+// Checklist items with labels and instructions
+const CHECKLIST_ITEMS: { key: string; label: string; hint: string }[] = [
+  { key: "basics", label: "Name & type", hint: "Tap the hero section above to set your venue name and type" },
+  { key: "location", label: "Address", hint: "Add your address so guests can find you on the map" },
+  { key: "hours", label: "Operating hours", hint: "Tap the hours card to set when you're open" },
+  { key: "branding", label: "Tagline & theme", hint: "Add a tagline and pick a theme color that fits your vibe" },
+  { key: "offerings", label: "Offerings", hint: "Add what you sell — menus, services, events, memberships" },
+  { key: "knowledge", label: "AI knowledge", hint: "Teach your chatbot about your venue so it can answer questions" },
+  { key: "photos", label: "Photos", hint: "Upload gallery images to show off your space" },
+  { key: "xp", label: "XP & loyalty", hint: "Set up rewards to keep guests coming back" },
+  { key: "stripe", label: "Payments", hint: "Connect Stripe to accept payments through the platform" },
+];
 
 interface HubTabProps {
   hubData: PlaceData;
@@ -28,6 +42,8 @@ interface HubTabProps {
   initialXpActions?: { label: string; points: number }[];
   initialXpMilestones?: { name: string; threshold: number }[];
   checklistPercent: number;
+  checklist?: ChecklistState;
+  reviewStatus?: string;
   onFieldSave: (field: string, value: unknown) => Promise<void>;
   onPhotoUpload: (file: File) => Promise<void>;
   onSectionEdited: (key: string) => void;
@@ -39,8 +55,8 @@ interface HubTabProps {
     description?: string;
   }) => void;
   onOfferingsChange?: (offerings: HubTabProps["offeringsState"]) => void;
+  onPublish?: () => Promise<void>;
   user: { id: string; email: string };
-  // Optional data for drawers — passed from parent if available
   initialStaff?: { id: string; display_name: string | null; role_title: string | null; avatar_url: string | null; bio: string | null; specialties: string[] | null; visible: boolean; schedule: unknown }[];
   initialKnowledge?: { id: string; content: string; category: string; created_at: string }[];
   initialAiLimits?: { enabled: boolean; free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
@@ -62,15 +78,20 @@ export function HubTab({
   onSectionEdited,
   onOfferingTap,
   onOfferingsChange,
+  onPublish,
   user,
   initialStaff,
   initialKnowledge,
   initialAiLimits,
   previewKey,
+  checklist,
+  reviewStatus,
 }: HubTabProps) {
   const [activeDrawer, setActiveDrawer] = useState<SettingsDrawer>(null);
   const [seeding, setSeeding] = useState(false);
   const [showSeed, setShowSeed] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
 
   useEffect(() => {
     const host = window.location.hostname;
@@ -93,21 +114,80 @@ export function HubTab({
     <div className="flex flex-1 min-h-0">
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
-        {/* Setup progress */}
-        {checklistPercent < 100 && (
-          <div className="shrink-0 mx-4 mt-3 rounded-xl bg-orange-500/[0.06] border border-orange-500/[0.12] px-4 py-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="font-sans text-[11px] font-semibold text-gray-500">Setup Progress</span>
-              <span className="font-sans text-[11px] font-bold text-orange-500">{checklistPercent}%</span>
+        {/* Setup checklist + publish controls */}
+        <div className="shrink-0 mx-4 mt-3 flex flex-col gap-2">
+          {/* Progress bar + expand toggle */}
+          {checklistPercent < 100 && (
+            <button
+              onClick={() => setShowChecklist(!showChecklist)}
+              className="w-full rounded-xl bg-orange-500/[0.06] border border-orange-500/[0.12] px-4 py-3 text-left transition hover:bg-orange-500/[0.08]"
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-sans text-[12px] font-semibold text-gray-600">Setup — {checklistPercent}% complete</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-gray-400 transition-transform ${showChecklist ? "rotate-180" : ""}`}><polyline points="6 9 12 15 18 9" /></svg>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden bg-black/[0.06]">
+                <div className="h-full rounded-full bg-orange-500 transition-all duration-500" style={{ width: `${checklistPercent}%` }} />
+              </div>
+            </button>
+          )}
+
+          {/* Expanded checklist items */}
+          {showChecklist && checklistPercent < 100 && (
+            <div className="rounded-xl border border-black/[0.06] bg-white overflow-hidden">
+              {CHECKLIST_ITEMS.map((item, i) => {
+                const done = checklist?.[item.key as keyof ChecklistState] ?? false;
+                return (
+                  <div
+                    key={item.key}
+                    className={`flex items-start gap-3 px-4 py-3 ${i > 0 ? "border-t border-black/[0.04]" : ""} ${done ? "opacity-50" : ""}`}
+                  >
+                    <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${done ? "bg-green-500" : "border-2 border-gray-200"}`}>
+                      {done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`font-sans text-[13px] font-medium ${done ? "text-gray-400 line-through" : "text-gray-700"}`}>{item.label}</p>
+                      {!done && <p className="font-sans text-[11px] text-gray-400 mt-0.5">{item.hint}</p>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="h-1.5 rounded-full overflow-hidden bg-black/[0.06]">
-              <div
-                className="h-full rounded-full bg-orange-500 transition-all duration-500"
-                style={{ width: `${checklistPercent}%` }}
-              />
-            </div>
+          )}
+
+          {/* Publish / Draft controls */}
+          <div className="flex gap-2">
+            {reviewStatus !== "approved" && checklistPercent >= 100 && (
+              <button
+                onClick={async () => {
+                  setPublishing(true);
+                  try { await onPublish?.(); } finally { setPublishing(false); }
+                }}
+                disabled={publishing}
+                className="flex-1 rounded-xl bg-orange-500 py-3 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+              >
+                {publishing ? "Publishing..." : "Publish Hub"}
+              </button>
+            )}
+            {reviewStatus === "approved" && (
+              <button
+                onClick={async () => {
+                  setPublishing(true);
+                  try { await onPublish?.(); } finally { setPublishing(false); }
+                }}
+                disabled={publishing}
+                className="flex-1 rounded-xl border border-red-200 bg-red-50 py-3 font-sans text-[13px] font-semibold text-red-500 transition active:scale-[0.98] disabled:opacity-50"
+              >
+                {publishing ? "..." : "Take Offline (Draft)"}
+              </button>
+            )}
+            {reviewStatus === "pending" && (
+              <div className="flex-1 rounded-xl border border-orange-200 bg-orange-50 py-3 text-center font-sans text-[13px] font-semibold text-orange-500">
+                Under Review
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Editable venue preview */}
         <div className="flex-1 overflow-y-auto no-scrollbar">

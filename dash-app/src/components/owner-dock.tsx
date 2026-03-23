@@ -251,8 +251,11 @@ export function OwnerDock({
   // Local orders state for status updates
   const [ordersState, setOrdersState] = useState(initialData.orders);
 
-  const isApproved = !reviewStatus || reviewStatus === "approved";
-  const isPreApproval = reviewStatus && reviewStatus !== "approved";
+  // Review status (mutable for publish/draft toggle)
+  const [currentReviewStatus, setCurrentReviewStatus] = useState(reviewStatus);
+
+  const isApproved = !currentReviewStatus || currentReviewStatus === "approved";
+  const isPreApproval = currentReviewStatus && currentReviewStatus !== "approved";
   const checklistCompleted = Object.values(checklistState).filter(Boolean).length;
   const checklistTotal = Object.keys(checklistState).length;
   const checklistPercent = Math.round((checklistCompleted / checklistTotal) * 100);
@@ -389,9 +392,9 @@ export function OwnerDock({
       setMessages([{ id: "welcome", sender: "agent", body: welcome, timestamp: Date.now() }]);
     } else {
       const statusLabel =
-        reviewStatus === "pending"
+        currentReviewStatus === "pending"
           ? "under review"
-          : reviewStatus === "rejected"
+          : currentReviewStatus === "rejected"
             ? "needs updates"
             : "in draft";
       const completed = Object.values(checklistState).filter(Boolean).length;
@@ -636,6 +639,21 @@ export function OwnerDock({
     [checklistState]
   );
 
+  // ─── Publish / Draft toggle ──────────────────────────────────
+  const handlePublishToggle = useCallback(async () => {
+    const newStatus = isApproved ? "draft" : "approved";
+    try {
+      const res = await fetch("/api/venue/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId: venue.id, status: newStatus }),
+      });
+      if (res.ok) {
+        setCurrentReviewStatus(newStatus);
+      }
+    } catch { /* ignore */ }
+  }, [isApproved, venue.id]);
+
   // ─── Drawer: Order actions ──────────────────────────────────
   const handleOrderStatusUpdate = useCallback(
     async (orderId: string, status: string) => {
@@ -764,17 +782,17 @@ export function OwnerDock({
     ? venue.state === "active"
       ? "Live"
       : "Closed"
-    : reviewStatus === "pending"
+    : currentReviewStatus === "pending"
       ? "In Review"
-      : reviewStatus === "rejected"
+      : currentReviewStatus === "rejected"
         ? "Needs Updates"
         : "Draft";
 
   const statusColor = isApproved
     ? "#4ade80"
-    : reviewStatus === "pending"
+    : currentReviewStatus === "pending"
       ? "#F97316"
-      : reviewStatus === "rejected"
+      : currentReviewStatus === "rejected"
         ? "#EF4444"
         : "rgba(0,0,0,0.4)";
 
@@ -924,11 +942,14 @@ export function OwnerDock({
             initialXpActions={initialXpActions}
             initialXpMilestones={initialXpMilestones}
             checklistPercent={checklistPercent}
+            checklist={checklistState}
+            reviewStatus={currentReviewStatus}
             onFieldSave={handleFieldSave}
             onPhotoUpload={handlePhotoUpload}
             onSectionEdited={handleSectionEdited}
             onOfferingTap={handleOpenOfferingDrawer}
             onOfferingsChange={setOfferingsState}
+            onPublish={handlePublishToggle}
             user={user}
             initialStaff={initialStaff}
             initialKnowledge={initialKnowledge}
