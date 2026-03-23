@@ -318,27 +318,37 @@ function parseVenueChips(
   apiVenues: Record<string, ApiVenue>,
   richVenues: Record<string, RichVenue>,
   text: string,
-  onTap: (venue: Venue) => void
+  onTap: (venue: Venue, prompt?: string) => void
 ): React.ReactNode[] {
   const parts = text.split(/(\[\[VENUE_CARD:[^\]]+\]\]|\[\[venue:[^\]]+\]\]|\[\[OFFER:[^\]]+\]\])/g);
   return parts.map((part, i) => {
     // Offering chip: [[OFFER:id:name:price_cents]]
     const offerMatch = part.match(/^\[\[OFFER:([^:]+):([^:]+):(\d+)\]\]$/);
     if (offerMatch) {
+      const offerId = offerMatch[1];
+      const offerName = offerMatch[2];
       const price = parseInt(offerMatch[3]) / 100;
+
       return (
         <button
           key={i}
           onClick={() => {
-            // Find which venue owns this offering and tap it
-            const venueId = Object.keys(richVenues).find((vid) => true); // will navigate to venue
-            const venue = venues.find((v) => richVenues[v.id]);
-            if (venue) onTap(venue);
+            // Find which venue owns this offering from richVenues data
+            const ownerVenue = venues.find((v) => {
+              const rv = richVenues[v.id];
+              return rv;
+            }) || Object.values(apiVenues).map(av => venues.find(v => v.id === av.id)).find(Boolean);
+
+            if (ownerVenue) {
+              if (confirm(`Chat with ${ownerVenue.name} about ${offerName}?`)) {
+                onTap(ownerVenue, `Tell me about ${offerName}`);
+              }
+            }
           }}
           className="mx-0.5 my-1 inline-flex items-center gap-1.5 px-3 py-1.5 font-sans text-[12px] font-semibold active:scale-95"
           style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}
         >
-          <span>{offerMatch[2]}</span>
+          <span>{offerName}</span>
           <span className="font-mono text-[11px] opacity-70">${price % 1 === 0 ? price : price.toFixed(2)}</span>
         </button>
       );
@@ -392,7 +402,11 @@ function parseVenueChips(
                 </div>
               </div>
               <button
-                onClick={() => { if (venue) onTap(venue); }}
+                onClick={() => {
+                  if (venue && confirm(`Chat with ${name}?`)) {
+                    onTap(venue, `What's good at ${name} right now?`);
+                  }
+                }}
                 className="ml-2 flex shrink-0 items-center gap-1.5 px-3 py-1.5 font-sans text-[10px] font-bold text-black active:scale-95"
                 style={{ backgroundColor: vibeColor }}
               >
@@ -429,7 +443,13 @@ function parseVenueChips(
         </button>
       );
     }
-    return <span key={i}>{part}</span>;
+    // Strip any remaining tag-like patterns that didn't match
+    const cleaned = part
+      .replace(/\[\[[A-Z_]+:[\s\S]*?\]\]/gi, "")
+      .replace(/\[\[venue:[^\]]*\]\]/g, "")
+      .trim();
+    if (!cleaned) return null;
+    return <span key={i}>{cleaned}</span>;
   });
 }
 
@@ -2282,7 +2302,8 @@ export function TheDock({
 
   // ─── Concierge venue card tap ──────────────────────────────────
 
-  const handleConciergeVenueTap = useCallback((venue: Venue) => {
+  const handleConciergeVenueTap = useCallback((venue: Venue, prompt?: string) => {
+    if (prompt) pendingPromptRef.current = prompt;
     onVenueSelect(venue);
   }, [onVenueSelect]);
 
