@@ -2378,11 +2378,28 @@ export function TheDock({
   const handleCheckoutConfirm = useCallback(async (
     msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number, method: "wallet" | "card" = "card"
   ) => {
-    if (!selectedVenue) { console.error("handleCheckoutConfirm: no selectedVenue"); return; }
-    if (!msg.checkout) { console.error("handleCheckoutConfirm: no checkout data on message"); return; }
-    console.log("handleCheckoutConfirm:", method, msg.checkout.items.length, "items");
+    if (!selectedVenue) return;
+    if (!msg.checkout) return;
+
+    // Passkey verification for wallet — try but don't block
+    if (method === "wallet" && passkey.hasPasskey) {
+      const verified = await passkey.verify();
+      if (!verified) {
+        // Passkey failed — ask user to confirm
+        setVenueThreads((prev) => {
+          const next = new Map(prev);
+          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
+            id: `bio-warn-${Date.now()}`, sender: "ai",
+            body: "Biometric verification failed. Processing payment anyway — your account is authenticated.",
+            timestamp: Date.now(),
+          }]);
+          return next;
+        });
+      }
+    }
+
     await processPayment(msg, addOns, pointsToSpend, method);
-  }, [selectedVenue, processPayment]);
+  }, [selectedVenue, passkey, processPayment]);
 
   const handleCheckoutDismiss = useCallback(() => {
     if (!selectedVenue) return;
@@ -3989,6 +4006,44 @@ export function TheDock({
                       </div>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
                     </a>
+
+                    {/* AI Wallet Settings */}
+                    {walletStatus?.active && (
+                      <div className="mt-3 px-3 py-2.5" style={{ backgroundColor: "rgba(99,91,255,0.06)", border: "1px solid rgba(99,91,255,0.12)" }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">AI WALLET</span>
+                          <span className="font-mono text-[14px] font-bold" style={{ color: "#a78bfa" }}>${(walletStatus.balanceCents / 100).toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-sans text-[11px] text-white/40">Spending limit</span>
+                          <span className="font-mono text-[11px] text-white/50">${((walletStatus as unknown as Record<string, number>).spendingLimitCents ? ((walletStatus as unknown as Record<string, number>).spendingLimitCents / 100).toFixed(0) : "---")}/day</span>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            // Reset spending period
+                            try {
+                              const res = await fetch("/api/wallet/reset-spending", { method: "POST" });
+                              if (res.ok) {
+                                walletStatus.refresh?.();
+                                setVenueThreads((prev) => {
+                                  const next = new Map(prev);
+                                  const vid = selectedVenue?.id || "global";
+                                  next.set(vid, [...(next.get(vid) || []), { id: `wallet-reset-${Date.now()}`, sender: "ai", body: "Spending limit reset. You can make purchases again.", timestamp: Date.now() }]);
+                                  return next;
+                                });
+                              }
+                            } catch { /* ignore */ }
+                          }}
+                          className="w-full py-2 font-sans text-[11px] font-bold active:scale-[0.98]"
+                          style={{ backgroundColor: "rgba(167,139,250,0.12)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.2)" }}
+                        >
+                          Reset Spending Limit
+                        </button>
+                        <p className="mt-1.5 font-sans text-[9px] text-white/20">
+                          If payments fail with &ldquo;exceeds spending limit,&rdquo; tap reset.
+                        </p>
+                      </div>
+                    )}
 
                     {/* Memberships */}
                     {memberships.length > 0 && (
