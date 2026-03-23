@@ -21,6 +21,16 @@ interface VenueRow {
   address: string | null;
 }
 
+interface OfferingRow {
+  id: string;
+  venue_id: string;
+  name: string;
+  type: string;
+  price_cents: number;
+  description: string | null;
+  duration_minutes: number | null;
+}
+
 async function getActiveVenues(): Promise<VenueRow[]> {
   const { data } = await supabase
     .from("venues")
@@ -29,6 +39,16 @@ async function getActiveVenues(): Promise<VenueRow[]> {
     .order("name");
 
   return (data || []) as VenueRow[];
+}
+
+async function getActiveOfferings(): Promise<OfferingRow[]> {
+  const { data } = await supabase
+    .from("venue_offerings")
+    .select("id, venue_id, name, type, price_cents, description, duration_minutes")
+    .eq("active", true)
+    .order("sort_order")
+    .limit(200);
+  return (data || []) as OfferingRow[];
 }
 
 async function getVenuePageData(venueIds: string[]): Promise<Record<string, { tagline: string | null; theme_color: string; hours: unknown[] }>> {
@@ -45,43 +65,92 @@ async function getVenuePageData(venueIds: string[]): Promise<Record<string, { ta
   return map;
 }
 
-interface OfferingRow {
-  id: string;
-  venue_id: string;
-  name: string;
-  type: string;
-  price_cents: number;
-  description: string | null;
-  duration_minutes: number | null;
-}
-
-async function getActiveOfferings(): Promise<OfferingRow[]> {
+async function getVenueKnowledge(venueId: string): Promise<string> {
   const { data } = await supabase
-    .from("venue_offerings")
-    .select("id, venue_id, name, type, price_cents, description, duration_minutes")
-    .eq("active", true)
-    .order("sort_order")
-    .limit(200);
-  return (data || []) as OfferingRow[];
-}
+    .from("venue_knowledge")
+    .select("content, category")
+    .eq("venue_id", venueId)
+    .order("category");
 
-function buildVenueDirectory(venues: VenueRow[], offerings: OfferingRow[]): string {
-  if (venues.length === 0) return "No venues currently active.";
+  if (!data || data.length === 0) return "";
 
-  // Group offerings by venue
-  const offeringsByVenue = new Map<string, OfferingRow[]>();
-  for (const o of offerings) {
-    if (!offeringsByVenue.has(o.venue_id)) offeringsByVenue.set(o.venue_id, []);
-    offeringsByVenue.get(o.venue_id)!.push(o);
+  const grouped: Record<string, string[]> = {};
+  for (const row of data) {
+    const cat = row.category || "general";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(row.content);
   }
 
-  return venues.map((v) => {
-    const vOfferings = offeringsByVenue.get(v.id) || [];
-    const offeringList = vOfferings.length > 0
-      ? `\n  Offerings: ${vOfferings.map((o) => `${o.name} (${o.type}, $${(o.price_cents / 100).toFixed(2)}, id:${o.id})`).join(", ")}`
-      : "";
-    return `- ${v.name} (id: ${v.id}) — ${v.type || "venue"}, ${v.vibe}, ${v.occupancy}/${v.max_occupancy} people${v.neighborhood ? `, ${v.neighborhood}` : ""}${offeringList}`;
-  }).join("\n");
+  return Object.entries(grouped)
+    .map(([cat, items]) => `[${cat}]\n${items.join("\n")}`)
+    .join("\n\n");
+}
+
+// ─── Keyword-based venue matching ───────────────────────────────
+const TYPE_KEYWORDS: Record<string, string[]> = {
+  barbershop: ["haircut", "fade", "barber", "cut", "trim", "shave", "lineup", "beard", "hair"],
+  salon: ["hair", "nails", "manicure", "pedicure", "blowout", "color", "highlights", "salon", "beauty"],
+  cafe: ["coffee", "latte", "espresso", "cafe", "work", "study", "tea", "pastry", "bakery"],
+  bar: ["drink", "cocktail", "beer", "wine", "happy hour", "night out", "bar", "pub", "spirits"],
+  restaurant: ["food", "eat", "dinner", "lunch", "brunch", "breakfast", "restaurant", "meal", "hungry"],
+  gym: ["workout", "gym", "fitness", "exercise", "lift", "weights", "training", "class"],
+  spa: ["massage", "facial", "spa", "relax", "wellness", "treatment", "sauna"],
+  studio: ["yoga", "pilates", "dance", "art", "music", "studio", "class", "lesson"],
+  shop: ["buy", "shop", "store", "merch", "clothing", "apparel", "goods"],
+  coworking: ["cowork", "desk", "office", "workspace", "meeting room"],
+};
+
+function findRelevantVenues(
+  message: string,
+  venues: VenueRow[],
+  offerings: OfferingRow[]
+): string[] {
+  const lower = message.toLowerCase();
+  const matched = new Set<string>();
+
+  // Match by offering name/description
+  for (const o of offerings) {
+    if (lower.includes(o.name.toLowerCase())) {
+      matched.add(o.venue_id);
+    }
+    if (o.description && lower.split(/\s+/).some(w => w.length > 3 && o.description!.toLowerCase().includes(w))) {
+      matched.add(o.venue_id);
+    }
+  }
+
+  // Match by venue type keywords
+  for (const [type, keywords] of Object.entries(TYPE_KEYWORDS)) {
+    if (keywords.some(k => lower.includes(k))) {
+      for (const v of venues) {
+        if (v.type?.toLowerCase() === type) matched.add(v.id);
+      }
+    }
+  }
+
+  // Match by venue name
+  for (const v of venues) {
+    if (lower.includes(v.name.toLowerCase())) {
+      matched.add(v.id);
+    }
+  }
+
+  // If no matches, return top 5 by occupancy (most popular)
+  if (matched.size === 0) {
+    return venues
+      .sort((a, b) => b.occupancy - a.occupancy)
+      .slice(0, 5)
+      .map(v => v.id);
+  }
+
+  return Array.from(matched).slice(0, 5);
+}
+
+// Build a short directory line for a venue (used in fallback / overview prompts)
+function buildVenueDirectoryLine(v: VenueRow, vOfferings: OfferingRow[]): string {
+  const offeringList = vOfferings.length > 0
+    ? `\n  Offerings: ${vOfferings.map((o) => `${o.name} (${o.type}, $${(o.price_cents / 100).toFixed(2)}, id:${o.id})`).join(", ")}`
+    : "";
+  return `- ${v.name} (id: ${v.id}) — ${v.type || "venue"}, ${v.vibe}, ${v.occupancy}/${v.max_occupancy} people${v.neighborhood ? `, ${v.neighborhood}` : ""}${offeringList}`;
 }
 
 // Resolve [[venue:uuid]] tags into [[venue:uuid:Name]] so the client can render chips
@@ -93,8 +162,19 @@ function resolveVenueTags(text: string, venues: VenueRow[]): string {
   });
 }
 
+// Format offerings for use inside the synthesis prompt
+function formatOfferingsForPrompt(offerings: OfferingRow[]): string {
+  if (offerings.length === 0) return "(no offerings)";
+  return offerings
+    .map(o => {
+      const price = o.price_cents === 0 ? "Free" : `$${(o.price_cents / 100).toFixed(2)}`;
+      const dur = o.duration_minutes ? ` (${o.duration_minutes} min)` : "";
+      return `  - [${o.type}] "${o.name}" ${price}${dur} (id:${o.id})`;
+    })
+    .join("\n");
+}
+
 export async function POST(request: Request) {
-  // Parse body and auth in parallel
   const [body, authClient] = await Promise.all([request.json(), createAuthClient()]);
   const { message } = body;
 
@@ -111,17 +191,67 @@ export async function POST(request: Request) {
     getActiveOfferings(),
     userId ? getPreferencesContext(userId) : Promise.resolve(""),
   ]);
-  const directory = buildVenueDirectory(venues, offerings);
+
+  // ─── Step 1: Identify relevant venues ────────────────────────
+  const relevantIds = findRelevantVenues(message, venues, offerings);
+  const relevantVenues = venues.filter(v => relevantIds.includes(v.id));
+
+  // Group offerings by venue for quick lookup
+  const offeringsByVenue = new Map<string, OfferingRow[]>();
+  for (const o of offerings) {
+    if (!offeringsByVenue.has(o.venue_id)) offeringsByVenue.set(o.venue_id, []);
+    offeringsByVenue.get(o.venue_id)!.push(o);
+  }
+
+  // ─── Step 2: Fetch knowledge bases for relevant venues in parallel ──
+  const knowledgeBases = await Promise.all(
+    relevantVenues.map(async (v) => {
+      const knowledge = await getVenueKnowledge(v.id);
+      const vOfferings = offeringsByVenue.get(v.id) || [];
+      return {
+        venue: v,
+        knowledge,
+        offerings: vOfferings,
+      };
+    })
+  );
+
+  // ─── Step 3: Build synthesis prompt ──────────────────────────
+  const venueBlocks = knowledgeBases.map(({ venue, knowledge, offerings: vOff }) => {
+    return [
+      `VENUE: ${venue.name} (id: ${venue.id})`,
+      `Type: ${venue.type || "venue"} | Vibe: ${venue.vibe} | Occupancy: ${venue.occupancy}/${venue.max_occupancy}${venue.neighborhood ? ` | Area: ${venue.neighborhood}` : ""}${venue.address ? ` | Address: ${venue.address}` : ""}`,
+      knowledge ? `Knowledge:\n${knowledge}` : "",
+      `Offerings:\n${formatOfferingsForPrompt(vOff)}`,
+    ].filter(Boolean).join("\n");
+  }).join("\n\n---\n\n");
+
+  // Build a brief directory of ALL venues for general awareness
+  const allVenuesList = venues.map(v => {
+    const vOff = offeringsByVenue.get(v.id) || [];
+    return `- ${v.name} (id: ${v.id}) — ${v.type || "venue"}${v.neighborhood ? `, ${v.neighborhood}` : ""}${vOff.length > 0 ? ` [${vOff.length} offerings]` : ""}`;
+  }).join("\n");
 
   const context = [
-    "You are KickBack's concierge — the master agent for theKickBack platform. CRITICAL: Never mention texting, SMS, phone numbers, or 'text JOIN.' There is no texting feature. Everything happens through this chat.",
-    "Help users discover venues, answer general questions, and make recommendations.",
+    "You are KickBack's concierge — the master agent for theKickBack platform.",
+    "CRITICAL: Never mention texting, SMS, phone numbers, or 'text JOIN.' There is no texting feature. Everything happens through this chat.",
+    "",
+    `A user asked: "${message}"`,
+    "",
+    `I consulted the following venue agents on your behalf. Use their knowledge to give the best answer:`,
+    "",
+    venueBlocks,
+    "",
+    "ALL VENUES ON THE PLATFORM (for general awareness):",
+    allVenuesList,
+    "",
+    prefsContext || "",
     "",
     "VENUE CARD INSTRUCTIONS:",
     "When recommending a venue, use: [[VENUE_CARD:venue-id-here]]",
     "This renders a full venue card with stats, vibe, and a chat button.",
     "Use VENUE_CARD for specific recommendations. You can include multiple cards.",
-    "Use the exact venue ID from the list below.",
+    "Use the exact venue ID from the venue data above.",
     "",
     "For casual mentions without a full card, use: [[venue:venue-id-here]]",
     "This renders a small tappable chip.",
@@ -131,19 +261,15 @@ export async function POST(request: Request) {
     "[[OFFER:offering-id:Offering Name:price_cents]]",
     "Example: 'Check out [[OFFER:abc-123:Classic Fade:2500]] at Tight Lines or [[OFFER:def-456:Latte Art Class:1500]] at Drip.'",
     "This renders a tappable offering chip guests can add to cart or book.",
-    "Use these when someone asks 'what can I buy', 'any events', 'haircuts near me', etc.",
     "Always pair offerings with their venue using VENUE_CARD or [[venue:id]].",
     "",
-    "Active venues:",
-    directory,
-    "",
-    prefsContext || "",
-    `User says: "${message}"`,
-    "",
-    "Keep responses concise (2-4 sentences). No emojis. Be direct and helpful.",
-    "Always use VENUE_CARD when the user asks where to go, what's good, or for recommendations.",
-    "When the user asks about specific services or products (haircuts, coffee, events, food), show the relevant OFFER links from the offerings listed above.",
-    "You are a discovery engine — help users find things to do, buy, book, and experience across all venues.",
+    "RESPONSE GUIDELINES:",
+    "- Synthesize what the venue agents told you. Respond as the concierge recommending the best options.",
+    "- Lead with the most relevant answer, then mention alternatives.",
+    "- Keep responses concise (2-4 sentences). No emojis. Be direct and helpful.",
+    "- Always use VENUE_CARD when the user asks where to go, what's good, or for recommendations.",
+    "- When the user asks about specific services or products, show the relevant OFFER links from the venue data above.",
+    "- You are a discovery engine — help users find things to do, buy, book, and experience across all venues.",
     "",
     "IMPORTANT RULES:",
     "- NEVER tell users to text, SMS, or call any number. There is no texting feature.",
@@ -178,7 +304,6 @@ export async function POST(request: Request) {
           const contentType = res.headers.get("content-type") || "";
 
           if (contentType.includes("text/event-stream")) {
-            // Streaming response
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
             let buffer = "";
@@ -207,7 +332,6 @@ export async function POST(request: Request) {
               }
             }
           } else {
-            // Non-streaming JSON fallback
             const data = await res.json();
             const msg = data.output?.find((o: { type: string }) => o.type === "message");
             const text = msg?.content?.find((c: { type: string; text?: string }) => c.type === "output_text")?.text;
@@ -267,6 +391,23 @@ export async function POST(request: Request) {
           };
         });
 
+      // Collect all offerings from relevant venues for the client-side metadata
+      const offeringsMap: Record<string, {
+        name: string; description: string | null; price_cents: number;
+        type: string; venue_id: string;
+      }> = {};
+      for (const { venue, offerings: vOff } of knowledgeBases) {
+        for (const o of vOff) {
+          offeringsMap[o.id] = {
+            name: o.name,
+            description: o.description,
+            price_cents: o.price_cents,
+            type: o.type,
+            venue_id: venue.id,
+          };
+        }
+      }
+
       // Save to thread (non-blocking, non-critical)
       if (userId) {
         Promise.all([
@@ -281,6 +422,7 @@ export async function POST(request: Request) {
         type: "done",
         reply,
         venues: referencedVenues,
+        offerings: offeringsMap,
       })}\n\n`));
       controller.close();
     },
