@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import Script from "next/script";
 import { SandboxBanner } from "@/components/sandbox-banner";
 import { PwaInstallPrompt } from "@/components/pwa-prompt";
+import { ForceRefresh } from "@/components/force-refresh";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -55,9 +56,7 @@ export default function RootLayout({
         <SandboxBanner />
         {children}
         <PwaInstallPrompt />
-        <div style={{ position: "fixed", bottom: 2, left: 4, zIndex: 9999, fontSize: 8, color: "rgba(255,255,255,0.15)", fontFamily: "monospace", pointerEvents: "none" }}>
-          {process.env.NEXT_PUBLIC_APP_VERSION || "dev"}
-        </div>
+        <ForceRefresh />
         <Script id="sw-cleanup" strategy="afterInteractive">
           {`if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){r.unregister()})});if('caches' in window){caches.keys().then(function(keys){keys.forEach(function(k){caches.delete(k)})})}}`}
         </Script>
