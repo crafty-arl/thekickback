@@ -327,6 +327,12 @@ export async function POST(request: Request) {
       const checkout = parsedCheckout.checkout;
       let booking = parsedBooking.booking;
 
+      // Strip all remaining tags from the visible reply
+      reply = reply
+        .replace(/\[\[[A-Z_]+:[\s\S]*?\]\]/gi, "")
+        .replace(/\[\[venue:[^\]]*\]\]/g, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
       if (reply.length > 400) reply = reply.slice(0, 397) + "...";
 
       // Save AI reply to thread (non-blocking)

@@ -292,13 +292,24 @@ function buildVenueFromApi(av: ApiVenue): Venue {
 // Strip raw tags from streaming text so users don't see [[VENUE_CARD:...]] etc.
 function stripTags(text: string): string {
   return text
-    .replace(/\[\[VENUE_CARD:[^\]]*\]\]/g, "")
+    // All double-bracket tags: [[ANYTHING:...]] including multiline JSON
+    .replace(/\[\[[A-Z_]+:[\s\S]*?\]\]/gi, "")
+    // Partial tags that didn't close (streaming artifacts)
+    .replace(/\[\[[A-Z_]+:[^\]]*$/gi, "")
+    // Standalone [[venue:...]] chips
     .replace(/\[\[venue:[^\]]*\]\]/g, "")
-    .replace(/\[\[OFFER:[^\]]*\]\]/g, "")
-    .replace(/\[\[CHECKOUT:[\s\S]*?\]\]/g, "")
-    .replace(/\[\[BOOKING:[\s\S]*?\]\]/g, "")
-    .replace(/\[\[CARD:\w+\]\]/g, "")
+    // Any remaining [[ that looks like a tag start
+    .replace(/\[\[[A-Z_]{2,}[:\]]/gi, "")
+    // Clean up leftover JSON fragments from partially stripped tags
+    .replace(/\{"[a-z_]+":\s*"[^"]*"[\s\S]*?\}/g, (match) => {
+      // Only strip if it looks like a tag payload (has offering_id, venue_id, etc.)
+      if (/offering_id|venue_id|attendee|eventTypeId/.test(match)) return "";
+      return match;
+    })
+    // Multiple newlines
     .replace(/\n{3,}/g, "\n\n")
+    // Leading/trailing whitespace per line
+    .replace(/^\s+|\s+$/gm, "")
     .trim();
 }
 
@@ -2200,7 +2211,9 @@ export function TheDock({
           }
 
           // Update with cleaned reply
-          setConciergeMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: (data.reply as string) || fullReply || "Something went wrong. Try again in a moment." } : m));
+          // Use cleanReply (no tags) for display, reply (with tags) for component parsing
+          const displayReply = (data.cleanReply as string) || stripTags((data.reply as string) || fullReply) || "Something went wrong. Try again in a moment.";
+          setConciergeMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: displayReply } : m));
         }
       } catch {
         setConciergeMessages((prev) => [

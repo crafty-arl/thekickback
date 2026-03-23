@@ -417,10 +417,18 @@ export async function POST(request: Request) {
         extractPreferences(userId, message, reply, null).catch(() => {});
       }
 
+      // Clean reply for display (no tags)
+      const cleanReply = reply
+        .replace(/\[\[[A-Z_]+:[\s\S]*?\]\]/gi, "")
+        .replace(/\[\[venue:[^\]]*\]\]/g, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
       // Send final metadata event
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({
         type: "done",
         reply,
+        cleanReply,
         venues: referencedVenues,
         offerings: offeringsMap,
       })}\n\n`));
