@@ -2612,7 +2612,7 @@ export function TheDock({
                   onClick={() => { setMode("explore"); setExploreSnap("half"); }}
                   className="flex items-center"
                 >
-                  <Image src="/logo.png" alt="theKickBack" width={500} height={250} className="h-6 w-auto" style={{ filter: "invert(1)" }} priority />
+                  <Image src="/logo.png" alt="theKickBack" width={500} height={250} className="h-6 w-auto" style={{ filter: "invert(1) sepia(1) saturate(5) hue-rotate(350deg) brightness(1.1)" }} priority />
                 </button>
               </div>
 
