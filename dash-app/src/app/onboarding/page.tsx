@@ -4,13 +4,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { HubPreview } from "@/components/hub-preview";
-import { HubPreviewEditable } from "@/components/hub-preview-editable";
+import { PlacePreview } from "@/components/place-preview";
+import { PlacePreviewEditable } from "@/components/place-preview-editable";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { StripeConnect } from "@/components/dashboard/stripe-connect";
-import type { HubData } from "@/components/hub-preview";
+import type { PlaceData } from "@/components/place-preview";
 import type { ChecklistState } from "@/components/onboarding-checklist";
-import { submitHubForReview, getOnboardingState } from "./actions";
+import { submitPlaceForReview, getOnboardingState } from "./actions";
 import { updateVenue, updateVenuePage } from "@/app/settings/actions";
 import { uploadGalleryImage } from "@/app/edit/gallery-actions";
 
@@ -30,9 +30,9 @@ type Phase = "chat" | "checklist" | "submitted";
 
 const KNOWN_TYPES = ["bar", "restaurant", "lounge", "club", "cafe", "coworking", "barbershop", "nail salon"];
 
-function extractHubDataFromMessages(messages: OnboardingMessage[]): Partial<HubData> {
+function extractHubDataFromMessages(messages: OnboardingMessage[]): Partial<PlaceData> {
   const allUserText = messages.filter((m) => m.sender === "user").map((m) => m.body).join(" ");
-  const updates: Partial<HubData> = {};
+  const updates: Partial<PlaceData> = {};
   for (const t of KNOWN_TYPES) {
     if (allUserText.toLowerCase().includes(t)) { updates.type = t; break; }
   }
@@ -41,7 +41,7 @@ function extractHubDataFromMessages(messages: OnboardingMessage[]): Partial<HubD
   return updates;
 }
 
-function mergePartialData(current: HubData, partial: Record<string, unknown>): HubData {
+function mergePartialData(current: PlaceData, partial: Record<string, unknown>): PlaceData {
   return {
     name: (partial.name as string) || current.name,
     type: (partial.type as string) || current.type,
@@ -62,7 +62,7 @@ const DEFAULT_REPLIES = [
   "It\u2019s a coworking space",
 ];
 
-const WELCOME_MESSAGE = "Welcome to theKickBack. Let\u2019s get your hub set up \u2014 tell me about your spot. What\u2019s it called, what kind of place is it, and where is it?";
+const WELCOME_MESSAGE = "Welcome to theKickBack! Let\u2019s get your place set up \u2014 what\u2019s it called, what kind of spot is it, and where is it?";
 
 const DEFAULT_CHECKLIST: ChecklistState = {
   basics: false, location: false, hours: false, branding: false,
@@ -94,7 +94,7 @@ export default function OnboardingPage() {
   const [xpMilestones, setXpMilestones] = useState<{ name: string; threshold: number }[]>([]);
   const [resumeLoading, setResumeLoading] = useState(true);
 
-  const [hubData, setHubData] = useState<HubData>({
+  const [hubData, setHubData] = useState<PlaceData>({
     name: "", type: "", address: "", tagline: "", description: "",
     themeColor: "#F97316", hours: "", capacity: 100, slug: "",
   });
@@ -179,7 +179,7 @@ export default function OnboardingPage() {
             setMessages([{
               id: "checklist-welcome",
               sender: "agent",
-              body: `Welcome back! Your hub is ${Math.round((completed / 9) * 100)}% set up. Let\u2019s finish getting ${v?.name || "your hub"} ready. ${firstIncomplete ? getItemPrompt(firstIncomplete) : "Looking good!"}`,
+              body: `Welcome back! Your place is ${Math.round((completed / 9) * 100)}% set up. Let\u2019s finish getting ${v?.name || "your place"} ready. ${firstIncomplete ? getItemPrompt(firstIncomplete) : "Looking good!"}`,
               timestamp: Date.now(),
             }]);
             setSmartReplies([]);
@@ -199,7 +199,7 @@ export default function OnboardingPage() {
 
   const handleSubmitForReview = useCallback(async () => {
     setSubmitting(true);
-    const result = await submitHubForReview();
+    const result = await submitPlaceForReview();
     if (result?.ok) {
       setSubmitted(true);
       setPhase("submitted");
@@ -363,7 +363,7 @@ export default function OnboardingPage() {
             setMessages((prev) => [...prev, {
               id: `phase2-start-${Date.now()}`,
               sender: "agent",
-              body: `Your hub is created! Now let\u2019s make it shine. I\u2019ll walk you through each section. ${firstIncomplete ? getItemPrompt(firstIncomplete) : ""}`,
+              body: `Your place is set up! Now let\u2019s make it look good. ${firstIncomplete ? getItemPrompt(firstIncomplete) : ""}`,
               timestamp: Date.now(),
             }]);
           }
@@ -402,7 +402,7 @@ export default function OnboardingPage() {
       <main className="flex h-dvh items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange border-t-transparent" />
-          <p className="font-sans text-[13px] text-white/30">Loading your hub...</p>
+          <p className="font-sans text-[13px] text-white/30">Loading your place...</p>
         </div>
       </main>
     );
@@ -419,7 +419,7 @@ export default function OnboardingPage() {
           <Image src="/logo.png" alt="theKickBack" width={120} height={40} className="h-7 w-auto" />
           <div className="hidden h-4 w-px bg-white/10 sm:block" />
           <span className="font-sans text-[13px] font-medium text-white/35">
-            {phase === "checklist" ? "Complete your hub" : "Set up your hub"}
+            {phase === "checklist" ? "Finish setting up" : "Set up your place"}
           </span>
         </header>
 
@@ -495,7 +495,7 @@ export default function OnboardingPage() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mb-3 flex justify-start">
               <div className="max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-4" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <p className="mb-3 font-sans text-[14px] leading-[1.6] text-white/85">
-                  Your hub is ready. Check the preview on the right, then submit for review.
+                  Your place is ready. Check the preview on the right, then submit it.
                 </p>
                 <div className="flex gap-2">
                   <button onClick={handleSubmitForReview} disabled={submitting} className="rounded-xl px-5 py-2.5 font-sans text-[13px] font-bold text-black active:scale-[0.98] disabled:opacity-50" style={{ backgroundColor: "#F97316" }}>
@@ -520,7 +520,7 @@ export default function OnboardingPage() {
                   <span className="font-sans text-[14px] font-bold text-green-400">Application Under Review</span>
                 </div>
                 <p className="mb-1 font-sans text-[13px] leading-[1.6] text-white/60">
-                  Your hub has been submitted and is being reviewed. We&apos;ve sent a confirmation to your email.
+                  Your place has been sent in for review. We&apos;ll email you when it&apos;s approved.
                 </p>
                 <p className="mb-3 font-sans text-[13px] leading-[1.6] text-white/40">
                   You can continue setting up from the dashboard while you wait.
@@ -559,7 +559,7 @@ export default function OnboardingPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder={submitted ? "Hub submitted!" : phase === "checklist" ? "Ask me anything about setup..." : venueCreated ? "Hub created!" : "Tell me about your hub..."}
+              placeholder={submitted ? "All set!" : phase === "checklist" ? "Ask me anything about setup..." : venueCreated ? "Place created!" : "Tell me about your place..."}
               disabled={submitted}
               enterKeyHint="send"
               autoComplete="off"
@@ -583,7 +583,7 @@ export default function OnboardingPage() {
       {/* Right: Preview */}
       <div className="hidden w-1/2 border-l border-white/[0.06] lg:block">
         {phase === "checklist" && venueId ? (
-          <HubPreviewEditable
+          <PlacePreviewEditable
             data={hubData}
             venueId={venueId}
             offerings={offerings}
@@ -595,7 +595,7 @@ export default function OnboardingPage() {
             onSectionEdited={handleSectionEdited}
           />
         ) : (
-          <HubPreview data={hubData} />
+          <PlacePreview data={hubData} />
         )}
       </div>
 
@@ -621,7 +621,7 @@ export default function OnboardingPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
-                <span className="font-sans text-[14px] font-semibold text-white/80">Hub Preview</span>
+                <span className="font-sans text-[14px] font-semibold text-white/80">Your Place</span>
                 <button onClick={() => setShowPreview(false)} className="text-white/40">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 6 6 18M6 6l12 12" />
@@ -629,7 +629,7 @@ export default function OnboardingPage() {
                 </button>
               </div>
               {phase === "checklist" && venueId ? (
-                <HubPreviewEditable
+                <PlacePreviewEditable
                   data={hubData}
                   venueId={venueId}
                   offerings={offerings}
@@ -639,7 +639,7 @@ export default function OnboardingPage() {
                   onSectionEdited={handleSectionEdited}
                 />
               ) : (
-                <HubPreview data={hubData} />
+                <PlacePreview data={hubData} />
               )}
             </motion.div>
           </motion.div>
@@ -653,15 +653,15 @@ export default function OnboardingPage() {
 
 function getItemPrompt(key: keyof ChecklistState): string {
   const prompts: Record<keyof ChecklistState, string> = {
-    basics: "Let\u2019s confirm your hub name and type are right.",
+    basics: "Let\u2019s make sure your name and type are right.",
     location: "Let\u2019s make sure your address is correct.",
-    hours: "What are your operating hours? You can edit them in the preview too.",
-    branding: "Time to set your tagline, description, and theme color. Tap any section in the preview to edit.",
-    offerings: "Review the offerings we auto-generated. You can edit them from the preview or your dashboard later.",
-    knowledge: "Teach your AI about your spot \u2014 what should it know that isn\u2019t obvious? Signature drinks, house rules, parking tips?",
-    photos: "Upload at least one photo. Tap the photos section in the preview to add images.",
-    xp: "Review your loyalty program \u2014 we set up XP actions and milestones based on your hub type.",
-    stripe: "Last step \u2014 connect Stripe so you can accept payments. Tap the button below to get started.",
+    hours: "When are you open? You can also edit this in the preview.",
+    branding: "Time to set your tagline, description, and color. Tap any section in the preview to change it.",
+    offerings: "Check out the things we listed for you. You can edit them in the preview or from your dashboard later.",
+    knowledge: "Tell the AI things visitors should know \u2014 like what you\u2019re known for, parking, or house rules.",
+    photos: "Add at least one photo. Tap the photos section in the preview to upload.",
+    xp: "Check out the rewards program we made for you.",
+    stripe: "Last step \u2014 connect Stripe so people can pay you. Tap the button below to get started.",
   };
   return prompts[key];
 }

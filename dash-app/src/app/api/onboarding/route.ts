@@ -8,11 +8,11 @@ const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://wofvgfhejrvudvfxdytc.supabase.co";
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || "";
 
-const SYSTEM_PROMPT = `You are the theKickBack hub setup assistant. Get a hub set up in 3-4 messages MAX. Be fast, casual, extract as much as possible from each response. Never sound like a form.
+const SYSTEM_PROMPT = `You are the theKickBack place setup assistant. Get a place set up in 3-4 messages MAX. Be fast, casual, extract as much as possible from each response. Never sound like a form.
 
 Flow (3 exchanges then done):
 
-EXCHANGE 1: "Tell me about your hub — what's it called and what kind of place is it?"
+EXCHANGE 1: "Tell me about your place — what's it called and what kind of spot is it?"
 → Extract: name, type. If they give more (address, hours, capacity) take it all.
 → After getting name and type, determine locationMode using the rules below.
 
@@ -29,7 +29,7 @@ LOCATION MODE DETECTION:
 
 EXCHANGE 2: "Nice! A few quick details — hours, capacity, and what you serve?"
 → Extract: hours, max_occupancy, menu highlights. If they mention rules take those too. Skip anything they already told you.
-→ For mobile/virtual hubs, ask about event schedule instead of fixed hours.
+→ For mobile/virtual places, ask about event schedule instead of fixed hours.
 
 EXCHANGE 3: "Last one — describe the vibe in a sentence."
 → Extract: tagline. YOU auto-generate: description (2 sentences), theme color (bar/club=#F97316, cafe/cowork=#4ADE80, restaurant=#EF4444, lounge=#8B5CF6), slug, and set rules to [] if not mentioned.
@@ -65,12 +65,12 @@ function buildChecklistPrompt(currentItem: string | null, checklist: Record<stri
   const remaining = Object.entries(checklist).filter(([, v]) => !v).map(([k]) => k);
 
   const locationContext = locationMode === "mobile"
-    ? `\nThis hub is mobile (moves around / hosts events at different spots). The "location" item is auto-completed — no fixed address needed. For "offerings", mention that each event can have its own location.`
+    ? `\nThis place is mobile (moves around / hosts events at different spots). The "location" item is auto-completed — no fixed address needed. For "offerings", mention that each event can have its own location.`
     : locationMode === "virtual"
-    ? `\nThis hub is virtual (no physical location). The "location" item is auto-completed — no address needed. For "offerings", mention that each event can have its own location.`
+    ? `\nThis place is virtual (no physical location). The "location" item is auto-completed — no address needed. For "offerings", mention that each event can have its own location.`
     : "";
 
-  return `You are guiding a venue owner through their setup checklist. They already created their hub. Now walk them through each remaining item.
+  return `You are guiding a place operator through their setup checklist. They already created their place. Now walk them through each remaining item.
 
 Current item: ${currentItem || "none"}
 Completed: ${completed.join(", ") || "none"}
@@ -82,8 +82,8 @@ When a checklist item is completed through your conversation, output:
 <<<CHECKLIST_UPDATE>>>{"item":"${currentItem}","completed":true}<<<END_UPDATE>>>
 
 Item descriptions:
-- basics: Hub name and type
-- location: ${locationMode === "mobile" ? "Your hub doesn't need a fixed address — you're mobile! Already complete." : locationMode === "virtual" ? "Your hub doesn't need a fixed address — it's virtual! Already complete." : "Address confirmation"}
+- basics: Place name and type
+- location: ${locationMode === "mobile" ? "Your place doesn't need a fixed address — you're mobile! Already complete." : locationMode === "virtual" ? "Your place doesn't need a fixed address — it's virtual! Already complete." : "Address confirmation"}
 - hours: ${locationMode === "mobile" || locationMode === "virtual" ? "Event schedule or typical timing" : "Operating hours"}
 - branding: Tagline, description, and theme color
 - offerings: Review auto-generated offerings${locationMode === "mobile" || locationMode === "virtual" ? " — each event can have its own location" : ""}
@@ -432,7 +432,7 @@ async function createVenueFromAI(data: {
         if (ownerEmail) {
           sendEmail(ownerEmail, `Welcome to theKickBack, ${data.name}!`, wrap(`
             <div style="text-align:center;margin-bottom:24px;">
-              <h1 style="margin:0;font-size:24px;color:#fff;">Your hub is taking shape.</h1>
+              <h1 style="margin:0;font-size:24px;color:#fff;">Your place is taking shape.</h1>
             </div>
             <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.5;">
               <strong style="color:#fff;">${data.name}</strong> has been created on theKickBack.

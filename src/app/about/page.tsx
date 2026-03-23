@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata = {
     title: "About — theKickBack",
-    description: "Infrastructure for human connection. Every gathering place deserves a digital front door.",
+    description: "Helping people find and support their favorite spots.",
 };
 
 const ACCENT = "#a78bfa";
@@ -27,15 +27,15 @@ export default function AboutPage() {
             {/* Content */}
             <main className="px-6 pb-20 mx-auto" style={{ maxWidth: 720 }}>
                 <h1 className="font-sans text-[40px] font-bold leading-tight mt-12 mb-2" style={{ color: "#fff" }}>
-                    theKickBack Protocol
+                    What is theKickBack?
                 </h1>
                 <p className="text-[15px] text-white/40 mb-10">
-                    Infrastructure for human connection · v0.3 · March 2026
+                    A better way to find cool spots · March 2026
                 </p>
 
                 {/* Section: Why This Exists */}
                 <section className="mb-14">
-                    <h2 className="font-sans text-[22px] font-semibold mb-4" style={{ color: ACCENT }}>Why This Exists</h2>
+                    <h2 className="font-sans text-[22px] font-semibold mb-4" style={{ color: ACCENT }}>Why We Built This</h2>
                     <p className="text-[15px] leading-relaxed text-white/70 mb-4">
                         You had a spot. Maybe it was a barbershop where the conversation was better than the cut. Maybe it was a basketball court where you didn&apos;t need to know anyone&apos;s last name to run fives. Maybe it was a nail salon where you finally exhaled.
                     </p>
@@ -43,7 +43,7 @@ export default function AboutPage() {
                         You had a spot, and it knew you. Not because it tracked your data. Not because it had an app. Because the person behind the chair or behind the counter saw you come back, and one day said &ldquo;the usual?&rdquo; — and that was the moment you belonged somewhere.
                     </p>
                     <p className="text-[15px] leading-relaxed text-white/70">
-                        The internet built infrastructure for everything except the physical places where humans actually become community. theKickBack says: <strong style={{ color: "#fff" }}>what if every gathering place could become a living, intelligent, findable destination?</strong>
+                        The internet has tools for everything — except the real places where people actually hang out. theKickBack says: <strong style={{ color: "#fff" }}>what if every spot could have its own page, its own AI, and a way for people to find it?</strong>
                     </p>
                 </section>
 
@@ -51,10 +51,10 @@ export default function AboutPage() {
                 <section className="mb-14">
                     <h2 className="font-sans text-[22px] font-semibold mb-4" style={{ color: ACCENT }}>What It Is</h2>
                     <p className="text-[15px] leading-relaxed text-white/70 mb-4">
-                        theKickBack is a protocol — a set of ideas expressed as software. Every gathering place gets its own AI agent, storefront, and digital front door. Barbershops, nail salons, leagues, communities, artists, musicians, cafes, coworking spaces — any center of gravity where humans gather around something real.
+                        theKickBack gives every place its own AI helper, a page that shows what they offer, and a way for people to find them. Barbershops, nail salons, leagues, communities, artists, musicians, cafes, coworking spaces — if people go there, it belongs on the map.
                     </p>
                     <p className="text-[15px] leading-relaxed text-white/70">
-                        No app download. It&apos;s a PWA that works on web, SMS, and email. Three channels, zero downloads. Open the map. Tap a pin. You&apos;re in.
+                        No app to download. It works on your phone&apos;s browser, by text, and by email. Open the map. Tap a pin. You&apos;re in.
                     </p>
                 </section>
 
@@ -63,35 +63,35 @@ export default function AboutPage() {
                     <h2 className="font-sans text-[22px] font-semibold mb-4" style={{ color: ACCENT }}>How It Works</h2>
 
                     <div className="rounded-2xl p-5 mb-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 className="font-sans text-[14px] font-semibold mb-2" style={{ color: ORANGE }}>For Guests</h3>
+                        <h3 className="font-sans text-[14px] font-semibold mb-2" style={{ color: ORANGE }}>For Visitors</h3>
                         <ul className="space-y-2 text-[14px] text-white/60">
-                            <li>Open the map — your city, alive with pulsing pins color-coded by vibe</li>
-                            <li>Tap a pin — you&apos;re chatting with that hub&apos;s AI. Ask about the vibe, menu, events, or shop.</li>
-                            <li>Tappable offering cards in the chat — add to cart and checkout right there</li>
-                            <li>Every visit earns XP. Tiers: Explorer → Regular → Member → VIP</li>
-                            <li>AI Wallet: load funds, the AI handles purchases during conversation</li>
-                            <li>Works on web, SMS, and email. No passwords — email OTP login.</li>
+                            <li>Open the map — see every spot near you, with colors showing how busy they are</li>
+                            <li>Tap a pin — you can ask the place&apos;s AI about what&apos;s going on, what they sell, or when they&apos;re open</li>
+                            <li>See things you can buy right in the chat and check out</li>
+                            <li>Every visit earns you points. The more you go, the higher your level: Explorer → Regular → Member → VIP</li>
+                            <li>Load money into your wallet. The AI helps you buy stuff while you chat.</li>
+                            <li>Works on your phone, by text, and by email. Sign in with your email — no password needed.</li>
                         </ul>
                     </div>
 
                     <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 className="font-sans text-[14px] font-semibold mb-2" style={{ color: ORANGE }}>For Hub Owners</h3>
+                        <h3 className="font-sans text-[14px] font-semibold mb-2" style={{ color: ORANGE }}>For Place Operators</h3>
                         <ul className="space-y-2 text-[14px] text-white/60">
-                            <li>Set up in 5 minutes via conversational AI onboarding</li>
-                            <li>Get: AI agent, live dashboard, storefront, offerings, staff portal, gallery</li>
-                            <li>List events — guests discover and RSVP through the map</li>
-                            <li>Stripe Connect for direct payments — you keep 100% of item price</li>
+                            <li>Set up in 5 minutes by chatting with our AI</li>
+                            <li>You get: an AI helper, a dashboard, a page for your stuff, staff tools, and a photo gallery</li>
+                            <li>List events — visitors find them and RSVP through the map</li>
+                            <li>Stripe Connect for direct payments — you keep 100% of every sale</li>
                             <li>Staff portal: invite by email, staff manage their own hours</li>
-                            <li>We take 2% on AI Wallet transactions only. Stripe fees are separate.</li>
+                            <li>We only charge 2% when someone loads their wallet. Card fees from Stripe are separate.</li>
                         </ul>
                     </div>
                 </section>
 
-                {/* Section: What Counts as a Hub */}
+                {/* Section: What Counts as a Place */}
                 <section className="mb-14">
-                    <h2 className="font-sans text-[22px] font-semibold mb-4" style={{ color: ACCENT }}>What Counts as a Hub</h2>
+                    <h2 className="font-sans text-[22px] font-semibold mb-4" style={{ color: ACCENT }}>What Counts as a Place</h2>
                     <p className="text-[15px] leading-relaxed text-white/70 mb-4">
-                        A barbershop is a hub. A community running club is a hub. A musician is a hub. An artist&apos;s studio is a hub. A recreational league is a hub. A nail salon is a hub. An organization is a hub.
+                        A barbershop is a place. A running club is a place. A musician&apos;s studio is a place. If people go there, it&apos;s a place.
                     </p>
                     <div className="flex flex-wrap gap-2 mt-4">
                         {["Barbershops", "Nail Salons", "Cafes", "Bars", "Lounges", "Rooftops", "Coworking", "Leagues", "Communities", "Artists", "Musicians", "Creators", "Groups", "Orgs", "Restaurants", "Clubs"].map((cat) => (
@@ -104,10 +104,10 @@ export default function AboutPage() {
                 <section className="mb-14">
                     <h2 className="font-sans text-[22px] font-semibold mb-4" style={{ color: ACCENT }}>The Invitation</h2>
                     <p className="text-[15px] leading-relaxed text-white/70 mb-4">
-                        The barber doesn&apos;t need a social media strategy. The league organizer doesn&apos;t need a website. The nail tech doesn&apos;t need an app developer. The musician doesn&apos;t need a Linktree.
+                        The barber doesn&apos;t need a marketing plan. The nail tech doesn&apos;t need to build a website. The league organizer doesn&apos;t need an app developer.
                     </p>
                     <p className="text-[15px] leading-relaxed text-white/70">
-                        They need infrastructure that understands what they already are: a place where people come to be seen, to be known, to be held for a little while. That&apos;s what theKickBack builds.
+                        They just need a way for people to find them and come back. That&apos;s what we build.
                     </p>
                 </section>
 
@@ -124,7 +124,7 @@ export default function AboutPage() {
                 {/* CTA */}
                 <div className="flex gap-3 mt-8">
                     <a href="https://join.thekickback.net" className="rounded-full px-5 py-2.5 text-[13px] font-semibold transition hover:opacity-90" style={{ backgroundColor: ORANGE, color: "#fff" }}>Find Your Spot</a>
-                    <a href="https://dash.thekickback.net" className="rounded-full px-5 py-2.5 text-[13px] font-medium transition hover:opacity-90" style={{ backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Set Up Your Hub</a>
+                    <a href="https://dash.thekickback.net" className="rounded-full px-5 py-2.5 text-[13px] font-medium transition hover:opacity-90" style={{ backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Set Up Your Place</a>
                 </div>
             </main>
         </div>

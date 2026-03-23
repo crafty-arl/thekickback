@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -76,40 +75,103 @@ export async function POST(request: Request) {
     "General chat = no card tag.",
   ].filter(Boolean).join("\n");
 
-  let reply = "I don't have much info on this spot yet — they haven't set up their KickBack page.";
-  let card: string | null = null;
+  const encoder = new TextEncoder();
 
-  try {
-    const res = await fetch(`${process.env.OPENCLAW_GATEWAY_URL}/v1/responses`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN}`,
-        "Content-Type": "application/json",
-        "x-openclaw-agent-id": `ghost-${venueId}`,
-      },
-      body: JSON.stringify({ model: "openclaw", input: context }),
-    });
+  const stream = new ReadableStream({
+    async start(controller) {
+      let fullText = "";
 
-    if (res.ok) {
-      const data = await res.json();
-      const msg = data.output?.find((o: { type: string }) => o.type === "message");
-      const text = msg?.content?.find((c: { type: string; text?: string }) => c.type === "output_text")?.text;
-      if (text) {
-        reply = text;
+      try {
+        const res = await fetch(`${process.env.OPENCLAW_GATEWAY_URL}/v1/responses`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN}`,
+            "Content-Type": "application/json",
+            "x-openclaw-agent-id": `ghost-${venueId}`,
+          },
+          body: JSON.stringify({ model: "openclaw", input: context, stream: true }),
+        });
 
-        // Parse card tag
-        const cardMatch = reply.match(/\[\[CARD:(\w+)\]\]/);
-        if (cardMatch) {
-          card = cardMatch[1];
-          reply = reply.replace(/\[\[CARD:\w+\]\]/, "").trim();
+        if (res.ok && res.body) {
+          const contentType = res.headers.get("content-type") || "";
+
+          if (contentType.includes("text/event-stream")) {
+            // Streaming response
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                const data = line.slice(6);
+                if (data === "[DONE]") continue;
+
+                try {
+                  const event = JSON.parse(data);
+                  if (event.type === "response.output_text.delta") {
+                    const delta = event.delta || "";
+                    fullText += delta;
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: delta })}\n\n`));
+                  }
+                } catch { /* skip unparseable lines */ }
+              }
+            }
+          } else {
+            // Non-streaming JSON fallback
+            const data = await res.json();
+            const msg = data.output?.find((o: { type: string }) => o.type === "message");
+            const text = msg?.content?.find((c: { type: string; text?: string }) => c.type === "output_text")?.text;
+            if (text) {
+              fullText = text;
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text })}\n\n`));
+            }
+          }
+        } else {
+          console.error("Ghost agent error:", res.status, await res.text().catch(() => ""));
+          fullText = "I don't have much info on this spot yet — they haven't set up their KickBack page.";
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: fullText })}\n\n`));
         }
-
-        if (reply.length > 280) reply = reply.slice(0, 277) + "...";
+      } catch (err) {
+        console.error("Ghost agent error:", err);
+        fullText = "I don't have much info on this spot yet — they haven't set up their KickBack page.";
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: fullText })}\n\n`));
       }
-    }
-  } catch (err) {
-    console.error("Ghost agent error:", err);
-  }
 
-  return Response.json({ reply, card, ghost: true });
+      // Parse card tag
+      let reply = fullText;
+      let card: string | null = null;
+      const cardMatch = reply.match(/\[\[CARD:(\w+)\]\]/);
+      if (cardMatch) {
+        card = cardMatch[1];
+        reply = reply.replace(/\[\[CARD:\w+\]\]/, "").trim();
+      }
+
+      if (reply.length > 280) reply = reply.slice(0, 277) + "...";
+
+      // Send final metadata event
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+        type: "done",
+        reply,
+        card,
+        ghost: true,
+      })}\n\n`));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

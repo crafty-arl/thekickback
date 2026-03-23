@@ -7,10 +7,7 @@ import Link from "next/link";
 /*  Shared                                                            */
 /* ------------------------------------------------------------------ */
 
-const glass = {
-  backgroundColor: "rgba(0,0,0,0.03)",
-  border: "1px solid rgba(0,0,0,0.06)",
-};
+const cardStyle = "bg-white border border-gray-200 p-4";
 
 const enter = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } };
 
@@ -62,22 +59,22 @@ export function StatsCard({
   const pct = capacity > 0 ? Math.round((occupancy / capacity) * 100) : 0;
 
   return (
-    <motion.div {...enter} style={glass} className="rounded-2xl p-4 space-y-3">
+    <motion.div {...enter} className={`${cardStyle} space-y-3`}>
       {/* Occupancy bar */}
       <div>
-        <p className="text-[10px] text-gray-400 mb-1">Occupancy</p>
-        <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Occupancy</p>
+        <div className="h-2 bg-gray-100 overflow-hidden">
           <motion.div
-            className="h-full rounded-full"
+            className="h-full"
             style={{ backgroundColor: "#F97316" }}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.6, ease: "easeOut" }}
           />
         </div>
-        <p className="text-[20px] font-bold text-gray-900 mt-1">
+        <p className="font-mono text-2xl font-bold text-gray-900 mt-1">
           {occupancy}
-          <span className="text-[10px] text-gray-400 font-normal"> / {capacity}</span>
+          <span className="text-xs text-gray-400 font-normal"> / {capacity}</span>
         </p>
       </div>
 
@@ -94,9 +91,9 @@ export function StatsCard({
 
 function StatBox({ label, value }: { label: string; value: string }) {
   return (
-    <div style={glass} className="rounded-xl p-3">
-      <p className="text-[10px] text-gray-400">{label}</p>
-      <p className="text-[20px] font-bold text-gray-900">{value}</p>
+    <div className="bg-gray-50 border border-gray-200 p-3">
+      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</p>
+      <p className="font-mono text-xl font-bold text-gray-900">{value}</p>
     </div>
   );
 }
@@ -121,22 +118,21 @@ export function BookingsCard({
   onDecline?: (id: string) => void;
 }) {
   return (
-    <motion.div {...enter} style={glass} className="rounded-2xl p-4 space-y-2">
-      <p className="text-[10px] text-gray-400 mb-1">Bookings</p>
+    <motion.div {...enter} className={`${cardStyle} space-y-2`}>
+      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Bookings</p>
 
       {bookings.length === 0 && (
-        <p className="text-gray-400 text-sm">No bookings</p>
+        <p className="text-gray-500 text-sm">No bookings</p>
       )}
 
       {bookings.map((b) => (
         <div
           key={b.id}
-          style={glass}
-          className="rounded-xl p-3 flex items-center justify-between gap-3"
+          className="bg-gray-50 border border-gray-200 p-3 flex items-center justify-between gap-3"
         >
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-gray-700 truncate">{b.guest_name}</p>
-            <p className="text-[10px] text-gray-400 truncate">
+            <p className="text-sm font-medium text-gray-800 truncate">{b.guest_name}</p>
+            <p className="text-xs text-gray-400 truncate">
               {b.offering_name} &middot; {formatTime(b.starts_at)}
             </p>
           </div>
@@ -147,13 +143,13 @@ export function BookingsCard({
             <div className="flex gap-1.5 shrink-0">
               <button
                 onClick={() => onApprove(b.id)}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+                className="px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
               >
                 Approve
               </button>
               <button
                 onClick={() => onDecline(b.id)}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                className="px-2.5 py-1 text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors"
               >
                 Decline
               </button>
@@ -167,14 +163,14 @@ export function BookingsCard({
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    pending: "bg-yellow-50 text-yellow-600",
-    confirmed: "bg-green-50 text-green-600",
-    declined: "bg-red-50 text-red-600",
-    cancelled: "bg-gray-100 text-gray-400",
+    pending: "bg-yellow-50 text-yellow-700 border border-yellow-200",
+    confirmed: "bg-green-50 text-green-700 border border-green-200",
+    declined: "bg-red-50 text-red-600 border border-red-200",
+    cancelled: "bg-gray-100 text-gray-400 border border-gray-200",
   };
   return (
     <span
-      className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${colors[status] ?? colors.pending}`}
+      className={`shrink-0 px-2 py-0.5 rounded-sm text-xs font-medium ${colors[status] ?? colors.pending}`}
     >
       {status}
     </span>
@@ -197,28 +193,27 @@ export function GuestsCard({
   }>;
 }) {
   return (
-    <motion.div {...enter} style={glass} className="rounded-2xl p-4 space-y-2">
-      <p className="text-[10px] text-gray-400 mb-1">
+    <motion.div {...enter} className={`${cardStyle} space-y-2`}>
+      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
         Active Guests ({guests.length})
       </p>
 
       {guests.length === 0 && (
-        <p className="text-gray-400 text-sm">No active guests</p>
+        <p className="text-gray-500 text-sm">No active guests</p>
       )}
 
       {guests.map((g) => (
         <div
           key={g.id}
-          style={glass}
-          className="rounded-xl p-3 flex items-center justify-between gap-3"
+          className="bg-gray-50 border border-gray-200 p-3 flex items-center justify-between gap-3"
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p className="font-medium text-gray-700 truncate">
+              <p className="text-sm font-medium text-gray-800 truncate">
                 {g.display_name ?? "Guest"}
               </p>
               <span
-                className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                className="shrink-0 px-2 py-0.5 rounded-sm text-xs font-medium"
                 style={{
                   backgroundColor: `${tierColors[g.tier] ?? tierColors.explorer}20`,
                   color: tierColors[g.tier] ?? tierColors.explorer,
@@ -227,7 +222,7 @@ export function GuestsCard({
                 {g.tier}
               </span>
             </div>
-            <p className="text-[10px] text-gray-400">
+            <p className="text-xs text-gray-400">
               {g.venue_xp} XP &middot; checked in {relativeTime(g.started_at)}
             </p>
           </div>
@@ -251,23 +246,23 @@ export function RevenueCard({
   pendingPayouts: number;
 }) {
   return (
-    <motion.div {...enter} style={glass} className="rounded-2xl p-4">
-      <p className="text-[10px] text-gray-400 mb-3">Revenue</p>
+    <motion.div {...enter} className={cardStyle}>
+      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Revenue</p>
 
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <p className="text-[10px] text-gray-400">Today</p>
-          <p className="text-[20px] font-bold" style={{ color: "#F97316" }}>
+          <p className="text-xs text-gray-400">Today</p>
+          <p className="font-mono text-xl font-bold" style={{ color: "#F97316" }}>
             {fmt$(today)}
           </p>
         </div>
         <div>
-          <p className="text-[10px] text-gray-400">This Week</p>
-          <p className="text-[20px] font-bold text-gray-900">{fmt$(thisWeek)}</p>
+          <p className="text-xs text-gray-400">This Week</p>
+          <p className="font-mono text-xl font-bold text-gray-900">{fmt$(thisWeek)}</p>
         </div>
         <div>
-          <p className="text-[10px] text-gray-400">Pending</p>
-          <p className="text-[20px] font-bold text-gray-900">
+          <p className="text-xs text-gray-400">Pending</p>
+          <p className="font-mono text-xl font-bold text-gray-900">
             {fmt$(pendingPayouts)}
           </p>
         </div>
@@ -287,21 +282,14 @@ export function ActionConfirmCard({
   success: boolean;
   message: string;
 }) {
-  const accent = success ? "34,197,94" : "239,68,68"; // green-500 / red-500
-
   return (
     <motion.div
       {...enter}
-      className="rounded-2xl p-4 flex items-center gap-3"
-      style={{
-        ...glass,
-        borderColor: `rgba(${accent}, 0.2)`,
-      }}
+      className={`p-4 flex items-center gap-3 bg-white border ${success ? "border-green-200" : "border-red-200"}`}
     >
       {/* Icon */}
       <div
-        className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-        style={{ backgroundColor: `rgba(${accent}, 0.1)` }}
+        className={`shrink-0 w-8 h-8 flex items-center justify-center ${success ? "bg-green-50" : "bg-red-50"}`}
       >
         {success ? (
           <svg
@@ -313,7 +301,7 @@ export function ActionConfirmCard({
           >
             <path
               d="M3 8.5L6.5 12L13 4"
-              stroke={`rgb(${accent})`}
+              stroke="#16a34a"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -329,7 +317,7 @@ export function ActionConfirmCard({
           >
             <path
               d="M4 4L12 12M12 4L4 12"
-              stroke={`rgb(${accent})`}
+              stroke="#ef4444"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -338,7 +326,7 @@ export function ActionConfirmCard({
         )}
       </div>
 
-      <p className="text-gray-700 text-sm">{message}</p>
+      <p className="text-sm text-gray-700">{message}</p>
     </motion.div>
   );
 }
@@ -358,10 +346,9 @@ export function SettingsLinkCard({
     <motion.div {...enter}>
       <Link
         href={`/settings#${section}`}
-        style={glass}
-        className="rounded-2xl p-4 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors block"
+        className="bg-white border border-gray-200 p-4 flex items-center justify-between gap-3 hover:border-gray-300 transition-colors block"
       >
-        <span className="text-gray-700 text-sm font-medium">{label}</span>
+        <span className="text-sm font-medium text-gray-800">{label}</span>
 
         <svg
           className="shrink-0 text-gray-400"

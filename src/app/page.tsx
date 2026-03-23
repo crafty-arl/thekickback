@@ -14,7 +14,7 @@ const fadeUp = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 } }
 
 export default function Home() {
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "assistant", content: "Hey — I'm KickBack. Ask me about any hub on the platform, how it all works, or how to get started." },
+    { role: "assistant", content: "Hey — I'm KickBack. Ask me about any place, how things work, or how to get started." },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -93,7 +93,7 @@ export default function Home() {
           <p className="text-[12px] mb-2" style={{ color: "rgba(255,255,255,0.6)" }}>Ready to jump in?</p>
           <div className="flex gap-2">
             <a href="https://join.thekickback.net" className="flex-1 text-center rounded-full py-1.5 text-[11px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Explore</a>
-            <a href="https://dash.thekickback.net" className="flex-1 text-center rounded-full py-1.5 text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Create Hub</a>
+            <a href="https://dash.thekickback.net" className="flex-1 text-center rounded-full py-1.5 text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Add Place</a>
           </div>
         </motion.div>
       )}
@@ -137,13 +137,13 @@ export default function Home() {
           <Image src="/logo.png" alt="theKickBack" width={90} height={28} priority style={{ height: "auto" }} />
           <div className="flex items-center gap-1.5">
             <a href="https://join.thekickback.net" className="rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.1)" }}>Explore</a>
-            <a href="https://dash.thekickback.net" className="rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>List Hub</a>
+            <a href="https://dash.thekickback.net" className="rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Add Place</a>
           </div>
         </nav>
 
         <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="px-4 pt-4 pb-3 shrink-0 text-center">
           <h1 className="text-[18px] font-bold leading-tight" style={{ color: "rgba(255,255,255,0.92)" }}>
-            Every spot deserves <span style={{ color: O }}>a front door</span>
+            Every spot deserves <span style={{ color: O }}>to be found</span>
           </h1>
           <p className="mt-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>Salons · Cafes · Leagues · Studios · Communities</p>
         </motion.div>
@@ -174,8 +174,8 @@ export default function Home() {
             <Link href="/membership" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>Membership</Link>
             <Link href="/about" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>About</Link>
             <Link href="/privacy" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>Privacy</Link>
-            <a href="https://join.thekickback.net" className="rounded-full px-4 py-1.5 text-[11px] font-medium transition hover:bg-white/8" style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Explore Hubs</a>
-            <a href="https://dash.thekickback.net" className="rounded-full px-4 py-1.5 text-[11px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>List Your Hub — Free</a>
+            <a href="https://join.thekickback.net" className="rounded-full px-4 py-1.5 text-[11px] font-medium transition hover:bg-white/8" style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Explore Places</a>
+            <a href="https://dash.thekickback.net" className="rounded-full px-4 py-1.5 text-[11px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Add Your Place — Free</a>
           </div>
         </nav>
 
@@ -198,14 +198,14 @@ export default function Home() {
               style={{ color: "rgba(255,255,255,0.95)" }}
             >
               Every spot deserves<br />
-              <span style={{ color: O }}>a digital front door.</span>
+              <span style={{ color: O }}>to be found.</span>
             </motion.h1>
 
             <motion.p {...fadeUp} transition={{ duration: 0.6, delay: 0.1 }}
               className="mt-4 text-[15px] leading-relaxed max-w-md"
               style={{ color: "rgba(255,255,255,0.6)" }}
             >
-              Each hub gets its own AI, storefront, and community — no app, no code, five minutes to set up.
+              Every place gets its own AI helper, a page to show what you offer, and a community — no app to download, ready in five minutes.
             </motion.p>
 
             <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.2 }} className="flex items-center gap-3 mt-6">

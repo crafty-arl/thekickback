@@ -340,7 +340,7 @@ async function handleAction(
         if (error) throw new Error(error.message);
         revalidatePath("/");
         return {
-          reply: `Your hub has been submitted for review. You'll be notified once it's approved and goes live. [[ACTION_CONFIRM:{"success":true,"message":"Submitted for review"}]]`,
+          reply: `Your place has been sent in for review. You'll be notified once it's approved and goes live. [[ACTION_CONFIRM:{"success":true,"message":"Submitted for review"}]]`,
           actionResult: { success: true, message: "Submitted for review" },
         };
       }
@@ -497,7 +497,7 @@ WRITE ACTIONS — you can execute these when the owner asks:
 | add_multiplier | Activate a points multiplier (e.g. 2x for happy hour) |
 | approve_booking | Accept a pending booking |
 | decline_booking | Decline a pending booking |
-| submit_for_review | Submit hub for admin review (required before going live) |
+| submit_for_review | Send your place in for review (needed before going live) |
 
 TOOL INSTRUCTIONS:
 When the owner asks you to change, update, add, or delete something, respond conversationally AND include an action tag at the END of your message:

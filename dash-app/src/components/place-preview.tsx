@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 
-export interface HubData {
+export interface PlaceData {
   name: string;
   type: string;
   address: string;
@@ -14,7 +14,7 @@ export interface HubData {
   slug: string;
 }
 
-export function HubPreview({ data }: { data: HubData }) {
+export function PlacePreview({ data }: { data: PlaceData }) {
   const themeColor = data.themeColor || "#F97316";
 
   return (
@@ -49,7 +49,7 @@ export function HubPreview({ data }: { data: HubData }) {
             >
               <div>
                 <h2 className="font-sans text-[22px] font-bold text-white">
-                  {data.name || "Your Hub"}
+                  {data.name || "Your Place"}
                 </h2>
                 {data.tagline && (
                   <motion.p
@@ -196,7 +196,7 @@ export function HubPreview({ data }: { data: HubData }) {
               </div>
               <div className="flex-1">
                 <p className="font-sans text-[12px] text-white/50">
-                  Ask about {data.name || "this hub"}...
+                  Ask about {data.name || "this place"}...
                 </p>
               </div>
             </div>
@@ -212,7 +212,7 @@ export function HubPreview({ data }: { data: HubData }) {
           }}
         >
           <span className="font-mono text-[10px] text-white/20">
-            join.thekickback.net/{data.slug || "your-hub"}
+            join.thekickback.net/{data.slug || "your-place"}
           </span>
         </div>
       </div>

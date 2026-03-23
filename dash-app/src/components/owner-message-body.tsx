@@ -74,7 +74,7 @@ export function OwnerMessageBody({ body, onApproveBooking, onDeclineBooking }: O
 
         // Plain text
         if (part.trim()) {
-          return <p key={i} className="font-sans text-[14px] leading-[1.6] text-gray-700">{part}</p>;
+          return <p key={i} className="font-sans text-sm leading-[1.6] text-gray-700">{part}</p>;
         }
         return null;
       })}

@@ -52,10 +52,10 @@ function vibeColor(vibe: string) {
 
 /* ─── Tier definitions for the about section ─── */
 const TIERS = [
-  { name: "Explorer", range: "0 – 499", color: "#94a3b8", emoji: "🧭", description: "You've just arrived. Start visiting venues to grow your score." },
-  { name: "Regular", range: "500 – 1,999", color: "#4ade80", emoji: "🎯", description: "The city knows you. Unlocks venue perks, collectibles, and priority check-ins." },
-  { name: "Member", range: "2,000 – 4,999", color: "#f97316", emoji: "⚡", description: "You're a fixture. VIP access, exclusive badges, and hub owner attention." },
-  { name: "VIP", range: "5,000+", color: "#a78bfa", emoji: "👑", description: "You define the vibe. Shape neighborhoods. The map literally shows your influence." },
+  { name: "Explorer", range: "0 – 499", color: "#94a3b8", emoji: "🧭", description: "You just got here. Visit places to build your score." },
+  { name: "Regular", range: "500 – 1,999", color: "#4ade80", emoji: "🎯", description: "People are starting to know you. You unlock rewards, collectibles, and skip the line." },
+  { name: "Member", range: "2,000 – 4,999", color: "#f97316", emoji: "⚡", description: "You're a regular everywhere. VIP access, special badges, and the people running your spots know your name." },
+  { name: "VIP", range: "5,000+", color: "#a78bfa", emoji: "👑", description: "You run this city. You shape neighborhoods. The map shows your mark." },
 ];
 
 /* ─── Main Component ─── */

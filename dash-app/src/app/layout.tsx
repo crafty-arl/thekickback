@@ -17,8 +17,8 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "theKickBack — Hub Dashboard",
-  description: "Manage your hub, view live sessions, and handle guest requests.",
+  title: "theKickBack — Dashboard",
+  description: "Manage your place, view live sessions, and handle visitor requests.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

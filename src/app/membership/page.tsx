@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 export const metadata = {
-    title: "Hub Membership Plans — theKickBack",
-    description: "Fair, transparent pricing for hub operators on theKickBack. Free to start, grow when you're ready.",
+    title: "Place Operator Plans — theKickBack",
+    description: "Simple pricing for place operators. Free to start, grow when you're ready.",
 };
 
 const CHECK = (
@@ -16,14 +16,14 @@ const PLANS = [
         name: "Starter",
         price: "Free",
         period: "forever",
-        desc: "Everything you need to get your hub on the map and start connecting with guests.",
+        desc: "Everything you need to get your place on the map.",
         features: [
-            "Your hub on the live map",
-            "AI-powered hub page and storefront",
-            "Up to 10 offerings (services, products, events)",
+            "Your place on the map",
+            "An AI-powered page that shows what you offer",
+            "Up to 10 things you can sell or list",
             "1 staff profile",
-            "Guest check-ins and XP system",
-            "AI chat concierge for guests",
+            "Guest check-ins and points",
+            "An AI that answers questions for your visitors",
             "Basic vibe indicator",
             "Email and web channels",
         ],
@@ -35,15 +35,15 @@ const PLANS = [
         name: "Growth",
         price: "$19",
         period: "/month",
-        desc: "For hubs ready to grow. More staff, more reach, more tools to run your spot.",
+        desc: "For places ready to grow. More staff, more tools, more ways to reach people.",
         features: [
             "Everything in Starter",
             "Unlimited offerings",
             "Up to 10 staff profiles",
             "SMS channel for guest outreach",
             "Custom theme colors and branding",
-            "Photo gallery on your hub page",
-            "Priority placement on the map",
+            "Photo gallery on your page",
+            "Show up first on the map",
             "AI-generated daily digest emails",
             "Menu management with categories",
         ],
@@ -55,13 +55,13 @@ const PLANS = [
         name: "Pro",
         price: "$49",
         period: "/month",
-        desc: "Full-power hub. For established spots that want every tool the platform offers.",
+        desc: "Everything we offer. For places that want it all.",
         features: [
             "Everything in Growth",
             "Unlimited staff profiles",
             "Apple Wallet passes for guests",
             "Advanced analytics and insights",
-            "Custom AI personality training",
+            "Teach the AI to sound like you",
             "Multi-location support",
             "Dedicated onboarding support",
             "Early access to new features",
@@ -91,11 +91,11 @@ export default function MembershipPage() {
                     <span style={{ color: "#f97316" }}>Built for real spots.</span>
                 </h1>
                 <p className="mt-4 text-[15px] sm:text-[17px] leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
-                    Every hub starts free. No credit card, no commitment. Upgrade when your spot is ready to grow.
+                    Every place starts free. No credit card needed. Upgrade when you're ready.
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-1">
                     <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>✓ 2% fee only on AI Wallet transactions</span>
-                    <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>✓ Hub receives 100% of every sale</span>
+                    <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>✓ You get 100% of every sale</span>
                     <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>✓ Cancel anytime</span>
                 </div>
             </section>
@@ -148,8 +148,8 @@ export default function MembershipPage() {
                 <div className="rounded-2xl p-8" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                     <h3 className="text-[18px] font-bold mb-3" style={{ color: "rgba(255,255,255,0.9)" }}>How payments work</h3>
                     <p className="text-[14px] leading-relaxed mb-4" style={{ color: "rgba(255,255,255,0.6)" }}>
-                        When a guest loads their AI Wallet, a <strong style={{ color: "rgba(255,255,255,0.85)" }}>2% platform fee</strong> is collected at that point — not from you.
-                        Your hub receives <strong style={{ color: "rgba(255,255,255,0.85)" }}>100% of every transaction</strong>. Stripe processing fees (2.9% + 30¢) apply to the guest&apos;s card charge, which is standard for any card payment.
+                        When a visitor loads their wallet, a <strong style={{ color: "rgba(255,255,255,0.85)" }}>2% platform fee</strong> is collected at that point — not from you.
+                        You get <strong style={{ color: "rgba(255,255,255,0.85)" }}>100% of every sale</strong>. Stripe card fees (2.9% + 30¢) apply to the visitor&apos;s card charge, which is standard for any card payment.
                     </p>
                     <div className="rounded-xl p-4 text-left font-mono text-[12px]" style={{ background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.6)" }}>
                         <div>Guest loads wallet:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$25.00</div>
@@ -159,7 +159,7 @@ export default function MembershipPage() {
                             Guest pays total:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$26.53
                         </div>
                         <div style={{ color: "#f97316", marginTop: 4 }}>
-                            Hub receives per sale:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100% of item price
+                            You get per sale:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%
                         </div>
                     </div>
                 </div>
@@ -170,11 +170,11 @@ export default function MembershipPage() {
                 <h3 className="text-[18px] font-bold mb-6 text-center" style={{ color: "rgba(255,255,255,0.9)" }}>Common Questions</h3>
                 <div className="space-y-4">
                     {[
-                        { q: "Do I need a credit card to start?", a: "No. The Starter plan is completely free with no credit card required. Set up your hub in five minutes through an AI conversation." },
-                        { q: "What's the 2% platform fee?", a: "It's collected from the guest when they load their AI Wallet — not from you. Your hub always receives 100% of every sale. We never take a cut of your revenue." },
+                        { q: "Do I need a credit card to start?", a: "No. The Starter plan is completely free with no credit card required. Set up your place in five minutes by chatting with our AI." },
+                        { q: "What's the 2% platform fee?", a: "It's collected from the visitor when they load their wallet — not from you. You always get 100% of every sale. We never take a cut of your money." },
                         { q: "Can I switch plans anytime?", a: "Yes. Upgrade, downgrade, or cancel at any time. If you cancel a paid plan, you keep access through the end of your billing period." },
-                        { q: "What happens to my data if I cancel?", a: "Your hub stays on the map and your data stays yours. You just lose access to premium features. We don't delete anything." },
-                        { q: "Do my guests need to pay anything?", a: "Guests explore for free. They only pay when they choose to load their AI Wallet to make purchases at hubs." },
+                        { q: "What happens to my data if I cancel?", a: "Your place stays on the map and your info stays yours. You just lose access to premium features. We don't delete anything." },
+                        { q: "Do my visitors need to pay anything?", a: "Visitors explore for free. They only pay when they add money to their wallet to buy things at places." },
                     ].map((item) => (
                         <div key={item.q} className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                             <p className="text-[14px] font-semibold mb-1.5" style={{ color: "rgba(255,255,255,0.85)" }}>{item.q}</p>

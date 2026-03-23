@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { HubData } from "@/components/hub-preview";
+import type { PlaceData } from "@/components/place-preview";
 
 interface Offering {
   id: string;
@@ -22,8 +22,8 @@ interface XpMilestone {
   threshold: number;
 }
 
-interface EditableHubPreviewProps {
-  data: HubData;
+interface EditablePlacePreviewProps {
+  data: PlaceData;
   venueId: string;
   offerings: Offering[];
   galleryImages: { id: string; image_url: string }[];
@@ -41,7 +41,7 @@ const COLOR_SWATCHES = [
   "#F97316", "#EF4444", "#4ADE80", "#8B5CF6", "#F59E0B", "#EC4899", "#3B82F6", "#06B6D4",
 ];
 
-export function HubPreviewEditable({
+export function PlacePreviewEditable({
   data,
   venueId,
   offerings,
@@ -52,7 +52,7 @@ export function HubPreviewEditable({
   onPhotoUpload,
   onSectionEdited,
   onOfferingTap,
-}: EditableHubPreviewProps) {
+}: EditablePlacePreviewProps) {
   const [editing, setEditing] = useState<EditingSection>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
@@ -161,7 +161,7 @@ export function HubPreviewEditable({
               )}
 
               <div>
-                <h2 className="font-sans text-[22px] font-bold text-white">{data.name || "Your Hub"}</h2>
+                <h2 className="font-sans text-[22px] font-bold text-white">{data.name || "Your Place"}</h2>
                 {data.tagline && (
                   <p className="mt-1 font-sans text-[13px] italic text-white/40">&ldquo;{data.tagline}&rdquo;</p>
                 )}
@@ -189,7 +189,7 @@ export function HubPreviewEditable({
                   <input
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    placeholder="Hub name"
+                    placeholder="Place name"
                     className="w-full rounded-lg px-3 py-2 font-sans text-[13px] text-white/90 placeholder:text-white/25 outline-none"
                     style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
                     autoFocus
@@ -323,7 +323,7 @@ export function HubPreviewEditable({
                   <textarea
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    placeholder="Describe your hub..."
+                    placeholder="Describe your place..."
                     rows={3}
                     className="w-full resize-none rounded-lg px-3 py-2 font-sans text-[13px] text-white/90 placeholder:text-white/25 outline-none"
                     style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
@@ -485,7 +485,7 @@ export function HubPreviewEditable({
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
               </div>
-              <p className="flex-1 font-sans text-[12px] text-white/50">Ask about {data.name || "this hub"}...</p>
+              <p className="flex-1 font-sans text-[12px] text-white/50">Ask about {data.name || "this place"}...</p>
             </div>
           </div>
         </div>
@@ -495,7 +495,7 @@ export function HubPreviewEditable({
           className="absolute inset-x-0 bottom-0 flex items-center justify-center py-2"
           style={{ backgroundColor: "rgba(10,10,10,0.95)", borderTop: "1px solid rgba(255,255,255,0.06)" }}
         >
-          <span className="font-mono text-[10px] text-white/20">join.thekickback.net/{data.slug || "your-hub"}</span>
+          <span className="font-mono text-[10px] text-white/20">join.thekickback.net/{data.slug || "your-place"}</span>
         </div>
       </div>
     </div>

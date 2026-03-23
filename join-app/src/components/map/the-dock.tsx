@@ -4161,7 +4161,7 @@ export function TheDock({
                     ["Auth", "Supabase OTP + WebAuthn"],
                     ["Maps", "Mapbox GL"],
                     ["Wallet", "Apple Wallet + Google Wallet"],
-                    ["Email", "Resend (hub@thekickback.net)"],
+                    ["Email", "Resend (place@thekickback.net)"],
                     ["Hosting", "Docker + Caddy on VPS"],
                     ["Workers", "Cloudflare Workers"],
                     ["Database", "Supabase (PostgreSQL)"],

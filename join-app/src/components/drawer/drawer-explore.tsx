@@ -141,8 +141,8 @@ export function DrawerExplore({
           </div>
         )}
 
-        {/* All Hubs */}
-        <Shelf title="HUBS" count={venues.length}>
+        {/* All Places */}
+        <Shelf title="PLACES" count={venues.length}>
           {venues.slice(0, 20).map((v, i) => <VenueCard key={v.id} venue={v} onClick={() => onVenueSelect(v)} delay={Math.min(i * 0.03, 0.15)} xp={yourSpots.find((s) => s.venue.id === v.id)?.xp} />)}
         </Shelf>
 

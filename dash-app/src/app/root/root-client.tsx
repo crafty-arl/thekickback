@@ -208,7 +208,7 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig, waitlistEntries 
     async function handleReject(id: string) { setActing(id); await rejectVenue(id); setActing(null); }
     async function handleUnpublish(id: string) { setActing(id); await unpublishVenue(id); setActing(null); }
     async function handleDelete(pageId: string, venueId: string) {
-        if (!confirm("Delete this hub and ALL its data? This cannot be undone.")) return;
+        if (!confirm("Delete this place and ALL its data? This cannot be undone.")) return;
         setActing(pageId);
         await deleteVenue(pageId, venueId);
         setActing(null);

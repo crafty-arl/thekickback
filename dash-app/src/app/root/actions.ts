@@ -106,7 +106,7 @@ export async function approveVenue(venuePageId: string) {
             if (owner) {
                 const { data: profile } = await service.from("profiles").select("email").eq("id", owner.user_id).single();
                 const email = profile?.email;
-                const venueName = venue?.name || "Your hub";
+                const venueName = venue?.name || "Your place";
                 const slug = page.slug;
                 if (email) {
                     sendEmail(email, `${venueName} is live on theKickBack`, wrap(`
@@ -164,7 +164,7 @@ export async function rejectVenue(venuePageId: string) {
             if (owner) {
                 const { data: profile } = await service.from("profiles").select("email").eq("id", owner.user_id).single();
                 const email = profile?.email;
-                const venueName = venue?.name || "Your hub";
+                const venueName = venue?.name || "Your place";
                 if (email) {
                     sendEmail(email, `${venueName} needs a few changes`, wrap(`
                         <div style="background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(239,68,68,0.05));border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;">

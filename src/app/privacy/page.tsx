@@ -45,9 +45,9 @@ export default function PrivacyPage() {
                     <ul className="space-y-3 text-[14px] text-white/60">
                         <li><strong className="text-white/80">Email address</strong> — Used for passwordless login (one-time codes). We don&apos;t send marketing emails unless you opt in to the daily digest.</li>
                         <li><strong className="text-white/80">Device information</strong> — Fingerprint for multi-device enforcement (max 3 devices). We use this to keep your account secure, not to track you across the web.</li>
-                        <li><strong className="text-white/80">Location</strong> — GPS is used to center the map on your city and show nearby hubs. We do not store your precise location history.</li>
-                        <li><strong className="text-white/80">Chat messages</strong> — Conversations with hub AI agents are stored to maintain persistent threads. Hub owners can see messages sent to their hub.</li>
-                        <li><strong className="text-white/80">Visit and engagement data</strong> — Check-ins, XP, tiers, and streaks are tracked per-venue to power your relationship with each hub.</li>
+                        <li><strong className="text-white/80">Location</strong> — GPS is used to center the map on your city and show nearby places. We do not store your precise location history.</li>
+                        <li><strong className="text-white/80">Chat messages</strong> — Your chats with a place&apos;s AI are saved so the conversation keeps going. Place operators can see messages sent to their place.</li>
+                        <li><strong className="text-white/80">Visit and engagement data</strong> — Check-ins, points, tiers, and streaks are tracked per-place so each spot remembers you.</li>
                         <li><strong className="text-white/80">Preferences</strong> — Dietary, atmosphere, and interest preferences are stored to personalize your experience (e.g. the daily digest).</li>
                         <li><strong className="text-white/80">Payment info</strong> — Handled entirely by Stripe. We never see or store your card number.</li>
                     </ul>
@@ -68,10 +68,10 @@ export default function PrivacyPage() {
                 <section className="mb-10">
                     <h2 className="font-sans text-[18px] font-semibold mb-3" style={{ color: ACCENT }}>How Payments Work</h2>
                     <p className="text-[15px] leading-relaxed text-white/70 mb-3">
-                        When a guest pays a hub, the money flows directly through the hub&apos;s own Stripe Connect account. theKickBack does not stand between the barber and the person in the chair.
+                        When a visitor pays a place, the money goes straight to that place&apos;s own Stripe Connect account. theKickBack does not stand between the barber and the person in the chair.
                     </p>
                     <p className="text-[15px] leading-relaxed text-white/70">
-                        A 2% platform fee is collected at wallet-load time — the hub always receives 100% of the ticket price. Stripe processing fees (2.9% + 30¢) are separate and go directly to Stripe.
+                        A 2% platform fee is collected at wallet-load time — the place always gets 100% of what you pay. Stripe card fees (2.9% + 30¢) are separate and go directly to Stripe.
                     </p>
                 </section>
 
@@ -93,7 +93,7 @@ export default function PrivacyPage() {
                         You can request deletion of your account and all associated data at any time by emailing <a href="mailto:carl@craftthefuture.xyz" className="underline hover:text-white/80 transition">carl@craftthefuture.xyz</a>.
                     </p>
                     <p className="text-[15px] leading-relaxed text-white/70">
-                        You can manage your devices, passkeys, and preferences from your profile in the app. You can leave any hub at any time, which removes your relationship data with that hub.
+                        You can manage your devices, passkeys, and preferences from your profile in the app. You can leave any place at any time, which removes your relationship data with that place.
                     </p>
                 </section>
 

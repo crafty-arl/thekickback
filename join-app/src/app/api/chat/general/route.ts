@@ -153,85 +153,144 @@ export async function POST(request: Request) {
     "- No app download needed. No phone numbers. No texting.",
   ].join("\n");
 
-  let reply = "Something went wrong. Try again in a moment.";
+  const encoder = new TextEncoder();
 
-  try {
-    const res = await fetch(`${process.env.OPENCLAW_GATEWAY_URL}/v1/responses`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN}`,
-        "Content-Type": "application/json",
-        "x-openclaw-agent-id": "main",
-      },
-      body: JSON.stringify({
-        model: "openclaw",
-        input: context,
-      }),
-    });
+  const stream = new ReadableStream({
+    async start(controller) {
+      let fullText = "";
 
-    if (res.ok) {
-      const data = await res.json();
-      const msg = data.output?.find(
-        (o: { type: string }) => o.type === "message"
-      );
-      const text = msg?.content?.find(
-        (c: { type: string; text?: string }) => c.type === "output_text"
-      )?.text;
-      if (text) {
-        reply = resolveVenueTags(text, venues);
-        if (reply.length > 600) reply = reply.slice(0, 597) + "...";
+      try {
+        const res = await fetch(`${process.env.OPENCLAW_GATEWAY_URL}/v1/responses`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN}`,
+            "Content-Type": "application/json",
+            "x-openclaw-agent-id": "main",
+          },
+          body: JSON.stringify({
+            model: "openclaw",
+            input: context,
+            stream: true,
+          }),
+        });
+
+        if (res.ok && res.body) {
+          const contentType = res.headers.get("content-type") || "";
+
+          if (contentType.includes("text/event-stream")) {
+            // Streaming response
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                const data = line.slice(6);
+                if (data === "[DONE]") continue;
+
+                try {
+                  const event = JSON.parse(data);
+                  if (event.type === "response.output_text.delta") {
+                    const delta = event.delta || "";
+                    fullText += delta;
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: delta })}\n\n`));
+                  }
+                } catch { /* skip unparseable lines */ }
+              }
+            }
+          } else {
+            // Non-streaming JSON fallback
+            const data = await res.json();
+            const msg = data.output?.find((o: { type: string }) => o.type === "message");
+            const text = msg?.content?.find((c: { type: string; text?: string }) => c.type === "output_text")?.text;
+            if (text) {
+              fullText = text;
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text })}\n\n`));
+            }
+          }
+        } else {
+          console.error("Claw error:", res.status, await res.text().catch(() => ""));
+          fullText = "Something went wrong. Try again in a moment.";
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: fullText })}\n\n`));
+        }
+      } catch (err) {
+        console.error("Claw fetch error:", err);
+        fullText = "Something went wrong. Try again in a moment.";
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: fullText })}\n\n`));
       }
-    } else {
-      console.error("Claw error:", res.status, await res.text());
-    }
-  } catch (err) {
-    console.error("Claw fetch error:", err);
-  }
 
-  // Extract venue card IDs [[VENUE_CARD:id]] and chip IDs [[venue:id]]
-  const venueCardIds = [...reply.matchAll(/\[\[VENUE_CARD:([^\]]+)\]\]/g)].map((m) => m[1]);
-  const chipIds = [...reply.matchAll(/\[\[venue:([^:\]]+)/g)].map((m) => m[1]);
-  const allReferencedIds = [...new Set([...venueCardIds, ...chipIds])];
+      // Post-process: resolve venue tags and apply length limit
+      let reply = resolveVenueTags(fullText, venues);
+      if (reply.length > 600) reply = reply.slice(0, 597) + "...";
 
-  // Get page data (tagline, theme color, hours) for referenced venues
-  const pageData = await getVenuePageData(allReferencedIds);
+      // Extract venue card IDs [[VENUE_CARD:id]] and chip IDs [[venue:id]]
+      const venueCardIds = [...reply.matchAll(/\[\[VENUE_CARD:([^\]]+)\]\]/g)].map((m) => m[1]);
+      const chipIds = [...reply.matchAll(/\[\[venue:([^:\]]+)/g)].map((m) => m[1]);
+      const allReferencedIds = [...new Set([...venueCardIds, ...chipIds])];
 
-  // Build rich venue objects
-  const referencedVenues = venues
-    .filter((v) => allReferencedIds.includes(v.id))
-    .map((v) => {
-      const page = pageData[v.id];
-      const hours = Array.isArray(page?.hours)
-        ? (page.hours as { day: string; open: string; close?: string }[])
-            .map((h) => `${h.day} ${h.open}${h.close ? `–${h.close}` : ""}`)
-            .join(", ")
-        : "";
-      return {
-        id: v.id,
-        name: v.name,
-        vibe: v.vibe,
-        occupancy: v.occupancy,
-        capacity: v.max_occupancy,
-        latitude: v.latitude,
-        longitude: v.longitude,
-        neighborhood: v.neighborhood,
-        type: v.type || "venue",
-        address: v.address,
-        tagline: page?.tagline || null,
-        themeColor: page?.theme_color || "#F97316",
-        hours,
-        isCard: venueCardIds.includes(v.id),
-      };
-    });
+      // Get page data (tagline, theme color, hours) for referenced venues
+      const pageData = await getVenuePageData(allReferencedIds);
 
-  // Save to thread (non-blocking, non-critical)
-  if (userId) {
-    Promise.all([
-      supabase.rpc("save_thread_message", { p_user_id: userId, p_venue_id: null, p_sender_type: "guest", p_body: message }),
-      supabase.rpc("save_thread_message", { p_user_id: userId, p_venue_id: null, p_sender_type: "ai", p_body: reply }),
-    ]).then(() => {}, () => {});
-    extractPreferences(userId, message, reply, null).catch(() => {});
-  }
+      // Build rich venue objects
+      const referencedVenues = venues
+        .filter((v) => allReferencedIds.includes(v.id))
+        .map((v) => {
+          const page = pageData[v.id];
+          const hours = Array.isArray(page?.hours)
+            ? (page.hours as { day: string; open: string; close?: string }[])
+                .map((h) => `${h.day} ${h.open}${h.close ? `–${h.close}` : ""}`)
+                .join(", ")
+            : "";
+          return {
+            id: v.id,
+            name: v.name,
+            vibe: v.vibe,
+            occupancy: v.occupancy,
+            capacity: v.max_occupancy,
+            latitude: v.latitude,
+            longitude: v.longitude,
+            neighborhood: v.neighborhood,
+            type: v.type || "venue",
+            address: v.address,
+            tagline: page?.tagline || null,
+            themeColor: page?.theme_color || "#F97316",
+            hours,
+            isCard: venueCardIds.includes(v.id),
+          };
+        });
 
-  return Response.json({ reply, venues: referencedVenues });
+      // Save to thread (non-blocking, non-critical)
+      if (userId) {
+        Promise.all([
+          supabase.rpc("save_thread_message", { p_user_id: userId, p_venue_id: null, p_sender_type: "guest", p_body: message }),
+          supabase.rpc("save_thread_message", { p_user_id: userId, p_venue_id: null, p_sender_type: "ai", p_body: reply }),
+        ]).then(() => {}, () => {});
+        extractPreferences(userId, message, reply, null).catch(() => {});
+      }
+
+      // Send final metadata event
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+        type: "done",
+        reply,
+        venues: referencedVenues,
+      })}\n\n`));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

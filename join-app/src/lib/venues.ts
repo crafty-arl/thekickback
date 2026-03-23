@@ -50,7 +50,7 @@ export const VENUE_CATEGORIES: { value: string; label: string }[] = [
   { value: "musician", label: "Musicians" },
   { value: "creator", label: "Creators" },
   { value: "event", label: "Events" },
-  { value: "venue", label: "All Hubs" },
+  { value: "venue", label: "All Places" },
 ];
 
 // Austin, TX center

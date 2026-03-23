@@ -236,92 +236,156 @@ export async function POST(request: Request) {
     }).then(() => {}, () => {});
   }
 
-  // Forward to claw via OpenResponses API (synchronous, per-venue agent)
-  let reply = "Couldn't reach the venue right now. Try again in a moment.";
-  let checkout = null;
-  let booking: Record<string, unknown> | null = null;
+  const encoder = new TextEncoder();
+  const origin = request.headers.get("origin") || "http://localhost:3000";
 
-  try {
-    const res = await fetch(`${process.env.OPENCLAW_GATEWAY_URL}/v1/responses`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN}`,
-        "Content-Type": "application/json",
-        "x-openclaw-agent-id": `venue-${venueId}`,
-      },
-      body: JSON.stringify({
-        model: "openclaw",
-        input: context,
-      }),
-    });
+  const stream = new ReadableStream({
+    async start(controller) {
+      let fullText = "";
+      let streamOk = false;
 
-    if (res.ok) {
-      const data = await res.json();
-      const msg = data.output?.find((o: { type: string }) => o.type === "message");
-      const text = msg?.content?.find((c: { type: string; text?: string }) => c.type === "output_text")?.text;
-      if (text) {
-        const parsedCheckout = parseCheckout(text);
-        const parsedBooking = parseBooking(parsedCheckout.reply);
-        reply = parsedBooking.reply;
-        checkout = parsedCheckout.checkout;
-        booking = parsedBooking.booking;
-
-        if (reply.length > 400) reply = reply.slice(0, 397) + "...";
-      }
-    } else {
-      console.error("Claw error:", res.status, await res.text());
-    }
-  } catch (err) {
-    console.error("Claw fetch error:", err);
-  }
-
-  // Save AI reply to thread (non-blocking)
-  if (userId) {
-    supabase.rpc("save_thread_message", {
-      p_user_id: userId, p_venue_id: venueId, p_sender_type: "ai", p_body: reply,
-    }).then(() => {}, () => {});
-  }
-
-  // If AI generated a booking tag, validate and execute it
-  let bookingResult = null;
-  if (booking) {
-    const bStart = (booking as Record<string, unknown>).start as string | undefined;
-    if (!bStart || isNaN(new Date(bStart).getTime())) {
-      booking = null;
-      console.warn("AI generated [[BOOKING]] without valid start time, dropping it");
-    }
-  }
-  if (booking) {
-    try {
-      const bookRes = await fetch(
-        `${request.headers.get("origin") || "http://localhost:3000"}/api/book`,
-        {
+      try {
+        const res = await fetch(`${process.env.OPENCLAW_GATEWAY_URL}/v1/responses`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN}`,
+            "Content-Type": "application/json",
+            "x-openclaw-agent-id": `venue-${venueId}`,
+          },
           body: JSON.stringify({
-            venueId,
-            offeringId: (booking as Record<string, unknown>).offering_id,
-            start: (booking as Record<string, unknown>).start,
-            attendeeName: userName || (booking as Record<string, unknown>).attendee_name || "Guest",
-            attendeeEmail: userEmail || (booking as Record<string, unknown>).attendee_email || "guest@kickback.app",
-            attendeeTimezone: (booking as Record<string, unknown>).attendee_timezone || userTimezone,
+            model: "openclaw",
+            input: context,
+            stream: true,
           }),
+        });
+
+        if (res.ok && res.body) {
+          const contentType = res.headers.get("content-type") || "";
+
+          if (contentType.includes("text/event-stream")) {
+            // Streaming response
+            streamOk = true;
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                const data = line.slice(6);
+                if (data === "[DONE]") continue;
+
+                try {
+                  const event = JSON.parse(data);
+                  if (event.type === "response.output_text.delta") {
+                    const delta = event.delta || "";
+                    fullText += delta;
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: delta })}\n\n`));
+                  }
+                } catch { /* skip unparseable lines */ }
+              }
+            }
+          } else {
+            // Non-streaming JSON response (fallback)
+            const data = await res.json();
+            const msg = data.output?.find((o: { type: string }) => o.type === "message");
+            const text = msg?.content?.find((c: { type: string; text?: string }) => c.type === "output_text")?.text;
+            if (text) {
+              fullText = text;
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text })}\n\n`));
+            }
+          }
+        } else {
+          // Error fallback
+          const errText = res.ok ? "" : await res.text().catch(() => "");
+          console.error("Claw error:", res.status, errText);
+          fullText = "Couldn't reach the venue right now. Try again in a moment.";
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: fullText })}\n\n`));
         }
-      );
-      if (bookRes.ok) {
-        bookingResult = await bookRes.json();
-      } else {
-        console.error("Booking API error:", bookRes.status, await bookRes.text());
+      } catch (err) {
+        console.error("Claw fetch error:", err);
+        fullText = "Couldn't reach the venue right now. Try again in a moment.";
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: fullText })}\n\n`));
       }
-    } catch (err) {
-      console.error("Booking fetch error:", err);
-    }
-  }
 
-  // Async preference extraction (fire-and-forget)
-  if (userId) {
-    extractPreferences(userId, message, reply, venueId, venueName).catch(() => {});
-  }
+      // Parse tags from full accumulated text
+      const parsedCheckout = parseCheckout(fullText);
+      const parsedBooking = parseBooking(parsedCheckout.reply);
+      let reply = parsedBooking.reply;
+      const checkout = parsedCheckout.checkout;
+      let booking = parsedBooking.booking;
 
-  return Response.json({ reply, checkout, booking: bookingResult, offerings: offeringsMap });
+      if (reply.length > 400) reply = reply.slice(0, 397) + "...";
+
+      // Save AI reply to thread (non-blocking)
+      if (userId) {
+        supabase.rpc("save_thread_message", {
+          p_user_id: userId, p_venue_id: venueId, p_sender_type: "ai", p_body: reply,
+        }).then(() => {}, () => {});
+      }
+
+      // If AI generated a booking tag, validate and execute it
+      let bookingResult = null;
+      if (booking) {
+        const bStart = (booking as Record<string, unknown>).start as string | undefined;
+        if (!bStart || isNaN(new Date(bStart).getTime())) {
+          booking = null;
+          console.warn("AI generated [[BOOKING]] without valid start time, dropping it");
+        }
+      }
+      if (booking) {
+        try {
+          const bookRes = await fetch(`${origin}/api/book`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              venueId,
+              offeringId: (booking as Record<string, unknown>).offering_id,
+              start: (booking as Record<string, unknown>).start,
+              attendeeName: userName || (booking as Record<string, unknown>).attendee_name || "Guest",
+              attendeeEmail: userEmail || (booking as Record<string, unknown>).attendee_email || "guest@kickback.app",
+              attendeeTimezone: (booking as Record<string, unknown>).attendee_timezone || userTimezone,
+            }),
+          });
+          if (bookRes.ok) {
+            bookingResult = await bookRes.json();
+          } else {
+            console.error("Booking API error:", bookRes.status, await bookRes.text());
+          }
+        } catch (err) {
+          console.error("Booking fetch error:", err);
+        }
+      }
+
+      // Async preference extraction (fire-and-forget)
+      if (userId) {
+        extractPreferences(userId, message, reply, venueId, venueName).catch(() => {});
+      }
+
+      // Send final metadata event
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+        type: "done",
+        reply,
+        checkout,
+        booking: bookingResult,
+        offerings: offeringsMap,
+      })}\n\n`));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

@@ -14,9 +14,9 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { OwnerMessageBody } from "./owner-message-body";
-import { HubPreviewEditable } from "./hub-preview-editable";
+import { PlacePreviewEditable } from "./place-preview-editable";
 import type { ChecklistState } from "./onboarding-checklist";
-import type { HubData } from "./hub-preview";
+import type { PlaceData } from "./place-preview";
 import { updateVenue, updateVenuePage, updateOffering, deleteOffering } from "@/app/settings/actions";
 import { uploadGalleryImage } from "@/app/edit/gallery-actions";
 import { OrdersPanel } from "@/components/dashboard/orders-panel";
@@ -151,7 +151,7 @@ function extractTopics(messages: ChatMessage[]): { topic: string; count: number 
 
 // ─── Tab icon components ────────────────────────────────────────────
 
-function HubIcon({ active }: { active: boolean }) {
+function PlaceIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -267,7 +267,7 @@ export function OwnerDock({
   );
 
   // Editable preview state
-  const [hubData, setHubData] = useState<HubData>(() => {
+  const [hubData, setHubData] = useState<PlaceData>(() => {
     const hoursStr =
       pageData?.hours && Array.isArray(pageData.hours) && pageData.hours.length > 0
         ? pageData.hours.map((h) => `${h.day}: ${h.open}${h.close ? `-${h.close}` : ""}`).join(", ")
@@ -441,7 +441,7 @@ export function OwnerDock({
       const firstIncomplete = (Object.keys(checklistState) as (keyof ChecklistState)[]).find(
         (k) => !checklistState[k]
       );
-      const welcome = `Your hub is ${statusLabel}. Setup is ${Math.round((completed / 9) * 100)}% complete. ${firstIncomplete ? `Let's work on: ${firstIncomplete}` : "Looking good!"}`;
+      const welcome = `Your place is ${statusLabel}. Setup is ${Math.round((completed / 9) * 100)}% complete. ${firstIncomplete ? `Let's work on: ${firstIncomplete}` : "Looking good!"}`;
       setMessages([{ id: "welcome", sender: "agent", body: welcome, timestamp: Date.now() }]);
     }
     scrollToBottom();
@@ -818,8 +818,8 @@ export function OwnerDock({
               value={0}
               className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
             >
-              <HubIcon active={activeTab === 0} />
-              Hub
+              <PlaceIcon active={activeTab === 0} />
+              Place
             </TabsTrigger>
             <TabsTrigger
               value={1}
@@ -845,7 +845,7 @@ export function OwnerDock({
           </TabsList>
         </div>
 
-        {/* Tab 1: Hub */}
+        {/* Tab 1: Place */}
         <TabsContent value={0} className="flex-1 min-h-0 flex flex-col">
           <div className="flex flex-1 min-h-0">
             {/* Edit fields */}
@@ -871,9 +871,9 @@ export function OwnerDock({
                 </div>
               )}
 
-              {/* Hub preview editable */}
+              {/* Place preview editable */}
               <div className="flex-1 overflow-y-auto no-scrollbar">
-                <HubPreviewEditable
+                <PlacePreviewEditable
                   data={hubData}
                   venueId={venue.id}
                   offerings={offeringsState}
@@ -887,7 +887,7 @@ export function OwnerDock({
                 />
               </div>
 
-              {/* AI chat at bottom of Hub */}
+              {/* AI chat at bottom of Place */}
               <div
                 className="shrink-0 bg-white"
                 style={{
@@ -1012,7 +1012,7 @@ export function OwnerDock({
                       src={`https://join.thekickback.net/${hubData.slug}`}
                       className="h-full w-full"
                       style={{ border: "none", background: "#fff" }}
-                      title="Hub Preview"
+                      title="Place Preview"
                     />
                   </div>
                   <span className="font-mono text-[10px] text-gray-300">
@@ -1042,7 +1042,7 @@ export function OwnerDock({
                   <polyline points="15 3 21 3 21 9" />
                   <line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
-                Preview Hub Page
+                Preview Place Page
               </a>
             </div>
           )}
@@ -1567,7 +1567,7 @@ export function OwnerDock({
         >
           {(
             [
-              { idx: 0, label: "Hub", Icon: HubIcon },
+              { idx: 0, label: "Place", Icon: PlaceIcon },
               { idx: 1, label: "Orders", Icon: OrdersIcon },
               { idx: 2, label: "Guests", Icon: GuestsIcon },
               { idx: 3, label: "More", Icon: MoreIcon },

@@ -191,7 +191,7 @@ export async function getOnboardingState() {
   };
 }
 
-export async function submitHubForReview() {
+export async function submitPlaceForReview() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
@@ -209,9 +209,9 @@ export async function submitHubForReview() {
     .limit(1)
     .single();
 
-  if (!ownership) return { error: "No hub found" };
+  if (!ownership) return { error: "No place found" };
 
-  const venueName = (ownership.venues as unknown as { name: string })?.name || "Your hub";
+  const venueName = (ownership.venues as unknown as { name: string })?.name || "Your place";
 
   // Update review status to pending
   const { error } = await service
@@ -225,8 +225,8 @@ export async function submitHubForReview() {
   const adminEmail = "carl@craftthefuture.xyz";
   const ownerEmail = user.email;
 
-  sendEmail(adminEmail, `New hub submitted: ${venueName}`, wrap(`
-    <h2 style="margin:0 0 12px;font-size:20px;color:#fff;">New Hub Submission</h2>
+  sendEmail(adminEmail, `New place submitted: ${venueName}`, wrap(`
+    <h2 style="margin:0 0 12px;font-size:20px;color:#fff;">New Place Submitted</h2>
     <p style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.5;">
       <strong style="color:#fff;">${venueName}</strong> was submitted for review by ${ownerEmail}.
     </p>

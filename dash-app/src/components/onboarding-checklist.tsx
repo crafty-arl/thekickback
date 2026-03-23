@@ -15,15 +15,15 @@ export interface ChecklistState {
 }
 
 const CHECKLIST_ITEMS: { key: keyof ChecklistState; label: string; description: string }[] = [
-  { key: "basics", label: "Hub Basics", description: "Name and type" },
+  { key: "basics", label: "The Basics", description: "Name and what kind of place" },
   { key: "location", label: "Location", description: "Address" },
-  { key: "hours", label: "Hours", description: "Operating hours" },
-  { key: "branding", label: "Look & Feel", description: "Tagline, description, color" },
-  { key: "offerings", label: "Offerings", description: "Review your menu and services" },
-  { key: "knowledge", label: "AI Knowledge", description: "Teach your AI about your spot" },
+  { key: "hours", label: "Hours", description: "When you're open" },
+  { key: "branding", label: "Style", description: "Tagline, description, and your color" },
+  { key: "offerings", label: "What You Offer", description: "Check the things we listed for you" },
+  { key: "knowledge", label: "Teach the AI", description: "Tell it things visitors should know" },
   { key: "photos", label: "Photos", description: "Upload at least one photo" },
-  { key: "xp", label: "Loyalty & XP", description: "Review your rewards program" },
-  { key: "stripe", label: "Payments", description: "Connect Stripe to accept payments" },
+  { key: "xp", label: "Rewards", description: "Check your points and levels" },
+  { key: "stripe", label: "Payments", description: "Connect Stripe so people can pay you" },
 ];
 
 interface OnboardingChecklistProps {
