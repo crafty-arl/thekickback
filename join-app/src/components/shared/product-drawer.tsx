@@ -113,11 +113,11 @@ export function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMet
         style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
       />
       <motion.div
-        initial={{ x: "-100%" }}
+        initial={{ x: "100%" }}
         animate={{ x: 0 }}
-        exit={{ x: "-100%" }}
+        exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 28, stiffness: 280 }}
-        className="fixed inset-y-0 left-0 z-[85] w-[85vw] max-w-sm flex flex-col overflow-y-auto"
+        className="fixed inset-y-0 right-0 z-[85] w-[85vw] max-w-sm flex flex-col overflow-y-auto"
         style={{
           background: "linear-gradient(to bottom, rgba(12,12,15,0.95) 0%, rgba(12,12,15,0.85) 100%)",
           backdropFilter: "blur(40px)",

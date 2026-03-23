@@ -2052,17 +2052,37 @@ export function TheDock({
             checkoutData = { ...(data.checkout as CheckoutCardData), venue_name: selectedVenue.name, venue_id: selectedVenue.id };
           }
 
-          // If a booking was confirmed, enrich the reply with details
-          const bookingData = data.booking as { booking?: { start?: string; end?: string; message?: string } } | null;
+          // If a booking was confirmed, add to cart with date/time metadata
+          const bookingData = data.booking as { booking?: { start?: string; end?: string; message?: string }; staffName?: string; message?: string } | null;
           if (bookingData?.booking) {
             const bk = bookingData.booking;
             const bkStart = bk.start ? new Date(bk.start) : null;
-            const bkEnd = bk.end ? new Date(bk.end) : null;
-            const dateStr = bkStart ? bkStart.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
-            const timeStr = bkStart ? bkStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
-            const endTimeStr = bkEnd ? bkEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
-            const bookingDetails = `\n\nBooking confirmed: ${bookingData.booking.message || ""}${dateStr ? `\nDate: ${dateStr}` : ""}${timeStr ? `\nTime: ${timeStr}${endTimeStr ? ` - ${endTimeStr}` : ""}` : ""}${user ? `\n\nAdd to Apple Wallet: https://thekickback.net/wallet/pass/${user.authId}` : ""}`;
-            finalBody = finalBody + bookingDetails;
+            const dateLabel = bkStart ? bkStart.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "Today";
+            const timeLabel = bkStart ? bkStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+
+            // Find the offering that was booked
+            const bookingOfferId = (data.booking as Record<string, unknown>)?.offering_id as string | undefined;
+            const bookingOffer = bookingOfferId ? (offeringsMap[selectedVenue.id] || {})[bookingOfferId] : null;
+
+            if (bookingOffer && bookingOfferId) {
+              // Auto-add to cart with date/time
+              setCarts((prev) => {
+                const next = new Map(prev);
+                const items = [...(next.get(selectedVenue.id) || [])];
+                items.push({
+                  offeringId: bookingOfferId,
+                  name: bookingOffer.name,
+                  priceCents: bookingOffer.price_cents,
+                  quantity: 1,
+                  metadata: { date: dateLabel, time: timeLabel, staffName: bookingData.staffName || undefined },
+                } as typeof items[0] & { metadata: Record<string, unknown> });
+                next.set(selectedVenue.id, items);
+                return next;
+              });
+              finalBody += `\n\nAdded to cart: ${bookingOffer.name} — ${dateLabel} ${timeLabel}. Check out when ready.`;
+            } else {
+              finalBody += `\n\nBooked: ${bookingData.message || bk.message || "Confirmed"} — ${dateLabel} ${timeLabel}`;
+            }
           }
 
           // Update the AI message with cleaned reply and metadata
