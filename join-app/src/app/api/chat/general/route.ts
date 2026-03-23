@@ -45,6 +45,7 @@ async function getActiveOfferings(): Promise<OfferingRow[]> {
     .from("venue_offerings")
     .select("id, venue_id, name, type, price_cents, description, duration_minutes")
     .eq("active", true)
+    .neq("ai_visible", false)
     .order("sort_order")
     .limit(200);
   return (data || []) as OfferingRow[];

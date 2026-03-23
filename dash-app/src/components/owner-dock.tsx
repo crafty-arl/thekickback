@@ -74,6 +74,8 @@ interface OwnerDockProps {
     vibe: string;
     type?: string;
     address?: string;
+    pos_provider?: string | null;
+    pos_connected_at?: string | null;
   };
   reviewStatus?: string;
   user: { id: string; email: string };
@@ -974,6 +976,8 @@ export function OwnerDock({
             initialKnowledge={initialKnowledge}
             initialAiLimits={initialAiLimits}
             previewKey={previewKey}
+            posProvider={venue.pos_provider}
+            posConnectedAt={venue.pos_connected_at}
           />
         </TabsContent>
 

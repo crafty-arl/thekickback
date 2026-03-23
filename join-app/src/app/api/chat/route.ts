@@ -43,6 +43,7 @@ async function getVenueOfferingsRaw(venueId: string): Promise<OfferingRow[]> {
     .select("id, type, name, description, price_cents, recurring, interval, duration_minutes, capacity, add_ons, category, image_url")
     .eq("venue_id", venueId)
     .eq("active", true)
+    .neq("ai_visible", false)
     .order("sort_order");
   return (data || []) as OfferingRow[];
 }

@@ -163,6 +163,9 @@ interface Offering {
     stripe_price_id?: string | null;
     image_url?: string | null;
     created_at?: string;
+    pos_provider?: string | null;
+    pos_item_id?: string | null;
+    ai_visible?: boolean;
 }
 
 interface StaffMember {
@@ -214,6 +217,7 @@ export function SettingsOfferingsDrawer({
     const [offeringMsg, setOfferingMsg] = useState("");
     const [togglingOffering, setTogglingOffering] = useState<string | null>(null);
     const [deletingOfferingId, setDeletingOfferingId] = useState<string | null>(null);
+    const [togglingVisibility, setTogglingVisibility] = useState<string | null>(null);
 
     // ─── Helpers ──────────────────────────────────────────────────
 
@@ -315,6 +319,22 @@ export function SettingsOfferingsDrawer({
         await deleteOffering(id);
         syncOfferings(offerings.filter((o) => o.id !== id));
         setDeletingOfferingId(null);
+    }
+
+    async function handleToggleAiVisibility(id: string, currentVisible: boolean) {
+        setTogglingVisibility(id);
+        try {
+            const res = await fetch("/api/pos/visibility", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ offeringId: id, ai_visible: !currentVisible }),
+            });
+            if (res.ok) {
+                syncOfferings(offerings.map((o) => o.id === id ? { ...o, ai_visible: !currentVisible } : o));
+            }
+        } finally {
+            setTogglingVisibility(null);
+        }
     }
 
     async function handleApplyTemplate(template: VenueTemplate) {
@@ -440,7 +460,7 @@ export function SettingsOfferingsDrawer({
                             <div
                                 key={o.id}
                                 className="group flex items-start gap-4 rounded-xl border border-gray-100 bg-white p-4 transition"
-                                style={{ opacity: o.active ? 1 : 0.5 }}
+                                style={{ opacity: o.active ? (o.ai_visible === false ? 0.6 : 1) : 0.5 }}
                             >
                                 {/* Image or icon */}
                                 <label className="relative flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-orange-50">
@@ -482,6 +502,12 @@ export function SettingsOfferingsDrawer({
                                         )}
                                         {o.stripe_price_id && (
                                             <span className="rounded-full bg-green-50 px-2 py-0.5 font-sans text-[9px] font-bold tracking-wider text-green-500">STRIPE</span>
+                                        )}
+                                        {o.pos_provider && (
+                                            <span className="rounded-full bg-blue-50 px-2 py-0.5 font-sans text-[9px] font-bold tracking-wider text-blue-500">{o.pos_provider.toUpperCase()}</span>
+                                        )}
+                                        {o.ai_visible === false && (
+                                            <span className="rounded-full bg-gray-100 px-2 py-0.5 font-sans text-[9px] font-medium text-gray-400">Hidden from AI</span>
                                         )}
                                     </div>
 
@@ -540,6 +566,25 @@ export function SettingsOfferingsDrawer({
 
                                 {/* Actions */}
                                 <div className="flex shrink-0 items-center gap-2">
+                                    {/* AI visibility toggle */}
+                                    <button
+                                        onClick={() => handleToggleAiVisibility(o.id, o.ai_visible !== false)}
+                                        disabled={togglingVisibility === o.id}
+                                        title={o.ai_visible !== false ? "Visible to AI" : "Hidden from AI"}
+                                        className="rounded-lg p-1.5 transition"
+                                        style={{
+                                            backgroundColor: o.ai_visible !== false ? "rgba(99,102,241,0.08)" : "rgba(0,0,0,0.03)",
+                                            color: o.ai_visible !== false ? "#6366F1" : "#D1D5DB",
+                                        }}
+                                    >
+                                        {togglingVisibility === o.id ? (
+                                            <span className="font-sans text-[11px]">...</span>
+                                        ) : o.ai_visible !== false ? (
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        ) : (
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                        )}
+                                    </button>
                                     <button
                                         onClick={() => handleToggleOffering(o.id, !o.active)}
                                         disabled={togglingOffering === o.id}

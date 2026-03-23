@@ -62,6 +62,8 @@ interface HubTabProps {
   initialKnowledge?: { id: string; content: string; category: string; created_at: string }[];
   initialAiLimits?: { enabled: boolean; free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
   previewKey?: number;
+  posProvider?: string | null;
+  posConnectedAt?: string | null;
 }
 
 // ─── Component ─────────────────────────────────────────────────────
@@ -88,6 +90,8 @@ export function HubTab({
   previewKey,
   checklist,
   reviewStatus,
+  posProvider: initialPosProvider,
+  posConnectedAt: initialPosConnectedAt,
 }: HubTabProps) {
   const [activeDrawer, setActiveDrawer] = useState<SettingsDrawer>(null);
   const [seeding, setSeeding] = useState(false);
@@ -96,6 +100,12 @@ export function HubTab({
   const [resetting, setResetting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
+  const [posProvider, setPosProvider] = useState(initialPosProvider || null);
+  const [posConnectedAt, setPosConnectedAt] = useState(initialPosConnectedAt || null);
+  const [posConnecting, setPosConnecting] = useState(false);
+  const [posSyncing, setPosSyncing] = useState(false);
+  const [posDisconnecting, setPosDisconnecting] = useState(false);
+  const [posSyncResult, setPosSyncResult] = useState<string | null>(null);
 
   useEffect(() => {
     const host = window.location.hostname;
@@ -111,6 +121,67 @@ export function HubTab({
       setSeeding(false);
     }
   };
+
+  const handlePosConnect = async () => {
+    setPosConnecting(true);
+    try {
+      const res = await fetch("/api/pos/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId }),
+      });
+      const data = await res.json();
+      if (data.session_url) {
+        window.location.href = data.session_url;
+      }
+    } catch {
+      setPosConnecting(false);
+    }
+  };
+
+  const handlePosSync = async () => {
+    setPosSyncing(true);
+    setPosSyncResult(null);
+    try {
+      const res = await fetch("/api/pos/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId }),
+      });
+      const data = await res.json();
+      if (data.synced !== undefined) {
+        setPosSyncResult(`Synced ${data.synced} items (${data.added} new, ${data.updated} updated)`);
+        setTimeout(() => setPosSyncResult(null), 4000);
+      }
+    } finally {
+      setPosSyncing(false);
+    }
+  };
+
+  const handlePosDisconnect = async () => {
+    setPosDisconnecting(true);
+    try {
+      await fetch("/api/pos/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId }),
+      });
+      setPosProvider(null);
+      setPosConnectedAt(null);
+    } finally {
+      setPosDisconnecting(false);
+    }
+  };
+
+  // Detect ?pos=connected in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("pos") === "connected") {
+      handlePosSync();
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pillClass = "shrink-0 rounded-lg border border-black/[0.06] bg-white px-3 py-2 font-sans text-xs font-medium text-gray-500 hover:bg-black/[0.02] active:scale-95 transition cursor-pointer";
 
@@ -244,6 +315,65 @@ export function HubTab({
                 XP & Loyalty
               </button>
             </div>
+          </div>
+
+          {/* POS Integration */}
+          <div className="mx-4 mt-2">
+            {!posProvider ? (
+              <div className="rounded-xl border border-black/[0.06] bg-white p-4">
+                <p className="font-sans text-[13px] font-semibold text-gray-700 mb-1">Connect your POS</p>
+                <p className="font-sans text-[11px] text-gray-400 mb-3">Sync your product catalog from your point-of-sale system</p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {["Square", "Toast", "Clover", "Lightspeed", "Shopify"].map((name) => (
+                    <span key={name} className="rounded-full bg-gray-50 border border-black/[0.04] px-2.5 py-1 font-sans text-[10px] font-medium text-gray-400">
+                      {name}
+                    </span>
+                  ))}
+                </div>
+                <button
+                  onClick={handlePosConnect}
+                  disabled={posConnecting}
+                  className="w-full rounded-xl bg-orange-500 py-2.5 font-sans text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                >
+                  {posConnecting ? "Connecting..." : "Connect"}
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-black/[0.06] bg-white p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 rounded-full bg-green-500" />
+                    <p className="font-sans text-[13px] font-semibold text-gray-700">
+                      Connected to {posProvider}
+                    </p>
+                  </div>
+                  {posConnectedAt && (
+                    <span className="font-sans text-[10px] text-gray-300">
+                      Last sync {new Date(posConnectedAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                {posSyncResult && (
+                  <p className="mb-2 font-sans text-[11px] text-green-600">{posSyncResult}</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handlePosSync}
+                    disabled={posSyncing}
+                    className="flex-1 rounded-xl border border-orange-200 bg-orange-50 py-2 font-sans text-[12px] font-semibold text-orange-500 transition active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {posSyncing ? "Syncing..." : "Sync Now"}
+                  </button>
+                  <button
+                    onClick={handlePosDisconnect}
+                    disabled={posDisconnecting}
+                    className="rounded-xl border border-gray-200 bg-white px-4 py-2 font-sans text-[12px] font-medium text-gray-400 transition hover:border-red-200 hover:text-red-400 disabled:opacity-50"
+                  >
+                    {posDisconnecting ? "..." : "Disconnect"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Account footer */}
