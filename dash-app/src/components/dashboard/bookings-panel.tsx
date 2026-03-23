@@ -121,7 +121,7 @@ export function BookingsPanel({ bookings }: { bookings: Booking[] }) {
           <p className="font-sans text-[13px] text-black/40">Upcoming</p>
         </div>
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
-          <p className="font-mono text-[28px] font-bold tracking-tight" style={{ color: "#16a34a" }}>
+          <p className="font-mono text-[28px] font-bold tracking-tight text-green-600">
             {bookings.filter((b) => b.cal_booking_uid).length}
           </p>
           <p className="font-sans text-[13px] text-black/40">On Cal.com</p>
@@ -146,10 +146,7 @@ export function BookingsPanel({ bookings }: { bookings: Booking[] }) {
           >
             {f.label}
             <span
-              className="rounded-full px-1.5 py-0.5 font-mono text-[11px] font-bold leading-none"
-              style={{
-                backgroundColor: filter === f.id ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.06)",
-              }}
+              className={`rounded-full px-1.5 py-0.5 font-mono text-xs font-bold leading-none ${filter === f.id ? "bg-white/20" : "bg-black/[0.06]"}`}
             >
               {f.count}
             </span>
@@ -197,7 +194,7 @@ export function BookingsPanel({ bookings }: { bookings: Booking[] }) {
                       {formatTime(booking.starts_at)}
                     </span>
                     {booking.duration_minutes && (
-                      <span className="font-sans text-[11px] text-black/30">{booking.duration_minutes} min</span>
+                      <span className="font-sans text-xs text-black/30">{booking.duration_minutes} min</span>
                     )}
                   </div>
 
@@ -234,24 +231,24 @@ export function BookingsPanel({ bookings }: { bookings: Booking[] }) {
                       className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[12px] font-semibold"
                       style={{ backgroundColor: status.bg, color: status.color }}
                     >
-                      <span className="text-[10px]">{status.icon}</span>
+                      <span className="text-[11px]">{status.icon}</span>
                       {status.label}
                     </span>
                   </div>
                 </div>
 
                 {/* Cal.com verification bar */}
-                <div className="flex items-center justify-between border-t border-black/[0.04] px-5 py-2.5" style={{ backgroundColor: booking.cal_booking_uid ? "rgba(22,163,106,0.03)" : "rgba(249,115,22,0.03)" }}>
+                <div className={`flex items-center justify-between border-t border-black/[0.04] px-5 py-2.5 ${booking.cal_booking_uid ? "bg-green-600/[0.03]" : "bg-orange-500/[0.03]"}`}>
                   <div className="flex items-center gap-2">
                     {booking.cal_booking_uid ? (
                       <>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
                         </svg>
-                        <span className="font-sans text-[12px] font-medium" style={{ color: "#16a34a" }}>
+                        <span className="font-sans text-[12px] font-medium text-green-600">
                           Verified on Cal.com
                         </span>
-                        <span className="font-mono text-[10px] text-black/20">
+                        <span className="font-mono text-[11px] text-black/20">
                           #{booking.cal_booking_uid.slice(0, 8)}
                         </span>
                       </>
@@ -260,13 +257,13 @@ export function BookingsPanel({ bookings }: { bookings: Booking[] }) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                         </svg>
-                        <span className="font-sans text-[12px] font-medium" style={{ color: "#F97316" }}>
+                        <span className="font-sans text-[12px] font-medium text-orange-500">
                           Not synced to calendar
                         </span>
                       </>
                     )}
                   </div>
-                  <span className="font-sans text-[11px] text-black/20">
+                  <span className="font-sans text-xs text-black/20">
                     Booked {new Date(booking.created_at).toLocaleDateString()}
                   </span>
                 </div>

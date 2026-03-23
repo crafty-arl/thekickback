@@ -115,21 +115,21 @@ export function OrdersPanel({ orders, revenue, transactions = [], onOrderTap }: 
       {/* ── Earnings summary ── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
-          <p className="font-mono text-[28px] font-bold tracking-tight" style={{ color: "#16a34a" }}>
+          <p className="font-mono text-[28px] font-bold tracking-tight text-green-600">
             {formatCents(Math.round(revenue.todayRevenue * (1 - feeRate)))}
           </p>
           <p className="font-sans text-[13px] text-black/40">Today&apos;s earnings</p>
-          <p className="font-sans text-[10px] text-black/20">{formatCents(revenue.todayRevenue)} gross</p>
+          <p className="font-sans text-[11px] text-black/20">{formatCents(revenue.todayRevenue)} gross</p>
         </div>
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
-          <p className="font-mono text-[28px] font-bold tracking-tight" style={{ color: "#F97316" }}>
+          <p className="font-mono text-[28px] font-bold tracking-tight text-orange-500">
             {formatCents(Math.round(revenue.weekRevenue * (1 - feeRate)))}
           </p>
           <p className="font-sans text-[13px] text-black/40">This week</p>
-          <p className="font-sans text-[10px] text-black/20">{formatCents(revenue.weekRevenue)} gross</p>
+          <p className="font-sans text-[11px] text-black/20">{formatCents(revenue.weekRevenue)} gross</p>
         </div>
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
-          <p className="font-mono text-[28px] font-bold tracking-tight" style={{ color: "#8B5CF6" }}>
+          <p className="font-mono text-[28px] font-bold tracking-tight text-violet-500">
             {formatCents(revenue.totalEarnings || 0)}
           </p>
           <p className="font-sans text-[13px] text-black/40">All-time earnings</p>
@@ -137,7 +137,7 @@ export function OrdersPanel({ orders, revenue, transactions = [], onOrderTap }: 
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
           <p className="font-mono text-[28px] font-bold tracking-tight text-black">{revenue.totalOrders}</p>
           <p className="font-sans text-[13px] text-black/40">Total orders</p>
-          <p className="font-sans text-[10px] text-black/20">{Math.round(feeRate * 100)}% platform fee</p>
+          <p className="font-sans text-[11px] text-black/20">{Math.round(feeRate * 100)}% platform fee</p>
         </div>
       </div>
 
@@ -153,7 +153,7 @@ export function OrdersPanel({ orders, revenue, transactions = [], onOrderTap }: 
                 <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
               </svg>
               <span className="font-sans text-[14px] font-semibold text-black/70">Transaction History</span>
-              <span className="rounded-full bg-black/[0.06] px-2 py-0.5 font-mono text-[11px] font-bold text-black/40">{transactions.length}</span>
+              <span className="rounded-full bg-black/[0.06] px-2 py-0.5 font-mono text-xs font-bold text-black/40">{transactions.length}</span>
             </div>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="2" strokeLinecap="round" style={{ transform: showTxHistory ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
               <polyline points="6 9 12 15 18 9" />
@@ -162,19 +162,19 @@ export function OrdersPanel({ orders, revenue, transactions = [], onOrderTap }: 
           {showTxHistory && (
             <div className="mt-2 rounded-2xl border border-black/5 bg-white overflow-hidden">
               {transactions.map((tx, i) => (
-                <div key={tx.id} className="flex items-center gap-3 px-5 py-3" style={{ borderTop: i > 0 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: tx.status === "completed" ? "rgba(74,222,128,0.1)" : "rgba(250,204,21,0.1)" }}>
-                    <span className="font-mono text-[10px] font-bold" style={{ color: tx.status === "completed" ? "#16a34a" : "#ca8a04" }}>
+                <div key={tx.id} className={`flex items-center gap-3 px-5 py-3 ${i > 0 ? "border-t border-black/[0.04]" : ""}`}>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${tx.status === "completed" ? "bg-green-400/10" : "bg-yellow-300/10"}`}>
+                    <span className={`font-mono text-[11px] font-bold ${tx.status === "completed" ? "text-green-600" : "text-yellow-600"}`}>
                       {tx.status === "completed" ? "+" : "?"}
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-sans text-[13px] font-medium text-black/70">{tx.description || "Payment received"}</p>
-                    <p className="font-sans text-[10px] text-black/30">
+                    <p className="font-sans text-[11px] text-black/30">
                       {tx.guest_name || "Guest"} &middot; {new Date(tx.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} {new Date(tx.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                     </p>
                   </div>
-                  <span className="shrink-0 font-mono text-[14px] font-bold" style={{ color: "#16a34a" }}>
+                  <span className="shrink-0 font-mono text-[14px] font-bold text-green-600">
                     +{formatCents(tx.amount_cents)}
                   </span>
                 </div>
@@ -198,10 +198,7 @@ export function OrdersPanel({ orders, revenue, transactions = [], onOrderTap }: 
           >
             {f.label}
             <span
-              className="rounded-full px-1.5 py-0.5 font-mono text-[11px] font-bold leading-none"
-              style={{
-                backgroundColor: filter === f.id ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.06)",
-              }}
+              className={`rounded-full px-1.5 py-0.5 font-mono text-xs font-bold leading-none ${filter === f.id ? "bg-white/20" : "bg-black/[0.06]"}`}
             >
               {f.count}
             </span>
@@ -248,10 +245,10 @@ export function OrdersPanel({ orders, revenue, transactions = [], onOrderTap }: 
                 >
                   {/* Order number block */}
                   <div className="flex shrink-0 flex-col items-center rounded-xl px-3 py-2" style={{ backgroundColor: status.bg }}>
-                    <span className="font-mono text-[11px] font-bold" style={{ color: status.color }}>
+                    <span className="font-mono text-xs font-bold" style={{ color: status.color }}>
                       #{order.id.slice(0, 6)}
                     </span>
-                    <span className="font-sans text-[10px] text-black/30">
+                    <span className="font-sans text-[11px] text-black/30">
                       {formatTime(order.created_at)}
                     </span>
                   </div>
@@ -270,10 +267,10 @@ export function OrdersPanel({ orders, revenue, transactions = [], onOrderTap }: 
                       {formatCents(order.total_cents)}
                     </span>
                     <span
-                      className="flex items-center gap-1.5 rounded-full px-3 py-1 font-sans text-[11px] font-semibold"
+                      className="flex items-center gap-1.5 rounded-full px-3 py-1 font-sans text-xs font-semibold"
                       style={{ backgroundColor: status.bg, color: status.color }}
                     >
-                      <span className="text-[9px]">{status.icon}</span>
+                      <span className="text-[11px]">{status.icon}</span>
                       {status.label}
                     </span>
                   </div>
@@ -297,18 +294,18 @@ export function OrdersPanel({ orders, revenue, transactions = [], onOrderTap }: 
 
                 {/* Expanded line items */}
                 {isExpanded && order.order_items.length > 0 && (
-                  <div className="border-t border-black/[0.04] px-5 py-3" style={{ backgroundColor: "rgba(0,0,0,0.01)" }}>
+                  <div className="border-t border-black/[0.04] px-5 py-3 bg-black/[0.01]">
                     <div className="flex flex-col gap-2">
                       {order.order_items.map((item) => (
                         <div key={item.id} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full font-mono text-[10px] font-bold" style={{ backgroundColor: "rgba(0,0,0,0.05)" }}>
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/5 font-mono text-[11px] font-bold">
                               {item.quantity}
                             </span>
                             <span className="font-sans text-[13px] text-black/70">{item.name}</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="font-sans text-[11px] text-black/30">
+                            <span className="font-sans text-xs text-black/30">
                               @ {formatCents(item.unit_price_cents)}
                             </span>
                             <span className="font-mono text-[13px] font-medium text-black/60">
@@ -329,7 +326,7 @@ export function OrdersPanel({ orders, revenue, transactions = [], onOrderTap }: 
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="font-sans text-[12px] font-medium text-black/50">You earn</span>
-                        <span className="font-mono text-[14px] font-bold" style={{ color: "#16a34a" }}>{formatCents(Math.round(order.total_cents * (1 - feeRate)))}</span>
+                        <span className="font-mono text-[14px] font-bold text-green-600">{formatCents(Math.round(order.total_cents * (1 - feeRate)))}</span>
                       </div>
                     </div>
                   </div>

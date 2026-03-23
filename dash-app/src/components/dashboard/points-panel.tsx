@@ -47,19 +47,19 @@ export function PointsPanel({
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="flex flex-col gap-1 rounded-2xl border border-black/5 bg-white p-4">
-          <span className="font-sans text-[10px] font-medium tracking-[2px] text-black/35">POINTS ISSUED TODAY</span>
+          <span className="font-sans text-[11px] font-medium tracking-[2px] text-black/35">POINTS ISSUED TODAY</span>
           <span className="font-sans text-2xl font-bold tracking-tight text-orange">{pointsIssuedToday.toLocaleString()}</span>
         </div>
         <div className="flex flex-col gap-1 rounded-2xl border border-black/5 bg-white p-4">
-          <span className="font-sans text-[10px] font-medium tracking-[2px] text-black/35">PERKS REDEEMED</span>
+          <span className="font-sans text-[11px] font-medium tracking-[2px] text-black/35">PERKS REDEEMED</span>
           <span className="font-sans text-2xl font-bold tracking-tight text-black">{perksRedeemedToday}</span>
         </div>
         <div className="flex flex-col gap-1 rounded-2xl border border-black/5 bg-white p-4">
-          <span className="font-sans text-[10px] font-medium tracking-[2px] text-black/35">ACTIVE PERKS</span>
+          <span className="font-sans text-[11px] font-medium tracking-[2px] text-black/35">ACTIVE PERKS</span>
           <span className="font-sans text-2xl font-bold tracking-tight text-black">{perks.filter((p) => p.active).length}</span>
         </div>
         <div className="flex flex-col gap-1 rounded-2xl border border-black/5 bg-white p-4">
-          <span className="font-sans text-[10px] font-medium tracking-[2px] text-black/35">MULTIPLIER</span>
+          <span className="font-sans text-[11px] font-medium tracking-[2px] text-black/35">MULTIPLIER</span>
           <span className="font-sans text-2xl font-bold tracking-tight" style={{ color: activeMultiplier ? "#f97316" : "#00000030" }}>
             {activeMultiplier ? `${activeMultiplier.multiplier}x` : "—"}
           </span>
@@ -76,7 +76,7 @@ export function PointsPanel({
           <div className="rounded-2xl border border-black/5 bg-white p-5">
             <div className="flex items-center justify-between pb-4">
               <h3 className="font-sans text-sm font-bold tracking-tight text-black">Venue Perks</h3>
-              <span className="font-sans text-[10px] font-medium tracking-[1.5px] text-black/30">
+              <span className="font-sans text-[11px] font-medium tracking-[1.5px] text-black/30">
                 {perks.length} TOTAL
               </span>
             </div>
@@ -107,7 +107,7 @@ export function PointsPanel({
                   <div className="flex flex-col items-end gap-0.5">
                     <span className="font-mono text-sm font-bold text-orange">{perk.point_cost} pts</span>
                     {perk.inventory !== null && (
-                      <span className="font-sans text-[10px] text-black/30">{perk.inventory} left</span>
+                      <span className="font-sans text-[11px] text-black/30">{perk.inventory} left</span>
                     )}
                   </div>
                 </div>
@@ -138,7 +138,7 @@ export function PointsPanel({
                     </span>
                   </div>
                   <span
-                    className="rounded-full px-2.5 py-1 font-sans text-[10px] font-semibold uppercase tracking-wide"
+                    className="rounded-full px-2.5 py-1 font-sans text-[11px] font-semibold uppercase tracking-wide"
                     style={{
                       backgroundColor:
                         r.status === "fulfilled" ? "#4ade8015" :
@@ -163,7 +163,7 @@ export function PointsPanel({
           <div className="rounded-2xl border border-black/5 bg-white p-5">
             <div className="flex items-center justify-between pb-4">
               <h3 className="font-sans text-sm font-bold tracking-tight text-black">Top Earners</h3>
-              <span className="font-sans text-[10px] font-medium tracking-[1.5px] text-black/30">
+              <span className="font-sans text-[11px] font-medium tracking-[1.5px] text-black/30">
                 AT YOUR VENUE
               </span>
             </div>
@@ -183,7 +183,7 @@ export function PointsPanel({
                     </span>
                     <div className="flex items-center gap-2">
                       <span
-                        className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-bold uppercase tracking-wider"
+                        className="rounded-full px-1.5 py-0.5 font-sans text-[11px] font-bold uppercase tracking-wider"
                         style={{
                           backgroundColor: `${TIER_COLORS[entry.tier] || TIER_COLORS.explorer}15`,
                           color: TIER_COLORS[entry.tier] || TIER_COLORS.explorer,
@@ -192,7 +192,7 @@ export function PointsPanel({
                         {entry.tier}
                       </span>
                       {entry.current_streak > 0 && (
-                        <span className="font-sans text-[10px] text-black/30">
+                        <span className="font-sans text-[11px] text-black/30">
                           {entry.current_streak}wk streak
                         </span>
                       )}

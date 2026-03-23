@@ -65,8 +65,7 @@ export function StatsCard({
         <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Occupancy</p>
         <div className="h-2 bg-gray-100 overflow-hidden">
           <motion.div
-            className="h-full"
-            style={{ backgroundColor: "#F97316" }}
+            className="h-full bg-orange-500"
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.6, ease: "easeOut" }}
@@ -252,7 +251,7 @@ export function RevenueCard({
       <div className="grid grid-cols-3 gap-3">
         <div>
           <p className="text-xs text-gray-400">Today</p>
-          <p className="font-mono text-xl font-bold" style={{ color: "#F97316" }}>
+          <p className="font-mono text-xl font-bold text-orange-500">
             {fmt$(today)}
           </p>
         </div>

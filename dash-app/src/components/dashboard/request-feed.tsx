@@ -31,7 +31,7 @@ export function RequestFeed({ requests }: { requests: VenueRequest[] }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-black/5 p-4 sm:p-5">
       <div className="flex items-center justify-between">
-        <span className="font-sans text-[10px] font-medium tracking-[2px] text-black/40">
+        <span className="font-sans text-[11px] font-medium tracking-[2px] text-black/40">
           REQUESTS
         </span>
         <span className="font-sans text-xs text-black/35">
@@ -70,7 +70,7 @@ export function RequestFeed({ requests }: { requests: VenueRequest[] }) {
                   <span className="font-mono text-xs text-black/50">
                     {maskIdentifier(identifier)}
                   </span>
-                  <span className="font-sans text-[10px] text-black/30">
+                  <span className="font-sans text-[11px] text-black/30">
                     {timeAgo(r.created_at)}
                   </span>
                 </div>
@@ -78,7 +78,7 @@ export function RequestFeed({ requests }: { requests: VenueRequest[] }) {
               </div>
 
               {/* Status */}
-              <span className={`shrink-0 rounded-full px-2.5 py-0.5 font-sans text-[10px] font-medium tracking-wide ${r.status === "pending"
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 font-sans text-[11px] font-medium tracking-wide ${r.status === "pending"
                   ? "bg-orange text-black"
                   : r.status === "accepted"
                     ? "bg-yellow-400/50 text-yellow-900"

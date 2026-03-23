@@ -42,13 +42,13 @@ export function GuestTable({ sessions }: { sessions: GuestSession[] }) {
           <p className="font-sans text-[13px] text-black/40">In venue now</p>
         </div>
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
-          <p className="font-mono text-[28px] font-bold tracking-tight" style={{ color: "#F97316" }}>
+          <p className="font-mono text-[28px] font-bold tracking-tight text-orange-500">
             {sessions.filter((s) => (s.venue_visits || 0) > 1).length}
           </p>
           <p className="font-sans text-[13px] text-black/40">Returning</p>
         </div>
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
-          <p className="font-mono text-[28px] font-bold tracking-tight" style={{ color: "#a78bfa" }}>
+          <p className="font-mono text-[28px] font-bold tracking-tight text-violet-400">
             {sessions.filter((s) => s.is_member).length}
           </p>
           <p className="font-sans text-[13px] text-black/40">Members</p>
@@ -99,7 +99,7 @@ export function GuestTable({ sessions }: { sessions: GuestSession[] }) {
                     {displayName || maskIdentifier(identifier)}
                   </span>
                   {isMember && (
-                    <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold tracking-wider" style={{ backgroundColor: "#F9731615", color: "#F97316" }}>
+                    <span className="rounded-full bg-orange-500/[0.08] px-2 py-0.5 font-sans text-[11px] font-bold tracking-wider text-orange-500">
                       MEMBER
                     </span>
                   )}
@@ -120,10 +120,10 @@ export function GuestTable({ sessions }: { sessions: GuestSession[] }) {
                   <span className="font-mono text-[16px] font-bold" style={{ color: tier.color }}>
                     {score.toLocaleString()}
                   </span>
-                  <span className="font-sans text-[9px] text-black/25">KB</span>
+                  <span className="font-sans text-[11px] text-black/25">KB</span>
                 </div>
                 <span
-                  className="rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold"
+                  className="rounded-full px-2 py-0.5 font-sans text-[11px] font-semibold"
                   style={{ backgroundColor: tier.bg, color: tier.color }}
                 >
                   {tier.label}
@@ -134,9 +134,9 @@ export function GuestTable({ sessions }: { sessions: GuestSession[] }) {
             {/* XP bar at this venue */}
             {venueXp > 0 && (
               <div className="flex items-center gap-3 border-t border-black/[0.04] px-5 py-2">
-                <span className="font-sans text-[11px] text-black/30">Venue XP</span>
+                <span className="font-sans text-xs text-black/30">Venue XP</span>
                 <div className="flex-1">
-                  <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(0,0,0,0.04)" }}>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.04]">
                     <div
                       className="h-full rounded-full"
                       style={{
@@ -146,7 +146,7 @@ export function GuestTable({ sessions }: { sessions: GuestSession[] }) {
                     />
                   </div>
                 </div>
-                <span className="font-mono text-[11px] font-semibold" style={{ color: tier.color }}>
+                <span className="font-mono text-xs font-semibold" style={{ color: tier.color }}>
                   {venueXp} XP
                 </span>
               </div>

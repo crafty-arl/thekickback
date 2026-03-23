@@ -1,17 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Fraunces } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { SandboxBanner } from "@/components/sandbox-banner";
 import Script from "next/script";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
@@ -46,7 +40,7 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/logo.png" />
       </head>
-      <body className={`${fraunces.variable} antialiased`}>
+      <body className="antialiased">
         <SandboxBanner />
         {children}
         <Script id="sw-register" strategy="afterInteractive">

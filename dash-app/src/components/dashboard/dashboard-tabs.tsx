@@ -85,11 +85,11 @@ export function DashboardTabs({
               {tab.label}
               {badge !== undefined && badge > 0 && (
                 <span
-                  className="rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none"
-                  style={{
-                    backgroundColor: active === tab.id ? "rgba(249,115,22,0.3)" : "rgba(0,0,0,0.08)",
-                    color: active === tab.id ? "#F97316" : "rgba(0,0,0,0.4)",
-                  }}
+                  className={`rounded-full px-1.5 py-0.5 font-mono text-[11px] font-bold leading-none ${
+                    active === tab.id
+                      ? "bg-orange-500/30 text-orange-500"
+                      : "bg-black/[0.08] text-black/40"
+                  }`}
                 >
                   {badge}
                 </span>
