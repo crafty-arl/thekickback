@@ -2612,8 +2612,7 @@ export function TheDock({
                   onClick={() => { setMode("explore"); setExploreSnap("half"); }}
                   className="flex items-center"
                 >
-                  <span className="font-sans text-[22px] font-black tracking-tighter" style={{ color: "#F97316" }}>K</span>
-                  <span className="font-sans text-[22px] font-black tracking-tighter text-white/90">B</span>
+                  <Image src="/logo.png" alt="theKickBack" width={500} height={250} className="h-6 w-auto" style={{ filter: "invert(1)" }} priority />
                 </button>
               </div>
 
