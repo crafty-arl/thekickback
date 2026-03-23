@@ -59,6 +59,8 @@ interface OfferingData {
   rsvp_count?: number | null;
   max_attendees?: number | null;
   image_url?: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
 }
 
 interface Props {
@@ -740,6 +742,14 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                     </div>
                     {event.description && (
                       <p className="font-sans text-[12px] leading-relaxed text-white/40 line-clamp-2">{event.description}</p>
+                    )}
+                    {event.starts_at && (
+                      <p className="font-sans text-[11px] text-white/50 mt-0.5 mb-1">
+                        {new Date(event.starts_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                        {" · "}
+                        {new Date(event.starts_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        {event.ends_at && ` – ${new Date(event.ends_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}
+                      </p>
                     )}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {event.location_name && (

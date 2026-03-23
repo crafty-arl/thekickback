@@ -87,7 +87,7 @@ async function handleAction(
 
       case "add_offering": {
         if (!action.data) throw new Error("Missing offering data");
-        const d = action.data as { name: string; type: string; description?: string; price_cents: number; recurring?: boolean; interval?: string; perks?: string[]; duration_minutes?: number; capacity?: number; add_ons?: { name: string; price_cents: number }[] };
+        const d = action.data as { name: string; type: string; description?: string; price_cents: number; recurring?: boolean; interval?: string; perks?: string[]; duration_minutes?: number; capacity?: number; add_ons?: { name: string; price_cents: number }[]; starts_at?: string; ends_at?: string };
         const { error } = await svc.from("venue_offerings").insert({
           venue_id: venueId,
           name: (d.name || "").trim(),
@@ -100,6 +100,8 @@ async function handleAction(
           duration_minutes: d.duration_minutes || null,
           capacity: d.capacity || null,
           add_ons: d.add_ons || [],
+          starts_at: d.starts_at || null,
+          ends_at: d.ends_at || null,
         });
         if (error) throw new Error(error.message);
         revalidatePath("/settings");
@@ -589,7 +591,7 @@ When the owner asks you to change, update, add, or delete something, respond con
 <<<ACTION>>>{"type":"refresh_preview"}<<<END_ACTION>>>
 <<<ACTION>>>{"type":"update_venue","data":{"name":"New Name"}}<<<END_ACTION>>>
 <<<ACTION>>>{"type":"update_page","data":{"tagline":"New tagline","hours":[{"day":"Daily","open":"9am","close":"5pm"}]}}<<<END_ACTION>>>
-<<<ACTION>>>{"type":"add_offering","data":{"name":"Happy Hour","type":"event","price_cents":0,"description":"Weekly happy hour"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"add_offering","data":{"name":"Live Music Night","type":"event","price_cents":1500,"description":"Live jazz every Friday","starts_at":"2026-03-27T20:00:00","ends_at":"2026-03-27T23:00:00"}}<<<END_ACTION>>>
 <<<ACTION>>>{"type":"update_offering","id":"uuid","data":{"price_cents":1500}}<<<END_ACTION>>>
 <<<ACTION>>>{"type":"delete_offering","id":"uuid"}<<<END_ACTION>>>
 <<<ACTION>>>{"type":"toggle_offering","id":"uuid","data":{"active":false}}<<<END_ACTION>>>

@@ -72,7 +72,7 @@ export default async function DashboardPage() {
       .single(),
     serviceEarly
       .from("venue_offerings")
-      .select("id, name, type, price_cents, description")
+      .select("id, name, type, price_cents, description, starts_at, ends_at")
       .eq("venue_id", venue.id)
       .eq("active", true)
       .order("sort_order", { ascending: true }),
@@ -96,7 +96,7 @@ export default async function DashboardPage() {
     theme_color: string; hours: { day: string; open: string; close: string }[];
     hero_image: string | null; onboarding_checklist: Record<string, boolean> | null;
   } | null;
-  const previewOfferings = (offeringsRes.data || []) as { id: string; name: string; type: string; price_cents: number; description?: string }[];
+  const previewOfferings = (offeringsRes.data || []) as { id: string; name: string; type: string; price_cents: number; description?: string; starts_at?: string; ends_at?: string }[];
   const previewGallery = (galleryRes.data || []) as { id: string; image_url: string }[];
   const previewXpActions = (xpActionsRes.data || []) as { label: string; points: number }[];
   const previewXpMilestones = (xpMilestonesRes.data || []) as { name: string; threshold: number }[];

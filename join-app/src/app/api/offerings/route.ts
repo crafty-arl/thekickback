@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("venue_offerings")
-    .select("id, type, name, description, price_cents, recurring, interval, perks, duration_minutes, add_ons, category, active")
+    .select("id, type, name, description, price_cents, recurring, interval, perks, duration_minutes, add_ons, category, active, starts_at, ends_at")
     .eq("venue_id", venueId)
     .eq("active", true)
     .order("sort_order");

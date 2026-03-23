@@ -48,7 +48,7 @@ export default async function VenuePage({ params, searchParams }: Props) {
   // Fetch active offerings for this venue (includes event locations + RSVP data)
   const { data: offerings } = await serviceClient
     .from("venue_offerings")
-    .select("id, type, name, description, price_cents, recurring, interval, perks, active, duration_minutes, location_name, location_address, location_lat, location_lng, rsvp_count, max_attendees, image_url")
+    .select("id, type, name, description, price_cents, recurring, interval, perks, active, duration_minutes, location_name, location_address, location_lat, location_lng, rsvp_count, max_attendees, image_url, starts_at, ends_at")
     .eq("venue_id", page.venues.id)
     .eq("active", true)
     .order("sort_order", { ascending: true });

@@ -13,6 +13,8 @@ interface Offering {
   recurring?: boolean;
   interval?: string | null;
   perks?: string[];
+  starts_at?: string;
+  ends_at?: string;
 }
 
 interface XpAction {
@@ -435,6 +437,14 @@ export function PlacePreviewEditable({
                         <span className="text-[14px]">🎟️</span>
                         <h3 className="font-sans text-[15px] font-bold text-white/90">{event.name}</h3>
                       </div>
+                      {event.starts_at && (
+                        <p className="font-sans text-[11px] text-white/50 mt-0.5">
+                          {new Date(event.starts_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                          {" · "}
+                          {new Date(event.starts_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                          {event.ends_at && ` – ${new Date(event.ends_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}
+                        </p>
+                      )}
                       {event.description && (
                         <p className="font-sans text-[12px] leading-relaxed text-white/40 line-clamp-2">{event.description}</p>
                       )}

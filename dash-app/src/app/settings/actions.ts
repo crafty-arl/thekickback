@@ -207,6 +207,8 @@ export async function addOffering(data: {
     duration_minutes?: number;
     capacity?: number;
     add_ons?: { name: string; price_cents: number }[];
+    starts_at?: string;
+    ends_at?: string;
 }) {
     const auth = await getAuthVenue();
     if (!auth) return { error: "Not authenticated" };
@@ -224,6 +226,8 @@ export async function addOffering(data: {
         duration_minutes: data.duration_minutes || null,
         capacity: data.capacity || null,
         add_ons: data.add_ons || [],
+        starts_at: data.starts_at || null,
+        ends_at: data.ends_at || null,
     }).select("id");
 
     if (error) return { error: error.message };

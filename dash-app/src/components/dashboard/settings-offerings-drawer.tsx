@@ -207,6 +207,9 @@ export function SettingsOfferingsDrawer({
     const [offeringDuration, setOfferingDuration] = useState("");
     const [offeringAddOns, setOfferingAddOns] = useState("");
     const [offeringCapacity, setOfferingCapacity] = useState("");
+    const [offeringStartDate, setOfferingStartDate] = useState("");
+    const [offeringStartTime, setOfferingStartTime] = useState("");
+    const [offeringEndTime, setOfferingEndTime] = useState("");
     const [savingOffering, setSavingOffering] = useState(false);
     const [offeringMsg, setOfferingMsg] = useState("");
     const [togglingOffering, setTogglingOffering] = useState<string | null>(null);
@@ -246,6 +249,18 @@ export function SettingsOfferingsDrawer({
             })
             .filter((a) => a.name);
 
+        // Build event date ISO strings
+        let starts_at: string | undefined;
+        let ends_at: string | undefined;
+        if (offeringType === "event" && offeringStartDate) {
+            starts_at = offeringStartTime
+                ? new Date(`${offeringStartDate}T${offeringStartTime}`).toISOString()
+                : new Date(`${offeringStartDate}T00:00:00`).toISOString();
+            if (offeringEndTime) {
+                ends_at = new Date(`${offeringStartDate}T${offeringEndTime}`).toISOString();
+            }
+        }
+
         const result = await addOffering({
             name: offeringName.trim(),
             type: offeringType,
@@ -257,13 +272,15 @@ export function SettingsOfferingsDrawer({
             duration_minutes: offeringDuration ? parseInt(offeringDuration) : undefined,
             capacity: offeringCapacity ? parseInt(offeringCapacity) : undefined,
             add_ons: parsedAddOns.length > 0 ? parsedAddOns : undefined,
+            starts_at,
+            ends_at,
         });
         if (result.error) {
             setOfferingMsg(result.error);
         } else {
             setOfferingMsg("Added!");
             setShowAddOffering(false);
-            setOfferingName(""); setOfferingDesc(""); setOfferingPrice(""); setOfferingPerks(""); setOfferingDuration(""); setOfferingAddOns(""); setOfferingCapacity("");
+            setOfferingName(""); setOfferingDesc(""); setOfferingPrice(""); setOfferingPerks(""); setOfferingDuration(""); setOfferingAddOns(""); setOfferingCapacity(""); setOfferingStartDate(""); setOfferingStartTime(""); setOfferingEndTime("");
             // Optimistic: add a placeholder offering to local state — page reload will get real data
             const newOffering: Offering = {
                 id: `temp-${Date.now()}`,
@@ -601,6 +618,21 @@ export function SettingsOfferingsDrawer({
                                             </p>
                                         )}
                                     </div>
+                                )}
+                                {offeringType === "event" && (
+                                    <>
+                                        <FormField label="Event Date">
+                                            <input type="date" value={offeringStartDate} onChange={(e) => setOfferingStartDate(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 font-sans text-[14px] text-gray-900 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200" />
+                                        </FormField>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <FormField label="Start Time">
+                                                <input type="time" value={offeringStartTime} onChange={(e) => setOfferingStartTime(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 font-sans text-[14px] text-gray-900 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200" />
+                                            </FormField>
+                                            <FormField label="End Time" hint="Optional">
+                                                <input type="time" value={offeringEndTime} onChange={(e) => setOfferingEndTime(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 font-sans text-[14px] text-gray-900 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200" />
+                                            </FormField>
+                                        </div>
+                                    </>
                                 )}
                                 <FormField label="What's included?" hint="One perk per line">
                                     <textarea value={offeringPerks} onChange={(e) => setOfferingPerks(e.target.value)} rows={3} placeholder={"Priority seating\n10% off drinks\nExclusive events"} className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 font-sans text-[14px] text-gray-900 outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200" />
