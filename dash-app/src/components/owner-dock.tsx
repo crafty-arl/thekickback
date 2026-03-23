@@ -372,7 +372,7 @@ export function OwnerDock({
       items.push({ kind: "order", id: o.id, name: guestName, desc: itemNames, time: o.created_at, order: o });
     }
     for (const s of initialData.sessions.slice(0, 5)) {
-      items.push({ kind: "checkin", id: s.id, name: s.profiles?.display_name || "Guest", desc: "Checked in", time: s.started_at, guest: s });
+      items.push({ kind: "checkin", id: s.id, name: s.profiles?.display_name || "Guest", desc: s.check_in_method === 'gps' ? `GPS check-in${s.distance_meters ? ` (${Math.round(s.distance_meters)}m)` : ''}` : s.check_in_method === 'qr' ? 'QR check-in' : "Checked in", time: s.started_at, guest: s });
     }
     return items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
   }, [ordersState, initialData.sessions]);

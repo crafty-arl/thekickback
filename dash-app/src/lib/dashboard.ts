@@ -12,6 +12,10 @@ export interface GuestSession {
     email: string | null;
     display_name: string | null;
   };
+  // GPS check-in data
+  check_in_method?: 'qr' | 'gps';
+  distance_meters?: number;
+  expires_at?: string;
   // Enriched by dashboard
   kickback_score?: number;
   tier?: string;

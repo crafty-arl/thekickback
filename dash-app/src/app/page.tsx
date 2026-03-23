@@ -126,9 +126,10 @@ export default async function DashboardPage() {
     // Active sessions with profile info
     service
       .from("sessions")
-      .select("id, user_id, venue_id, started_at, ended_at, status, profiles(phone, email, display_name)")
+      .select("id, user_id, venue_id, started_at, ended_at, status, check_in_method, distance_meters, expires_at, profiles(phone, email, display_name)")
       .eq("venue_id", venue.id)
       .eq("status", "active")
+      .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
       .order("started_at", { ascending: false }),
 
     // Recent requests with profile info

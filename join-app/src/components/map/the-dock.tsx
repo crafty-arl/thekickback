@@ -18,6 +18,7 @@ import { WalletSheet, useWalletStatus } from "./wallet-sheet";
 import { usePasskey } from "@/lib/use-passkey";
 import { sendOtp, verifyOtp } from "@/app/login/actions";
 import { getDeviceId } from "@/lib/device-id";
+import { haversineMeters } from "@/lib/geo";
 import { APP_VERSION, BUILD_NUMBER, BUILD_DATE } from "@/lib/version";
 import Image from "next/image";
 import { ProductDrawer, type OfferingMeta as SharedOfferingMeta } from "@/components/shared/product-drawer";
@@ -1171,6 +1172,10 @@ export function TheDock({
   // ── Offerings map (venueId → offeringId → meta) ──
   const [offeringsMap, setOfferingsMap] = useState<Record<string, Record<string, OfferingMeta>>>({});
 
+  // ── GPS check-in state ──
+  const [checkinLoading, setCheckinLoading] = useState(false);
+  const [checkinResult, setCheckinResult] = useState<{ xp: number; distance: number; venueName: string } | null>(null);
+
   // ── Cart (venueId → items) ──
   const [carts, setCarts] = useState<Map<string, CartItem[]>>(new Map());
   const [cartExpanded, setCartExpanded] = useState(false);
@@ -1258,6 +1263,46 @@ export function TheDock({
     setCarts((prev) => { const next = new Map(prev); next.delete(venueId); return next; });
     setCartExpanded(false);
   }, []);
+
+  // ── GPS check-in helpers ──
+  const nearbyVenue = useMemo(() => {
+    if (!userLocation) return null;
+    let closest: { venue: Venue; distance: number } | null = null;
+    for (const v of venues) {
+      if (!v.latitude || !v.longitude) continue;
+      const dist = haversineMeters(userLocation.latitude, userLocation.longitude, v.latitude, v.longitude);
+      if (dist <= 150 && (!closest || dist < closest.distance)) {
+        closest = { venue: v, distance: dist };
+      }
+    }
+    return closest;
+  }, [userLocation, venues]);
+
+  const handleGpsCheckin = useCallback(async (venueId: string) => {
+    if (!user || checkinLoading) return;
+    setCheckinLoading(true);
+    setCheckinResult(null);
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+      });
+      const res = await fetch("/api/checkin/gps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId, latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Check-in failed");
+      setCheckinResult({ xp: data.xp || 0, distance: Math.round(data.distance), venueName: data.venueName || "venue" });
+      // Auto-dismiss after 4s
+      setTimeout(() => setCheckinResult(null), 4000);
+    } catch (err) {
+      // Could show error toast
+      console.error("[gps-checkin]", err);
+    } finally {
+      setCheckinLoading(false);
+    }
+  }, [user, checkinLoading]);
 
   // ── Navigation helpers ──
   const fetchDirections = useCallback(async (profile: "walking" | "driving") => {
@@ -2571,6 +2616,25 @@ export function TheDock({
         className="fixed inset-x-0 bottom-0 z-40"
         style={{ paddingBottom: 0 }}
       >
+        {/* ── GPS check-in success toast ── */}
+        <AnimatePresence>
+          {checkinResult && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-2 left-4 right-4 z-30 flex items-center gap-3 rounded-xl px-4 py-3"
+              style={{ backgroundColor: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.25)", backdropFilter: "blur(12px)" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              <div>
+                <p className="font-sans text-[13px] font-semibold text-green-400">Checked in!</p>
+                <p className="font-sans text-[11px] text-white/40">+{checkinResult.xp} XP · {checkinResult.distance}m away</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <motion.div
           animate={controls}
           drag="y"
@@ -2648,6 +2712,25 @@ export function TheDock({
                 </button>
               )}
 
+              {/* GPS Check-in — nearby venue */}
+              {nearbyVenue && user && (
+                <button
+                  onClick={() => handleGpsCheckin(nearbyVenue.venue.id)}
+                  disabled={checkinLoading}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 active:scale-95 disabled:opacity-50"
+                  style={{ backgroundColor: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)" }}
+                >
+                  {checkinLoading ? (
+                    <span className="font-sans text-[11px] font-semibold text-green-400">...</span>
+                  ) : (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                      <span className="font-sans text-[11px] font-semibold text-green-400 whitespace-nowrap">Check in</span>
+                    </>
+                  )}
+                </button>
+              )}
+
               {/* Threads — opens threads mode */}
               {threadInfo.count > 0 && (
                 <button
@@ -2688,6 +2771,20 @@ export function TheDock({
                 <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-white/90">{selectedVenue.name}</span>
               </button>
 
+              {(() => {
+                const venueInRange = userLocation && selectedVenue?.latitude && selectedVenue?.longitude && haversineMeters(userLocation.latitude, userLocation.longitude, selectedVenue.latitude, selectedVenue.longitude) <= 150;
+                return venueInRange && user ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleGpsCheckin(selectedVenue.id); }}
+                    disabled={checkinLoading}
+                    className="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 active:scale-95 disabled:opacity-50"
+                    style={{ backgroundColor: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.2)" }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <span className="font-sans text-[10px] font-bold text-green-400">{checkinLoading ? "..." : "Check In"}</span>
+                  </button>
+                ) : null;
+              })()}
 
               <input
                 type="text"

@@ -111,6 +111,15 @@ export function GuestTable({ sessions }: { sessions: GuestSession[] }) {
                   <span className="font-sans text-[12px] text-black/35">
                     {timeAgo(s.started_at)} in
                   </span>
+                  {s.check_in_method && (
+                    <span className={`px-1.5 py-0.5 font-mono text-[9px] font-bold ${
+                      s.check_in_method === 'gps' ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-400'
+                    }`}>
+                      {s.check_in_method === 'gps'
+                        ? `GPS ${s.distance_meters ? Math.round(s.distance_meters) + 'm' : ''}`
+                        : 'QR'}
+                    </span>
+                  )}
                 </div>
               </div>
 

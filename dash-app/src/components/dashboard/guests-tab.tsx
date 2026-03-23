@@ -260,6 +260,15 @@ export function GuestsTab({
                             Member
                           </span>
                         )}
+                        {session.check_in_method && (
+                          <span className={`shrink-0 px-1.5 py-0.5 font-mono text-[9px] font-bold ${
+                            session.check_in_method === 'gps' ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-400'
+                          }`}>
+                            {session.check_in_method === 'gps'
+                              ? `GPS ${session.distance_meters ? Math.round(session.distance_meters) + 'm' : ''}`
+                              : 'QR'}
+                          </span>
+                        )}
                       </div>
                       <p className="font-sans text-[11px] text-gray-400">
                         {session.venue_xp ?? 0} XP &middot; {session.venue_visits ?? 0} visits
