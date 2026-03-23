@@ -11,10 +11,12 @@ thekickback.net {
 }
 
 join.thekickback.net {
-	header Cache-Control "no-store, no-cache, must-revalidate"
+	reverse_proxy join-app:3000 {
+		header_down Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+		header_down -ETag
+	}
 	header CDN-Cache-Control "no-store"
 	header Cloudflare-CDN-Cache-Control "no-store"
-	reverse_proxy join-app:3000
 }
 
 
@@ -32,8 +34,10 @@ claw.thekickback.net {
 }
 
 sandbox.thekickback.net {
-	header Cache-Control "no-store, no-cache, must-revalidate"
+	reverse_proxy join-app:3000 {
+		header_down Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+		header_down -ETag
+	}
 	header CDN-Cache-Control "no-store"
 	header Cloudflare-CDN-Cache-Control "no-store"
-	reverse_proxy join-app:3000
 }
