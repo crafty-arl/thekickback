@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Venue } from "@/lib/venues";
-import { TheDrawer, type Tag } from "@/components/drawer/the-drawer";
+import { TheDock as TheDrawer, type Tag } from "@/components/map/the-dock";
 import type { MapRef } from "react-map-gl";
 import type { RouteData } from "@/components/map/map-view";
 
