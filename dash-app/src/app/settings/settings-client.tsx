@@ -1776,6 +1776,22 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                         <Field label="How many can you book at the same time?" hint="e.g. 1 for a barber chair, 10 for a group class">
                                             <input type="number" min="1" value={offeringCapacity} onChange={(e) => setOfferingCapacity(e.target.value)} placeholder="1" className="input" style={{ maxWidth: 120 }} />
                                         </Field>
+                                        {(offeringType === "service" || offeringType === "reservation" || offeringType === "event") && (
+                                            <div className="rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.15)" }}>
+                                                <p className="font-sans text-[11px] font-semibold" style={{ color: "#8B5CF6" }}>Availability</p>
+                                                <p className="mt-1 font-sans text-[10px] text-white/40 leading-relaxed">
+                                                    {offeringType === "service"
+                                                        ? "Time slots come from staff schedules. Link staff members to this offering after creating it, and set their working hours in the Staff section."
+                                                        : "Time slots come from your venue hours. Set your operating hours in the Hours section — guests will see available slots within those times."
+                                                    }
+                                                </p>
+                                                {offeringType === "reservation" && (
+                                                    <p className="mt-1 font-sans text-[10px] text-white/25">
+                                                        Capacity controls how many of these can be booked in the same time slot.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
                                         <Field label="What's included?" hint="One perk per line">
                                             <textarea value={offeringPerks} onChange={(e) => setOfferingPerks(e.target.value)} rows={3} placeholder={"Priority seating\n10% off drinks\nExclusive events"} className="input resize-none" />
                                         </Field>
