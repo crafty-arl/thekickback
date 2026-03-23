@@ -1669,11 +1669,14 @@ export function TheDock({
           .catch(() => { });
       }
 
-      // Auto-send pending prompt from explore tap
+      // Auto-send pending prompt from explore/concierge tap
       if (pendingPromptRef.current) {
         const prompt = pendingPromptRef.current;
         pendingPromptRef.current = null;
-        setTimeout(() => send(prompt), 500);
+        // Use requestAnimationFrame + timeout to ensure mode state has flushed before send
+        requestAnimationFrame(() => {
+          setTimeout(() => sendRef.current?.(prompt), 300);
+        });
       }
     } else {
       if (mode === "venueChat") {
@@ -1847,6 +1850,8 @@ export function TheDock({
   }, [venues]);
 
   // ─── Send message ──────────────────────────────────────────────
+
+  const sendRef = useRef<((text?: string) => void) | null>(null);
 
   const send = useCallback(async (text?: string) => {
     if (!user) return; // Must be logged in to chat
@@ -2206,6 +2211,9 @@ export function TheDock({
       }
     }
   }, [input, loading, mode, selectedVenue, venueChatSnap, activeTab, carts, clearCart]);
+
+  // Keep sendRef in sync so deferred callers always use the latest closure
+  sendRef.current = send;
 
   // ─── Tab tap ───────────────────────────────────────────────────
 
