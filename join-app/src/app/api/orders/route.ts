@@ -70,9 +70,10 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      console.error("Order error:", error);
+      console.error("[orders] FAILED:", error.message, error.code, JSON.stringify({ userId, venueId, itemCount: allItems.length }));
       return Response.json({ error: error.message }, { status: 400 });
     }
+    console.log("[orders] OK:", JSON.stringify({ orderId: data, userId, venueId, itemCount: allItems.length }));
 
     // Tag the order and its items with the current mode
     if (data) {

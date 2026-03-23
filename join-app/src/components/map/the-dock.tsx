@@ -2332,6 +2332,7 @@ export function TheDock({
         }),
       });
       const result = await res.json();
+      if (!res.ok) throw new Error(result.error || `Order failed: HTTP ${res.status}`);
       const walletPassNote = result.orderId && user ? `\n\nAdd your pass to Apple Wallet: https://thekickback.net/wallet/pass/${user.authId}` : "";
       // Build item summary for confirmation
       const itemNames = msg.checkout.items.map((i: { name: string; quantity?: number }) => i.quantity && i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name).join(", ");
@@ -2362,10 +2363,12 @@ export function TheDock({
           }
         }).catch(() => { });
       }
-    } catch {
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Unknown error";
+      console.error("Payment error:", errMsg);
       setVenueThreads((prev) => {
         const next = new Map(prev);
-        next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), { id: `err-${Date.now()}`, sender: "ai", body: "Couldn't process the order. Try again.", timestamp: Date.now() }]);
+        next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), { id: `err-${Date.now()}`, sender: "ai", body: `Payment failed: ${errMsg}`, timestamp: Date.now() }]);
         return next;
       });
     } finally {
@@ -2376,8 +2379,9 @@ export function TheDock({
   const handleCheckoutConfirm = useCallback(async (
     msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number, method: "wallet" | "card" = "card"
   ) => {
-    if (!selectedVenue || !msg.checkout) return;
-    // Process payment directly — user is already authenticated
+    if (!selectedVenue) { console.error("handleCheckoutConfirm: no selectedVenue"); return; }
+    if (!msg.checkout) { console.error("handleCheckoutConfirm: no checkout data on message"); return; }
+    console.log("handleCheckoutConfirm:", method, msg.checkout.items.length, "items");
     await processPayment(msg, addOns, pointsToSpend, method);
   }, [selectedVenue, processPayment]);
 

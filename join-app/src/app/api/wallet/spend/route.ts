@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!existing) {
-      await supabase.from("user_wallets").insert({
+      const { error: insertErr } = await supabase.from("user_wallets").insert({
         user_id: user.id,
         balance_cents: 50000, // $500 test balance
         spending_limit_cents: 50000,
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
         active: true,
         mode: "test",
       });
+      if (insertErr) console.error("[wallet/spend] Auto-create wallet failed:", insertErr.message, insertErr.code);
     }
   }
 
@@ -65,11 +66,13 @@ export async function POST(req: NextRequest) {
   });
 
   if (!result?.ok) {
+    console.error("[wallet/spend] FAILED:", JSON.stringify({ userId: user.id, mode, amountCents, venueId, result }));
     return NextResponse.json({
       error: result?.error || "Wallet spend failed",
       balanceCents: result?.balance_cents,
     }, { status: 400 });
   }
+  console.log("[wallet/spend] OK:", JSON.stringify({ userId: user.id, mode, amountCents, txId: result.transaction_id }));
 
   // If venue has Stripe Connect, transfer their cut
   const { key: stripeKey } = getStripeSecretKey(h);
