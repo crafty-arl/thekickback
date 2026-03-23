@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { extractPreferences, getPreferencesContext } from "@/lib/personalization";
+import { getRecentChatHistory } from "@/lib/chat-history";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -143,11 +144,12 @@ export async function POST(request: Request) {
   const userName = userEmail?.split("@")[0] || "Guest";
 
   // Check usage limits + fetch venue data in parallel
-  const [gate, knowledge, offeringsRaw, prefsContext] = await Promise.all([
+  const [gate, knowledge, offeringsRaw, prefsContext, chatHistory] = await Promise.all([
     checkAiUsageGate(venueId, userId, deviceId),
     getVenueKnowledge(venueId),
     getVenueOfferingsRaw(venueId),
     userId ? getPreferencesContext(userId, venueId) : Promise.resolve(""),
+    userId ? getRecentChatHistory(userId, venueId, 10) : Promise.resolve(""),
   ]);
 
   if (!gate.allowed) {
@@ -182,6 +184,7 @@ export async function POST(request: Request) {
     knowledge ? `\nVenue knowledge:\n${knowledge}\n` : "",
     offerings ? `\nAvailable offerings:\n${offerings}\n` : "",
     prefsContext || "",
+    chatHistory || "",
     `A guest says: "${message}".`,
     `Venue is ${vibe}, ${occupancy} people.`,
     table ? `Guest is at Table ${table}.` : "",

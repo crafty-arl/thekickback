@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { extractPreferences, getPreferencesContext } from "@/lib/personalization";
+import { getRecentChatHistory } from "@/lib/chat-history";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -186,10 +187,11 @@ export async function POST(request: Request) {
   const userId = authUser?.id || null;
 
   // Fetch venues + offerings + preferences in parallel
-  const [venues, offerings, prefsContext] = await Promise.all([
+  const [venues, offerings, prefsContext, chatHistory] = await Promise.all([
     getActiveVenues(),
     getActiveOfferings(),
     userId ? getPreferencesContext(userId) : Promise.resolve(""),
+    userId ? getRecentChatHistory(userId, null, 10) : Promise.resolve(""),
   ]);
 
   // ─── Step 1: Identify relevant venues ────────────────────────
@@ -246,6 +248,7 @@ export async function POST(request: Request) {
     allVenuesList,
     "",
     prefsContext || "",
+    chatHistory || "",
     "",
     "VENUE CARD INSTRUCTIONS:",
     "When recommending a venue, use: [[VENUE_CARD:venue-id-here]]",
