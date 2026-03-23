@@ -2544,11 +2544,20 @@ export function TheDock({
                 </AnimatePresence>
               </button>
 
-              {/* Drag hint */}
-              <div className="flex shrink-0 flex-col items-center gap-0.5">
-                <div className="h-1 w-6" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
-                <span className="font-sans text-[7px] text-white/15">swipe up</span>
-              </div>
+              {/* Threads — shows unread count */}
+              {threadInfo.count > 0 && (
+                <button
+                  onClick={() => { setMode("explore"); setExploreSnap("half"); }}
+                  className="relative flex shrink-0 items-center gap-1.5 px-2.5 py-1.5"
+                  style={{ backgroundColor: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.15)" }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span className="font-mono text-[11px] font-bold" style={{ color: "#a78bfa" }}>{threadInfo.count}</span>
+                  {threadInfo.unread > 0 && <div className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-orange" />}
+                </button>
+              )}
 
               {/* Profile */}
               <button
@@ -2933,11 +2942,17 @@ export function TheDock({
                   )}
 
                   {/* Full-only sections */}
-                  {exploreSnap === "full" && user && (
+                  {(exploreSnap === "full" || exploreSnap === "half") && user && threadInfo.count > 0 && (
                     <>
                       <div className="mb-3">
                         <div className="flex items-center justify-between px-4 pb-2">
-                          <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">CONVERSATIONS</span>
+                          <div className="flex items-center gap-2">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                            <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">YOUR CONVERSATIONS</span>
+                            {threadInfo.unread > 0 && <span className="px-1.5 py-0.5 font-mono text-[9px] font-bold" style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316" }}>{threadInfo.unread} new</span>}
+                          </div>
                         </div>
                         <ThreadsList
                           onThreadSelect={(venueId) => {
