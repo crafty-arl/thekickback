@@ -3939,360 +3939,189 @@ export function TheDock({
           {/* ═══ PROFILE MODE ═══ */}
           {mode === "profile" && (
             <>
-              {/* Header with back arrow */}
+              {/* Header */}
               <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-                <motion.button
-                  onClick={handleProfileBack}
-                  whileTap={{ scale: 0.85 }}
-                  className="flex h-8 w-8 items-center justify-center rounded-full"
-                  style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
+                <motion.button onClick={handleProfileBack} whileTap={{ scale: 0.85 }} className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-60"><polyline points="15 18 9 12 15 6" /></svg>
                 </motion.button>
                 <span className="font-sans text-[15px] font-semibold text-white/90">Profile</span>
               </div>
 
               <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
                 {user && (
-                  <div className="px-4 pb-4">
-                    {/* Identity */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`, border: `2px solid ${tierColor}40` }}>
-                        <span className="font-sans text-[20px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
+                  <div className="px-4 pb-6">
+
+                    {/* ── Identity + Score (merged hero) ── */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`, border: `2px solid ${tierColor}40` }}>
+                        <span className="font-sans text-[22px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-sans text-[13px] font-semibold text-white/80">{user.email}</p>
-                        <div className="mt-0.5 flex items-center gap-2">
-                          <span className="px-2 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-sans text-[14px] font-semibold text-white/80 truncate">{user.email}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
                             {TIER_CONFIG[user.tier]?.label || "Explorer"}
                           </span>
-                          {user.streak > 0 && (
-                            <span className="flex items-center gap-1 font-sans text-[10px] font-semibold text-orange">&#x1f525; {user.streak}</span>
-                          )}
+                          <span className="font-mono text-[12px] font-bold" style={{ color: tierColor }}>{user.kickbackScore.toLocaleString()} XP</span>
+                          {user.streak > 0 && <span className="font-sans text-[11px] font-semibold text-orange">🔥 {user.streak}</span>}
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Biometric Security */}
-                    <div className="mt-3  px-3 py-2.5" style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.06)" : "rgba(249,115,22,0.06)", border: `1px solid ${passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "rgba(249,115,22,0.15)"}` }}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={passkey.hasPasskey ? "#4ADE80" : "#F97316"} strokeWidth="2" strokeLinecap="round">
-                            <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                          </svg>
-                          <span className="font-sans text-[12px] font-semibold" style={{ color: passkey.hasPasskey ? "#4ADE80" : "rgba(255,255,255,0.6)" }}>
-                            {passkey.hasPasskey ? "Biometric enabled" : "Biometric not set up"}
-                          </span>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            const ok = await passkey.register();
-                            if (ok) {
-                              setDeviceRefreshKey((k) => k + 1);
-                              setVenueThreads((prev) => {
-                                const next = new Map(prev);
-                                const vid = selectedVenue?.id || "global";
-                                next.set(vid, [...(next.get(vid) || []), { id: `bio-ok-${Date.now()}`, sender: "ai", body: "Biometric registered on this device. Wallet payments are now enabled.", timestamp: Date.now() }]);
-                                return next;
-                              });
-                            }
-                          }}
-                          disabled={passkey.verifying}
-                          className=" px-3 py-1.5 font-sans text-[11px] font-bold active:scale-95 disabled:opacity-50"
-                          style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "#F97316", color: passkey.hasPasskey ? "#4ADE80" : "#000" }}
-                        >
-                          {passkey.verifying ? "Setting up..." : passkey.hasPasskey ? "Add this device" : "Enable"}
-                        </button>
-                      </div>
-                      <p className="mt-1.5 font-sans text-[9px] text-white/25">
-                        {passkey.hasPasskey ? "Wallet not working? Tap \"Add this device\" to register biometric here." : "Required for wallet purchases. Uses Face ID / Touch ID."}
-                      </p>
-                    </div>
-
-                    {/* Referral Keys */}
-                    {referralKeys.length > 0 && (
-                      <div className="mt-3  px-3 py-2.5" style={{ backgroundColor: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.1)" }}>
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">REFERRAL KEYS</span>
-                          <span className="font-mono text-[10px] font-bold" style={{ color: "#F97316" }}>
-                            {referralKeys.filter((k) => !k.used_by_email).length}/{referralKeys.length} left
-                          </span>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          {referralKeys.map((k) => (
-                            <div key={k.id} className="flex items-center gap-2">
-                              <span className={`flex-1 font-mono text-[11px] ${k.used_by_email ? "text-white/15 line-through" : "text-white/50"}`}>
-                                {k.key}
-                              </span>
-                              {k.used_by_email ? (
-                                <span className="font-sans text-[9px] text-white/15">used</span>
-                              ) : (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => {
-                                      navigator.clipboard?.writeText(`https://join.thekickback.net?ref=${k.key}`);
-                                    }}
-                                    className=" px-2 py-1 font-sans text-[9px] font-bold active:scale-95"
-                                    style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316" }}
-                                  >
-                                    Copy
-                                  </button>
-                                  {typeof navigator !== "undefined" && "share" in navigator && (
-                                    <button
-                                      onClick={() => {
-                                        navigator.share?.({
-                                          title: "Join theKickBack",
-                                          text: "Skip the waitlist — use my invite link to join theKickBack",
-                                          url: `https://join.thekickback.net?ref=${k.key}`,
-                                        }).catch(() => {});
-                                      }}
-                                      className=" px-2 py-1 font-sans text-[9px] font-bold active:scale-95"
-                                      style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}
-                                    >
-                                      Share
-                                    </button>
-                                  )}
-                                </div>
-                              )}
+                        {/* Score bar */}
+                        {TIER_CONFIG[user.tier]?.next && (
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <div className="relative h-1.5 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                              <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((user.kickbackScore / TIER_CONFIG[user.tier].threshold) * 100, 100)}%` }} transition={{ duration: 0.8 }} className="h-full rounded-full" style={{ backgroundColor: tierColor }} />
                             </div>
-                          ))}
-                        </div>
-                        <p className="mt-2 font-sans text-[9px] text-white/20">Share a key with friends to let them skip the waitlist.</p>
-                      </div>
-                    )}
-
-                    {/* KickBack Score */}
-                    <div className="mt-3  px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">KICKBACK SCORE</span>
-                        <span className="font-mono text-[13px] font-bold" style={{ color: tierColor }}>
-                          {user.kickbackScore.toLocaleString()}
-                          {TIER_CONFIG[user.tier]?.next && <span className="font-normal text-white/20"> / {TIER_CONFIG[user.tier].threshold.toLocaleString()}</span>}
-                        </span>
-                      </div>
-                      <div className="relative h-2.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${TIER_CONFIG[user.tier]?.next ? Math.min((user.kickbackScore / TIER_CONFIG[user.tier].threshold) * 100, 100) : 100}%` }}
-                          transition={{ duration: 0.8, ease: "easeOut" }}
-                          className="h-full rounded-full"
-                          style={{ background: `linear-gradient(90deg, ${tierColor}, ${tierColor}cc)`, boxShadow: `0 0 10px ${tierColor}40` }}
-                        />
-                      </div>
-                      {TIER_CONFIG[user.tier]?.next && (
-                        <p className="mt-1.5 font-sans text-[9px] text-white/20">{(TIER_CONFIG[user.tier].threshold - user.kickbackScore).toLocaleString()} XP to {TIER_CONFIG[user.tier].next}</p>
-                      )}
-                    </div>
-
-                    {/* KickBack Pass */}
-                    <a
-                      href={`https://thekickback.net/wallet/pass/${user.authId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-3 flex w-full items-center gap-3  px-3 py-3 active:scale-[0.98]"
-                      style={{ background: `linear-gradient(135deg, ${tierColor}15, ${tierColor}05)`, border: `1px solid ${tierColor}25` }}
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center " style={{ backgroundColor: `${tierColor}20` }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={tierColor} strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-sans text-[13px] font-bold text-white/90">Get KickBack Pass</p>
-                        <p className="font-sans text-[9px] text-white/30">Add to Apple Wallet — your stats, tier, and balance</p>
-                      </div>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
-                    </a>
-
-                    {/* AI Wallet Settings */}
-                    {walletStatus?.active && (
-                      <div className="mt-3 px-3 py-2.5" style={{ backgroundColor: "rgba(99,91,255,0.06)", border: "1px solid rgba(99,91,255,0.12)" }}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">AI WALLET</span>
-                          <span className="font-mono text-[14px] font-bold" style={{ color: "#a78bfa" }}>${(walletStatus.balanceCents / 100).toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-sans text-[11px] text-white/40">Spending limit</span>
-                          <span className="font-mono text-[11px] text-white/50">${((walletStatus as unknown as Record<string, number>).spendingLimitCents ? ((walletStatus as unknown as Record<string, number>).spendingLimitCents / 100).toFixed(0) : "---")}/day</span>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            // Reset spending period
-                            try {
-                              const res = await fetch("/api/wallet/reset-spending", { method: "POST" });
-                              if (res.ok) {
-                                walletStatus.refresh?.();
-                                setVenueThreads((prev) => {
-                                  const next = new Map(prev);
-                                  const vid = selectedVenue?.id || "global";
-                                  next.set(vid, [...(next.get(vid) || []), { id: `wallet-reset-${Date.now()}`, sender: "ai", body: "Spending limit reset. You can make purchases again.", timestamp: Date.now() }]);
-                                  return next;
-                                });
-                              }
-                            } catch { /* ignore */ }
-                          }}
-                          className="w-full py-2 font-sans text-[11px] font-bold active:scale-[0.98]"
-                          style={{ backgroundColor: "rgba(167,139,250,0.12)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.2)" }}
-                        >
-                          Reset Spending Limit
-                        </button>
-                        <p className="mt-1.5 font-sans text-[9px] text-white/20">
-                          If payments fail with &ldquo;exceeds spending limit,&rdquo; tap reset.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Memberships */}
-                    {memberships.length > 0 && (
-                      <div className="mt-3">
-                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MEMBERSHIPS</span>
-                        <div className="mt-1.5 flex flex-col gap-1.5">
-                          {memberships.map((m) => (
-                            <div key={m.venue_id} className="flex items-center gap-2.5  px-3 py-2.5" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
-                              <span className="text-[14px]">{"\u{1F451}"}</span>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-sans text-[12px] font-semibold text-white/80">{m.venue_name}</p>
-                                <p className="font-sans text-[9px] text-white/30">{m.tier} · expires {new Date(m.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Available Perks */}
-                    {perks.length > 0 && (
-                      <div className="mt-3">
-                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">PERKS YOU CAN CLAIM</span>
-                        <div className="mt-1.5 flex gap-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
-                          {perks.slice(0, 8).map((p) => (
-                            <div key={p.id} className="flex shrink-0 flex-col items-center  px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", width: 90 }}>
-                              <span className="font-sans text-[11px] font-semibold text-white/70 text-center leading-tight line-clamp-2">{p.name}</span>
-                              <span className="mt-1 font-mono text-[10px] font-bold text-orange">{p.point_cost} pts</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Venue badges */}
-                    {user.venueProfiles.length > 0 && (
-                      <div className="mt-3">
-                        <div className="mb-2 flex items-center justify-between px-1">
-                          <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">VENUES VISITED</span>
-                          <span className="font-mono text-[11px] font-bold text-white/40">{user.venueProfiles.length}</span>
-                        </div>
-                        <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
-                          {user.venueProfiles.slice(0, 12).map((vp) => {
-                            const milestoneColor = vp.venue_xp_milestones?.color || "#94a3b8";
-                            const venueName = vp.venues?.name || "Venue";
-                            return (
-                              <div key={vp.venue_id} className="flex shrink-0 flex-col items-center" style={{ width: 56 }}>
-                                <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${milestoneColor}20, ${milestoneColor}08)`, border: `2px solid ${milestoneColor}30` }}>
-                                  <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: milestoneColor, boxShadow: `0 0 6px ${milestoneColor}50` }} />
-                                </div>
-                                <p className="mt-1 w-full truncate text-center font-sans text-[8px] font-medium text-white/40">{venueName}</p>
-                                <span className="font-mono text-[8px] font-bold" style={{ color: milestoneColor }}>{vp.xp}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* My Collectibles */}
-                    {myCollectibles.length > 0 && (() => {
-                      // Group by hub
-                      const groups = new Map<string, typeof myCollectibles>();
-                      for (const c of myCollectibles) {
-                        const key = c.hub_id || "network";
-                        if (!groups.has(key)) groups.set(key, []);
-                        groups.get(key)!.push(c);
-                      }
-                      return (
-                        <div className="mt-3">
-                          <div className="mb-2 flex items-center justify-between px-1">
-                            <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MY COLLECTIBLES</span>
-                            <span className="font-mono text-[11px] font-bold text-white/40">{myCollectibles.length}</span>
+                            <span className="font-sans text-[9px] text-white/20">{TIER_CONFIG[user.tier].next}</span>
                           </div>
-                          {Array.from(groups.entries()).map(([hubKey, items]) => {
-                            const hubName = items[0]?.hub_name || "Network";
-                            return (
-                              <div key={hubKey} className="mb-2">
-                                <p className="mb-1 px-1 font-sans text-[9px] font-semibold text-white/20">{hubName}</p>
-                                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
-                                  {items.map((c) => {
-                                    const emoji = c.asset_type === "sticker" ? "\u{1F3F7}\uFE0F" : c.asset_type === "badge" ? "\u{1F3C5}" : "\u{1F4CC}";
-                                    const color = c.asset_type === "sticker" ? "#4ADE80" : c.asset_type === "badge" ? "#F97316" : "#A78BFA";
-                                    return (
-                                      <button
-                                        key={c.unlock_id}
-                                        onClick={() => {
-                                          const v = venues.find((v) => v.id === c.hub_id);
-                                          if (v) {
-                                            onVenueSelect(v);
-                                            setTimeout(() => send(`Tell me about my ${c.name} ${c.asset_type}`), 300);
-                                          }
-                                        }}
-                                        className="flex shrink-0 flex-col items-center active:scale-95"
-                                        style={{ width: 64 }}
-                                      >
-                                        <div
-                                          className="flex h-12 w-12 items-center justify-center rounded-full"
-                                          style={{
-                                            background: `linear-gradient(135deg, ${color}20, ${color}08)`,
-                                            border: `2px solid ${color}30`,
-                                            boxShadow: `0 0 8px ${color}15`,
-                                          }}
-                                        >
-                                          <span className="text-[20px]">{emoji}</span>
-                                        </div>
-                                        <p className="mt-1 w-full truncate text-center font-sans text-[8px] font-medium text-white/40">{c.name}</p>
-                                        <span className="font-sans text-[7px] font-bold" style={{ color }}>
-                                          {c.asset_type === "3d_pin" ? "3D" : c.asset_type.toUpperCase()}
-                                        </span>
-                                        {c.is_animated && <span className="text-[6px] text-white/15">{"\u2728"}</span>}
-                                      </button>
-                                    );
-                                  })}
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ── Quick actions row ── */}
+                    <div className="flex gap-2 mb-4">
+                      {/* KickBack Pass */}
+                      <a
+                        href={`https://thekickback.net/wallet/pass/${user.authId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex flex-1 items-center justify-center gap-2 py-2.5 active:scale-[0.98]"
+                        style={{ background: `linear-gradient(135deg, ${tierColor}12, ${tierColor}05)`, border: `1px solid ${tierColor}20` }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={tierColor} strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
+                        <span className="font-sans text-[12px] font-semibold" style={{ color: tierColor }}>Wallet Pass</span>
+                      </a>
+                      {/* Biometric */}
+                      <button
+                        onClick={async () => {
+                          const ok = await passkey.register();
+                          if (ok) {
+                            setDeviceRefreshKey((k) => k + 1);
+                            setVenueThreads((prev) => {
+                              const next = new Map(prev);
+                              const vid = selectedVenue?.id || "global";
+                              next.set(vid, [...(next.get(vid) || []), { id: `bio-ok-${Date.now()}`, sender: "ai", body: "Biometric registered.", timestamp: Date.now() }]);
+                              return next;
+                            });
+                          }
+                        }}
+                        disabled={passkey.verifying}
+                        className="flex flex-1 items-center justify-center gap-2 py-2.5 active:scale-[0.98] disabled:opacity-50"
+                        style={{ backgroundColor: passkey.hasPasskey ? "rgba(74,222,128,0.06)" : "rgba(249,115,22,0.06)", border: `1px solid ${passkey.hasPasskey ? "rgba(74,222,128,0.15)" : "rgba(249,115,22,0.15)"}` }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={passkey.hasPasskey ? "#4ADE80" : "#F97316"} strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                        <span className="font-sans text-[12px] font-semibold" style={{ color: passkey.hasPasskey ? "#4ADE80" : "#F97316" }}>
+                          {passkey.hasPasskey ? "Secured" : "Set Up"}
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* ── Wallet ── */}
+                    <WalletSheet />
+
+                    {/* ── Memberships + Perks (only if they have any) ── */}
+                    {(memberships.length > 0 || perks.length > 0) && (
+                      <div className="mt-4">
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">MEMBERSHIPS & PERKS</span>
+                        {memberships.length > 0 && (
+                          <div className="mt-2 flex flex-col gap-1.5">
+                            {memberships.map((m) => (
+                              <div key={m.venue_id} className="flex items-center gap-2.5 px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.08)" }}>
+                                <span className="text-[13px]">👑</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-sans text-[12px] font-semibold text-white/80">{m.venue_name}</p>
+                                  <p className="font-sans text-[10px] text-white/30">{m.tier} · {new Date(m.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
                                 </div>
                               </div>
-                            );
-                          })}
+                            ))}
+                          </div>
+                        )}
+                        {perks.length > 0 && (
+                          <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                            {perks.slice(0, 6).map((p) => (
+                              <div key={p.id} className="flex shrink-0 flex-col items-center px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", width: 80 }}>
+                                <span className="font-sans text-[11px] font-semibold text-white/70 text-center leading-tight line-clamp-2">{p.name}</span>
+                                <span className="mt-1 font-mono text-[10px] font-bold text-orange">{p.point_cost} pts</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── Venues + Collectibles ── */}
+                    {(user.venueProfiles.length > 0 || myCollectibles.length > 0) && (
+                      <div className="mt-4">
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">YOUR PLACES</span>
+                        {user.venueProfiles.length > 0 && (
+                          <div className="mt-2 flex gap-2.5 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                            {user.venueProfiles.slice(0, 10).map((vp) => {
+                              const mc = vp.venue_xp_milestones?.color || "#94a3b8";
+                              return (
+                                <div key={vp.venue_id} className="flex shrink-0 flex-col items-center" style={{ width: 52 }}>
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${mc}20, ${mc}08)`, border: `2px solid ${mc}30` }}>
+                                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: mc }} />
+                                  </div>
+                                  <p className="mt-1 w-full truncate text-center font-sans text-[9px] text-white/40">{vp.venues?.name || "Venue"}</p>
+                                  <span className="font-mono text-[9px] font-bold" style={{ color: mc }}>{vp.xp}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {myCollectibles.length > 0 && (
+                          <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
+                            {myCollectibles.slice(0, 8).map((c) => {
+                              const emoji = c.asset_type === "sticker" ? "🏷️" : c.asset_type === "badge" ? "🏅" : "📌";
+                              const color = c.asset_type === "sticker" ? "#4ADE80" : c.asset_type === "badge" ? "#F97316" : "#A78BFA";
+                              return (
+                                <button key={c.unlock_id} onClick={() => { const v = venues.find((v) => v.id === c.hub_id); if (v) { onVenueSelect(v); setTimeout(() => send(`Tell me about my ${c.name} ${c.asset_type}`), 300); } }} className="flex shrink-0 flex-col items-center active:scale-95" style={{ width: 52 }}>
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${color}20, ${color}08)`, border: `2px solid ${color}30` }}>
+                                    <span className="text-[16px]">{emoji}</span>
+                                  </div>
+                                  <p className="mt-1 w-full truncate text-center font-sans text-[9px] text-white/40">{c.name}</p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── Referral Keys (collapsed by default) ── */}
+                    {referralKeys.length > 0 && (
+                      <div className="mt-4">
+                        <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">INVITE FRIENDS</span>
+                        <div className="mt-2 flex flex-col gap-1">
+                          {referralKeys.filter((k) => !k.used_by_email).slice(0, 3).map((k) => (
+                            <div key={k.id} className="flex items-center gap-2 px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.08)" }}>
+                              <span className="flex-1 font-mono text-[11px] text-white/50">{k.key}</span>
+                              <button onClick={() => navigator.clipboard?.writeText(`https://join.thekickback.net?ref=${k.key}`)} className="px-2.5 py-1 font-sans text-[10px] font-bold active:scale-95" style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316" }}>Copy</button>
+                            </div>
+                          ))}
                         </div>
-                      );
-                    })()}
+                      </div>
+                    )}
+
+                    {/* ── Settings ── */}
+                    <div className="mt-4">
+                      <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">SETTINGS</span>
+                      <div className="mt-2">
+                        <DeviceManager key={deviceRefreshKey} />
+                        <div className="mt-2"><PreferencesSection /></div>
+                      </div>
+                    </div>
+
+                    {/* Sign out */}
+                    <button
+                      onClick={async () => { const supabase = createClient(); await supabase.auth.signOut(); window.location.reload(); }}
+                      className="mt-4 flex w-full items-center justify-center gap-2 py-2.5 font-sans text-[12px] font-medium text-white/25 transition hover:text-white/40"
+                      style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                      Sign Out
+                    </button>
                   </div>
                 )}
-
-                {/* AI Wallet */}
-                <WalletSheet />
-
-                {/* Device Management */}
-                <DeviceManager key={deviceRefreshKey} />
-
-                {/* Preferences */}
-                <div className="px-4">
-                  <PreferencesSection />
-                </div>
-
-                {/* Sign out */}
-                <div className="px-4 pb-6 pt-3">
-                  <button
-                    onClick={async () => {
-                      const supabase = createClient();
-                      await supabase.auth.signOut();
-                      window.location.reload();
-                    }}
-                    className="flex w-full items-center justify-center gap-2  py-2.5 font-sans text-[11px] font-medium text-white/25 transition hover:bg-white/[0.04] hover:text-white/40"
-                    style={{ border: "1px solid rgba(255,255,255,0.05)" }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                    Sign Out
-                  </button>
-                </div>
               </div>
             </>
           )}
