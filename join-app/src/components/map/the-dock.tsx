@@ -1892,8 +1892,20 @@ export function TheDock({
       // ── Cart special actions ──
       if (msg === "__CHECKOUT__") {
         setInput("");
-        // Build checkout from cart
-        const cart = carts.get(selectedVenue.id) || [];
+        // Build checkout from cart — filter out bookable items without date/time
+        const rawCart = carts.get(selectedVenue.id) || [];
+        const venueOffers = offeringsMap[selectedVenue.id] || {};
+        const cart = rawCart.filter((item) => {
+          const m = venueOffers[item.offeringId];
+          const isBookable = m?.duration_minutes && ["service", "reservation", "event"].includes(m.type);
+          const hasMeta = (item as unknown as { metadata?: Record<string, unknown> }).metadata?.date;
+          if (isBookable && !hasMeta) {
+            // Open the drawer for this item instead
+            setDrawerOfferId(item.offeringId);
+            return false;
+          }
+          return true;
+        });
         if (cart.length === 0) return;
         const checkoutData: CheckoutCardData = {
           venue_name: selectedVenue.name,
@@ -1904,6 +1916,7 @@ export function TheDock({
             name: item.name,
             quantity: item.quantity,
             unit_price_cents: item.priceCents,
+            metadata: (item as unknown as { metadata?: Record<string, unknown> }).metadata || {},
           })),
         };
         const checkoutMsg: Message = {
@@ -3622,14 +3635,24 @@ export function TheDock({
                                 </svg>
                                 <span className="font-sans text-[13px] font-bold text-white/80">Order at {selectedVenue.name}</span>
                               </div>
-                              {msg.checkout.items.map((item, i) => (
-                                <div key={i} className="flex items-center justify-between py-0.5">
-                                  <span className="font-sans text-[12px] text-white/60">
-                                    {item.name}{item.quantity > 1 ? ` x${item.quantity}` : ""}
-                                  </span>
-                                  <span className="font-mono text-[12px] text-white/50">${((item.unit_price_cents * item.quantity) / 100).toFixed(2)}</span>
-                                </div>
-                              ))}
+                              {msg.checkout.items.map((item, i) => {
+                                const itemMeta = (item as unknown as { metadata?: { date?: string; time?: string; staffName?: string } }).metadata;
+                                return (
+                                  <div key={i} className="py-0.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-sans text-[12px] text-white/60">
+                                        {item.name}{item.quantity > 1 ? ` x${item.quantity}` : ""}
+                                      </span>
+                                      <span className="font-mono text-[12px] text-white/50">${((item.unit_price_cents * item.quantity) / 100).toFixed(2)}</span>
+                                    </div>
+                                    {itemMeta?.date && (
+                                      <p className="font-sans text-[10px] text-white/30 mt-0.5">
+                                        {itemMeta.date} {itemMeta.time && `at ${itemMeta.time}`}{itemMeta.staffName && ` · ${itemMeta.staffName}`}
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })}
                               <div className="flex items-center justify-between mt-1 pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
                                 <span className="font-sans text-[12px] font-semibold text-white/70">Subtotal</span>
                                 <span className="font-mono text-[13px] font-bold text-white/80">${(subtotal / 100).toFixed(2)}</span>
