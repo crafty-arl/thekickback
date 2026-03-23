@@ -1619,20 +1619,11 @@ export function TheDock({
   }, [mode, venues]);
 
   // ── Load concierge history on first open ──
+  // Concierge always starts fresh — old threads available in Threads mode
   useEffect(() => {
     if (mode !== "concierge") return;
-    if (conciergeHistoryLoaded.current) return;
     conciergeHistoryLoaded.current = true;
-
-    // Only load if we still have the default welcome message
-    if (conciergeMessages.length > 1) return;
-
-    loadThreadHistory(null).then((messages) => {
-      if (messages && messages.length > 0) {
-        setConciergeMessages(messages);
-      }
-    });
-  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   // ── Sync selectedVenue prop → mode ──
   useEffect(() => {
@@ -1648,37 +1639,23 @@ export function TheDock({
       setVenueChatSnap("collapsed");
       setActiveTab("chat");
 
-      // If we already have cached messages, keep them
-      if (venueThreads.has(selectedVenue.id)) return;
-
-      // Set a welcome message immediately, then try to load history
+      // Always start fresh — old threads are in the Threads tab
       const isGhost = selectedVenue.claimed === false;
       const welcomeBody = isGhost
         ? `Hey — I know a bit about ${selectedVenue.name} from public info. ${selectedVenue.category ? `It's a ${selectedVenue.category}` : ""}${selectedVenue.neighborhood ? ` in ${selectedVenue.neighborhood}` : ""}. Ask me what you want to know.`
         : `Welcome to ${selectedVenue.name}. ${getVibeLabel(selectedVenue.vibe)} right now, ${selectedVenue.occupancy} people. Ask me anything.`;
-      const welcomeMsg: Message = {
-        id: `welcome-${selectedVenue.id}`,
-        sender: "ai",
-        body: welcomeBody,
-        timestamp: Date.now(),
-      };
       setVenueThreads((prev) => {
         const next = new Map(prev);
-        next.set(selectedVenue.id, [welcomeMsg]);
+        next.set(selectedVenue.id, [{
+          id: `welcome-${Date.now()}`,
+          sender: "ai",
+          body: welcomeBody,
+          timestamp: Date.now(),
+        }]);
         return next;
       });
 
-      // Fetch persisted history and replace welcome message if found
       const vid = selectedVenue.id;
-      loadThreadHistory(vid).then((messages) => {
-        if (messages && messages.length > 0) {
-          setVenueThreads((prev) => {
-            const next = new Map(prev);
-            next.set(vid, messages);
-            return next;
-          });
-        }
-      });
 
       // Fetch offerings for quick replies (if not cached)
       if (!venueOfferings[vid]) {
@@ -2211,9 +2188,9 @@ export function TheDock({
           }
 
           // Update with cleaned reply
-          // Use cleanReply (no tags) for display, reply (with tags) for component parsing
-          const displayReply = (data.cleanReply as string) || stripTags((data.reply as string) || fullReply) || "Something went wrong. Try again in a moment.";
-          setConciergeMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: displayReply } : m));
+          // Use reply WITH tags — parseVenueChips renders [[VENUE_CARD:...]] and [[OFFER:...]] as components
+          const finalReply = (data.reply as string) || fullReply || "Something went wrong. Try again in a moment.";
+          setConciergeMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, body: finalReply } : m));
         }
       } catch {
         setConciergeMessages((prev) => [
