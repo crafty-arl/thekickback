@@ -45,13 +45,21 @@ export async function POST(request: Request) {
     .eq("id", venueId);
 
   // Create Apideck Vault session
+  const apiKey = process.env.APIDECK_API_KEY;
+  const appId = process.env.APIDECK_APP_ID;
+
+  if (!apiKey || !appId) {
+    console.error("[pos/connect] Missing APIDECK_API_KEY or APIDECK_APP_ID");
+    return Response.json({ error: "POS integration not configured. Contact support." }, { status: 503 });
+  }
+
   const origin = request.headers.get("origin") || "https://dash.thekickback.net";
 
   const res = await fetch("https://unify.apideck.com/vault/sessions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.APIDECK_API_KEY}`,
-      "x-apideck-app-id": process.env.APIDECK_APP_ID!,
+      Authorization: `Bearer ${apiKey}`,
+      "x-apideck-app-id": appId,
       "x-apideck-consumer-id": venueId,
       "Content-Type": "application/json",
     },

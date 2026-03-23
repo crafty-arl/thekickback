@@ -105,6 +105,8 @@ services:
       - OPENCLAW_GATEWAY_URL=https://claw.thekickback.net
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
       - RESEND_API_KEY=${RESEND_API_KEY}
+      - APIDECK_APP_ID=${APIDECK_APP_ID}
+      - APIDECK_API_KEY=${APIDECK_API_KEY}
     restart: always
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))" ]
