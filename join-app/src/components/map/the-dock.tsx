@@ -2550,14 +2550,32 @@ export function TheDock({
           {/* ═══ IDLE MODE ═══ */}
           {mode === "idle" && (
             <div className="flex h-full items-center gap-3 px-4">
-              {/* KB Logo — K orange, B white */}
-              <button
-                onClick={() => { setMode("explore"); setExploreSnap("half"); }}
-                className="flex shrink-0 items-center"
-              >
-                <span className="font-sans text-[22px] font-black tracking-tighter" style={{ color: "#F97316" }}>K</span>
-                <span className="font-sans text-[22px] font-black tracking-tighter text-white/90">B</span>
-              </button>
+              {/* Profile + KB Logo together on the left */}
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  onClick={handleAvatarTap}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    background: user ? `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)` : "rgba(255,255,255,0.06)",
+                    border: `2px solid ${user ? `${tierColor}40` : "rgba(255,255,255,0.1)"}`,
+                  }}
+                >
+                  {user ? (
+                    <span className="font-sans text-[13px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
+                  ) : (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={() => { setMode("explore"); setExploreSnap("half"); }}
+                  className="flex items-center"
+                >
+                  <span className="font-sans text-[22px] font-black tracking-tighter" style={{ color: "#F97316" }}>K</span>
+                  <span className="font-sans text-[22px] font-black tracking-tighter text-white/90">B</span>
+                </button>
+              </div>
 
               {/* Rotating search suggestions — tap to explore */}
               <button
@@ -2593,23 +2611,7 @@ export function TheDock({
                 </button>
               )}
 
-              {/* Profile */}
-              <button
-                onClick={handleAvatarTap}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                style={{
-                  background: user ? `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)` : "rgba(255,255,255,0.06)",
-                  border: `2px solid ${user ? `${tierColor}40` : "rgba(255,255,255,0.1)"}`,
-                }}
-              >
-                {user ? (
-                  <span className="font-sans text-[14px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                  </svg>
-                )}
-              </button>
+              {/* Profile moved to left next to KB */}
             </div>
           )}
 
