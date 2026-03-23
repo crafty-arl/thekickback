@@ -233,6 +233,9 @@ export function OwnerDock({
   const [galleryImages, setGalleryImages] = useState(initialGallery || []);
   const [offeringsState, setOfferingsState] = useState(initialOfferings || []);
 
+  // Preview refresh key (increment to force iframe reload)
+  const [previewKey, setPreviewKey] = useState(0);
+
   // Drawer states
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<GuestSession | null>(null);
@@ -438,6 +441,76 @@ export function OwnerDock({
 
         setMessages((prev) => [...prev, agentMsg]);
 
+        // Process actions returned by the AI agent
+        if (data.actions && Array.isArray(data.actions)) {
+          for (const action of data.actions as { type: string; value?: string; name?: string; description?: string; price_cents?: number; offering_type?: string }[]) {
+            switch (action.type) {
+              case "update_name":
+                if (action.value) {
+                  setHubData((prev) => ({ ...prev, name: action.value! }));
+                }
+                break;
+              case "update_tagline":
+                if (action.value) {
+                  setHubData((prev) => ({ ...prev, tagline: action.value! }));
+                }
+                break;
+              case "update_description":
+                if (action.value) {
+                  setHubData((prev) => ({ ...prev, description: action.value! }));
+                }
+                break;
+              case "update_hours":
+                if (action.value) {
+                  setHubData((prev) => ({ ...prev, hours: action.value! }));
+                }
+                break;
+              case "update_theme_color":
+                if (action.value) {
+                  setHubData((prev) => ({ ...prev, themeColor: action.value! }));
+                }
+                break;
+              case "add_offering":
+                if (action.name) {
+                  setOfferingsState((prev) => [
+                    ...prev,
+                    {
+                      id: `new-${Date.now()}`,
+                      name: action.name!,
+                      type: action.offering_type || "product",
+                      price_cents: action.price_cents || 0,
+                      description: action.description,
+                    },
+                  ]);
+                }
+                break;
+              case "update_venue": {
+                const d = (action as { data?: Record<string, unknown> }).data;
+                if (d?.name) setHubData((prev) => ({ ...prev, name: d.name as string }));
+                if (d?.address) setHubData((prev) => ({ ...prev, address: d.address as string }));
+                break;
+              }
+              case "update_page": {
+                const d = (action as { data?: Record<string, unknown> }).data;
+                if (d?.tagline) setHubData((prev) => ({ ...prev, tagline: d.tagline as string }));
+                if (d?.description) setHubData((prev) => ({ ...prev, description: d.description as string }));
+                if (d?.theme_color) setHubData((prev) => ({ ...prev, themeColor: d.theme_color as string }));
+                if (d?.hours) {
+                  const hrs = d.hours as { day: string; open: string; close?: string }[];
+                  const hoursStr = hrs.map((h) => `${h.day}: ${h.open}${h.close ? `-${h.close}` : ""}`).join(", ");
+                  setHubData((prev) => ({ ...prev, hours: hoursStr }));
+                }
+                break;
+              }
+              case "refresh_preview":
+                if (activeTab === 3) {
+                  setPreviewKey((k) => k + 1);
+                }
+                break;
+            }
+          }
+        }
+
         if (agentBody.includes("[[STATS:")) setConversationPhase("stats_shown");
         if (agentBody.includes("[[BOOKINGS:")) setConversationPhase("bookings_shown");
         if (agentBody.includes("[[GUESTS:")) setConversationPhase("stats_shown");
@@ -451,7 +524,7 @@ export function OwnerDock({
         setLoading(false);
       }
     },
-    [input, venue.id]
+    [input, venue.id, activeTab]
   );
 
   // ─── Booking actions ───────────────────────────────────────────
@@ -860,6 +933,7 @@ export function OwnerDock({
             initialStaff={initialStaff}
             initialKnowledge={initialKnowledge}
             initialAiLimits={initialAiLimits}
+            previewKey={previewKey}
           />
         </TabsContent>
 

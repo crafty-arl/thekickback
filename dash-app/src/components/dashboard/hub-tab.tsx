@@ -44,6 +44,7 @@ interface HubTabProps {
   initialStaff?: { id: string; display_name: string | null; role_title: string | null; avatar_url: string | null; bio: string | null; specialties: string[] | null; visible: boolean; schedule: unknown }[];
   initialKnowledge?: { id: string; content: string; category: string; created_at: string }[];
   initialAiLimits?: { enabled: boolean; free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
+  previewKey?: number;
 }
 
 // ─── Component ─────────────────────────────────────────────────────
@@ -65,6 +66,7 @@ export function HubTab({
   initialStaff,
   initialKnowledge,
   initialAiLimits,
+  previewKey,
 }: HubTabProps) {
   const [activeDrawer, setActiveDrawer] = useState<SettingsDrawer>(null);
   const [seeding, setSeeding] = useState(false);
@@ -168,6 +170,7 @@ export function HubTab({
           <div className="flex flex-col items-center gap-3">
             <div className="overflow-hidden rounded-[32px] border-2 border-black/[0.08]" style={{ width: 375, height: 680 }}>
               <iframe
+                key={previewKey ?? 0}
                 src={`https://join.thekickback.net/${hubData.slug}`}
                 className="h-full w-full border-none bg-white"
                 title="Hub Preview"

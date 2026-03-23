@@ -190,6 +190,79 @@ async function handleAction(
         return handleAction({ type: "update_offering", id: action.id, data: { active: inStock } }, venueId);
       }
 
+      case "update_name": {
+        if (!action.data?.value && typeof action.data !== "string") throw new Error("Missing name value");
+        const newName = (typeof action.data === "string" ? action.data : (action.data as { value?: string }).value || "") as string;
+        const { error: nameErr } = await svc.from("venues").update({ name: newName.trim() }).eq("id", venueId);
+        if (nameErr) throw new Error(nameErr.message);
+        revalidatePath("/");
+        revalidatePath("/settings");
+        return {
+          reply: `Done -- name updated to "${newName.trim()}". [[ACTION_CONFIRM:{"success":true,"message":"Name updated"}]]`,
+          actionResult: { success: true, message: "Name updated" },
+        };
+      }
+
+      case "update_tagline": {
+        if (!action.data?.value && typeof action.data !== "string") throw new Error("Missing tagline value");
+        const newTagline = (typeof action.data === "string" ? action.data : (action.data as { value?: string }).value || "") as string;
+        const { error: tagErr } = await svc.from("venue_pages").update({ tagline: newTagline.trim() }).eq("venue_id", venueId);
+        if (tagErr) throw new Error(tagErr.message);
+        revalidatePath("/");
+        revalidatePath("/settings");
+        return {
+          reply: `Done -- tagline updated. [[ACTION_CONFIRM:{"success":true,"message":"Tagline updated"}]]`,
+          actionResult: { success: true, message: "Tagline updated" },
+        };
+      }
+
+      case "update_description": {
+        if (!action.data?.value && typeof action.data !== "string") throw new Error("Missing description value");
+        const newDesc = (typeof action.data === "string" ? action.data : (action.data as { value?: string }).value || "") as string;
+        const { error: descErr } = await svc.from("venue_pages").update({ description: newDesc.trim() }).eq("venue_id", venueId);
+        if (descErr) throw new Error(descErr.message);
+        revalidatePath("/");
+        revalidatePath("/settings");
+        return {
+          reply: `Done -- description updated. [[ACTION_CONFIRM:{"success":true,"message":"Description updated"}]]`,
+          actionResult: { success: true, message: "Description updated" },
+        };
+      }
+
+      case "update_hours": {
+        if (!action.data?.value && typeof action.data !== "string") throw new Error("Missing hours value");
+        const newHours = (typeof action.data === "string" ? action.data : (action.data as { value?: string }).value || "") as string;
+        const hoursArr = [{ day: "Daily", open: newHours, close: "" }];
+        const { error: hoursErr } = await svc.from("venue_pages").update({ hours: hoursArr }).eq("venue_id", venueId);
+        if (hoursErr) throw new Error(hoursErr.message);
+        revalidatePath("/");
+        revalidatePath("/settings");
+        return {
+          reply: `Done -- hours updated to "${newHours}". [[ACTION_CONFIRM:{"success":true,"message":"Hours updated"}]]`,
+          actionResult: { success: true, message: "Hours updated" },
+        };
+      }
+
+      case "update_theme_color": {
+        if (!action.data?.value && typeof action.data !== "string") throw new Error("Missing theme color value");
+        const newColor = (typeof action.data === "string" ? action.data : (action.data as { value?: string }).value || "") as string;
+        const { error: colorErr } = await svc.from("venue_pages").update({ theme_color: newColor.trim() }).eq("venue_id", venueId);
+        if (colorErr) throw new Error(colorErr.message);
+        revalidatePath("/");
+        revalidatePath("/settings");
+        return {
+          reply: `Done -- theme color updated to ${newColor.trim()}. [[ACTION_CONFIRM:{"success":true,"message":"Theme color updated"}]]`,
+          actionResult: { success: true, message: "Theme color updated" },
+        };
+      }
+
+      case "refresh_preview": {
+        return {
+          reply: `Preview refreshed. [[ACTION_CONFIRM:{"success":true,"message":"Preview refreshed"}]]`,
+          actionResult: { success: true, message: "Preview refreshed" },
+        };
+      }
+
       case "update_venue": {
         if (!action.data) throw new Error("Missing venue data");
         const vd = action.data as { name?: string; type?: string; address?: string; neighborhood?: string; max_occupancy?: number; vibe?: string; rules?: string[] };
@@ -482,6 +555,12 @@ RESPONSE FORMAT — include data cards using these tags:
 WRITE ACTIONS — you can execute these when the owner asks:
 | Action | What it does |
 |--------|-------------|
+| update_name | Quick shortcut: change venue name |
+| update_tagline | Quick shortcut: change tagline |
+| update_description | Quick shortcut: change description |
+| update_hours | Quick shortcut: change hours |
+| update_theme_color | Quick shortcut: change theme color (hex) |
+| refresh_preview | Tell the client to reload the preview iframe |
 | update_venue | Change name, type, address, capacity, vibe, rules |
 | update_page | Change tagline, description, theme_color, hours, slug |
 | add_offering | Create a product, service, event, membership, reservation, or package. To add menu items, use add_offering with type='product'. |
@@ -502,6 +581,12 @@ WRITE ACTIONS — you can execute these when the owner asks:
 TOOL INSTRUCTIONS:
 When the owner asks you to change, update, add, or delete something, respond conversationally AND include an action tag at the END of your message:
 
+<<<ACTION>>>{"type":"update_name","data":{"value":"New Name"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"update_tagline","data":{"value":"New tagline"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"update_description","data":{"value":"New description here"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"update_hours","data":{"value":"Mon-Fri 9am-5pm"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"update_theme_color","data":{"value":"#F97316"}}<<<END_ACTION>>>
+<<<ACTION>>>{"type":"refresh_preview"}<<<END_ACTION>>>
 <<<ACTION>>>{"type":"update_venue","data":{"name":"New Name"}}<<<END_ACTION>>>
 <<<ACTION>>>{"type":"update_page","data":{"tagline":"New tagline","hours":[{"day":"Daily","open":"9am","close":"5pm"}]}}<<<END_ACTION>>>
 <<<ACTION>>>{"type":"add_offering","data":{"name":"Happy Hour","type":"event","price_cents":0,"description":"Weekly happy hour"}}<<<END_ACTION>>>
@@ -526,8 +611,9 @@ RULES:
 - If the owner's intent is unambiguous and direct (e.g. "change my hours to 9am-5pm"), you may include the action tag immediately.
 - For dangerous actions (delete), always double-confirm before including the tag.
 - Never modify data without the owner's clear intent.
-- You can include at most ONE action tag per response.
+- You can include MULTIPLE action tags in a single response when the owner asks to update several things at once. Each action gets its own <<<ACTION>>>...<<<END_ACTION>>> block.
 - The action tag must be valid JSON between the <<<ACTION>>> and <<<END_ACTION>>> delimiters.
+- Always end with <<<ACTION>>>{"type":"refresh_preview"}<<<END_ACTION>>> after making changes so the owner sees the updates live.
 
 BEHAVIOR:
 - When the owner asks to change something, propose the specific action and ask for confirmation.
@@ -602,9 +688,12 @@ BEHAVIOR:
     // venue the authenticated owner is linked to.
 
     let actionResult: ActionResult | null = null;
-    const actionMatch = reply.match(/<<<ACTION>>>([\s\S]*?)<<<END_ACTION>>>/);
+    const executedActions: { type: string; value?: string; [key: string]: unknown }[] = [];
 
-    if (actionMatch) {
+    // Parse ALL action blocks (supports multiple actions in one response)
+    const actionRegex = /<<<ACTION>>>([\s\S]*?)<<<END_ACTION>>>/g;
+    let actionMatch;
+    while ((actionMatch = actionRegex.exec(reply)) !== null) {
       try {
         const parsed = JSON.parse(actionMatch[1].trim()) as {
           type: string;
@@ -615,22 +704,41 @@ BEHAVIOR:
           { type: parsed.type, id: parsed.id, data: parsed.data },
           ownerVenueId,
         );
-        actionResult = result.actionResult;
-        // Append the ACTION_CONFIRM tag so the client renders feedback
-        if (!reply.includes("[[ACTION_CONFIRM:")) {
-          reply = reply + `\n\n${result.reply.match(/\[\[ACTION_CONFIRM:.*?\]\]/)?.[0] || ""}`;
+        if (!actionResult) actionResult = result.actionResult;
+
+        // Build the action entry for the client
+        const actionEntry: { type: string; value?: string; [key: string]: unknown } = { type: parsed.type };
+        if (parsed.data) {
+          if ("value" in parsed.data) {
+            actionEntry.value = parsed.data.value as string;
+          }
+          if (parsed.type === "add_offering") {
+            Object.assign(actionEntry, parsed.data);
+          }
+          if (parsed.type === "update_venue" || parsed.type === "update_page") {
+            actionEntry.data = parsed.data;
+          }
         }
+        executedActions.push(actionEntry);
       } catch (parseErr) {
         console.error("Failed to parse/execute AI action tag:", parseErr);
-        // Non-fatal: still return the conversational reply
       }
+    }
+
+    if (executedActions.length > 0) {
       // Strip the raw action tags from the visible reply
       reply = reply.replace(/<<<ACTION>>>[\s\S]*?<<<END_ACTION>>>/g, "").trim();
+      // Append confirmation count
+      const count = executedActions.filter(a => a.type !== "refresh_preview").length;
+      if (count > 0 && !reply.includes("[[ACTION_CONFIRM:")) {
+        reply += `\n\n[[ACTION_CONFIRM:${count} update${count > 1 ? "s" : ""} applied]]`;
+      }
     }
 
     return NextResponse.json({
       reply,
       ...(actionResult ? { actionResult } : {}),
+      ...(executedActions.length > 0 ? { actions: executedActions } : {}),
     });
   } catch (err) {
     console.error("Owner chat error:", err);

@@ -220,7 +220,18 @@ export default function BlogPage() {
 
 function PostCard({ post, index }: { post: BlogPost; index: number }) {
     const [expanded, setExpanded] = useState(false);
+    const [imageHovered, setImageHovered] = useState(false);
+    const [copied, setCopied] = useState(false);
     const catColor = CAT_COLORS[post.category] || "#f97316";
+
+    const handleCopyImage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const fullUrl = `${window.location.origin}${post.image}`;
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
 
     return (
         <motion.article
@@ -248,6 +259,8 @@ function PostCard({ post, index }: { post: BlogPost; index: number }) {
                     overflow: "hidden",
                     transition: "height 0.3s",
                 }}
+                onMouseEnter={() => setImageHovered(true)}
+                onMouseLeave={() => setImageHovered(false)}
             >
                 <Image
                     src={post.image}
@@ -255,6 +268,31 @@ function PostCard({ post, index }: { post: BlogPost; index: number }) {
                     fill
                     style={{ objectFit: "cover", opacity: 0.85 }}
                 />
+                {/* Copy image URL button */}
+                {imageHovered && (
+                    <button
+                        onClick={handleCopyImage}
+                        style={{
+                            position: "absolute",
+                            top: 44,
+                            left: 12,
+                            zIndex: 10,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: "#fff",
+                            background: "rgba(0,0,0,0.45)",
+                            backdropFilter: "blur(12px)",
+                            WebkitBackdropFilter: "blur(12px)",
+                            border: "1px solid rgba(255,255,255,0.15)",
+                            borderRadius: 50,
+                            padding: "4px 12px",
+                            cursor: "pointer",
+                            transition: "background 0.2s",
+                        }}
+                    >
+                        {copied ? "Copied!" : "Copy"}
+                    </button>
+                )}
                 <div
                     style={{
                         position: "absolute",
