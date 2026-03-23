@@ -2333,60 +2333,9 @@ export function TheDock({
     msg: Message, addOns: CheckoutAddOn[], pointsToSpend: number, method: "wallet" | "card" = "card"
   ) => {
     if (!selectedVenue || !msg.checkout) return;
-
-    // ── Biometric: only attempt for wallet, never block card ──
-    if (method === "wallet") {
-      // Try verify first (may fail if passkey is on another device)
-      let verified = false;
-      if (passkey.hasPasskey) {
-        verified = await passkey.verify();
-      }
-
-      // If verify failed or no passkey, try to register on this device
-      if (!verified) {
-        setVenueThreads((prev) => {
-          const next = new Map(prev);
-          next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
-            id: `bio-setup-${Date.now()}`, sender: "ai",
-            body: "Setting up biometric on this device for wallet payments. Follow the prompt.",
-            timestamp: Date.now(),
-          }]);
-          return next;
-        });
-        const registered = await passkey.register();
-        if (!registered) {
-          setVenueThreads((prev) => {
-            const next = new Map(prev);
-            next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
-              id: `bio-${Date.now()}`, sender: "ai",
-              body: "Biometric setup cancelled. Pay with card instead — no biometric needed.",
-              timestamp: Date.now(),
-            }]);
-            return next;
-          });
-          return;
-        }
-        // Just registered — verify now
-        verified = await passkey.verify();
-        if (!verified) {
-          setVenueThreads((prev) => {
-            const next = new Map(prev);
-            next.set(selectedVenue.id, [...(next.get(selectedVenue.id) || []), {
-              id: `bio-err-${Date.now()}`, sender: "ai",
-              body: "Verification failed. Try card payment instead.",
-              timestamp: Date.now(),
-            }]);
-            return next;
-          });
-          return;
-        }
-      }
-    }
-    // Card payments skip biometric entirely — Stripe handles auth
-
-    // Process payment
+    // Process payment directly — user is already authenticated
     await processPayment(msg, addOns, pointsToSpend, method);
-  }, [selectedVenue, passkey, processPayment]);
+  }, [selectedVenue, processPayment]);
 
   const handleCheckoutDismiss = useCallback(() => {
     if (!selectedVenue) return;
