@@ -655,7 +655,7 @@ function AiMessageBody({ body, theme, onAddToCart, onBookOffer, onTapOffer, offe
                   ${offer.price % 1 === 0 ? offer.price : offer.price.toFixed(2)}
                 </span>
                 <span className="shrink-0 px-2.5 py-1.5 font-sans text-[10px] font-bold" style={{ backgroundColor: theme, color: "#000" }}>
-                  {meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type) ? "BOOK" : "VIEW"}
+                  {meta.type === "reservation" || (meta?.duration_minutes && ["service", "event"].includes(meta.type)) ? "BOOK" : "VIEW"}
                 </span>
               </div>
             </button>
@@ -1248,7 +1248,7 @@ export function TheDock({
     // Check if this is a bookable offering — redirect to venue page for scheduling
     const allMaps = offeringsMap[venueId] || {};
     const meta = allMaps[offeringId] as { duration_minutes?: number | null; type?: string } | undefined;
-    if (meta?.duration_minutes && ["service", "reservation", "event"].includes(meta.type || "")) {
+    if (meta?.type === "reservation" || (meta?.duration_minutes && ["service", "event"].includes(meta.type || ""))) {
       // Open ProductDrawer for bookable offerings instead of redirecting
       setDrawerOfferId(offeringId);
       return;
@@ -1897,7 +1897,7 @@ export function TheDock({
         const venueOffers = offeringsMap[selectedVenue.id] || {};
         const cart = rawCart.filter((item) => {
           const m = venueOffers[item.offeringId];
-          const isBookable = m?.duration_minutes && ["service", "reservation", "event"].includes(m.type);
+          const isBookable = m.type === "reservation" || (m?.duration_minutes && ["service", "event"].includes(m.type));
           const hasMeta = (item as unknown as { metadata?: Record<string, unknown> }).metadata?.date;
           if (isBookable && !hasMeta) {
             // Open the drawer for this item instead

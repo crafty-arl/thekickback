@@ -62,8 +62,11 @@ export function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMet
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [slots, setSlots] = useState<{ staff: { id: string; name: string; avatar_url: string | null; slots: string[] }[]; anyone_slots: string[] } | null>(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  // Bookable = has duration, regardless of whether staff are linked
-  const isBookable = meta && ["service", "reservation", "event"].includes(meta.type) && meta.duration_minutes;
+  // Bookable = reservation type always, service/event need duration
+  const isBookable = meta && (
+    meta.type === "reservation" ||
+    (["service", "event"].includes(meta.type) && meta.duration_minutes)
+  );
   const hasStaff = linkedStaff && linkedStaff.length > 0;
   const dates = getBookingDates();
 

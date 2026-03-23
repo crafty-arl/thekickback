@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       .eq("id", item.offering_id)
       .single();
 
-    if (off && off.duration_minutes && ["service", "reservation", "event"].includes(off.type)) {
+    if (off && (off.type === "reservation" || (off.duration_minutes && ["service", "event"].includes(off.type)))) {
       if (!item.metadata?.date || !item.metadata?.time) {
         return Response.json(
           { error: `"${item.name}" requires a date and time. Please book it through the scheduler.` },
