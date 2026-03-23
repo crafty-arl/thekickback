@@ -4366,8 +4366,27 @@ export function TheDock({
       <AnimatePresence>
         {drawerOfferId && selectedVenue && (() => {
           const venueOffers = offeringsMap[selectedVenue.id] || {};
-          const meta = venueOffers[drawerOfferId];
-          if (!meta) return null;
+          let meta = venueOffers[drawerOfferId];
+
+          // If meta not loaded yet, try to fetch it
+          if (!meta) {
+            // Trigger fetch and close — will reopen when data arrives
+            fetch(`/api/offerings?venueId=${selectedVenue.id}`)
+              .then((r) => r.ok ? r.json() : { offerings: [] })
+              .then((d) => {
+                if (d.offerings?.length) {
+                  const newMap: Record<string, OfferingMeta> = {};
+                  for (const o of d.offerings) {
+                    newMap[o.id] = { name: o.name, description: o.description, price_cents: o.price_cents, image_url: o.image_url || null, type: o.type, duration_minutes: o.duration_minutes };
+                  }
+                  setOfferingsMap((prev) => ({ ...prev, [selectedVenue.id]: { ...(prev[selectedVenue.id] || {}), ...newMap } }));
+                  // Re-open drawer now that data is loaded
+                  setDrawerOfferId(drawerOfferId);
+                }
+              })
+              .catch(() => {});
+            return null;
+          }
           return (
             <ProductDrawer
               offer={{ id: drawerOfferId, name: meta.name, price: meta.price_cents }}
