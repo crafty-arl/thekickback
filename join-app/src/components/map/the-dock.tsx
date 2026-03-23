@@ -1680,6 +1680,13 @@ export function TheDock({
           })
           .catch(() => { });
       }
+
+      // Auto-send pending prompt from explore tap
+      if (pendingPromptRef.current) {
+        const prompt = pendingPromptRef.current;
+        pendingPromptRef.current = null;
+        setTimeout(() => send(prompt), 500);
+      }
     } else {
       if (mode === "venueChat") {
         setMode("explore");
@@ -2240,7 +2247,10 @@ export function TheDock({
 
   // ─── Explore venue card tap ────────────────────────────────────
 
-  const handleExploreVenueTap = useCallback((venue: Venue) => {
+  const pendingPromptRef = useRef<string | null>(null);
+
+  const handleExploreVenueTap = useCallback((venue: Venue, autoPrompt?: string) => {
+    if (autoPrompt) pendingPromptRef.current = autoPrompt;
     onVenueSelect(venue);
   }, [onVenueSelect]);
 
@@ -2778,7 +2788,7 @@ export function TheDock({
                   {recommended.length > 0 && (
                     <Shelf title="FOR YOU" count={recommended.length}>
                       {recommended.map((v, i) => (
-                        <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)} delay={Math.min(i * 0.04, 0.2)} />
+                        <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v, `What's good at ${v.name} right now?`)} delay={Math.min(i * 0.04, 0.2)} />
                       ))}
                     </Shelf>
                   )}
@@ -2787,7 +2797,7 @@ export function TheDock({
                   {yourSpots.length > 0 && (
                     <Shelf title="YOUR SPOTS">
                       {yourSpots.map(({ venue, xp }, i) => (
-                        <LandscapeVenueCard key={venue.id} venue={venue} onClick={() => handleExploreVenueTap(venue)} delay={Math.min(i * 0.04, 0.2)} xp={xp} />
+                        <LandscapeVenueCard key={venue.id} venue={venue} onClick={() => handleExploreVenueTap(venue, `What's happening at ${venue.name}?`)} delay={Math.min(i * 0.04, 0.2)} xp={xp} />
                       ))}
                     </Shelf>
                   )}
@@ -2796,7 +2806,7 @@ export function TheDock({
                   {venues.length > 0 && (
                     <Shelf title="PLACES" count={venues.length}>
                       {venues.slice(0, 12).map((v, i) => (
-                        <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v)} delay={Math.min(i * 0.04, 0.2)} />
+                        <LandscapeVenueCard key={v.id} venue={v} onClick={() => handleExploreVenueTap(v, `Tell me about ${v.name}`)} delay={Math.min(i * 0.04, 0.2)} />
                       ))}
                     </Shelf>
                   )}
@@ -2837,7 +2847,7 @@ export function TheDock({
                                   transition={{ delay: Math.min(i * 0.03, 0.15) }}
                                   onClick={() => {
                                     if (venue) {
-                                      onVenueSelect(venue);
+                                      handleExploreVenueTap(venue, `Tell me about ${item.name}`);
                                     }
                                   }}
                                   className="flex shrink-0 flex-col overflow-hidden  text-left active:scale-[0.97]"
@@ -3228,6 +3238,21 @@ export function TheDock({
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
                   </button>
                   <div className="flex items-center gap-1.5">
+                    {/* Threads — switch conversations */}
+                    {threadInfo.count > 1 && (
+                      <motion.button
+                        onClick={() => { setPreviousMode("venueChat"); setMode("threads"); }}
+                        whileTap={{ scale: 0.9 }}
+                        className="relative flex h-7 items-center gap-1 px-2"
+                        style={{ backgroundColor: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.15)" }}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <span className="font-mono text-[9px] font-bold" style={{ color: "#a78bfa" }}>{threadInfo.count}</span>
+                      </motion.button>
+                    )}
+                    {/* Back to KB */}
                     <motion.button
                       onClick={handleKBBack}
                       whileTap={{ scale: 0.9 }}
