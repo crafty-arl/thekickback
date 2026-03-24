@@ -20,8 +20,10 @@ export interface MapViewProps {
 }
 
 function getBounds(venues: Venue[]) {
-  const lngs = venues.map((v) => v.longitude);
-  const lats = venues.map((v) => v.latitude);
+  const mapped = venues.filter((v) => v.latitude !== 0 && v.longitude !== 0);
+  if (mapped.length === 0) return { sw: [-97.75, 30.25] as [number, number], ne: [-97.73, 30.28] as [number, number] };
+  const lngs = mapped.map((v) => v.longitude);
+  const lats = mapped.map((v) => v.latitude);
   return {
     sw: [Math.min(...lngs), Math.min(...lats)] as [number, number],
     ne: [Math.max(...lngs), Math.max(...lats)] as [number, number],
@@ -142,12 +144,15 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, ma
         }
       }
       onVenueSelect(venue);
-      mapRef.current?.flyTo({
-        center: [venue.longitude, venue.latitude],
-        zoom: 15.5,
-        pitch: 50,
-        duration: 800,
-      });
+      // Don't fly to virtual places (no real coordinates)
+      if (venue.latitude !== 0 && venue.longitude !== 0) {
+        mapRef.current?.flyTo({
+          center: [venue.longitude, venue.latitude],
+          zoom: 15.5,
+          pitch: 50,
+          duration: 800,
+        });
+      }
     },
     [onVenueSelect, venues]
   );
@@ -220,7 +225,7 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, ma
       attributionControl={false}
       logoPosition="bottom-right"
     >
-      {venues.map((venue) => (
+      {venues.filter((v) => v.latitude !== 0 && v.longitude !== 0).map((venue) => (
         <Marker
           key={venue.id}
           longitude={venue.longitude}

@@ -84,14 +84,19 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
         if (v) allVenuePageMap.set(v.id as string, p);
     }
 
-    const venueResults = pages
-        .filter((p: Record<string, unknown>) => {
-            const v = p.venues as Record<string, unknown> | null;
-            if (!v) return false;
-            const hasCoords = (typeof v.latitude === "number" && typeof v.longitude === "number")
-                || (typeof v.lat === "number" && typeof v.lng === "number");
-            return hasCoords;
-        })
+    // Split into places with coordinates (map pins) and without (virtual list)
+    const withCoords: Record<string, unknown>[] = [];
+    const withoutCoords: Record<string, unknown>[] = [];
+    for (const p of pages as Record<string, unknown>[]) {
+        const v = p.venues as Record<string, unknown> | null;
+        if (!v) continue;
+        const hasCoords = (typeof v.latitude === "number" && typeof v.longitude === "number")
+            || (typeof v.lat === "number" && typeof v.lng === "number");
+        if (hasCoords) withCoords.push(p);
+        else withoutCoords.push(p);
+    }
+
+    const venueResults = withCoords
         .map((p: Record<string, unknown>) => {
             const v = p.venues as Record<string, unknown>;
             const hours = p.hours as Array<{ day: string; open: string; close: string }> | null;
@@ -198,5 +203,36 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
         }
     }
 
-    return [...venueResults, ...eventPins];
+    // Build virtual places (no coordinates — won't show on map, only in explore list)
+    const virtualResults = withoutCoords.map((p) => {
+        const v = p.venues as Record<string, unknown>;
+        const hours = p.hours as Array<{ day: string; open: string; close: string }> | null;
+        const hoursStr = hours && hours.length > 0
+            ? hours.map((h) => `${h.day} ${h.open}${h.close ? ` – ${h.close}` : ""}`).join(", ")
+            : "";
+        return {
+            id: v.id as string,
+            name: v.name as string,
+            slug: p.slug as string,
+            category: (v.type as string) || "community",
+            neighborhood: (v.neighborhood as string) || "",
+            vibe: (v.vibe as string) || "moderate",
+            description: (p.description as string) || (p.tagline as string) || "",
+            tagline: (p.tagline as string) || "",
+            address: (v.address as string) || "",
+            tags: [],
+            hours: hoursStr,
+            memberOnly: false,
+            textNumber: "",
+            latitude: 0,
+            longitude: 0,
+            themeColor: (p.theme_color as string) || "#F97316",
+            heroImage: (p.hero_image as string) || null,
+            logo: (p.logo as string) || null,
+            locationMode: "virtual" as const,
+            claimed: true,
+        } as VenueData;
+    });
+
+    return [...venueResults, ...eventPins, ...virtualResults];
 }

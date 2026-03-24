@@ -3351,6 +3351,19 @@ export function TheDock({
                     </Shelf>
                   )}
 
+                  {/* ── Virtual places (no location) ── */}
+                  {(() => {
+                    const virtualPlaces = venues.filter((v) => v.latitude === 0 && v.longitude === 0 && !v.isEventPin);
+                    if (virtualPlaces.length === 0) return null;
+                    return (
+                      <Shelf title="VIRTUAL & MOBILE" count={virtualPlaces.length}>
+                        {virtualPlaces.map((v, i) => (
+                          <LandscapeVenueCard key={v.id} venue={v} onClick={() => { onVenueSelect(v); setMode("venueChat"); setVenueChatSnap("expanded"); }} delay={Math.min(i * 0.04, 0.2)} />
+                        ))}
+                      </Shelf>
+                    );
+                  })()}
+
                   {/* ── Offerings by category ── */}
                   {exploreOfferings.length > 0 && (() => {
                     const OFFER_CATEGORIES: { key: string; label: string; types: string[]; icon: string }[] = [
