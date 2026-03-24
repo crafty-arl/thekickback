@@ -13,69 +13,46 @@ async function getAuthUserId(): Promise<string | null> {
   return user?.id || null;
 }
 
-// GET — fetch all preferences for the authenticated user
-export async function GET(req: NextRequest) {
+// GET — fetch user memory
+export async function GET() {
   const userId = await getAuthUserId();
   if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const { data, error } = await supabase
-    .from("user_preferences")
-    .select("*")
-    .eq("user_id", userId)
-    .gte("confidence", 0.3)
-    .order("category")
-    .order("confidence", { ascending: false });
+  const { data } = await supabase
+    .from("profiles")
+    .select("memory")
+    .eq("id", userId)
+    .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Group by category
-  const grouped: Record<string, typeof data> = {};
-  for (const pref of data || []) {
-    if (!grouped[pref.category]) grouped[pref.category] = [];
-    grouped[pref.category].push(pref);
-  }
-
-  return NextResponse.json({ preferences: data || [], grouped });
+  return NextResponse.json({ memory: data?.memory || "" });
 }
 
-// DELETE — remove a single preference
-export async function DELETE(req: NextRequest) {
+// PUT — update user memory
+export async function PUT(req: NextRequest) {
   const userId = await getAuthUserId();
   if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const { id } = await req.json();
-  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+  const { memory } = await req.json();
+  if (typeof memory !== "string") return NextResponse.json({ error: "memory must be a string" }, { status: 400 });
 
   const { error } = await supabase
-    .from("user_preferences")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
+    .from("profiles")
+    .update({ memory: memory.slice(0, 500) })
+    .eq("id", userId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 
-// PUT — confirm or update a preference
-export async function PUT(req: NextRequest) {
+// DELETE — clear user memory
+export async function DELETE() {
   const userId = await getAuthUserId();
   if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const { id, value, confirmed } = await req.json();
-  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-
-  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (value !== undefined) updates.value = value;
-  if (confirmed) {
-    updates.confidence = 1.0;
-    updates.source = "user";
-  }
-
   const { error } = await supabase
-    .from("user_preferences")
-    .update(updates)
-    .eq("id", id)
-    .eq("user_id", userId);
+    .from("profiles")
+    .update({ memory: "" })
+    .eq("id", userId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

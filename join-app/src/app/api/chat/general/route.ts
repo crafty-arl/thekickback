@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
-import { extractPreferences, getPreferencesContext } from "@/lib/personalization";
+import { updateUserMemory, getUserMemory } from "@/lib/personalization";
 import { getRecentChatHistory } from "@/lib/chat-history";
 
 const supabase = createClient(
@@ -188,7 +188,7 @@ export async function POST(request: Request) {
   const [venues, offerings, prefsContext, chatHistory] = await Promise.all([
     getActiveVenues(),
     getActiveOfferings(),
-    userId ? getPreferencesContext(userId) : Promise.resolve(""),
+    userId ? getUserMemory(userId) : Promise.resolve(""),
     userId ? getRecentChatHistory(userId, null, 10) : Promise.resolve(""),
   ]);
 
@@ -413,7 +413,7 @@ export async function POST(request: Request) {
           supabase.rpc("save_thread_message", { p_user_id: userId, p_venue_id: null, p_sender_type: "guest", p_body: message }),
           supabase.rpc("save_thread_message", { p_user_id: userId, p_venue_id: null, p_sender_type: "ai", p_body: reply }),
         ]).then(() => {}, () => {});
-        extractPreferences(userId, message, reply, null).catch(() => {});
+        updateUserMemory(userId, message, reply).catch(() => {});
       }
 
       // Clean reply for display (no tags)

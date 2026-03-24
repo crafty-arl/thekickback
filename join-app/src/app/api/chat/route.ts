@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
-import { extractPreferences, getPreferencesContext } from "@/lib/personalization";
+import { updateUserMemory, getUserMemory } from "@/lib/personalization";
 import { getRecentChatHistory } from "@/lib/chat-history";
 
 const supabase = createClient(
@@ -149,7 +149,7 @@ export async function POST(request: Request) {
     checkAiUsageGate(venueId, userId, deviceId),
     getVenueKnowledge(venueId),
     getVenueOfferingsRaw(venueId),
-    userId ? getPreferencesContext(userId, venueId) : Promise.resolve(""),
+    userId ? getUserMemory(userId) : Promise.resolve(""),
     userId ? getRecentChatHistory(userId, venueId, 10) : Promise.resolve(""),
   ]);
 
@@ -382,7 +382,7 @@ export async function POST(request: Request) {
 
       // Async preference extraction (fire-and-forget)
       if (userId) {
-        extractPreferences(userId, message, reply, venueId, venueName).catch(() => {});
+        updateUserMemory(userId, message, reply, venueName).catch(() => {});
       }
 
       // Send final metadata event
