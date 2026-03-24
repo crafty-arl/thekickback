@@ -162,6 +162,9 @@ export default async function DashboardPage() {
     process.env.SUPABASE_SERVICE_KEY!,
   );
 
+  // Expire stale sessions (fire-and-forget cleanup on each dashboard load)
+  service.rpc("expire_stale_sessions").then(() => {}, () => {});
+
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayISO = todayStart.toISOString();
