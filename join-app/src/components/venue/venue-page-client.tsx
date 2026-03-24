@@ -61,6 +61,7 @@ interface OfferingData {
   image_url?: string | null;
   starts_at?: string | null;
   ends_at?: string | null;
+  category?: string | null;
 }
 
 interface Props {
