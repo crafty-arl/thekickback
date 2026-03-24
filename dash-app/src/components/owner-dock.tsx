@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import type { PlaceData } from "./place-preview";
 import { updateVenue, updateVenuePage, updateOffering, deleteOffering } from "@/app/settings/actions";
@@ -132,6 +132,7 @@ export function OwnerDock({
 }: OwnerDockProps) {
   const [activeTab, setActiveTab] = useState<Tab>("preview");
   const [analyticsView, setAnalyticsView] = useState<AnalyticsView>("today");
+  const [previewSettingsOpen, setPreviewSettingsOpen] = useState(false);
 
   // Editable preview state
   const [hubData, setHubData] = useState<PlaceData>(() => {
@@ -454,9 +455,9 @@ export function OwnerDock({
           </div>
         )}
 
-        {/* Preview — live editable venue page */}
+        {/* Preview — live editable venue page + settings drawer */}
         {activeTab === "preview" && (
-          <div className="h-full">
+          <div className="relative h-full">
             <PlacePreviewEditable
               data={hubData}
               venueId={venue.id}
@@ -469,6 +470,56 @@ export function OwnerDock({
               onSectionEdited={handleSectionEdited}
               onOfferingTap={(o) => setSelectedOffering(o)}
             />
+
+            {/* Settings FAB */}
+            <button
+              onClick={() => setPreviewSettingsOpen(true)}
+              className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-[70] flex h-12 w-12 items-center justify-center rounded-full shadow-lg active:scale-95 transition"
+              style={{ backgroundColor: "#F97316", boxShadow: "0 4px 20px rgba(249,115,22,0.4)" }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+
+            {/* Settings drawer overlay */}
+            <AnimatePresence>
+              {previewSettingsOpen && settingsData && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setPreviewSettingsOpen(false)}
+                    className="fixed inset-0 z-[75]"
+                    style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                  />
+                  <motion.div
+                    initial={{ x: "100%" }}
+                    animate={{ x: 0 }}
+                    exit={{ x: "100%" }}
+                    transition={{ type: "spring", damping: 28, stiffness: 280 }}
+                    className="fixed inset-y-0 right-0 z-[80] w-full max-w-lg flex flex-col overflow-hidden"
+                    style={{ backgroundColor: "#0A0A0A", borderLeft: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    {/* Drawer header */}
+                    <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <span className="font-sans text-[14px] font-semibold text-white/80">Settings</span>
+                      <button
+                        onClick={() => setPreviewSettingsOpen(false)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/[0.08]"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                    {/* Scrollable settings content */}
+                    <div className="flex-1 overflow-y-auto">
+                      <SettingsClient {...settingsData} embedded />
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
