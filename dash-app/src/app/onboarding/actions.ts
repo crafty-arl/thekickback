@@ -65,6 +65,11 @@ export async function createVenue(formData: VenueFormData) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
+  // 0. Ensure profile exists (FK requirement for venue_owners)
+  await service
+    .from("profiles")
+    .upsert({ id: user.id, email: user.email, phone: user.email }, { onConflict: "id" });
+
   // 1. Create venue
   const { data: venue, error: venueError } = await service
     .from("venues")
