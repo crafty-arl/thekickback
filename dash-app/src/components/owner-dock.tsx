@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -14,7 +14,6 @@ import { TodayTab, type ActivityItem } from "@/components/dashboard/today-tab";
 import { OrdersTab } from "@/components/dashboard/orders-tab";
 import { GuestsTab } from "@/components/dashboard/guests-tab";
 import { HubTab } from "@/components/dashboard/hub-tab";
-import { OwnerChatFloat, type OwnerChatFloatHandle } from "@/components/owner-chat-float";
 import { OrderDetailDrawer } from "@/components/dashboard/order-detail-drawer";
 import { GuestDetailDrawer } from "@/components/dashboard/guest-detail-drawer";
 import { OfferingDetailDrawer } from "@/components/dashboard/offering-detail-drawer";
@@ -33,13 +32,6 @@ import type { Booking } from "@/components/dashboard/bookings-panel";
 import type { Order, OrderItem, RevenueStats, VenueTransaction } from "@/components/dashboard/orders-panel";
 
 // ─── Types ──────────────────────────────────────────────────────────
-
-interface OwnerMessage {
-  id: string;
-  sender: "owner" | "agent";
-  body: string;
-  timestamp: number;
-}
 
 interface XpActivityEntry {
   amount: number;
@@ -202,14 +194,6 @@ export function OwnerDock({
 }: OwnerDockProps) {
   const [activeTab, setActiveTab] = useState(0);
 
-  // AI Chat state (Hub tab)
-  const [messages, setMessages] = useState<OwnerMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [conversationPhase, setConversationPhase] = useState<
-    "fresh" | "stats_shown" | "bookings_shown" | "mutation_done"
-  >("fresh");
-
   // Checklist
   const [checklistState, setChecklistState] = useState<ChecklistState>(
     initialChecklist
@@ -348,9 +332,6 @@ export function OwnerDock({
     return extractTopics(initialData.messages as ChatMessage[]);
   }, [initialData.messages]);
 
-  // ─── Chat float ref ───────────────────────────────────────────
-  const chatFloatRef = useRef<OwnerChatFloatHandle>(null);
-
   // ─── Today tab data ──────────────────────────────────────────
   const ordersToday = useMemo(() => {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
@@ -379,216 +360,6 @@ export function OwnerDock({
     }
     return items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
   }, [ordersState, initialData.sessions]);
-
-  // ─── Welcome message on mount ───────────────────────────────────
-
-  useEffect(() => {
-    if (isApproved) {
-      const hour = new Date().getHours();
-      const greeting = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
-      const statsJson = JSON.stringify({
-        activeSessions: initialData.stats.currentOccupancy,
-        visitorsToday: initialData.stats.totalToday,
-        revenue: 0,
-        members: initialData.stats.members,
-      });
-      const welcome = `${greeting}. ${initialData.stats.currentOccupancy} checked in, ${pendingBookings} bookings pending, ${initialData.stats.totalToday} visitors today. What do you need?\n\n[[STATS:${statsJson}]]`;
-      setMessages([{ id: "welcome", sender: "agent", body: welcome, timestamp: Date.now() }]);
-    } else {
-      const statusLabel =
-        currentReviewStatus === "pending"
-          ? "under review"
-          : currentReviewStatus === "rejected"
-            ? "needs updates"
-            : "in draft";
-      const completed = Object.values(checklistState).filter(Boolean).length;
-      const firstIncomplete = (Object.keys(checklistState) as (keyof ChecklistState)[]).find(
-        (k) => !checklistState[k]
-      );
-      const welcome = `Your place is ${statusLabel}. Setup is ${Math.round((completed / 9) * 100)}% complete. ${firstIncomplete ? `Let's work on: ${firstIncomplete}` : "Looking good!"}`;
-      setMessages([{ id: "welcome", sender: "agent", body: welcome, timestamp: Date.now() }]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ─── Send message ───────────────────────────────────────────────
-
-  const sendMessage = useCallback(
-    async (text?: string) => {
-      const msg = (text ?? input).trim();
-      if (!msg) return;
-
-      const ownerMsg: OwnerMessage = {
-        id: `owner-${Date.now()}`,
-        sender: "owner",
-        body: msg,
-        timestamp: Date.now(),
-      };
-
-      setMessages((prev) => [...prev, ownerMsg]);
-      setInput("");
-      setLoading(true);
-
-      try {
-        const res = await fetch("/api/chat/owner", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: msg, venueId: venue.id }),
-        });
-
-        const data = await res.json();
-        const agentBody = data.reply || data.message || "Sorry, I couldn't process that.";
-
-        const agentMsg: OwnerMessage = {
-          id: `agent-${Date.now()}`,
-          sender: "agent",
-          body: agentBody,
-          timestamp: Date.now(),
-        };
-
-        setMessages((prev) => [...prev, agentMsg]);
-
-        // Process actions returned by the AI agent
-        if (data.actions && Array.isArray(data.actions)) {
-          for (const action of data.actions as { type: string; value?: string; name?: string; description?: string; price_cents?: number; offering_type?: string }[]) {
-            switch (action.type) {
-              case "update_name":
-                if (action.value) {
-                  setHubData((prev) => ({ ...prev, name: action.value! }));
-                }
-                break;
-              case "update_tagline":
-                if (action.value) {
-                  setHubData((prev) => ({ ...prev, tagline: action.value! }));
-                }
-                break;
-              case "update_description":
-                if (action.value) {
-                  setHubData((prev) => ({ ...prev, description: action.value! }));
-                }
-                break;
-              case "update_hours":
-                if (action.value) {
-                  setHubData((prev) => ({ ...prev, hours: action.value! }));
-                }
-                break;
-              case "update_theme_color":
-                if (action.value) {
-                  setHubData((prev) => ({ ...prev, themeColor: action.value! }));
-                }
-                break;
-              case "add_offering":
-                if (action.name) {
-                  setOfferingsState((prev) => [
-                    ...prev,
-                    {
-                      id: `new-${Date.now()}`,
-                      name: action.name!,
-                      type: action.offering_type || "product",
-                      price_cents: action.price_cents || 0,
-                      description: action.description,
-                    },
-                  ]);
-                }
-                break;
-              case "update_venue": {
-                const d = (action as { data?: Record<string, unknown> }).data;
-                if (d?.name) setHubData((prev) => ({ ...prev, name: d.name as string }));
-                if (d?.address) setHubData((prev) => ({ ...prev, address: d.address as string }));
-                break;
-              }
-              case "update_page": {
-                const d = (action as { data?: Record<string, unknown> }).data;
-                if (d?.tagline) setHubData((prev) => ({ ...prev, tagline: d.tagline as string }));
-                if (d?.description) setHubData((prev) => ({ ...prev, description: d.description as string }));
-                if (d?.theme_color) setHubData((prev) => ({ ...prev, themeColor: d.theme_color as string }));
-                if (d?.hours) {
-                  const hrs = d.hours as { day: string; open: string; close?: string }[];
-                  const hoursStr = hrs.map((h) => `${h.day}: ${h.open}${h.close ? `-${h.close}` : ""}`).join(", ");
-                  setHubData((prev) => ({ ...prev, hours: hoursStr }));
-                }
-                break;
-              }
-              case "refresh_preview":
-                if (activeTab === 3) {
-                  setPreviewKey((k) => k + 1);
-                }
-                break;
-            }
-          }
-        }
-
-        if (agentBody.includes("[[STATS:")) setConversationPhase("stats_shown");
-        if (agentBody.includes("[[BOOKINGS:")) setConversationPhase("bookings_shown");
-        if (agentBody.includes("[[GUESTS:")) setConversationPhase("stats_shown");
-        if (agentBody.includes("[[ACTION_CONFIRM:")) setConversationPhase("mutation_done");
-      } catch {
-        setMessages((prev) => [
-          ...prev,
-          { id: `error-${Date.now()}`, sender: "agent", body: "Something went wrong. Try again.", timestamp: Date.now() },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [input, venue.id, activeTab]
-  );
-
-  // ─── Booking actions ───────────────────────────────────────────
-
-  const handleApproveBooking = useCallback(
-    async (id: string) => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/chat/owner", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: "confirm_action", venueId: venue.id, action: { type: "approve_booking", id } }),
-        });
-        const data = await res.json();
-        setMessages((prev) => [
-          ...prev,
-          { id: `agent-approve-${Date.now()}`, sender: "agent", body: data.reply || data.message || "Booking approved.", timestamp: Date.now() },
-        ]);
-        setConversationPhase("mutation_done");
-      } catch {
-        setMessages((prev) => [
-          ...prev,
-          { id: `error-${Date.now()}`, sender: "agent", body: "Failed to approve booking. Try again.", timestamp: Date.now() },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [venue.id]
-  );
-
-  const handleDeclineBooking = useCallback(
-    async (id: string) => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/chat/owner", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: "confirm_action", venueId: venue.id, action: { type: "decline_booking", id } }),
-        });
-        const data = await res.json();
-        setMessages((prev) => [
-          ...prev,
-          { id: `agent-decline-${Date.now()}`, sender: "agent", body: data.reply || data.message || "Booking declined.", timestamp: Date.now() },
-        ]);
-        setConversationPhase("mutation_done");
-      } catch {
-        setMessages((prev) => [
-          ...prev,
-          { id: `error-${Date.now()}`, sender: "agent", body: "Failed to decline booking. Try again.", timestamp: Date.now() },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [venue.id]
-  );
 
   // ─── Editable preview handlers ─────────────────────────────────
 
@@ -773,30 +544,6 @@ export function OwnerDock({
     },
     [selectedOffering]
   );
-
-  // ─── Quick replies ────────────────────────────────────────────
-
-  function getQuickReplies(): string[] {
-    switch (conversationPhase) {
-      case "fresh": {
-        const hour = new Date().getHours();
-        const replies: string[] = [];
-        replies.push(hour < 12 ? "Morning summary" : "How's tonight going?");
-        if (pendingBookings > 0) replies.push("Show bookings");
-        if (initialData.sessions.length > 0) replies.push("Who's here?");
-        replies.push("Revenue today");
-        return replies;
-      }
-      case "stats_shown":
-        return ["Any pending bookings?", "Guest list", "Compare to last week", "Add an offering"];
-      case "bookings_shown":
-        return pendingBookings > 0 ? ["Approve all pending", "Past bookings"] : ["Past bookings", "Create an event"];
-      case "mutation_done":
-        return ["What else?", "Show updated stats", "Change something else"];
-      default:
-        return ["Create an event", "Update hours", "Add knowledge", "Change venue name"];
-    }
-  }
 
   // ─── Status badge helper ──────────────────────────────────────
 
@@ -1026,19 +773,6 @@ export function OwnerDock({
         </div>
       </Tabs>
 
-      {/* ─── Floating AI Chat ─────────────────────────────────────── */}
-      <OwnerChatFloat
-        ref={chatFloatRef}
-        messages={messages}
-        loading={loading}
-        input={input}
-        onInputChange={setInput}
-        onSendMessage={sendMessage}
-        quickReplies={getQuickReplies()}
-        onApproveBooking={handleApproveBooking}
-        onDeclineBooking={handleDeclineBooking}
-      />
-
       {/* ─── Order Detail Drawer ────────────────────────────────────── */}
       <AnimatePresence>
         {selectedOrder && (
@@ -1062,12 +796,8 @@ export function OwnerDock({
             xpActivity={xpActivity || []}
             onClose={() => setSelectedGuest(null)}
             onOrderTap={(order) => setSelectedOrder(order)}
-            onAskAboutGuest={(name) => {
+            onAskAboutGuest={() => {
               setSelectedGuest(null);
-              chatFloatRef.current?.open();
-              setTimeout(() => {
-                sendMessage(`Tell me more about guest ${name}`);
-              }, 300);
             }}
           />
         )}
