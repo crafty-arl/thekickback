@@ -66,7 +66,6 @@ export async function POST(req: NextRequest) {
 
   const stripe = new Stripe(key, { apiVersion: "2026-02-25.clover" });
   const sandbox = isSandboxServer(h);
-  const mode = sandbox ? "test" : "live";
 
   // ─── Get or create Stripe customer ───────────────────────────
   let { data: wallet } = await supabase
