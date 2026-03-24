@@ -605,6 +605,11 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const [offeringDuration, setOfferingDuration] = useState("");
     const [offeringAddOns, setOfferingAddOns] = useState("");
     const [offeringCapacity, setOfferingCapacity] = useState("");
+    const [offeringStartsAt, setOfferingStartsAt] = useState("");
+    const [offeringEndsAt, setOfferingEndsAt] = useState("");
+    const [offeringLocationName, setOfferingLocationName] = useState("");
+    const [offeringLocationAddress, setOfferingLocationAddress] = useState("");
+    const [offeringMaxAttendees, setOfferingMaxAttendees] = useState("");
     const [savingOffering, setSavingOffering] = useState(false);
     const [offeringMsg, setOfferingMsg] = useState("");
     const [togglingOffering, setTogglingOffering] = useState<string | null>(null);
@@ -724,12 +729,18 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
             duration_minutes: offeringDuration ? parseInt(offeringDuration) : undefined,
             capacity: offeringCapacity ? parseInt(offeringCapacity) : undefined,
             add_ons: parsedAddOns.length > 0 ? parsedAddOns : undefined,
+            starts_at: offeringStartsAt || undefined,
+            ends_at: offeringEndsAt || undefined,
+            location_name: offeringLocationName.trim() || undefined,
+            location_address: offeringLocationAddress.trim() || undefined,
+            max_attendees: offeringMaxAttendees ? parseInt(offeringMaxAttendees) : undefined,
         });
         if (result.error) { setOfferingMsg(result.error); }
         else {
             setOfferingMsg("Added!");
             setShowAddOffering(false);
             setOfferingName(""); setOfferingDesc(""); setOfferingPrice(""); setOfferingPerks(""); setOfferingDuration(""); setOfferingAddOns(""); setOfferingCapacity("");
+            setOfferingStartsAt(""); setOfferingEndsAt(""); setOfferingLocationName(""); setOfferingLocationAddress(""); setOfferingMaxAttendees("");
             setTimeout(() => setOfferingMsg(""), 2000);
         }
         setSavingOffering(false);
@@ -1825,6 +1836,8 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                                 <p className="mt-1 font-sans text-[10px] text-white/40 leading-relaxed">
                                                     {offeringType === "service"
                                                         ? "Time slots come from staff schedules. Link staff members to this offering after creating it, and set their working hours in the Staff section."
+                                                        : offeringType === "event"
+                                                        ? "Set the event date, time, and location below. Guests will see this on the map and can RSVP or buy tickets."
                                                         : "Time slots come from your venue hours. Set your operating hours in the Hours section — guests will see available slots within those times."
                                                     }
                                                 </p>
@@ -1834,6 +1847,26 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                                     </p>
                                                 )}
                                             </div>
+                                        )}
+                                        {/* Event-specific fields */}
+                                        {offeringType === "event" && (
+                                            <>
+                                                <Field label="Event start" hint="Date and time">
+                                                    <input type="datetime-local" value={offeringStartsAt} onChange={(e) => setOfferingStartsAt(e.target.value)} className="input" />
+                                                </Field>
+                                                <Field label="Event end" hint="Optional">
+                                                    <input type="datetime-local" value={offeringEndsAt} onChange={(e) => setOfferingEndsAt(e.target.value)} className="input" />
+                                                </Field>
+                                                <Field label="Location name" hint="e.g. Central Park, Studio B">
+                                                    <input value={offeringLocationName} onChange={(e) => setOfferingLocationName(e.target.value)} placeholder="Where is the event?" className="input" />
+                                                </Field>
+                                                <Field label="Location address" hint="Full address — shows on the map">
+                                                    <input value={offeringLocationAddress} onChange={(e) => setOfferingLocationAddress(e.target.value)} placeholder="123 Main St, Austin TX" className="input" />
+                                                </Field>
+                                                <Field label="Max attendees" hint="Leave empty for unlimited">
+                                                    <input type="number" min="1" value={offeringMaxAttendees} onChange={(e) => setOfferingMaxAttendees(e.target.value)} placeholder="100" className="input" style={{ maxWidth: 120 }} />
+                                                </Field>
+                                            </>
                                         )}
                                         <Field label="What's included?" hint="One perk per line">
                                             <textarea value={offeringPerks} onChange={(e) => setOfferingPerks(e.target.value)} rows={3} placeholder={"Priority seating\n10% off drinks\nExclusive events"} className="input resize-none" />

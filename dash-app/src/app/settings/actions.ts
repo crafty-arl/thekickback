@@ -210,10 +210,32 @@ export async function addOffering(data: {
     add_ons?: { name: string; price_cents: number }[];
     starts_at?: string;
     ends_at?: string;
+    location_name?: string;
+    location_address?: string;
+    max_attendees?: number;
 }) {
     const auth = await getAuthVenue();
     if (!auth) return { error: "Not authenticated" };
     if (!data.name.trim()) return { error: "Name is required" };
+
+    // Geocode event location if address provided
+    let locationLat: number | null = null;
+    let locationLng: number | null = null;
+    if (data.location_address) {
+        try {
+            const geoRes = await fetch(
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(data.location_address)}&format=json&limit=1`,
+                { headers: { "User-Agent": "theKickBack/1.0" } }
+            );
+            if (geoRes.ok) {
+                const geo = await geoRes.json() as { lat: string; lon: string }[];
+                if (geo.length > 0) {
+                    locationLat = parseFloat(geo[0].lat);
+                    locationLng = parseFloat(geo[0].lon);
+                }
+            }
+        } catch { /* geocoding is best-effort */ }
+    }
 
     const { data: insertedRows, error } = await service.from("venue_offerings").insert({
         venue_id: auth.venueId,
@@ -229,6 +251,11 @@ export async function addOffering(data: {
         add_ons: data.add_ons || [],
         starts_at: data.starts_at || null,
         ends_at: data.ends_at || null,
+        location_name: data.location_name || null,
+        location_address: data.location_address || null,
+        location_lat: locationLat,
+        location_lng: locationLng,
+        max_attendees: data.max_attendees || null,
     }).select("id");
 
     if (error) return { error: error.message };
