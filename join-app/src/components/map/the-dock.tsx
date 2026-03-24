@@ -314,6 +314,107 @@ function DeleteAccountButton() {
   );
 }
 
+// ─── Shop view for venue dock ───────────────────────────────────────
+
+const SHOP_TYPE_LABELS: Record<string, { icon: string; label: string }> = {
+  membership: { icon: "👑", label: "Membership" },
+  reservation: { icon: "📅", label: "Reservations" },
+  service: { icon: "✂️", label: "Services" },
+  product: { icon: "☕", label: "Products" },
+  event: { icon: "🎟️", label: "Events" },
+  package: { icon: "📦", label: "Packages" },
+  custom: { icon: "✦", label: "Other" },
+};
+
+function DockShopView({ offerings, themeColor, onTap, onAddToCart }: {
+  offerings: { id: string; type: string; name: string; description?: string | null; price_cents?: number; recurring?: boolean; interval?: string | null; duration_minutes?: number | null; category?: string | null; perks?: string[] }[];
+  themeColor: string;
+  onTap: (id: string) => void;
+  onAddToCart: (id: string, name: string, price: number) => void;
+}) {
+  if (offerings.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <p className="font-sans text-[13px] text-white/30">No offerings yet</p>
+      </div>
+    );
+  }
+
+  // Group by category, then by type
+  const categorized = new Map<string, typeof offerings>();
+  const uncategorized: typeof offerings = [];
+  for (const o of offerings) {
+    if (o.category) {
+      const arr = categorized.get(o.category) || [];
+      arr.push(o);
+      categorized.set(o.category, arr);
+    } else {
+      uncategorized.push(o);
+    }
+  }
+  const byType = new Map<string, typeof offerings>();
+  for (const o of uncategorized) {
+    const arr = byType.get(o.type) || [];
+    arr.push(o);
+    byType.set(o.type, arr);
+  }
+
+  const sections: { label: string; items: typeof offerings }[] = [];
+  for (const [cat, items] of categorized) sections.push({ label: cat, items });
+  for (const [type, items] of byType) {
+    const meta = SHOP_TYPE_LABELS[type] || { icon: "✦", label: type.charAt(0).toUpperCase() + type.slice(1) };
+    sections.push({ label: `${meta.icon} ${meta.label}`, items });
+  }
+
+  const fmtPrice = (cents?: number, recurring?: boolean, interval?: string | null) => {
+    if (!cents || cents === 0) return "Free";
+    const d = (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
+    return recurring ? `$${d}/${interval === "year" ? "yr" : "mo"}` : `$${d}`;
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {sections.map((section) => (
+        <div key={section.label}>
+          <p className="mb-1.5 font-sans text-[9px] font-semibold tracking-[1.5px] text-white/20 uppercase">{section.label}</p>
+          <div className="flex flex-col">
+            {section.items.map((o) => (
+              <button
+                key={o.id}
+                onClick={() => onTap(o.id)}
+                className="flex items-center gap-3 py-2.5 text-left active:bg-white/[0.03] transition"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center" style={{ backgroundColor: `${themeColor}08`, border: `1px solid ${themeColor}12` }}>
+                  <span className="text-[14px]">{SHOP_TYPE_LABELS[o.type]?.icon || "✦"}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="font-sans text-[13px] font-semibold text-white/85 truncate block">{o.name}</span>
+                  {o.description && <span className="font-sans text-[11px] text-white/30 truncate block">{o.description}</span>}
+                </div>
+                <div className="shrink-0 flex items-center gap-2">
+                  <span className="font-mono text-[12px] font-bold" style={{ color: (!o.price_cents || o.price_cents === 0) ? "#4ade80" : themeColor }}>
+                    {fmtPrice(o.price_cents, o.recurring, o.interval)}
+                  </span>
+                  {o.type !== "membership" && o.price_cents && o.price_cents > 0 && !o.duration_minutes && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onAddToCart(o.id, o.name, o.price_cents!); }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full active:scale-90"
+                      style={{ backgroundColor: `${themeColor}20` }}
+                    >
+                      <span className="font-mono text-[14px] font-bold" style={{ color: themeColor }}>+</span>
+                    </button>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const PERK_EMOJI: Record<string, string> = { drink: "\u2615", food: "\ud83c\udf54", access: "\ud83d\udd11", experience: "\u2728", merch: "\ud83c\udf81", other: "\ud83c\udfaf" };
 const VIBE_ORDER: Record<string, number> = { lit: 4, packed: 4, busy: 3, moderate: 2, quiet: 1 };
 
@@ -1334,8 +1435,9 @@ export function TheDock({
   const [cartExpanded, setCartExpanded] = useState(false);
   const [drawerOfferId, setDrawerOfferId] = useState<string | null>(null);
 
-  // ── Venue offerings for quick replies ──
-  const [venueOfferings, setVenueOfferings] = useState<Record<string, { id: string; type: string; name: string }[]>>({});
+  // ── Venue offerings for quick replies + shop view ──
+  const [venueOfferings, setVenueOfferings] = useState<Record<string, { id: string; type: string; name: string; description?: string | null; price_cents?: number; recurring?: boolean; interval?: string | null; duration_minutes?: number | null; category?: string | null; perks?: string[] }[]>>({});
+  const [venueViewMode, setVenueViewMode] = useState<"chat" | "shop">("chat");
 
   // ── Wallet status ──
   const walletStatus = useWalletStatus();
@@ -1880,7 +1982,8 @@ export function TheDock({
           .then((r) => r.ok ? r.json() : { offerings: [] })
           .then((d) => {
             if (d.offerings?.length) {
-              setVenueOfferings((prev) => ({ ...prev, [vid]: d.offerings.map((o: { id: string; type: string; name: string }) => ({ id: o.id, type: o.type, name: o.name })) }));
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              setVenueOfferings((prev) => ({ ...prev, [vid]: d.offerings.map((o: any) => ({ id: o.id, type: o.type, name: o.name, description: o.description, price_cents: o.price_cents, recurring: o.recurring, interval: o.interval, duration_minutes: o.duration_minutes, category: o.category, perks: o.perks || [] })) }));
             }
           })
           .catch(() => { });
@@ -1902,6 +2005,7 @@ export function TheDock({
       }
     }
     setShowVenueContact(false);
+    setVenueViewMode("chat");
   }, [selectedVenue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load user profile ──
@@ -3838,11 +3942,52 @@ export function TheDock({
                 )}
               </AnimatePresence>
 
-              {/* Points / Member Perks */}
+              {/* Chat / Shop toggle */}
+              <div className="flex items-center gap-1 mx-4 mt-1 mb-1">
+                {(["chat", "shop"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setVenueViewMode(v)}
+                    className="flex-1 py-1.5 font-sans text-[11px] font-semibold text-center transition"
+                    style={{
+                      backgroundColor: venueViewMode === v ? `${vibeColor}15` : "rgba(255,255,255,0.03)",
+                      color: venueViewMode === v ? vibeColor : "rgba(255,255,255,0.25)",
+                      borderBottom: venueViewMode === v ? `2px solid ${vibeColor}` : "2px solid transparent",
+                    }}
+                  >
+                    {v === "chat" ? "Chat" : "Shop"}
+                  </button>
+                ))}
+              </div>
 
               <div className="mx-4 h-px" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
 
+              {/* Shop view */}
+              {venueViewMode === "shop" && (
+                <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
+                  <DockShopView
+                    offerings={venueOfferings[selectedVenue.id] || []}
+                    themeColor={vibeColor}
+                    onTap={(id) => {
+                      const o = (venueOfferings[selectedVenue.id] || []).find((x) => x.id === id);
+                      if (o && !offeringsMap[selectedVenue.id]?.[id]) {
+                        setOfferingsMap((prev) => ({
+                          ...prev,
+                          [selectedVenue.id]: {
+                            ...(prev[selectedVenue.id] || {}),
+                            [id]: { name: o.name, description: o.description || null, price_cents: o.price_cents || 0, image_url: null, type: o.type, recurring: o.recurring, interval: o.interval, duration_minutes: o.duration_minutes },
+                          },
+                        }));
+                      }
+                      setDrawerOfferId(id);
+                    }}
+                    onAddToCart={(id, name, price) => addToCart(selectedVenue.id, id, name, price)}
+                  />
+                </div>
+              )}
+
               {/* Messages + Venue Profile */}
+              {venueViewMode === "chat" && (
               <div
                 ref={scrollRef}
                 className="flex-1 overflow-y-auto overscroll-contain px-4 py-3"
@@ -4021,6 +4166,7 @@ export function TheDock({
                   {loading && <LoadingDots />}
                 </div>
               </div>
+              )}
 
               {/* Cart pill */}
               {cartCount > 0 && selectedVenue && (
