@@ -90,7 +90,7 @@ export async function createVenue(formData: VenueFormData) {
     });
   }
 
-  // Check if user already owns a venue (from a previous failed attempt)
+  // Delete existing venue if user already has one (allows regeneration)
   const { data: existingOwnership } = await service
     .from("venue_owners")
     .select("venue_id")
@@ -99,7 +99,20 @@ export async function createVenue(formData: VenueFormData) {
     .single();
 
   if (existingOwnership) {
-    redirect("/");
+    const vid = existingOwnership.venue_id;
+    // Clean up all related data
+    await Promise.all([
+      service.from("venue_offerings").delete().eq("venue_id", vid),
+      service.from("venue_xp_actions").delete().eq("venue_id", vid),
+      service.from("venue_xp_milestones").delete().eq("venue_id", vid),
+      service.from("venue_perks").delete().eq("venue_id", vid),
+      service.from("venue_knowledge").delete().eq("venue_id", vid),
+      service.from("venue_gallery").delete().eq("venue_id", vid),
+      service.from("venue_pages").delete().eq("venue_id", vid),
+      service.from("venue_staff").delete().eq("venue_id", vid),
+      service.from("venue_owners").delete().eq("venue_id", vid),
+    ]);
+    await service.from("venues").delete().eq("id", vid);
   }
 
   // 1. Create venue
