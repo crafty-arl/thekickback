@@ -454,20 +454,22 @@ export function OwnerDock({
           </div>
         )}
 
-        {/* Preview */}
+        {/* Preview — live editable venue page */}
         {activeTab === "preview" && (
-          <PlacePreviewEditable
-            data={hubData}
-            venueId={venue.id}
-            offerings={offeringsState}
-            galleryImages={galleryImages}
-            xpActions={initialXpActions}
-            xpMilestones={initialXpMilestones}
-            onFieldSave={handleFieldSave}
-            onPhotoUpload={handlePhotoUpload}
-            onSectionEdited={handleSectionEdited}
-            onOfferingTap={(o) => setSelectedOffering(o)}
-          />
+          <div className="h-full">
+            <PlacePreviewEditable
+              data={hubData}
+              venueId={venue.id}
+              offerings={offeringsState}
+              galleryImages={galleryImages}
+              xpActions={initialXpActions}
+              xpMilestones={initialXpMilestones}
+              onFieldSave={handleFieldSave}
+              onPhotoUpload={handlePhotoUpload}
+              onSectionEdited={handleSectionEdited}
+              onOfferingTap={(o) => setSelectedOffering(o)}
+            />
+          </div>
         )}
 
         {/* Settings */}

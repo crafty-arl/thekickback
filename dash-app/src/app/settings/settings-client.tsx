@@ -854,7 +854,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
             <div className={`mx-auto flex ${embedded ? "h-full" : "max-w-5xl"} gap-0 lg:gap-8`}>
                 {/* Sidebar — desktop */}
-                <nav className="sticky top-[57px] hidden h-fit w-52 shrink-0 flex-col gap-0.5 py-8 lg:flex">
+                <nav className={`sticky ${embedded ? "top-0" : "top-[57px]"} hidden h-fit w-52 shrink-0 flex-col gap-0.5 py-8 lg:flex`}>
                     {SECTION_GROUPS.map((g) => (
                         <div key={g.group} className="mb-3">
                             <p className="mb-1.5 px-3 font-sans text-[9px] font-bold tracking-[2px]" style={{ color: "rgba(255,255,255,0.15)" }}>{g.group}</p>

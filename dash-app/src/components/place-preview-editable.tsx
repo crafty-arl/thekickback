@@ -115,7 +115,7 @@ export function PlacePreviewEditable({
   const EditIcon = ({ onClick }: { onClick: () => void }) => (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full opacity-0 transition group-hover:opacity-100"
+      className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full opacity-60 transition hover:opacity-100"
       style={{ backgroundColor: `${themeColor}e6` }}
     >
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -162,7 +162,7 @@ export function PlacePreviewEditable({
   return (
     <div className="flex h-full">
       <div
-        className="relative w-full overflow-hidden rounded-2xl lg:rounded-3xl"
+        className="relative w-full overflow-hidden"
         style={{ backgroundColor: "#000" }}
       >
         <div className="h-full overflow-y-auto no-scrollbar">
