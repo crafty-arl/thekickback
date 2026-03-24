@@ -74,11 +74,18 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
     // Build a set of venue IDs with coordinates (for dedup with event pins later)
     const venueCoordSet = new Map<string, { lat: number; lng: number }>();
 
+    // Build venue page map for ALL venues (including those without coords, for event pin inheritance)
+    const allVenuePageMap = new Map<string, Record<string, unknown>>();
+    for (const p of (pages || []) as Record<string, unknown>[]) {
+        const raw = p.venues;
+        const v = (Array.isArray(raw) ? raw[0] : raw) as Record<string, unknown> | null;
+        if (v) allVenuePageMap.set(v.id as string, p);
+    }
+
     const venueResults = pages
         .filter((p: Record<string, unknown>) => {
             const v = p.venues as Record<string, unknown> | null;
             if (!v) return false;
-            // Support both column names: latitude/longitude (coordinates migration) and lat/lng (offerings migration)
             const hasCoords = (typeof v.latitude === "number" && typeof v.longitude === "number")
                 || (typeof v.lat === "number" && typeof v.lng === "number");
             return hasCoords;
@@ -124,7 +131,7 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
         .from("venue_offerings")
         .select(`
             id, name, description, location_name, location_address,
-            location_lat, location_lng, venue_id
+            location_lat, location_lng, venue_id, starts_at, ends_at
         `)
         .eq("type", "event")
         .eq("active", true)
@@ -138,14 +145,6 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
     const eventPins: VenueData[] = [];
 
     if (eventOfferings && eventOfferings.length > 0) {
-        // Build a lookup of venue data from pages we already fetched
-        const venuePageMap = new Map<string, Record<string, unknown>>();
-        for (const p of (pages || []) as Record<string, unknown>[]) {
-            const raw = p.venues;
-            const v = (Array.isArray(raw) ? raw[0] : raw) as Record<string, unknown> | null;
-            if (v) venuePageMap.set(v.id as string, p);
-        }
-
         for (const ev of eventOfferings) {
             const venueId = ev.venue_id as string;
             const evLat = ev.location_lat as number;
@@ -159,22 +158,24 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
                 if (dlat < 0.0005 && dlng < 0.0005) continue;
             }
 
-            // Use parent venue page data if available
-            const parentPage = venuePageMap.get(venueId);
+            // Use parent venue page data if available (works even for venues without coords)
+            const parentPage = allVenuePageMap.get(venueId);
             const parentVenue = parentPage
                 ? (parentPage.venues as Record<string, unknown>)
                 : null;
+
+            const startsAt = ev.starts_at as string | null;
 
             eventPins.push({
                 id: `event-${ev.id}`,
                 name: parentVenue ? (parentVenue.name as string) : (ev.name as string),
                 slug: parentPage ? (parentPage.slug as string) : "",
                 category: "event",
-                neighborhood: "",
+                neighborhood: (ev.location_name as string) || "",
                 vibe: parentVenue ? ((parentVenue.vibe as string) || "moderate") : "moderate",
                 description: (ev.description as string) || "",
                 tags: [],
-                hours: "",
+                hours: startsAt ? new Date(startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "",
                 memberOnly: false,
                 textNumber: parentVenue
                     ? ((parentVenue.twilio_number as string) || (parentVenue.phone as string) || "")
@@ -189,7 +190,7 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
                 isEventPin: true,
                 parentVenueId: venueId,
                 eventName: ev.name as string,
-                eventDate: undefined,
+                eventDate: startsAt || undefined,
                 locationMode: "fixed",
             } as VenueData);
         }

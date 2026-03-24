@@ -2032,7 +2032,7 @@ export function TheDock({
         return next;
       });
 
-      const vid = selectedVenue.id;
+      const vid = selectedVenue.isEventPin && selectedVenue.parentVenueId ? selectedVenue.parentVenueId : selectedVenue.id;
 
       // Fetch offerings for quick replies (if not cached)
       if (!venueOfferings[vid]) {
@@ -2328,8 +2328,8 @@ export function TheDock({
         const isGhost = selectedVenue.claimed === false;
         const chatUrl = isGhost ? "/api/chat/ghost" : "/api/chat";
         const chatBody = isGhost
-          ? { message: msg, venueId: selectedVenue.id, venueName: selectedVenue.name, category: selectedVenue.category, neighborhood: selectedVenue.neighborhood, description: selectedVenue.description, tags: selectedVenue.tags }
-          : { message: msg, venueId: selectedVenue.id, venueName: selectedVenue.name, vibe: selectedVenue.vibe };
+          ? { message: msg, venueId: chatVenueId, venueName: selectedVenue.name, category: selectedVenue.category, neighborhood: selectedVenue.neighborhood, description: selectedVenue.description, tags: selectedVenue.tags }
+          : { message: msg, venueId: chatVenueId, venueName: selectedVenue.name, vibe: selectedVenue.vibe };
 
         const res = await fetch(chatUrl, {
           method: "POST",
@@ -2712,6 +2712,8 @@ export function TheDock({
   // ─── Computed ──────────────────────────────────────────────────
 
   const tierColor = TIER_CONFIG[user?.tier || "explorer"]?.color || "#94a3b8";
+  // For event pins, use the parent venue ID for chat/offerings so the AI agent is the place's agent
+  const chatVenueId = selectedVenue?.isEventPin && selectedVenue.parentVenueId ? selectedVenue.parentVenueId : selectedVenue?.id;
   const vibeColor = selectedVenue ? (selectedVenue.themeColor || "#F97316") : ACCENT;
   const sendColor = mode === "venueChat" ? vibeColor : ACCENT;
   const venueChatExpanded = venueChatSnap !== "collapsed";
