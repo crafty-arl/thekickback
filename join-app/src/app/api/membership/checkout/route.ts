@@ -144,6 +144,10 @@ export async function POST(req: NextRequest) {
     ? "https://sandbox.thekickback.net"
     : (process.env.NEXT_PUBLIC_APP_URL || "https://join.thekickback.net");
 
+  // Get venue's connected Stripe account for payment routing
+  const stripeAccountId = (venueStripe as Record<string, unknown>)[accountCol] as string;
+  const feeRate = 0.10; // 10% platform fee
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -161,6 +165,10 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           venue_id: venueId,
           offering_id: offeringId,
+        },
+        application_fee_percent: feeRate * 100, // 10% to theKickBack
+        transfer_data: {
+          destination: stripeAccountId, // Remaining 90% goes to the place
         },
       },
     });
