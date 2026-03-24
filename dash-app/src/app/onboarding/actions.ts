@@ -9,6 +9,7 @@ interface VenueFormData {
   name: string;
   type: string;
   address: string;
+  description: string;
   maxOccupancy: number;
   hours: string;
   tagline: string;
@@ -98,7 +99,7 @@ export async function createVenue(formData: VenueFormData) {
     venue_id: venue.id,
     slug,
     tagline: formData.tagline || null,
-    description: null,
+    description: formData.description || null,
     theme_color: themeColor,
     published: false,
     review_status: "draft",
@@ -107,6 +108,9 @@ export async function createVenue(formData: VenueFormData) {
   });
 
   if (pageError) return { error: `Page: ${pageError.message}` };
+
+  // 4. Trigger AI auto-generation of offerings, XP, milestones, perks (non-blocking)
+  generateVenueSetup(venue.id, service).catch((err) => console.error("AI setup error:", err));
 
   redirect("/");
 }
@@ -250,4 +254,53 @@ export async function submitPlaceForReview() {
   }
 
   return { ok: true };
+}
+
+// ─── AI auto-generation of offerings, XP, milestones, perks ─────────
+
+const SETUP_PROMPT = `You are an AI that generates complete venue setup data. Given a venue's info, generate offerings, XP actions, milestones, and perks. Return ONLY valid JSON:
+{"offerings":[{"type":"product|membership|reservation|service|event|package","name":"...","description":"...","price_cents":500,"recurring":false,"interval":null,"duration_minutes":null,"perks":[],"add_ons":[]}],"xp_actions":[{"action":"visit|first_visit|order|referral|event_attend|review","label":"...","points":50,"description":"...","max_per_day":null}],"xp_milestones":[{"name":"...","threshold":100,"color":"#hex","reward":"...","perks":["..."]}],"perks":[{"name":"...","description":"...","point_cost":100,"category":"drink|food|access|experience|merch|other"}]}
+Generate 6-10 offerings, 5 XP actions, 4 milestones (100/300/750/1500), 4-5 perks. Prices in cents. Make everything specific to THIS venue.`;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function generateVenueSetup(venueId: string, service: any) {
+  const { data: venue } = await service.from("venues").select("name, type, address, neighborhood").eq("id", venueId).single();
+  const { data: page } = await service.from("venue_pages").select("tagline, description").eq("venue_id", venueId).single();
+  if (!venue) return;
+
+  const context = [`Venue: ${venue.name}`, `Type: ${venue.type || "venue"}`, venue.address ? `Address: ${venue.address}` : "", page?.tagline ? `Tagline: ${page.tagline}` : "", page?.description ? `Description: ${page.description}` : ""].filter(Boolean).join("\n");
+
+  const CF_ACCOUNT_ID = "6c235bb622d4bca66876392df398234b";
+  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", messages: [{ role: "system", content: SETUP_PROMPT }, { role: "user", content: context }] }),
+  });
+
+  if (!res.ok) return;
+  const data = await res.json() as { choices: { message: { content: string } }[] };
+  const raw = data.choices?.[0]?.message?.content || "";
+  let setup;
+  try { setup = JSON.parse(raw.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim()); } catch { return; }
+
+  // Insert offerings
+  for (let i = 0; i < (setup.offerings || []).length; i++) {
+    const o = setup.offerings[i];
+    await service.from("venue_offerings").insert({ venue_id: venueId, type: o.type || "product", name: o.name, description: o.description, price_cents: o.price_cents || 0, recurring: o.recurring || false, interval: o.interval, duration_minutes: o.duration_minutes, perks: o.perks || [], add_ons: o.add_ons || [], active: true, sort_order: i }).catch(() => {});
+  }
+  // Insert XP actions
+  for (let i = 0; i < (setup.xp_actions || []).length; i++) {
+    const a = setup.xp_actions[i];
+    await service.from("venue_xp_actions").insert({ venue_id: venueId, action: a.action || "custom", label: a.label, points: a.points || 10, description: a.description, max_per_day: a.max_per_day, sort_order: i }).catch(() => {});
+  }
+  // Insert milestones
+  for (let i = 0; i < (setup.xp_milestones || []).length; i++) {
+    const m = setup.xp_milestones[i];
+    await service.from("venue_xp_milestones").insert({ venue_id: venueId, name: m.name, threshold: m.threshold || 100, color: m.color || "#4ade80", reward: m.reward, perks: m.perks || [], sort_order: i }).catch(() => {});
+  }
+  // Insert perks
+  for (let i = 0; i < (setup.perks || []).length; i++) {
+    const p = setup.perks[i];
+    await service.from("venue_perks").insert({ venue_id: venueId, name: p.name, description: p.description, point_cost: p.point_cost || 100, category: p.category || "other", sort_order: i }).catch(() => {});
+  }
 }
