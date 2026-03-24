@@ -165,8 +165,22 @@ export function OwnerDock({
   const [ordersState, setOrdersState] = useState(initialData.orders);
   const [currentReviewStatus, setCurrentReviewStatus] = useState(reviewStatus);
 
+  const [publishing, setPublishing] = useState(false);
   const isApproved = !currentReviewStatus || currentReviewStatus === "approved";
   const feeRate = initialData.revenueStats?.platformFeeRate || 0.1;
+
+  const handlePublish = useCallback(async () => {
+    setPublishing(true);
+    try {
+      const newStatus = isApproved ? "draft" : "approved";
+      const res = await fetch("/api/venue/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId: venue.id, status: newStatus }),
+      });
+      if (res.ok) setCurrentReviewStatus(newStatus);
+    } finally { setPublishing(false); }
+  }, [isApproved, venue.id]);
 
   // ─── Computed analytics data ──────────────────────────────────
 
@@ -356,10 +370,33 @@ export function OwnerDock({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {isApproved && (
-            <Link href="/scan" className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-black transition active:scale-95" style={{ backgroundColor: "#F97316" }}>
-              Scan
-            </Link>
+          {isApproved ? (
+            <>
+              <Link href="/scan" className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-black transition active:scale-95" style={{ backgroundColor: "#F97316" }}>
+                Scan
+              </Link>
+              <button
+                onClick={handlePublish}
+                disabled={publishing}
+                className="rounded-lg px-3 py-1.5 text-[12px] font-semibold transition active:scale-95 disabled:opacity-50"
+                style={{ backgroundColor: "rgba(239,68,68,0.12)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.2)" }}
+              >
+                {publishing ? "..." : "Unpublish"}
+              </button>
+            </>
+          ) : currentReviewStatus === "pending" ? (
+            <span className="rounded-lg px-3 py-1.5 text-[12px] font-semibold" style={{ backgroundColor: "rgba(249,115,22,0.12)", color: "#F97316" }}>
+              Under Review
+            </span>
+          ) : (
+            <button
+              onClick={handlePublish}
+              disabled={publishing}
+              className="rounded-lg px-3 py-1.5 text-[12px] font-bold text-black transition active:scale-95 disabled:opacity-50"
+              style={{ backgroundColor: "#4ADE80" }}
+            >
+              {publishing ? "Publishing..." : "Publish"}
+            </button>
           )}
           <SignOutButton />
         </div>
