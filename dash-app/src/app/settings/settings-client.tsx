@@ -454,7 +454,7 @@ function getTemplatesForType(venueType: string): { primary: XpTemplate[]; others
     return { primary, others };
 }
 
-interface Props {
+export interface SettingsClientProps {
     user: { id: string; email: string };
     role: string;
     venue: {
@@ -491,11 +491,14 @@ interface Props {
     aiLimits: { free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
     digitalAssets: DigitalAsset[];
     menuItems?: { id: string; venue_id: string; category: string; name: string; description: string | null; price_cents: number; in_stock: boolean; inventory_count: number | null }[];
+    embedded?: boolean;
 }
+
+type Props = SettingsClientProps;
 
 // ─── Main Component ──────────────────────────────────────────────
 
-export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [], staffOfferingLinks: initialLinks = [], aiLimits: initialAiLimits, digitalAssets, menuItems: initialMenuItems = [] }: Props) {
+export function SettingsClient({ user, role, venue, page, knowledge, members, memberCount, offerings, xpActions, xpMilestones, customTemplates, gallery: initialGallery = [], staff: initialStaff = [], staffOfferingLinks: initialLinks = [], aiLimits: initialAiLimits, digitalAssets, menuItems: initialMenuItems = [], embedded = false }: Props) {
     const [activeSection, setActiveSection] = useState("general");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
@@ -819,9 +822,12 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
     const activeCat = KNOWLEDGE_CATEGORIES.find((c) => c.id === activeKnowledgeCat)!;
     const filteredKnowledge = knowledge.filter((k) => k.category === activeKnowledgeCat);
 
+    const headerAndNav = !embedded;
+
     return (
-        <main className="min-h-svh" style={{ backgroundColor: "#0A0A0A" }}>
-            {/* Header */}
+        <main className={embedded ? "min-h-0 h-full" : "min-h-svh"} style={{ backgroundColor: "#0A0A0A" }}>
+            {/* Header — hidden in embedded mode */}
+            {headerAndNav && (
             <header className="sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 backdrop-blur-xl sm:px-6" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(10,10,10,0.9)" }}>
                 <div className="flex items-center gap-3">
                     <Link href="/" className="flex items-center gap-1.5 text-white/40 hover:text-white/60 text-[13px] font-medium transition">
@@ -844,8 +850,9 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                     <Link href="/" className="rounded-lg px-3 py-1.5 font-sans text-[12px] font-medium" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>Dashboard</Link>
                 </div>
             </header>
+            )}
 
-            <div className="mx-auto flex max-w-5xl gap-0 lg:gap-8">
+            <div className={`mx-auto flex ${embedded ? "h-full" : "max-w-5xl"} gap-0 lg:gap-8`}>
                 {/* Sidebar — desktop */}
                 <nav className="sticky top-[57px] hidden h-fit w-52 shrink-0 flex-col gap-0.5 py-8 lg:flex">
                     {SECTION_GROUPS.map((g) => (

@@ -13,8 +13,8 @@ import { uploadGalleryImage } from "@/app/edit/gallery-actions";
 import { TodayTab, type ActivityItem } from "@/components/dashboard/today-tab";
 import { OrdersTab } from "@/components/dashboard/orders-tab";
 import { GuestsTab } from "@/components/dashboard/guests-tab";
-import { HubTab } from "@/components/dashboard/hub-tab";
 import { PlacePreviewEditable } from "@/components/place-preview-editable";
+import { SettingsClient, type SettingsClientProps } from "@/app/settings/settings-client";
 import { OrderDetailDrawer } from "@/components/dashboard/order-detail-drawer";
 import { GuestDetailDrawer } from "@/components/dashboard/guest-detail-drawer";
 import { OfferingDetailDrawer } from "@/components/dashboard/offering-detail-drawer";
@@ -97,6 +97,7 @@ interface OwnerDockProps {
   knowledge?: { id: string; content: string; category: string; created_at: string }[];
   aiLimits?: { enabled: boolean; free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
   menuItems?: { id: string; category: string; name: string; description: string | null; price_cents: number; in_stock: boolean; inventory_count: number | null }[];
+  settingsData?: Omit<SettingsClientProps, "embedded">;
 }
 
 const DEFAULT_CHECKLIST: ChecklistState = {
@@ -180,6 +181,7 @@ export function OwnerDock({
   knowledge: initialKnowledge,
   aiLimits: initialAiLimits,
   menuItems: initialMenuItems,
+  settingsData,
 }: OwnerDockProps) {
   const [activeTab, setActiveTab] = useState(0);
   const [analyticsView, setAnalyticsView] = useState<AnalyticsView>("today");
@@ -703,40 +705,13 @@ export function OwnerDock({
 
         {/* Tab 3: Settings */}
         <TabsContent value={2} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
-          <HubTab
-            hubData={hubData}
-            venueId={venue.id}
-            offeringsState={offeringsState}
-            galleryImages={galleryImages}
-            initialXpActions={initialXpActions}
-            initialXpMilestones={initialXpMilestones}
-            checklistPercent={checklistPercent}
-            checklist={checklistState}
-            reviewStatus={currentReviewStatus}
-            onFieldSave={handleFieldSave}
-            onPhotoUpload={handlePhotoUpload}
-            onSectionEdited={handleSectionEdited}
-            onOfferingTap={handleOpenOfferingDrawer}
-            onOfferingsChange={setOfferingsState}
-            onPublish={handlePublishToggle}
-            onReset={handleResetHub}
-            user={user}
-            initialStaff={initialStaff}
-            initialKnowledge={initialKnowledge}
-            initialAiLimits={initialAiLimits}
-            posProvider={venue.pos_provider}
-            posConnectedAt={venue.pos_connected_at}
-            initialMenuItems={initialMenuItems}
-            initialHours={pageData?.hours ?? null}
-            initialVenueData={{
-              address: venue.address,
-              type: venue.type,
-              vibe: venue.vibe,
-              max_occupancy: venue.max_occupancy ?? undefined,
-              rules: venue.rules ?? undefined,
-              check_in_radius_meters: venue.check_in_radius_meters ?? undefined,
-            }}
-          />
+          {settingsData ? (
+            <SettingsClient {...settingsData} embedded />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="font-sans text-[13px] text-gray-400">Loading settings...</p>
+            </div>
+          )}
         </TabsContent>
 
         {/* Mobile Bottom Tab Bar */}

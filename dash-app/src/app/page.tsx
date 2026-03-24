@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   // Check if user has a venue
   const { data: ownership } = await supabase
     .from("venue_owners")
-    .select("venue_id, role, venues(id, name, state, vibe, type, address, platform_fee_rate, pos_provider, pos_connected_at, max_occupancy, rules, check_in_radius_meters)")
+    .select("venue_id, role, venues(id, name, state, vibe, type, address, neighborhood, platform_fee_rate, pos_provider, pos_connected_at, max_occupancy, rules, check_in_radius_meters)")
     .eq("user_id", user.id)
     .limit(1)
     .single();
@@ -42,6 +42,7 @@ export default async function DashboardPage() {
     vibe: string;
     type: string;
     address: string;
+    neighborhood: string;
     platform_fee_rate: number | null;
     pos_provider: string | null;
     pos_connected_at: string | null;
@@ -66,8 +67,13 @@ export default async function DashboardPage() {
 
   const reviewStatus = venuePage?.review_status || "draft";
 
-  // ─── Fetch preview data for hub preview ────────────────────────
-  const [pageDataRes, offeringsRes, galleryRes, xpActionsRes, xpMilestonesRes] = await Promise.all([
+  // ─── Fetch preview + settings data ─────────────────────────────
+  const [
+    pageDataRes, offeringsRes, galleryRes, xpActionsRes, xpMilestonesRes,
+    settingsPageRes, settingsOfferingsRes, settingsGalleryRes, settingsXpActionsRes, settingsXpMilestonesRes,
+    settingsXpTemplatesRes, settingsMembersRes, settingsMemberCountRes, settingsDigitalAssetsRes,
+  ] = await Promise.all([
+    // Preview data
     serviceEarly
       .from("venue_pages")
       .select("slug, tagline, description, theme_color, hours, hero_image, onboarding_checklist")
@@ -92,6 +98,52 @@ export default async function DashboardPage() {
       .from("venue_xp_milestones")
       .select("name, threshold")
       .eq("venue_id", venue.id),
+    // Settings data (full page, full offerings, full gallery, full XP)
+    serviceEarly
+      .from("venue_pages")
+      .select("*")
+      .eq("venue_id", venue.id)
+      .single(),
+    serviceEarly
+      .from("venue_offerings")
+      .select("*")
+      .eq("venue_id", venue.id)
+      .order("sort_order", { ascending: true }),
+    serviceEarly
+      .from("venue_gallery")
+      .select("id, image_url, caption, sort_order")
+      .eq("venue_id", venue.id)
+      .order("sort_order", { ascending: true }),
+    serviceEarly
+      .from("venue_xp_actions")
+      .select("*")
+      .eq("venue_id", venue.id)
+      .order("sort_order", { ascending: true }),
+    serviceEarly
+      .from("venue_xp_milestones")
+      .select("*")
+      .eq("venue_id", venue.id)
+      .order("threshold", { ascending: true }),
+    serviceEarly
+      .from("venue_xp_templates")
+      .select("*")
+      .eq("venue_id", venue.id)
+      .order("created_at", { ascending: false }),
+    serviceEarly
+      .from("memberships")
+      .select("id, user_id, tier, created_at, profiles(phone, email, display_name)")
+      .eq("venue_id", venue.id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    serviceEarly
+      .from("memberships")
+      .select("id", { count: "exact", head: true })
+      .eq("venue_id", venue.id),
+    serviceEarly
+      .from("digital_assets")
+      .select("*")
+      .eq("hub_id", venue.id)
+      .order("sort_order", { ascending: true }),
   ]);
 
   const pageData = pageDataRes.data as {
@@ -430,6 +482,27 @@ export default async function DashboardPage() {
     perksRedeemedToday: perksTodayRes.count || 0,
   };
 
+  // ─── Settings data for embedded SettingsClient ─────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const settingsMembers = (settingsMembersRes.data || []).map((m: any) => ({
+    id: m.id,
+    user_id: m.user_id,
+    tier: m.tier,
+    created_at: m.created_at,
+    profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
+  }));
+
+  // Fetch staff-offering links
+  const settingsStaffIds = (staffRes.data || []).map((s: { id: string }) => s.id);
+  let staffOfferingLinks: { staff_id: string; offering_id: string }[] = [];
+  if (settingsStaffIds.length > 0) {
+    const { data: links } = await service
+      .from("staff_offerings")
+      .select("staff_id, offering_id")
+      .in("staff_id", settingsStaffIds);
+    staffOfferingLinks = links || [];
+  }
+
   return (
     <OwnerDock
       initialData={{
@@ -467,6 +540,46 @@ export default async function DashboardPage() {
       knowledge={knowledgeRes.data || []}
       aiLimits={aiLimitsRes.data || null}
       menuItems={(menuItemsRes.data || []) as { id: string; category: string; name: string; description: string | null; price_cents: number; in_stock: boolean; inventory_count: number | null }[]}
+      settingsData={{
+        user: { id: user.id, email: user.email || "" },
+        role: ownership.role,
+        venue: {
+          id: venue.id,
+          name: venue.name,
+          type: venue.type || "",
+          address: venue.address || "",
+          neighborhood: venue.neighborhood || "",
+          max_occupancy: venue.max_occupancy || 0,
+          vibe: venue.vibe || "",
+          rules: venue.rules || [],
+        },
+        page: settingsPageRes.data ? {
+          slug: settingsPageRes.data.slug,
+          tagline: settingsPageRes.data.tagline || "",
+          description: settingsPageRes.data.description || "",
+          theme_color: settingsPageRes.data.theme_color || "#F97316",
+          hero_image: settingsPageRes.data.hero_image || null,
+          hours: settingsPageRes.data.hours || [],
+          menu_sections: settingsPageRes.data.menu_sections || [],
+          review_status: settingsPageRes.data.review_status || "draft",
+          published: settingsPageRes.data.published || false,
+        } : null,
+        knowledge: knowledgeRes.data || [],
+        members: settingsMembers,
+        memberCount: settingsMemberCountRes.count || 0,
+        offerings: settingsOfferingsRes.data || [],
+        xpActions: settingsXpActionsRes.data || [],
+        xpMilestones: settingsXpMilestonesRes.data || [],
+        customTemplates: settingsXpTemplatesRes.data || [],
+        gallery: settingsGalleryRes.data || [],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        staff: (staffRes.data || []) as any[],
+        staffOfferingLinks,
+        aiLimits: aiLimitsRes.data || null,
+        digitalAssets: settingsDigitalAssetsRes.data || [],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        menuItems: (menuItemsRes.data || []).map((m: any) => ({ ...m, venue_id: venue.id })),
+      }}
     />
   );
 }
