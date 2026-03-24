@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createVenue } from "./actions";
 
@@ -26,12 +27,20 @@ const PLACE_TYPES = [
 ];
 
 export default function OnboardingPage() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
+  const [logs, setLogs] = useState<string[]>([]);
+
+  const log = (msg: string) => {
+    setLogs((prev) => [...prev, `${new Date().toLocaleTimeString()} — ${msg}`]);
+    setStatus(msg);
+  };
 
   const canSubmit = name.trim() && type && !saving;
 
@@ -40,8 +49,12 @@ export default function OnboardingPage() {
     if (!canSubmit) return;
     setSaving(true);
     setError("");
+    setLogs([]);
+
+    log("Creating your place...");
 
     try {
+      log("Geocoding address...");
       const result = await createVenue({
         name: name.trim(),
         type,
@@ -51,13 +64,27 @@ export default function OnboardingPage() {
         hours: "",
         tagline: "",
       });
+
       if (result?.error) {
+        log(`Error: ${result.error}`);
         setError(result.error);
         setSaving(false);
+        return;
       }
-      // On success, createVenue redirects to /
-    } catch {
-      setError("Something went wrong. Try again.");
+
+      if (result?.ok) {
+        log("Venue created successfully");
+        log("AI is generating offerings, XP, milestones, perks...");
+        log(`Slug: ${result.slug}`);
+        log("Redirecting to dashboard...");
+
+        // Give AI setup a moment to start, then redirect
+        setTimeout(() => router.push("/"), 1500);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      log(`Exception: ${msg}`);
+      setError(msg);
       setSaving(false);
     }
   }
@@ -89,7 +116,8 @@ export default function OnboardingPage() {
               placeholder="What's it called?"
               maxLength={60}
               autoFocus
-              className="w-full px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 outline-none"
+              disabled={saving}
+              className="w-full px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 outline-none disabled:opacity-50"
               style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
             />
           </div>
@@ -102,8 +130,9 @@ export default function OnboardingPage() {
                 <button
                   key={t.value}
                   type="button"
-                  onClick={() => setType(t.value)}
-                  className="flex items-center gap-2 px-3 py-2.5 font-sans text-[12px] font-medium transition active:scale-[0.97]"
+                  onClick={() => !saving && setType(t.value)}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-3 py-2.5 font-sans text-[12px] font-medium transition active:scale-[0.97] disabled:opacity-50"
                   style={{
                     backgroundColor: type === t.value ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.04)",
                     color: type === t.value ? "#F97316" : "rgba(255,255,255,0.4)",
@@ -125,7 +154,8 @@ export default function OnboardingPage() {
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="123 Main St, Austin TX"
-              className="w-full px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 outline-none"
+              disabled={saving}
+              className="w-full px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 outline-none disabled:opacity-50"
               style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
             />
           </div>
@@ -139,7 +169,8 @@ export default function OnboardingPage() {
               placeholder="What makes your place special? What do people come for?"
               rows={3}
               maxLength={300}
-              className="w-full resize-none px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 outline-none"
+              disabled={saving}
+              className="w-full resize-none px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 outline-none disabled:opacity-50"
               style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
             />
             <p className="mt-1 text-right font-sans text-[10px] text-white/15">{description.length}/300</p>
@@ -163,6 +194,25 @@ export default function OnboardingPage() {
             We'll auto-generate your offerings, rewards, and AI — you can edit everything from the dashboard.
           </p>
         </form>
+
+        {/* Status / Debug Log */}
+        {logs.length > 0 && (
+          <div className="mt-6 rounded-lg px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <p className="mb-2 font-sans text-[10px] font-semibold text-white/25">STATUS</p>
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+              {logs.map((l, i) => (
+                <p key={i} className="font-mono text-[11px] text-white/40">
+                  {l}
+                </p>
+              ))}
+              {saving && (
+                <p className="font-mono text-[11px] text-orange-400 animate-pulse">
+                  {status}...
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

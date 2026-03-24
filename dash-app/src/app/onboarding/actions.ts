@@ -162,7 +162,7 @@ export async function createVenue(formData: VenueFormData) {
   // 4. Trigger AI auto-generation of offerings, XP, milestones, perks (non-blocking)
   generateVenueSetup(venue.id, service).catch((err) => console.error("AI setup error:", err));
 
-  redirect("/");
+  return { ok: true, venueId: venue.id, slug };
 }
 
 export async function getOnboardingState() {
