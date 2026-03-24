@@ -71,6 +71,7 @@ export async function POST(request: Request) {
       settings: {
         unified_apis: ["pos"],
         auto_redirect: true,
+        sandbox_mode: false,
       },
     }),
   });
