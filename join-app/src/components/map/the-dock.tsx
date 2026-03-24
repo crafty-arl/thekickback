@@ -164,6 +164,156 @@ const TIER_CONFIG: Record<string, { color: string; label: string; next: string; 
   vip: { color: "#a78bfa", label: "VIP", next: "", threshold: Infinity },
 };
 
+// ─── Profile Identity (editable name + account) ─────────────────────
+
+function ProfileIdentity({ user, tierColor }: { user: { authId: string; email: string; kickbackScore: number; tier: string; streak: number }; tierColor: string }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState("");
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Load display name on mount
+  useEffect(() => {
+    fetch("/api/profile").then(r => r.json()).then(d => {
+      if (d.profile?.display_name) {
+        setDisplayName(d.profile.display_name);
+        setName(d.profile.display_name);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const saveName = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName: name.trim() }),
+      });
+      if (res.ok) {
+        setDisplayName(name.trim() || null);
+        setEditing(false);
+      }
+    } finally { setSaving(false); }
+  };
+
+  const deleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/profile", { method: "DELETE" });
+      if (res.ok) window.location.href = "/login";
+    } finally { setDeleting(false); }
+  };
+
+  const initial = (displayName || user.email)[0].toUpperCase();
+
+  return (
+    <>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`, border: `2px solid ${tierColor}40` }}>
+          <span className="font-sans text-[22px] font-bold" style={{ color: tierColor }}>{initial}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          {!editing ? (
+            <button onClick={() => { setName(displayName || ""); setEditing(true); }} className="flex items-center gap-1.5 group">
+              <p className="font-sans text-[14px] font-semibold text-white/80 truncate">{displayName || user.email}</p>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2" strokeLinecap="round" className="shrink-0 group-hover:stroke-white/50 transition">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                maxLength={50}
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditing(false); }}
+                className="flex-1 min-w-0 rounded-lg px-2.5 py-1.5 font-sans text-[13px] text-white/90 placeholder:text-white/20 outline-none"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              />
+              <button onClick={saveName} disabled={saving} className="shrink-0 rounded-lg px-2.5 py-1.5 font-sans text-[11px] font-bold text-black disabled:opacity-50" style={{ backgroundColor: tierColor }}>
+                {saving ? "..." : "Save"}
+              </button>
+              <button onClick={() => setEditing(false)} className="shrink-0 rounded-lg px-2 py-1.5 font-sans text-[11px] text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                Cancel
+              </button>
+            </div>
+          )}
+          {!editing && displayName && <p className="font-sans text-[11px] text-white/30 truncate">{user.email}</p>}
+          <div className="mt-1 flex items-center gap-2">
+            <span className="px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
+              {TIER_CONFIG[user.tier]?.label || "Explorer"}
+            </span>
+            <span className="font-mono text-[12px] font-bold" style={{ color: tierColor }}>{user.kickbackScore.toLocaleString()} XP</span>
+            {user.streak > 0 && <span className="font-sans text-[11px] font-semibold text-orange">🔥 {user.streak}</span>}
+          </div>
+          {TIER_CONFIG[user.tier]?.next && (
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="relative h-1.5 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min((user.kickbackScore / TIER_CONFIG[user.tier].threshold) * 100, 100)}%`, backgroundColor: tierColor }} />
+              </div>
+              <span className="font-sans text-[9px] text-white/20">{TIER_CONFIG[user.tier].next}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Account management — below settings section, rendered in parent */}
+      {/* Delete account is handled via confirmDelete state passed through */}
+    </>
+  );
+}
+
+function DeleteAccountButton() {
+  const [confirm, setConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  if (!confirm) {
+    return (
+      <button
+        onClick={() => setConfirm(true)}
+        className="flex w-full items-center justify-center gap-2 py-2.5 font-sans text-[12px] font-medium text-red-400/40 transition hover:text-red-400/60"
+        style={{ border: "1px solid rgba(239,68,68,0.08)" }}
+      >
+        Delete Account
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg p-3" style={{ backgroundColor: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)" }}>
+      <p className="font-sans text-[12px] text-red-400/80 mb-2">This will permanently delete your account, wallet, points, and all data. This cannot be undone.</p>
+      <div className="flex gap-2">
+        <button
+          onClick={async () => {
+            setDeleting(true);
+            try {
+              const res = await fetch("/api/profile", { method: "DELETE" });
+              if (res.ok) window.location.href = "/login";
+            } finally { setDeleting(false); }
+          }}
+          disabled={deleting}
+          className="flex-1 rounded-lg py-2 font-sans text-[12px] font-bold text-white disabled:opacity-50"
+          style={{ backgroundColor: "rgba(239,68,68,0.8)" }}
+        >
+          {deleting ? "Deleting..." : "Yes, Delete"}
+        </button>
+        <button
+          onClick={() => setConfirm(false)}
+          className="flex-1 rounded-lg py-2 font-sans text-[12px] font-medium text-white/40"
+          style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const PERK_EMOJI: Record<string, string> = { drink: "\u2615", food: "\ud83c\udf54", access: "\ud83d\udd11", experience: "\u2728", merch: "\ud83c\udf81", other: "\ud83c\udfaf" };
 const VIBE_ORDER: Record<string, number> = { lit: 4, packed: 4, busy: 3, moderate: 2, quiet: 1 };
 
@@ -4123,30 +4273,7 @@ export function TheDock({
                   <div className="px-4 pb-6">
 
                     {/* ── Identity + Score (merged hero) ── */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full" style={{ background: `linear-gradient(135deg, ${tierColor}30, ${tierColor}10)`, border: `2px solid ${tierColor}40` }}>
-                        <span className="font-sans text-[22px] font-bold" style={{ color: tierColor }}>{user.email[0].toUpperCase()}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-sans text-[14px] font-semibold text-white/80 truncate">{user.email}</p>
-                        <div className="mt-1 flex items-center gap-2">
-                          <span className="px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${tierColor}15`, color: tierColor }}>
-                            {TIER_CONFIG[user.tier]?.label || "Explorer"}
-                          </span>
-                          <span className="font-mono text-[12px] font-bold" style={{ color: tierColor }}>{user.kickbackScore.toLocaleString()} XP</span>
-                          {user.streak > 0 && <span className="font-sans text-[11px] font-semibold text-orange">🔥 {user.streak}</span>}
-                        </div>
-                        {/* Score bar */}
-                        {TIER_CONFIG[user.tier]?.next && (
-                          <div className="mt-1.5 flex items-center gap-2">
-                            <div className="relative h-1.5 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                              <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((user.kickbackScore / TIER_CONFIG[user.tier].threshold) * 100, 100)}%` }} transition={{ duration: 0.8 }} className="h-full rounded-full" style={{ backgroundColor: tierColor }} />
-                            </div>
-                            <span className="font-sans text-[9px] text-white/20">{TIER_CONFIG[user.tier].next}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <ProfileIdentity user={user} tierColor={tierColor} />
 
                     {/* ── Quick actions row ── */}
                     <div className="flex gap-2 mb-4">
@@ -4285,15 +4412,18 @@ export function TheDock({
                       </div>
                     </div>
 
-                    {/* Sign out */}
-                    <button
-                      onClick={async () => { const supabase = createClient(); await supabase.auth.signOut(); window.location.reload(); }}
-                      className="mt-4 flex w-full items-center justify-center gap-2 py-2.5 font-sans text-[12px] font-medium text-white/25 transition hover:text-white/40"
-                      style={{ border: "1px solid rgba(255,255,255,0.05)" }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-                      Sign Out
-                    </button>
+                    {/* Account actions */}
+                    <div className="mt-4 flex flex-col gap-2">
+                      <button
+                        onClick={async () => { const supabase = createClient(); await supabase.auth.signOut(); window.location.reload(); }}
+                        className="flex w-full items-center justify-center gap-2 py-2.5 font-sans text-[12px] font-medium text-white/25 transition hover:text-white/40"
+                        style={{ border: "1px solid rgba(255,255,255,0.05)" }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                        Sign Out
+                      </button>
+                      <DeleteAccountButton />
+                    </div>
                   </div>
                 )}
               </div>
