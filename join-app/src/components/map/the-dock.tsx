@@ -3032,7 +3032,7 @@ export function TheDock({
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6" />
                 </svg>
-                <span className="font-sans text-[10px] font-bold text-[#a78bfa]">KB</span>
+                <Image src="/logo.png" alt="KB" width={250} height={125} className="h-3.5 w-auto" />
               </motion.button>
             </div>
           )}
@@ -3055,10 +3055,7 @@ export function TheDock({
                 className="flex shrink-0 items-center gap-3 px-4 pb-2"
               >
                 {/* KB Logo */}
-                <div className="flex shrink-0 items-center">
-                  <span className="font-sans text-[18px] font-black tracking-tighter" style={{ color: "#F97316" }}>K</span>
-                  <span className="font-sans text-[18px] font-black tracking-tighter text-white/90" style={{ marginLeft: -2 }}>B</span>
-                </div>
+                <Image src="/logo.png" alt="theKickBack" width={500} height={250} className="h-6 w-auto shrink-0" />
 
                 {/* Profile */}
                 <button
