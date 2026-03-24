@@ -15,7 +15,7 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, display_name, email, phone, created_at")
+    .select("id, display_name, email, phone, created_at, discovery_radius_meters")
     .eq("id", user.id)
     .single();
 
@@ -29,24 +29,32 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const body = await req.json();
-  const { displayName } = body;
+  const { displayName, discoveryRadius } = body;
 
-  if (typeof displayName !== "string" || displayName.length > 50) {
-    return NextResponse.json({ error: "Invalid display name" }, { status: 400 });
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (displayName !== undefined) {
+    if (typeof displayName !== "string" || displayName.length > 50) {
+      return NextResponse.json({ error: "Invalid display name" }, { status: 400 });
+    }
+    updates.display_name = displayName.trim() || null;
   }
 
-  const trimmed = displayName.trim() || null;
+  if (discoveryRadius !== undefined) {
+    const r = Math.max(500, Math.min(50000, Number(discoveryRadius) || 5000));
+    updates.discovery_radius_meters = r;
+  }
 
   const { error } = await supabase
     .from("profiles")
-    .update({ display_name: trimmed, updated_at: new Date().toISOString() })
+    .update(updates)
     .eq("id", user.id);
 
   if (error) {
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, displayName: trimmed });
+  return NextResponse.json({ ok: true });
 }
 
 // DELETE /api/profile — delete account

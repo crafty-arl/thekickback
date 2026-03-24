@@ -12,7 +12,7 @@ const SEARCH_QUERIES = ["bar", "cafe", "restaurant", "lounge", "nightclub"];
 
 // Austin TX fallback center
 const DEFAULT_CENTER = { lat: 30.267, lng: -97.743 };
-const RADIUS = 5000; // 5 km
+const DEFAULT_RADIUS = 5000; // 5 km
 
 interface FsqPlace {
     fsq_place_id: string;
@@ -31,12 +31,13 @@ interface FsqPlace {
 async function fetchFsqPlaces(
     query: string,
     token: string,
-    center: { lat: number; lng: number }
+    center: { lat: number; lng: number },
+    radius: number = DEFAULT_RADIUS
 ): Promise<FsqPlace[]> {
     const params = new URLSearchParams({
         query,
         ll: `${center.lat},${center.lng}`,
-        radius: String(RADIUS),
+        radius: String(radius),
         limit: "15",
         fields: FSQ_FIELDS,
         sort: "POPULARITY",
@@ -77,7 +78,8 @@ function mapCategory(categories?: { name: string; short_name?: string }[]): stri
 
 export async function fetchDiscoveryVenuesForLocation(
     lat: number,
-    lng: number
+    lng: number,
+    radiusMeters: number = DEFAULT_RADIUS
 ): Promise<Venue[]> {
     const token = process.env.FOURSQUARE_SERVICE_TOKEN;
     if (!token) {
@@ -89,7 +91,7 @@ export async function fetchDiscoveryVenuesForLocation(
 
     // Fetch all categories in parallel
     const results = await Promise.all(
-        SEARCH_QUERIES.map((q) => fetchFsqPlaces(q, token, center))
+        SEARCH_QUERIES.map((q) => fetchFsqPlaces(q, token, center, radiusMeters))
     );
 
     // Flatten and deduplicate by fsq_place_id

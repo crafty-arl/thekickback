@@ -314,6 +314,64 @@ function DeleteAccountButton() {
   );
 }
 
+// ─── Discovery radius setting ───────────────────────────────────────
+
+const RADIUS_OPTIONS = [
+  { label: "1 km", value: 1000 },
+  { label: "5 km", value: 5000 },
+  { label: "10 km", value: 10000 },
+  { label: "25 km", value: 25000 },
+  { label: "50 km", value: 50000 },
+];
+
+function DiscoveryRadiusSetting() {
+  const [radius, setRadius] = useState(5000);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/profile").then(r => r.json()).then(d => {
+      if (d.profile?.discovery_radius_meters) setRadius(d.profile.discovery_radius_meters);
+    }).catch(() => {});
+  }, []);
+
+  const update = async (val: number) => {
+    setRadius(val);
+    setSaving(true);
+    try {
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ discoveryRadius: val }),
+      });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="rounded-lg px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-sans text-[11px] font-semibold text-white/40">Discovery Radius</span>
+        {saving && <span className="font-sans text-[9px] text-white/20">Saving...</span>}
+      </div>
+      <div className="flex gap-1.5">
+        {RADIUS_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => update(opt.value)}
+            className="flex-1 py-1.5 font-sans text-[10px] font-medium text-center transition"
+            style={{
+              backgroundColor: radius === opt.value ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.04)",
+              color: radius === opt.value ? "#F97316" : "rgba(255,255,255,0.25)",
+              border: `1px solid ${radius === opt.value ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.06)"}`,
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Shop view for venue dock ───────────────────────────────────────
 
 const SHOP_TYPE_LABELS: Record<string, { icon: string; label: string }> = {
@@ -2432,7 +2490,7 @@ export function TheDock({
         const res = await fetch("/api/chat/general", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: msg }),
+          body: JSON.stringify({ message: msg, lat: userLocation?.latitude, lng: userLocation?.longitude }),
         });
 
         const aiMsgId = `ai-${Date.now()}`;
@@ -4549,9 +4607,10 @@ export function TheDock({
                     {/* ── Settings ── */}
                     <div className="mt-4">
                       <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">SETTINGS</span>
-                      <div className="mt-2">
+                      <div className="mt-2 flex flex-col gap-2">
+                        <DiscoveryRadiusSetting />
                         <DeviceManager key={deviceRefreshKey} />
-                        <div className="mt-2"><PreferencesSection /></div>
+                        <PreferencesSection />
                       </div>
                     </div>
 

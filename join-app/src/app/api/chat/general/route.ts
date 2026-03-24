@@ -100,22 +100,28 @@ const TYPE_KEYWORDS: Record<string, string[]> = {
   coworking: ["cowork", "desk", "office", "workspace", "meeting room"],
 };
 
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function findRelevantVenues(
   message: string,
   venues: VenueRow[],
-  offerings: OfferingRow[]
+  offerings: OfferingRow[],
+  userLat: number | null,
+  userLng: number | null
 ): string[] {
   const lower = message.toLowerCase();
   const matched = new Set<string>();
 
   // Match by offering name/description
   for (const o of offerings) {
-    if (lower.includes(o.name.toLowerCase())) {
-      matched.add(o.venue_id);
-    }
-    if (o.description && lower.split(/\s+/).some(w => w.length > 3 && o.description!.toLowerCase().includes(w))) {
-      matched.add(o.venue_id);
-    }
+    if (lower.includes(o.name.toLowerCase())) matched.add(o.venue_id);
+    if (o.description && lower.split(/\s+/).some(w => w.length > 3 && o.description!.toLowerCase().includes(w))) matched.add(o.venue_id);
   }
 
   // Match by venue type keywords
@@ -129,18 +135,27 @@ function findRelevantVenues(
 
   // Match by venue name
   for (const v of venues) {
-    if (lower.includes(v.name.toLowerCase())) {
-      matched.add(v.id);
-    }
+    if (lower.includes(v.name.toLowerCase())) matched.add(v.id);
   }
 
-  // If no matches, return first 5 venues
-  if (matched.size === 0) {
-    return venues
-      .slice(0, 5)
-      .map(v => v.id);
+  // Sort matched venues by proximity if we have user location
+  if (userLat !== null && userLng !== null) {
+    const sortByDist = (ids: string[]) =>
+      ids.sort((a, b) => {
+        const va = venues.find(v => v.id === a);
+        const vb = venues.find(v => v.id === b);
+        const da = va?.latitude ? haversineKm(userLat, userLng, va.latitude, va.longitude!) : 999;
+        const db = vb?.latitude ? haversineKm(userLat, userLng, vb.latitude, vb.longitude!) : 999;
+        return da - db;
+      });
+
+    if (matched.size > 0) return sortByDist(Array.from(matched)).slice(0, 5);
+
+    // No keyword matches — return 5 closest venues
+    return sortByDist(venues.filter(v => v.latitude).map(v => v.id)).slice(0, 5);
   }
 
+  if (matched.size === 0) return venues.slice(0, 5).map(v => v.id);
   return Array.from(matched).slice(0, 5);
 }
 
@@ -175,11 +190,14 @@ function formatOfferingsForPrompt(offerings: OfferingRow[]): string {
 
 export async function POST(request: Request) {
   const [body, authClient] = await Promise.all([request.json(), createAuthClient()]);
-  const { message } = body;
+  const { message, lat, lng } = body;
 
   if (!message) {
     return Response.json({ reply: "Missing message." }, { status: 400 });
   }
+
+  const userLat = typeof lat === "number" ? lat : null;
+  const userLng = typeof lng === "number" ? lng : null;
 
   const { data: { user: authUser } } = await authClient.auth.getUser();
   const userId = authUser?.id || null;
@@ -193,7 +211,7 @@ export async function POST(request: Request) {
   ]);
 
   // ─── Step 1: Identify relevant venues ────────────────────────
-  const relevantIds = findRelevantVenues(message, venues, offerings);
+  const relevantIds = findRelevantVenues(message, venues, offerings, userLat, userLng);
   const relevantVenues = venues.filter(v => relevantIds.includes(v.id));
 
   // Group offerings by venue for quick lookup
@@ -218,9 +236,12 @@ export async function POST(request: Request) {
 
   // ─── Step 3: Build synthesis prompt ──────────────────────────
   const venueBlocks = knowledgeBases.map(({ venue, knowledge, offerings: vOff }) => {
+    const dist = (userLat !== null && userLng !== null && venue.latitude)
+      ? haversineKm(userLat, userLng, venue.latitude, venue.longitude!).toFixed(1) + " km away"
+      : null;
     return [
       `VENUE: ${venue.name} (id: ${venue.id})`,
-      `Type: ${venue.type || "venue"} | Vibe: ${venue.vibe}${venue.neighborhood ? ` | Area: ${venue.neighborhood}` : ""}${venue.address ? ` | Address: ${venue.address}` : ""}`,
+      `Type: ${venue.type || "venue"} | Vibe: ${venue.vibe}${dist ? ` | ${dist}` : ""}${venue.neighborhood ? ` | Area: ${venue.neighborhood}` : ""}${venue.address ? ` | Address: ${venue.address}` : ""}`,
       knowledge ? `Knowledge:\n${knowledge}` : "",
       `Offerings:\n${formatOfferingsForPrompt(vOff)}`,
     ].filter(Boolean).join("\n");
@@ -234,6 +255,7 @@ export async function POST(request: Request) {
 
   const context = [
     "You are KickBack's concierge — the master agent for theKickBack platform.",
+    userLat !== null ? `The user's current location: ${userLat.toFixed(4)}, ${userLng!.toFixed(4)}. Prioritize nearby venues. Mention distance when recommending.` : "",
     "CRITICAL: Never mention texting, SMS, phone numbers, or 'text JOIN.' There is no texting feature. Everything happens through this chat.",
     "",
     `A user asked: "${message}"`,

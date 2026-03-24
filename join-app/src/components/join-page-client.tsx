@@ -71,7 +71,17 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 fly();
 
                 try {
-                    const res = await fetch(`/api/discover?lat=${latitude}&lng=${longitude}`);
+                    // Fetch user's discovery radius if logged in
+                    let radius = 5000;
+                    try {
+                        const profileRes = await fetch("/api/profile");
+                        if (profileRes.ok) {
+                            const p = await profileRes.json();
+                            if (p.profile?.discovery_radius_meters) radius = p.profile.discovery_radius_meters;
+                        }
+                    } catch {}
+
+                    const res = await fetch(`/api/discover?lat=${latitude}&lng=${longitude}&radius=${radius}`);
                     if (!res.ok) return;
                     const localVenues: Venue[] = await res.json();
 
@@ -86,10 +96,23 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 }
             },
             () => {
-                // Geolocation denied or unavailable
+                // Geolocation denied or unavailable — try again with lower accuracy
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+                    () => {},
+                    { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
+                );
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
         );
+
+        // Watch for location updates
+        const watchId = navigator.geolocation.watchPosition(
+            (pos) => setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+            () => {},
+            { enableHighAccuracy: true, maximumAge: 30000 }
+        );
+        return () => navigator.geolocation.clearWatch(watchId);
     }, [serverVenues]);
 
     const navigateVenue = useCallback((dir: -1 | 1) => {
