@@ -18,11 +18,15 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // Check if user has a venue
+  const sandboxMode = await isSandbox();
+  const mode = sandboxMode ? "test" : "live";
+
+  // Check if user has a venue (filtered by sandbox/live mode)
   const { data: ownership } = await supabase
     .from("venue_owners")
-    .select("venue_id, role, venues(id, name, state, vibe, type, address, neighborhood, platform_fee_rate, pos_provider, pos_connected_at, max_occupancy, rules, check_in_radius_meters)")
+    .select("venue_id, role, venues!inner(id, name, state, vibe, type, address, neighborhood, platform_fee_rate, pos_provider, pos_connected_at, max_occupancy, rules, check_in_radius_meters, mode)")
     .eq("user_id", user.id)
+    .eq("venues.mode", mode)
     .limit(1)
     .single();
 
@@ -50,9 +54,6 @@ export default async function DashboardPage() {
     rules: string[] | null;
     check_in_radius_meters: number | null;
   };
-
-  const sandboxMode = await isSandbox();
-  const mode = sandboxMode ? "test" : "live";
 
   // ─── Check review status ─────────────────────────────────────────
   const serviceEarly = createServiceClient(

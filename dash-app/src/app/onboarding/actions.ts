@@ -2,8 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { redirect } from "next/navigation";
 import { sendEmail, wrap } from "@/lib/email";
+import { isSandbox } from "@/lib/stripe";
 
 interface VenueFormData {
   name: string;
@@ -90,15 +90,19 @@ export async function createVenue(formData: VenueFormData) {
     });
   }
 
-  // Delete ALL existing venues for this user (allows regeneration)
+  // Determine sandbox or live mode
+  const sandboxMode = await isSandbox();
+  const mode = sandboxMode ? "test" : "live";
+
+  // Delete existing venues for this user IN THIS MODE (allows regeneration)
   const { data: existingOwnerships } = await service
     .from("venue_owners")
-    .select("venue_id")
-    .eq("user_id", user.id);
+    .select("venue_id, venues!inner(mode)")
+    .eq("user_id", user.id)
+    .eq("venues.mode", mode);
 
   if (existingOwnerships && existingOwnerships.length > 0) {
     for (const o of existingOwnerships) {
-      // CASCADE deletes venue_pages, venue_owners, offerings, xp, perks, knowledge, gallery, staff, etc.
       const { error: delErr } = await service.from("venues").delete().eq("id", o.venue_id);
       if (delErr) console.error("Failed to delete venue", o.venue_id, delErr.message);
     }
@@ -118,6 +122,7 @@ export async function createVenue(formData: VenueFormData) {
       lat,
       lng,
       rules: [],
+      mode,
     })
     .select("id")
     .single();

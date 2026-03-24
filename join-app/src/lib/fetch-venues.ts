@@ -44,7 +44,7 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
       hero_image,
       logo,
       hours,
-      venues (
+      venues!inner (
         id,
         name,
         type,
@@ -56,11 +56,13 @@ export async function fetchApprovedVenues(): Promise<VenueData[]> {
         lng,
         vibe,
         phone,
-        twilio_number
+        twilio_number,
+        mode
       )
     `)
         .eq("published", true)
-        .eq("review_status", "approved");
+        .eq("review_status", "approved")
+        .eq("venues.mode", "live");
 
     if (error) {
         console.error("[fetchApprovedVenues] Supabase error:", error.message);
