@@ -90,29 +90,18 @@ export async function createVenue(formData: VenueFormData) {
     });
   }
 
-  // Delete existing venue if user already has one (allows regeneration)
-  const { data: existingOwnership } = await service
+  // Delete ALL existing venues for this user (allows regeneration)
+  const { data: existingOwnerships } = await service
     .from("venue_owners")
     .select("venue_id")
-    .eq("user_id", user.id)
-    .limit(1)
-    .single();
+    .eq("user_id", user.id);
 
-  if (existingOwnership) {
-    const vid = existingOwnership.venue_id;
-    // Clean up all related data
-    await Promise.all([
-      service.from("venue_offerings").delete().eq("venue_id", vid),
-      service.from("venue_xp_actions").delete().eq("venue_id", vid),
-      service.from("venue_xp_milestones").delete().eq("venue_id", vid),
-      service.from("venue_perks").delete().eq("venue_id", vid),
-      service.from("venue_knowledge").delete().eq("venue_id", vid),
-      service.from("venue_gallery").delete().eq("venue_id", vid),
-      service.from("venue_pages").delete().eq("venue_id", vid),
-      service.from("venue_staff").delete().eq("venue_id", vid),
-      service.from("venue_owners").delete().eq("venue_id", vid),
-    ]);
-    await service.from("venues").delete().eq("id", vid);
+  if (existingOwnerships && existingOwnerships.length > 0) {
+    for (const o of existingOwnerships) {
+      // CASCADE deletes venue_pages, venue_owners, offerings, xp, perks, knowledge, gallery, staff, etc.
+      const { error: delErr } = await service.from("venues").delete().eq("id", o.venue_id);
+      if (delErr) console.error("Failed to delete venue", o.venue_id, delErr.message);
+    }
   }
 
   // 1. Create venue
