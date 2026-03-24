@@ -55,6 +55,9 @@ export async function updateVenue(venueId: string, data: {
     lat?: number | null;
     lng?: number | null;
     check_in_radius_meters?: number;
+    plan?: string;
+    platform_fee_rate?: number;
+    [key: string]: unknown;
 }) {
     const auth = await getAuthVenue();
     if (!auth) return { error: "Not authenticated" };

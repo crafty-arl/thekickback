@@ -144,9 +144,14 @@ export async function POST(req: NextRequest) {
     ? "https://sandbox.thekickback.net"
     : (process.env.NEXT_PUBLIC_APP_URL || "https://join.thekickback.net");
 
-  // Get venue's connected Stripe account for payment routing
+  // Get venue's connected Stripe account and fee rate
+  const { data: venueDetails } = await supabase
+    .from("venues")
+    .select("platform_fee_rate")
+    .eq("id", venueId)
+    .single();
   const stripeAccountId = (venueStripe as Record<string, unknown>)[accountCol] as string;
-  const feeRate = 0.10; // 10% platform fee
+  const feeRate = (venueDetails?.platform_fee_rate as number) || 0.15; // Defaults to free plan (15%)
 
   try {
     const session = await stripe.checkout.sessions.create({

@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     if (stripeAccountId && result.stripe_customer_id) {
       try {
         const stripe = new Stripe(stripeKey, { apiVersion: "2026-02-25.clover" });
-        const feeRate = (venue as Record<string, unknown>)?.platform_fee_rate as number || 0.10;
+        const feeRate = (venue as Record<string, unknown>)?.platform_fee_rate as number || 0.15;
         const venueAmount = Math.round(amountCents * (1 - feeRate));
 
         // Transfer to venue's connected account

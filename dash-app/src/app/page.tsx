@@ -24,7 +24,7 @@ export default async function DashboardPage() {
   // Check if user has a venue (filtered by sandbox/live mode)
   const { data: ownership } = await supabase
     .from("venue_owners")
-    .select("venue_id, role, venues!inner(id, name, state, vibe, type, address, neighborhood, platform_fee_rate, pos_provider, pos_connected_at, max_occupancy, rules, check_in_radius_meters, mode)")
+    .select("venue_id, role, venues!inner(id, name, state, vibe, type, address, neighborhood, platform_fee_rate, plan, pos_provider, pos_connected_at, max_occupancy, rules, check_in_radius_meters, mode)")
     .eq("user_id", user.id)
     .eq("venues.mode", mode)
     .limit(1)
@@ -441,7 +441,7 @@ export default async function DashboardPage() {
     .reduce((sum, o) => sum + (o.total_cents || 0), 0);
 
   // Process wallet transactions (payments received)
-  const feeRate = venue.platform_fee_rate ?? 0.10;
+  const feeRate = venue.platform_fee_rate ?? 0.15;
   const rawTransactions = (walletTxRes.data || []).map((t: Record<string, unknown>) => ({
     ...t,
     profiles: Array.isArray(t.profiles) ? t.profiles[0] : t.profiles,

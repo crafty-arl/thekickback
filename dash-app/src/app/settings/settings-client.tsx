@@ -2402,6 +2402,54 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
 
                         {/* ─── Payments ─────────────────────────────────────────── */}
                         <Card id="payments" title="Payments" desc="Connect Stripe to accept payments from guests and receive payouts.">
+                            {/* Platform plan */}
+                            <div className="mb-5">
+                                <p className="mb-2 font-sans text-[11px] font-semibold tracking-[1.5px]" style={{ color: "rgba(255,255,255,0.25)" }}>YOUR PLAN</p>
+                                <div className="flex flex-col gap-2">
+                                    {([
+                                        { id: "free", label: "Free", fee: "15%", desc: "No monthly cost. 15% platform fee on all transactions.", price: "$0/mo", color: "#94a3b8" },
+                                        { id: "pro", label: "Pro", fee: "10%", desc: "Lower fees, priority support. 10% platform fee.", price: "$29/mo", color: "#F97316" },
+                                        { id: "business", label: "Business", fee: "5%", desc: "Lowest fees, dedicated support. 5% platform fee.", price: "$79/mo", color: "#A78BFA" },
+                                    ] as const).map((p) => {
+                                        const current = (venue as Record<string, unknown>).plan as string || "free";
+                                        const isActive = current === p.id;
+                                        return (
+                                            <button
+                                                key={p.id}
+                                                onClick={async () => {
+                                                    if (isActive) return;
+                                                    const feeMap: Record<string, number> = { free: 0.15, pro: 0.10, business: 0.05 };
+                                                    setSaving(true);
+                                                    await updateVenue(venue.id, { plan: p.id, platform_fee_rate: feeMap[p.id] } as Record<string, unknown>);
+                                                    setSaving(false);
+                                                    setMsg(`Switched to ${p.label} plan`);
+                                                    setTimeout(() => setMsg(""), 2000);
+                                                }}
+                                                className="flex items-center gap-3 rounded-xl p-3 text-left transition"
+                                                style={{
+                                                    backgroundColor: isActive ? `${p.color}10` : "rgba(255,255,255,0.02)",
+                                                    border: `1px solid ${isActive ? `${p.color}30` : "rgba(255,255,255,0.06)"}`,
+                                                }}
+                                            >
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${p.color}15` }}>
+                                                    <span className="font-sans text-[14px] font-bold" style={{ color: p.color }}>{p.fee}</span>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-sans text-[13px] font-semibold" style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.6)" }}>{p.label}</span>
+                                                        <span className="font-mono text-[11px]" style={{ color: p.color }}>{p.price}</span>
+                                                        {isActive && <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold" style={{ backgroundColor: `${p.color}20`, color: p.color }}>CURRENT</span>}
+                                                    </div>
+                                                    <p className="mt-0.5 font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>{p.desc}</p>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className="mt-2 font-sans text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>
+                                    The platform fee is deducted from each transaction. The rest goes directly to your Stripe account.
+                                </p>
+                            </div>
                             <StripeConnect />
                         </Card>
 
