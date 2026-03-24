@@ -214,7 +214,7 @@ export function HubTab({
   return (
     <div className="flex flex-1 min-h-0">
       {/* Main column */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-0">
+      <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-y-auto no-scrollbar">
         {/* Setup checklist + publish controls */}
         <div className="shrink-0 mx-4 mt-3 flex flex-col gap-2">
           {/* Progress bar + expand toggle */}
@@ -446,25 +446,6 @@ export function HubTab({
           </div>
         </div>
       </div>
-
-      {/* Desktop: live iframe preview */}
-      {hubData.slug && (
-        <div className="hidden lg:flex w-[420px] shrink-0 items-center justify-center bg-gray-50 border-l border-black/[0.08]">
-          <div className="flex flex-col items-center gap-3">
-            <div className="overflow-hidden rounded-[32px] border-2 border-black/[0.08]" style={{ width: 375, height: 680 }}>
-              <iframe
-                key={previewKey ?? 0}
-                src={`https://join.thekickback.net/${hubData.slug}`}
-                className="h-full w-full border-none bg-white"
-                title="Hub Preview"
-              />
-            </div>
-            <span className="font-mono text-[10px] text-gray-300">
-              join.thekickback.net/{hubData.slug}
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* ─── Settings Drawers ───────────────────────────────────── */}
       <AnimatePresence>

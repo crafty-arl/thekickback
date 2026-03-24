@@ -14,6 +14,7 @@ import { TodayTab, type ActivityItem } from "@/components/dashboard/today-tab";
 import { OrdersTab } from "@/components/dashboard/orders-tab";
 import { GuestsTab } from "@/components/dashboard/guests-tab";
 import { HubTab } from "@/components/dashboard/hub-tab";
+import { PlacePreviewEditable } from "@/components/place-preview-editable";
 import { OrderDetailDrawer } from "@/components/dashboard/order-detail-drawer";
 import { GuestDetailDrawer } from "@/components/dashboard/guest-detail-drawer";
 import { OfferingDetailDrawer } from "@/components/dashboard/offering-detail-drawer";
@@ -123,41 +124,26 @@ function extractTopics(messages: ChatMessage[]): { topic: string; count: number 
 
 // ─── Tab icon components ────────────────────────────────────────────
 
-function TodayIcon({ active }: { active: boolean }) {
+function AnalyticsIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+      <path d="M18 20V10" /><path d="M12 20V4" /><path d="M6 20v-6" />
     </svg>
   );
 }
 
-function OrdersIcon({ active }: { active: boolean }) {
+function PreviewIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
+      <rect x="5" y="2" width="14" height="20" rx="2" ry="2" /><line x1="12" y1="18" x2="12.01" y2="18" />
     </svg>
   );
 }
 
-function GuestsIcon({ active }: { active: boolean }) {
+function SettingsIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
-}
-
-function HubIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
+      <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
   );
 }
@@ -172,6 +158,9 @@ function ScanIcon() {
     </svg>
   );
 }
+
+// ─── Analytics sub-tab type ─────────────────────────────────────────
+type AnalyticsView = "today" | "orders" | "guests";
 
 // ─── Main Component ─────────────────────────────────────────────────
 
@@ -193,6 +182,7 @@ export function OwnerDock({
   menuItems: initialMenuItems,
 }: OwnerDockProps) {
   const [activeTab, setActiveTab] = useState(0);
+  const [analyticsView, setAnalyticsView] = useState<AnalyticsView>("today");
 
   // Checklist
   const [checklistState, setChecklistState] = useState<ChecklistState>(
@@ -222,9 +212,6 @@ export function OwnerDock({
   const [galleryImages, setGalleryImages] = useState(initialGallery || []);
   const [offeringsState, setOfferingsState] = useState(initialOfferings || []);
 
-  // Preview refresh key (increment to force iframe reload)
-  const [previewKey, setPreviewKey] = useState(0);
-
   // Drawer states
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<GuestSession | null>(null);
@@ -237,22 +224,18 @@ export function OwnerDock({
   } | null>(null);
   const [drawerSaving, setDrawerSaving] = useState(false);
 
-  // Local orders state for status updates
+  // Local orders state
   const [ordersState, setOrdersState] = useState(initialData.orders);
 
-  // Review status (mutable for publish/draft toggle)
+  // Review status
   const [currentReviewStatus, setCurrentReviewStatus] = useState(reviewStatus);
 
   const isApproved = !currentReviewStatus || currentReviewStatus === "approved";
-  const isPreApproval = currentReviewStatus && currentReviewStatus !== "approved";
   const checklistCompleted = Object.values(checklistState).filter(Boolean).length;
   const checklistTotal = Object.keys(checklistState).length;
   const checklistPercent = Math.round((checklistCompleted / checklistTotal) * 100);
 
   const feeRate = initialData.revenueStats?.platformFeeRate || 0.1;
-  const pendingBookings = initialData.bookings.filter(
-    (b) => new Date(b.starts_at) > new Date() && b.cal_status === "pending"
-  ).length;
 
   // ─── Insights: Top Selling Items ──────────────────────────────────
 
@@ -278,8 +261,6 @@ export function OwnerDock({
       .slice(0, 5);
   }, [ordersState]);
 
-  // ─── Insights: Recent Purchases ───────────────────────────────────
-
   const recentPurchases = useMemo(() => {
     return ordersState
       .filter((o) => o.status !== "cancelled" && o.status !== "refunded")
@@ -292,8 +273,6 @@ export function OwnerDock({
         time: o.created_at,
       }));
   }, [ordersState]);
-
-  // ─── Insights: XP Activity ────────────────────────────────────────
 
   const xpBreakdown = useMemo(() => {
     if (!xpActivity || xpActivity.length === 0) return [];
@@ -326,13 +305,10 @@ export function OwnerDock({
     return Math.max(...xpBreakdown.map((x) => x.count));
   }, [xpBreakdown]);
 
-  // ─── Insights: Bot Conversation Topics ────────────────────────────
-
   const topics = useMemo(() => {
     return extractTopics(initialData.messages as ChatMessage[]);
   }, [initialData.messages]);
 
-  // ─── Today tab data ──────────────────────────────────────────
   const ordersToday = useMemo(() => {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     return ordersState.filter(o => new Date(o.created_at) >= todayStart && o.status !== "cancelled" && o.status !== "refunded");
@@ -414,7 +390,6 @@ export function OwnerDock({
     [checklistState]
   );
 
-  // ─── Publish / Draft toggle ──────────────────────────────────
   const handlePublishToggle = useCallback(async () => {
     const newStatus = isApproved ? "draft" : "approved";
     try {
@@ -429,7 +404,6 @@ export function OwnerDock({
     } catch { /* ignore */ }
   }, [isApproved, venue.id]);
 
-  // ─── Reset hub to blank ──────────────────────────────────────
   const handleResetHub = useCallback(async () => {
     try {
       const res = await fetch("/api/venue/reset", {
@@ -472,7 +446,6 @@ export function OwnerDock({
     []
   );
 
-  // ─── Drawer: Refund order ──────────────────────────────────
   const handleRefundOrder = useCallback(
     async (orderId: string) => {
       setDrawerSaving(true);
@@ -497,7 +470,6 @@ export function OwnerDock({
     []
   );
 
-  // ─── Drawer: Offering actions ──────────────────────────────
   const handleOpenOfferingDrawer = useCallback(
     (offering: { id: string; name: string; type: string; price_cents: number; description?: string }) => {
       setSelectedOffering(offering);
@@ -623,86 +595,114 @@ export function OwnerDock({
               value={0}
               className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
             >
-              <TodayIcon active={activeTab === 0} />
-              Today
+              <AnalyticsIcon active={activeTab === 0} />
+              Analytics
             </TabsTrigger>
             <TabsTrigger
               value={1}
               className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
             >
-              <OrdersIcon active={activeTab === 1} />
-              Orders
+              <PreviewIcon active={activeTab === 1} />
+              Preview
             </TabsTrigger>
             <TabsTrigger
               value={2}
               className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
             >
-              <GuestsIcon active={activeTab === 2} />
-              Guests
-            </TabsTrigger>
-            <TabsTrigger
-              value={3}
-              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
-            >
-              <HubIcon active={activeTab === 3} />
-              Hub
+              <SettingsIcon active={activeTab === 2} />
+              Settings
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* Tab 1: Today */}
+        {/* Tab 1: Analytics */}
         <TabsContent value={0} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
-          <TodayTab
-            revenueToday={initialData.revenueStats?.todayRevenue || 0}
-            ordersToday={ordersToday.length}
-            activeGuests={initialData.sessions.length}
-            members={initialData.stats.members}
-            feeRate={feeRate}
-            pendingRequests={pendingRequests}
-            upcomingBookings={upcomingBookings}
-            recentActivity={recentActivity}
-            onRequestsTap={() => setActiveTab(2)}
-            onOrderTap={(order) => setSelectedOrder(order)}
-            onGuestTap={(guest) => setSelectedGuest(guest)}
+          {/* Sub-navigation pills */}
+          <div className="sticky top-0 z-[5] bg-gray-50 px-4 pt-3 pb-1">
+            <div className="flex gap-2">
+              {(["today", "orders", "guests"] as const).map((view) => (
+                <button
+                  key={view}
+                  onClick={() => setAnalyticsView(view)}
+                  className={`rounded-full px-3.5 py-1.5 font-sans text-[12px] font-medium transition ${
+                    analyticsView === view
+                      ? "bg-orange-500 text-white"
+                      : "bg-white border border-black/[0.06] text-gray-500 hover:bg-black/[0.02]"
+                  }`}
+                >
+                  {view === "today" ? "Today" : view === "orders" ? "Orders" : "Guests"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {analyticsView === "today" && (
+            <TodayTab
+              revenueToday={initialData.revenueStats?.todayRevenue || 0}
+              ordersToday={ordersToday.length}
+              activeGuests={initialData.sessions.length}
+              members={initialData.stats.members}
+              feeRate={feeRate}
+              pendingRequests={pendingRequests}
+              upcomingBookings={upcomingBookings}
+              recentActivity={recentActivity}
+              onRequestsTap={() => setAnalyticsView("guests")}
+              onOrderTap={(order) => setSelectedOrder(order)}
+              onGuestTap={(guest) => setSelectedGuest(guest)}
+            />
+          )}
+
+          {analyticsView === "orders" && (
+            <OrdersTab
+              ordersState={ordersState}
+              revenueStats={initialData.revenueStats}
+              transactions={initialData.transactions}
+              feeRate={feeRate}
+              topSellingItems={topSellingItems}
+              recentPurchases={recentPurchases}
+              onOrderTap={(order) => setSelectedOrder(order)}
+            />
+          )}
+
+          {analyticsView === "guests" && (
+            <GuestsTab
+              sessions={initialData.sessions}
+              stats={{ totalToday: initialData.stats.totalToday, members: initialData.stats.members }}
+              bookings={initialData.bookings}
+              xpBreakdown={xpBreakdown}
+              maxXpCount={maxXpCount}
+              recentXp={recentXp}
+              topics={topics}
+              onGuestTap={(guest) => setSelectedGuest(guest)}
+              requests={initialData.requests}
+              perks={initialData.perks}
+              redemptions={initialData.redemptions}
+              multipliers={initialData.multipliers}
+              leaderboard={initialData.leaderboard}
+              pointsIssuedToday={initialData.stats.pointsIssuedToday || 0}
+              perksRedeemedToday={initialData.stats.perksRedeemedToday || 0}
+            />
+          )}
+        </TabsContent>
+
+        {/* Tab 2: Preview — live editable venue page */}
+        <TabsContent value={1} className="flex-1 min-h-0">
+          <PlacePreviewEditable
+            data={hubData}
+            venueId={venue.id}
+            offerings={offeringsState}
+            galleryImages={galleryImages}
+            xpActions={initialXpActions}
+            xpMilestones={initialXpMilestones}
+            onFieldSave={handleFieldSave}
+            onPhotoUpload={handlePhotoUpload}
+            onSectionEdited={handleSectionEdited}
+            onOfferingTap={handleOpenOfferingDrawer}
           />
         </TabsContent>
 
-        {/* Tab 2: Orders */}
-        <TabsContent value={1} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
-          <OrdersTab
-            ordersState={ordersState}
-            revenueStats={initialData.revenueStats}
-            transactions={initialData.transactions}
-            feeRate={feeRate}
-            topSellingItems={topSellingItems}
-            recentPurchases={recentPurchases}
-            onOrderTap={(order) => setSelectedOrder(order)}
-          />
-        </TabsContent>
-
-        {/* Tab 3: Guests */}
+        {/* Tab 3: Settings */}
         <TabsContent value={2} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
-          <GuestsTab
-            sessions={initialData.sessions}
-            stats={{ totalToday: initialData.stats.totalToday, members: initialData.stats.members }}
-            bookings={initialData.bookings}
-            xpBreakdown={xpBreakdown}
-            maxXpCount={maxXpCount}
-            recentXp={recentXp}
-            topics={topics}
-            onGuestTap={(guest) => setSelectedGuest(guest)}
-            requests={initialData.requests}
-            perks={initialData.perks}
-            redemptions={initialData.redemptions}
-            multipliers={initialData.multipliers}
-            leaderboard={initialData.leaderboard}
-            pointsIssuedToday={initialData.stats.pointsIssuedToday || 0}
-            perksRedeemedToday={initialData.stats.perksRedeemedToday || 0}
-          />
-        </TabsContent>
-
-        {/* Tab 4: Hub */}
-        <TabsContent value={3} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
           <HubTab
             hubData={hubData}
             venueId={venue.id}
@@ -724,7 +724,6 @@ export function OwnerDock({
             initialStaff={initialStaff}
             initialKnowledge={initialKnowledge}
             initialAiLimits={initialAiLimits}
-            previewKey={previewKey}
             posProvider={venue.pos_provider}
             posConnectedAt={venue.pos_connected_at}
             initialMenuItems={initialMenuItems}
@@ -750,10 +749,9 @@ export function OwnerDock({
         >
           {(
             [
-              { idx: 0, label: "Today", Icon: TodayIcon },
-              { idx: 1, label: "Orders", Icon: OrdersIcon },
-              { idx: 2, label: "Guests", Icon: GuestsIcon },
-              { idx: 3, label: "Hub", Icon: HubIcon },
+              { idx: 0, label: "Analytics", Icon: AnalyticsIcon },
+              { idx: 1, label: "Preview", Icon: PreviewIcon },
+              { idx: 2, label: "Settings", Icon: SettingsIcon },
             ] as const
           ).map(({ idx, label, Icon }) => {
             const isActive = activeTab === idx;
