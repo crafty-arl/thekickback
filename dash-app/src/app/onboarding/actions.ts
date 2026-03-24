@@ -60,10 +60,20 @@ export async function createVenue(formData: VenueFormData) {
   };
   const themeColor = themeColors[formData.type] || "#F97316";
 
-  const slug = formData.name
+  let slug = formData.name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+
+  // Ensure slug is unique
+  const { data: existing } = await service
+    .from("venue_pages")
+    .select("slug")
+    .eq("slug", slug)
+    .limit(1);
+  if (existing && existing.length > 0) {
+    slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
+  }
 
   // 0. Ensure profile exists (FK requirement for venue_owners)
   await service
