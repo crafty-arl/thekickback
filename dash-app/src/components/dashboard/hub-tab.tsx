@@ -8,12 +8,15 @@ import { SettingsOfferingsDrawer } from "@/components/dashboard/settings-offerin
 import { SettingsKnowledgeDrawer } from "@/components/dashboard/settings-knowledge-drawer";
 import { SettingsStaffDrawer } from "@/components/dashboard/settings-staff-drawer";
 import { SettingsXpDrawer } from "@/components/dashboard/settings-xp-drawer";
+import { SettingsMenuDrawer } from "@/components/dashboard/settings-menu-drawer";
+import { SettingsHoursDrawer } from "@/components/dashboard/settings-hours-drawer";
+import { SettingsVenueDrawer } from "@/components/dashboard/settings-venue-drawer";
 import type { PlaceData } from "@/components/place-preview";
 import type { ChecklistState } from "@/components/onboarding-checklist";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
-type SettingsDrawer = "offerings" | "knowledge" | "staff" | "xp" | null;
+type SettingsDrawer = "offerings" | "knowledge" | "staff" | "xp" | "menu" | "hours" | "venue" | null;
 
 // Checklist items with labels and instructions
 const CHECKLIST_ITEMS: { key: string; label: string; hint: string }[] = [
@@ -64,6 +67,9 @@ interface HubTabProps {
   previewKey?: number;
   posProvider?: string | null;
   posConnectedAt?: string | null;
+  initialMenuItems?: { id: string; category: string; name: string; description: string | null; price_cents: number; in_stock: boolean; inventory_count: number | null }[];
+  initialHours?: { day: string; open: string; close: string }[] | null;
+  initialVenueData?: { address?: string; type?: string; max_occupancy?: number; vibe?: string; rules?: string[]; check_in_radius_meters?: number };
 }
 
 // ─── Component ─────────────────────────────────────────────────────
@@ -92,6 +98,9 @@ export function HubTab({
   reviewStatus,
   posProvider: initialPosProvider,
   posConnectedAt: initialPosConnectedAt,
+  initialMenuItems,
+  initialHours,
+  initialVenueData,
 }: HubTabProps) {
   const [activeDrawer, setActiveDrawer] = useState<SettingsDrawer>(null);
   const [seeding, setSeeding] = useState(false);
@@ -314,6 +323,15 @@ export function HubTab({
               <button onClick={() => setActiveDrawer("xp")} className={pillClass}>
                 XP & Loyalty
               </button>
+              <button onClick={() => setActiveDrawer("menu")} className={pillClass}>
+                Menu
+              </button>
+              <button onClick={() => setActiveDrawer("hours")} className={pillClass}>
+                Hours
+              </button>
+              <button onClick={() => setActiveDrawer("venue")} className={pillClass}>
+                Venue Details
+              </button>
             </div>
           </div>
 
@@ -456,6 +474,37 @@ export function HubTab({
             venueId={venueId}
             initialXpActions={initialXpActions || []}
             initialXpMilestones={initialXpMilestones || []}
+            onClose={() => setActiveDrawer(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeDrawer === "menu" && (
+          <SettingsMenuDrawer
+            venueId={venueId}
+            initialMenuItems={initialMenuItems || []}
+            onClose={() => setActiveDrawer(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeDrawer === "hours" && (
+          <SettingsHoursDrawer
+            venueId={venueId}
+            initialHours={initialHours ?? null}
+            onClose={() => setActiveDrawer(null)}
+            onHoursChange={(text) => onFieldSave("hours", text)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeDrawer === "venue" && (
+          <SettingsVenueDrawer
+            venueId={venueId}
+            initialData={initialVenueData || {}}
             onClose={() => setActiveDrawer(null)}
           />
         )}

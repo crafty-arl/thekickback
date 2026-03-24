@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   // Check if user has a venue
   const { data: ownership } = await supabase
     .from("venue_owners")
-    .select("venue_id, role, venues(id, name, state, vibe, type, address, platform_fee_rate, pos_provider, pos_connected_at)")
+    .select("venue_id, role, venues(id, name, state, vibe, type, address, platform_fee_rate, pos_provider, pos_connected_at, max_occupancy, rules, check_in_radius_meters)")
     .eq("user_id", user.id)
     .limit(1)
     .single();
@@ -45,6 +45,9 @@ export default async function DashboardPage() {
     platform_fee_rate: number | null;
     pos_provider: string | null;
     pos_connected_at: string | null;
+    max_occupancy: number | null;
+    rules: string[] | null;
+    check_in_radius_meters: number | null;
   };
 
   const sandboxMode = await isSandbox();
@@ -120,6 +123,7 @@ export default async function DashboardPage() {
     bookingsRes, ordersRes, walletTxRes,
     xpActivityRes,
     staffRes, knowledgeRes, aiLimitsRes,
+    menuItemsRes,
   ] = await Promise.all([
     // Active sessions with profile info
     service
@@ -267,6 +271,13 @@ export default async function DashboardPage() {
       .select("*")
       .eq("venue_id", venue.id)
       .maybeSingle(),
+
+    // Menu items for hub settings drawer
+    service
+      .from("venue_menu_items")
+      .select("id, category, name, description, price_cents, in_stock, inventory_count")
+      .eq("venue_id", venue.id)
+      .order("category", { ascending: true }),
   ]);
 
   // Supabase joins return related records as arrays — extract first element
@@ -455,6 +466,7 @@ export default async function DashboardPage() {
       staff={staffRes.data || []}
       knowledge={knowledgeRes.data || []}
       aiLimits={aiLimitsRes.data || null}
+      menuItems={(menuItemsRes.data || []) as { id: string; category: string; name: string; description: string | null; price_cents: number; in_stock: boolean; inventory_count: number | null }[]}
     />
   );
 }

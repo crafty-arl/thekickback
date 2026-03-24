@@ -74,6 +74,9 @@ interface OwnerDockProps {
     address?: string;
     pos_provider?: string | null;
     pos_connected_at?: string | null;
+    max_occupancy?: number | null;
+    rules?: string[] | null;
+    check_in_radius_meters?: number | null;
   };
   reviewStatus?: string;
   user: { id: string; email: string };
@@ -100,6 +103,7 @@ interface OwnerDockProps {
   staff?: { id: string; display_name: string | null; role_title: string | null; avatar_url: string | null; bio: string | null; specialties: string[] | null; visible: boolean; schedule: unknown }[];
   knowledge?: { id: string; content: string; category: string; created_at: string }[];
   aiLimits?: { enabled: boolean; free_messages_per_day: number; require_membership: boolean; gate_message: string } | null;
+  menuItems?: { id: string; category: string; name: string; description: string | null; price_cents: number; in_stock: boolean; inventory_count: number | null }[];
 }
 
 const DEFAULT_CHECKLIST: ChecklistState = {
@@ -194,6 +198,7 @@ export function OwnerDock({
   staff: initialStaff,
   knowledge: initialKnowledge,
   aiLimits: initialAiLimits,
+  menuItems: initialMenuItems,
 }: OwnerDockProps) {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -975,6 +980,16 @@ export function OwnerDock({
             previewKey={previewKey}
             posProvider={venue.pos_provider}
             posConnectedAt={venue.pos_connected_at}
+            initialMenuItems={initialMenuItems}
+            initialHours={pageData?.hours ?? null}
+            initialVenueData={{
+              address: venue.address,
+              type: venue.type,
+              vibe: venue.vibe,
+              max_occupancy: venue.max_occupancy ?? undefined,
+              rules: venue.rules ?? undefined,
+              check_in_radius_meters: venue.check_in_radius_meters ?? undefined,
+            }}
           />
         </TabsContent>
 
