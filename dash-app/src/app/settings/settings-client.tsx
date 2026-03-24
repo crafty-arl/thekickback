@@ -1102,13 +1102,44 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                             )}
                         </Card>
 
-                        {/* ─── Hours & Menu ─────────────────────────────────────── */}
-                        <Card id="hours" title="Hours & Menu" desc="When are you open? What do you serve? Keep it simple.">
-                            <Field label="When are you open?" hint="One line per day or range">
-                                <textarea value={hours} onChange={(e) => setHours(e.target.value)} rows={4} placeholder={"Mon-Fri: 4pm–12am\nSat-Sun: 2pm–2am"} className="input resize-none" />
+                        {/* ─── Hours ─────────────────────────────────────── */}
+                        <Card id="hours" title="Operating Hours" desc="Set your hours for each day of the week.">
+                            <div className="flex flex-col gap-2">
+                                {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => {
+                                    const existing = page?.hours?.find((h) => h.day === day);
+                                    const dayKey = `hours_${day}`;
+                                    return (
+                                        <div key={day} className="flex items-center gap-2 rounded-lg p-2" style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>
+                                            <span className="w-16 shrink-0 font-sans text-[12px] font-medium text-white/60">{day.slice(0, 3)}</span>
+                                            <input
+                                                id={`${dayKey}_open`}
+                                                type="time"
+                                                defaultValue={existing?.open || ""}
+                                                className="rounded-md px-2 py-1 font-mono text-[12px] text-white/80 outline-none"
+                                                style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                                            />
+                                            <span className="font-sans text-[11px] text-white/30">to</span>
+                                            <input
+                                                id={`${dayKey}_close`}
+                                                type="time"
+                                                defaultValue={existing?.close || ""}
+                                                className="rounded-md px-2 py-1 font-mono text-[12px] text-white/80 outline-none"
+                                                style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <p className="mt-2 font-sans text-[10px] text-white/20">Leave blank for closed days. Hours are saved when you hit Save at the top.</p>
+                            <Field label="Quick text override" hint="Or type it manually — overrides the grid above">
+                                <textarea value={hours} onChange={(e) => setHours(e.target.value)} rows={2} placeholder={"Mon-Fri: 4pm–12am\nSat-Sun: 2pm–2am"} className="input resize-none" />
                             </Field>
-                            <Field label="What do you serve?" hint="Group things by category, one line each">
-                                <textarea value={menuText} onChange={(e) => setMenuText(e.target.value)} rows={5} placeholder={"Drinks: espresso, matcha, cold brew\nFood: avocado toast, grain bowl"} className="input resize-none" />
+                        </Card>
+
+                        {/* ─── Menu Text ─────────────────────────────────────── */}
+                        <Card id="menu_text" title="Menu Overview" desc="Quick summary of what you serve — the AI uses this to answer questions.">
+                            <Field label="What do you serve?" hint="Group by category, one line each. The AI reads this.">
+                                <textarea value={menuText} onChange={(e) => setMenuText(e.target.value)} rows={6} placeholder={"Drinks: espresso, matcha, cold brew, chai\nFood: avocado toast, grain bowl, pastries\nSpecials: seasonal latte, soup of the day"} className="input resize-none" />
                             </Field>
                         </Card>
 
@@ -1424,7 +1455,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         </Card>
 
                         {/* ─── Menu Items ──────────────────────────────────────── */}
-                        <Card id="menu_items" title="Menu Items" desc="Track inventory and stock status for items you serve or sell.">
+                        <Card id="menu_items" title="Menu & Inventory" desc="Add your food, drinks, and products. Track stock and toggle availability in real time.">
                             {/* Existing items grouped by category */}
                             {menuItemsList.length === 0 && !showAddMenuItem && (
                                 <p className="font-sans text-[13px] text-white/20">No menu items added yet.</p>
@@ -1507,7 +1538,12 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                             {/* Add menu item form */}
                             {showAddMenuItem ? (
                                 <div className="flex flex-col gap-3 rounded-xl p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                                    <input value={newMenuCategory} onChange={(e) => setNewMenuCategory(e.target.value)} placeholder="Category (e.g. Drinks, Food, Merch)" className="input" />
+                                    <div className="flex flex-wrap gap-1.5 mb-1">
+                                        {["Drinks", "Food", "Snacks", "Desserts", "Specials", "Merch"].map((cat) => (
+                                            <button key={cat} type="button" onClick={() => setNewMenuCategory(cat)} className="rounded-full px-2.5 py-1 font-sans text-[10px] font-medium transition" style={{ backgroundColor: newMenuCategory === cat ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.04)", color: newMenuCategory === cat ? "#F97316" : "rgba(255,255,255,0.4)", border: `1px solid ${newMenuCategory === cat ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.06)"}` }}>{cat}</button>
+                                        ))}
+                                    </div>
+                                    <input value={newMenuCategory} onChange={(e) => setNewMenuCategory(e.target.value)} placeholder="Or type a custom category" className="input" />
                                     <input value={newMenuName} onChange={(e) => setNewMenuName(e.target.value)} placeholder="Item name *" className="input" />
                                     <input value={newMenuDesc} onChange={(e) => setNewMenuDesc(e.target.value)} placeholder="Description (optional)" className="input" />
                                     <input value={newMenuPrice} onChange={(e) => setNewMenuPrice(e.target.value)} placeholder="Price (e.g. 12.50) *" type="number" step="0.01" min="0" className="input" />
