@@ -240,43 +240,44 @@ export async function POST(request: Request) {
       ? haversineKm(userLat, userLng, venue.latitude, venue.longitude!).toFixed(1) + " km away"
       : null;
     return [
-      `VENUE: ${venue.name} (id: ${venue.id})`,
-      `Type: ${venue.type || "venue"} | Vibe: ${venue.vibe}${dist ? ` | ${dist}` : ""}${venue.neighborhood ? ` | Area: ${venue.neighborhood}` : ""}${venue.address ? ` | Address: ${venue.address}` : ""}`,
-      knowledge ? `Knowledge:\n${knowledge}` : "",
+      `PLACE: ${venue.name} (id: ${venue.id})`,
+      `Type: ${venue.type || "place"} | Vibe: ${venue.vibe}${dist ? ` | ${dist}` : ""}${venue.neighborhood ? ` | Area: ${venue.neighborhood}` : ""}${venue.address ? ` | Address: ${venue.address}` : ""}`,
+      knowledge ? `What they know:\n${knowledge}` : "",
       `Offerings:\n${formatOfferingsForPrompt(vOff)}`,
     ].filter(Boolean).join("\n");
   }).join("\n\n---\n\n");
 
-  // Build a brief directory of ALL venues for general awareness
+  // Build a brief directory of ALL places for general awareness
   const allVenuesList = venues.map(v => {
     const vOff = offeringsByVenue.get(v.id) || [];
-    return `- ${v.name} (id: ${v.id}) — ${v.type || "venue"}${v.neighborhood ? `, ${v.neighborhood}` : ""}${vOff.length > 0 ? ` [${vOff.length} offerings]` : ""}`;
+    return `- ${v.name} (id: ${v.id}) — ${v.type || "place"}${v.neighborhood ? `, ${v.neighborhood}` : ""}${vOff.length > 0 ? ` [${vOff.length} offerings]` : ""}`;
   }).join("\n");
 
   const context = [
-    "You are KickBack's concierge — the master agent for theKickBack platform.",
-    userLat !== null ? `The user's current location: ${userLat.toFixed(4)}, ${userLng!.toFixed(4)}. Prioritize nearby venues. Mention distance when recommending.` : "",
+    "You are KickBack's concierge — the master agent for theKickBack platform. A place is anything where people gather: a barbershop, a running club, a musician's studio, a cafe, a community. If people go there, it's a place.",
+    userLat !== null ? `The user's current location: ${userLat.toFixed(4)}, ${userLng!.toFixed(4)}. Prioritize nearby places. Mention distance when recommending.` : "",
     "CRITICAL: Never mention texting, SMS, phone numbers, or 'text JOIN.' There is no texting feature. Everything happens through this chat.",
+    "LANGUAGE: Always say 'place' or 'spot' — never 'venue'. These are places, not venues.",
     "",
     `A user asked: "${message}"`,
     "",
-    `I consulted the following venue agents on your behalf. Use their knowledge to give the best answer:`,
+    `I consulted the following place agents on your behalf. Use their knowledge to give the best answer:`,
     "",
     venueBlocks,
     "",
-    "ALL VENUES ON THE PLATFORM (for general awareness):",
+    "ALL PLACES ON THE PLATFORM (for general awareness):",
     allVenuesList,
     "",
     prefsContext || "",
     chatHistory || "",
     "",
-    "VENUE CARD INSTRUCTIONS:",
-    "When recommending a venue, use: [[VENUE_CARD:venue-id-here]]",
-    "This renders a full venue card with stats, vibe, and a chat button.",
+    "PLACE CARD INSTRUCTIONS:",
+    "When recommending a place, use: [[VENUE_CARD:place-id-here]]",
+    "This renders a full place card with stats, vibe, and a chat button.",
     "Use VENUE_CARD for specific recommendations. You can include multiple cards.",
-    "Use the exact venue ID from the venue data above.",
+    "Use the exact place ID from the data above.",
     "",
-    "For casual mentions without a full card, use: [[venue:venue-id-here]]",
+    "For casual mentions without a full card, use: [[venue:place-id-here]]",
     "This renders a small tappable chip.",
     "",
     "OFFERING LINK INSTRUCTIONS:",
@@ -284,21 +285,21 @@ export async function POST(request: Request) {
     "[[OFFER:offering-id:Offering Name:price_cents]]",
     "Example: 'Check out [[OFFER:abc-123:Classic Fade:2500]] at Tight Lines or [[OFFER:def-456:Latte Art Class:1500]] at Drip.'",
     "This renders a tappable offering chip guests can add to cart or book.",
-    "Always pair offerings with their venue using VENUE_CARD or [[venue:id]].",
+    "Always pair offerings with their place using VENUE_CARD or [[venue:id]].",
     "",
     "RESPONSE GUIDELINES:",
-    "- Synthesize what the venue agents told you. Respond as the concierge recommending the best options.",
+    "- Synthesize what the place agents told you. Respond as the concierge recommending the best options.",
     "- Lead with the most relevant answer, then mention alternatives.",
     "- Keep responses concise (2-4 sentences). No emojis. Be direct and helpful.",
     "- Always use VENUE_CARD when the user asks where to go, what's good, or for recommendations.",
-    "- When the user asks about specific services or products, show the relevant OFFER links from the venue data above.",
-    "- You are a discovery engine — help users find things to do, buy, book, and experience across all venues.",
+    "- When the user asks about specific services or products, show the relevant OFFER links from the data above.",
+    "- You are a discovery engine — help users find places to go, things to do, buy, book, and experience.",
     "",
     "IMPORTANT RULES:",
     "- NEVER tell users to text, SMS, or call any number. There is no texting feature.",
     "- Everything happens through this chat — browsing, ordering, booking, joining.",
-    "- To get started: users just tap a venue on the map and start chatting.",
-    "- To join a membership: tap the venue, browse offerings, and purchase through the chat.",
+    "- To get started: users just tap a place on the map and start chatting.",
+    "- To join a membership: tap the place, browse offerings, and purchase through the chat.",
     "- No app download needed. No phone numbers. No texting.",
   ].join("\n");
 

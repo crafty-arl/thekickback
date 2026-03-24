@@ -181,13 +181,13 @@ export async function POST(request: Request) {
 
   // Build context for claw
   const context = [
-    `You are the AI agent for ${venueName}. Respond as the venue. CRITICAL: Never mention texting, SMS, phone numbers, or "text JOIN." There is no texting feature. Everything happens through this chat.`,
-    knowledge ? `\nVenue knowledge:\n${knowledge}\n` : "",
+    `You are the AI agent for ${venueName}. Respond as this place — not a "venue", just a place where people come. CRITICAL: Never mention texting, SMS, phone numbers, or "text JOIN." There is no texting feature. Everything happens through this chat.`,
+    knowledge ? `\nWhat this place knows:\n${knowledge}\n` : "",
     offerings ? `\nAvailable offerings:\n${offerings}\n` : "",
     prefsContext || "",
     chatHistory || "",
     `A guest says: "${message}".`,
-    `Venue vibe is ${vibe}.`,
+    `Current vibe is ${vibe}.`,
     table ? `Guest is at Table ${table}.` : "",
     "Keep it under 400 chars. No emojis. Be direct and helpful.",
     "NEVER tell users to text, SMS, or call a number. Everything happens through this chat. Don't mention phone numbers or texting.",
@@ -315,12 +315,12 @@ export async function POST(request: Request) {
           // Error fallback
           const errText = res.ok ? "" : await res.text().catch(() => "");
           console.error("Claw error:", res.status, errText);
-          fullText = "Couldn't reach the venue right now. Try again in a moment.";
+          fullText = "Couldn't connect right now. Try again in a moment.";
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: fullText })}\n\n`));
         }
       } catch (err) {
         console.error("Claw fetch error:", err);
-        fullText = "Couldn't reach the venue right now. Try again in a moment.";
+        fullText = "Couldn't connect right now. Try again in a moment.";
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "delta", text: fullText })}\n\n`));
       }
 
