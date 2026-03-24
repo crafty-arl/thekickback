@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       payment_method: wallet.stripe_payment_method_id,
       off_session: true,
       confirm: true,
-      description: `KickBack wallet — add $${(amountCents / 100).toFixed(2)} (incl. fees)`,
+      description: `KB Wallet — add $${(amountCents / 100).toFixed(2)} (incl. fees)`,
       metadata: {
         user_id: user.id, wallet_id: wallet.id, type: "fund",
         wallet_credit_cents: String(amountCents),
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
       const pFee = (platformFee / 100).toFixed(2);
       const total = (totalCharge / 100).toFixed(2);
       const last4 = wallet.card_last4 || "****";
-      sendEmail(user.email, `$${added} added to your KickBack wallet`, wrap(`
+      sendEmail(user.email, `$${added} added to your KB Wallet`, wrap(`
         <div style="text-align:center;margin-bottom:24px;">
           <p style="font-size:48px;font-weight:700;margin:0;color:#fff;">$${bal}</p>
           <p style="font-size:15px;color:#4ADE80;margin:4px 0 0;font-weight:600;">+$${added} added</p>

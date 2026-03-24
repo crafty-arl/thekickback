@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
   if (user.email && result.balance_cents < 500) {
     try {
       const balanceDollars = (result.balance_cents / 100).toFixed(2);
-      sendEmail(user.email, "Running low — theKickBack wallet", wrap(`
+      sendEmail(user.email, "Running low — KB Wallet", wrap(`
         <div style="text-align:center;margin-bottom:24px;">
           <div style="width:56px;height:56px;border-radius:50%;background:#FBBF24;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;">
             <span style="font-size:28px;color:#000;line-height:56px;">&#9888;</span>
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
         </div>
         <div style="text-align:center;margin:20px 0;">
           <span style="font-size:48px;font-weight:800;color:#FBBF24;">$${balanceDollars}</span>
-          <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.4);">remaining in your wallet</p>
+          <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.4);">remaining in your KB Wallet</p>
         </div>
         <div style="text-align:center;margin-top:24px;">
           <a href="https://join.thekickback.net" style="display:inline-block;padding:12px 28px;background:#FBBF24;color:#000;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">Add funds</a>

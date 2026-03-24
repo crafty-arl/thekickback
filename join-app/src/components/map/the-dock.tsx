@@ -2783,7 +2783,7 @@ export function TheDock({
       const itemNames = msg.checkout.items.map((i: { name: string; quantity?: number }) => i.quantity && i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name).join(", ");
       const bonusPts = Math.floor(subtotal / 10);
       const confirmMsg: Message = result.orderId
-        ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed: ${itemNames}. Total: $${(subtotal / 100).toFixed(2)}.${method === "wallet" ? " Paid from AI Credit." : " Charged to card on file."}${pointsToSpend > 0 ? ` Used ${pointsToSpend} points.` : ""}${bonusPts > 0 ? ` +${bonusPts} XP earned!` : ""} Show this to the host when you arrive.${walletPassNote}`, timestamp: Date.now() }
+        ? { id: `order-${Date.now()}`, sender: "ai", body: `You're all set! Order confirmed: ${itemNames}. Total: $${(subtotal / 100).toFixed(2)}.${method === "wallet" ? " Paid from KB Wallet." : " Charged to card on file."}${pointsToSpend > 0 ? ` Used ${pointsToSpend} points.` : ""}${bonusPts > 0 ? ` +${bonusPts} XP earned!` : ""} Show this to the host when you arrive.${walletPassNote}`, timestamp: Date.now() }
         : { id: `err-${Date.now()}`, sender: "ai", body: result.error || "Something went wrong with the order.", timestamp: Date.now() };
       setVenueThreads((prev) => {
         const next = new Map(prev);
@@ -4180,7 +4180,7 @@ export function TheDock({
 
                           {/* ══ Compact payment buttons ══ */}
                           {user && <div className="flex gap-2 w-full">
-                            {/* AI Credit */}
+                            {/* KB Wallet */}
                             <button
                               onClick={() => handleCheckoutConfirm(msg, [], 0, "wallet")}
                               disabled={!canUseWallet || paymentMode === "processing" || passkey.verifying}
@@ -4190,7 +4190,7 @@ export function TheDock({
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
                               <span className="font-mono text-[14px] font-bold" style={{ color: "#a78bfa" }}>${(subtotal / 100).toFixed(2)}</span>
                               <span className="font-sans text-[10px] font-semibold" style={{ color: "#a78bfa" }}>
-                                {passkey.verifying || paymentMode === "processing" ? "Verifying..." : "AI Credit"}
+                                {passkey.verifying || paymentMode === "processing" ? "Verifying..." : "KB Wallet"}
                               </span>
                               {walletStatus?.active && <span className="font-mono text-[9px] text-white/25">Bal: ${(walletStatus.balanceCents / 100).toFixed(2)}</span>}
                               <span className="font-sans text-[8px]" style={{ color: "#4ade80" }}>No fees</span>
@@ -4502,7 +4502,7 @@ export function TheDock({
                         style={{ background: `linear-gradient(135deg, ${tierColor}12, ${tierColor}05)`, border: `1px solid ${tierColor}20` }}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={tierColor} strokeWidth="2" strokeLinecap="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
-                        <span className="font-sans text-[12px] font-semibold" style={{ color: tierColor }}>Wallet Pass</span>
+                        <span className="font-sans text-[12px] font-semibold" style={{ color: tierColor }}>KB Pass</span>
                       </a>
                       {/* Biometric */}
                       <button
@@ -4546,7 +4546,7 @@ export function TheDock({
                                   <p className="font-sans text-[10px] text-white/30">{m.tier} · {new Date(m.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
                                 </div>
                                 <span className="shrink-0 rounded-full px-1.5 py-0.5 font-sans text-[9px] font-semibold" style={{ backgroundColor: m.billing === "stripe" ? "rgba(99,102,241,0.12)" : "rgba(249,115,22,0.12)", color: m.billing === "stripe" ? "#818CF8" : "#F97316" }}>
-                                  {m.billing === "stripe" ? "Stripe" : "Wallet"}
+                                  {m.billing === "stripe" ? "Stripe" : "KB Wallet"}
                                 </span>
                               </div>
                             ))}
@@ -4747,7 +4747,7 @@ export function TheDock({
                     ["Payments", "Stripe Connect"],
                     ["Auth", "Supabase OTP + WebAuthn"],
                     ["Maps", "Mapbox GL"],
-                    ["Wallet", "Apple Wallet + Google Wallet"],
+                    ["KB Wallet", "Apple Wallet + Google Wallet"],
                     ["Email", "Resend (place@thekickback.net)"],
                     ["Hosting", "Docker + Caddy on VPS"],
                     ["Workers", "Cloudflare Workers"],

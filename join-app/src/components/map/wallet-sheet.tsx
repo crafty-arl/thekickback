@@ -186,7 +186,7 @@ export function WalletSheet() {
       const data = await res.json();
       if (data.ok) {
         setWallet((prev) => prev ? { ...prev, balanceCents: data.balanceCents ?? (prev.balanceCents + amountCents) } : prev);
-        setFundSuccess(`Added ${formatDollars(amountCents)} to your wallet`);
+        setFundSuccess(`Added ${formatDollars(amountCents)} to your KB Wallet`);
         setTimeout(() => setFundSuccess(null), 3000);
       } else {
         setFundError(data.error || "Payment failed");
@@ -369,7 +369,7 @@ export function WalletSheet() {
                   </div>
                 </div>
                 <p className="mt-2 font-sans text-[10px] text-white/20">
-                  {formatDollars(fees.walletCredit)} will be added to your wallet. Card ····{wallet?.cardLast4} will be charged {formatDollars(fees.totalCharge)}.
+                  {formatDollars(fees.walletCredit)} will be added to your KB Wallet. Card ····{wallet?.cardLast4} will be charged {formatDollars(fees.totalCharge)}.
                 </p>
                 <div className="mt-3 flex gap-2">
                   <motion.button
@@ -452,7 +452,7 @@ export function WalletSheet() {
         <div className=" p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <p className="font-sans text-[13px] font-semibold text-white/80">Let AI handle payments</p>
           <p className="mt-1 font-sans text-[11px] leading-[1.5] text-white/35">
-            Load funds into your wallet and the AI orders for you at any venue — no checkout needed.
+            Load funds into your KB Wallet and the AI orders for you at any place — no checkout needed.
           </p>
           {createError && (
             <p className="mt-2 font-sans text-[11px] text-red-400">{createError}</p>
