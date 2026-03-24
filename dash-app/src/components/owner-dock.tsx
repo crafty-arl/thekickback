@@ -12,6 +12,7 @@ import { OrdersTab } from "@/components/dashboard/orders-tab";
 import { GuestsTab } from "@/components/dashboard/guests-tab";
 import { PlacePreviewEditable } from "@/components/place-preview-editable";
 import { SettingsClient, type SettingsClientProps } from "@/app/settings/settings-client";
+import { SignOutButton } from "@/components/dashboard/sign-out-button";
 import { OrderDetailDrawer } from "@/components/dashboard/order-detail-drawer";
 import { GuestDetailDrawer } from "@/components/dashboard/guest-detail-drawer";
 import { OfferingDetailDrawer } from "@/components/dashboard/offering-detail-drawer";
@@ -129,7 +130,7 @@ export function OwnerDock({
   xpActivity,
   settingsData,
 }: OwnerDockProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("analytics");
+  const [activeTab, setActiveTab] = useState<Tab>("preview");
   const [analyticsView, setAnalyticsView] = useState<AnalyticsView>("today");
 
   // Editable preview state
@@ -332,8 +333,8 @@ export function OwnerDock({
   const statusColor = isApproved ? "#4ade80" : currentReviewStatus === "pending" ? "#F97316" : currentReviewStatus === "rejected" ? "#EF4444" : "rgba(255,255,255,0.4)";
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "analytics", label: "Analytics" },
     { id: "preview", label: "Preview" },
+    { id: "analytics", label: "Analytics" },
     { id: "settings", label: "Settings" },
   ];
 
@@ -359,6 +360,7 @@ export function OwnerDock({
               Scan
             </Link>
           )}
+          <SignOutButton />
         </div>
       </header>
 
