@@ -76,14 +76,16 @@ export default function OnboardingPage() {
         log("Venue created successfully");
         log(`Slug: ${result.slug}`);
 
-        if (result.ai?.errors?.length) {
-          for (const err of result.ai.errors) log(`AI warning: ${err}`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ai = result.ai as any;
+        if (ai?.errors?.length) {
+          for (const err of ai.errors) log(`AI warning: ${err}`);
         }
-        if (result.ai?.offerings) log(`Generated ${result.ai.offerings} offerings`);
-        if (result.ai?.xpActions) log(`Generated ${result.ai.xpActions} XP actions`);
-        if (result.ai?.milestones) log(`Generated ${result.ai.milestones} milestones`);
-        if (result.ai?.perks) log(`Generated ${result.ai.perks} perks`);
-        if (result.ai?.error) log(`AI setup error: ${result.ai.error}`);
+        if (ai?.offerings) log(`Generated ${ai.offerings} offerings`);
+        if (ai?.xpActions) log(`Generated ${ai.xpActions} XP actions`);
+        if (ai?.milestones) log(`Generated ${ai.milestones} milestones`);
+        if (ai?.perks) log(`Generated ${ai.perks} perks`);
+        if (ai?.error) log(`AI setup error: ${ai.error}`);
 
         log("Redirecting to dashboard...");
         setTimeout(() => router.push("/"), 2000);
