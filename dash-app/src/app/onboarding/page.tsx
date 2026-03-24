@@ -74,12 +74,19 @@ export default function OnboardingPage() {
 
       if (result?.ok) {
         log("Venue created successfully");
-        log("AI is generating offerings, XP, milestones, perks...");
         log(`Slug: ${result.slug}`);
-        log("Redirecting to dashboard...");
 
-        // Give AI setup a moment to start, then redirect
-        setTimeout(() => router.push("/"), 1500);
+        if (result.ai?.errors?.length) {
+          for (const err of result.ai.errors) log(`AI warning: ${err}`);
+        }
+        if (result.ai?.offerings) log(`Generated ${result.ai.offerings} offerings`);
+        if (result.ai?.xpActions) log(`Generated ${result.ai.xpActions} XP actions`);
+        if (result.ai?.milestones) log(`Generated ${result.ai.milestones} milestones`);
+        if (result.ai?.perks) log(`Generated ${result.ai.perks} perks`);
+        if (result.ai?.error) log(`AI setup error: ${result.ai.error}`);
+
+        log("Redirecting to dashboard...");
+        setTimeout(() => router.push("/"), 2000);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";

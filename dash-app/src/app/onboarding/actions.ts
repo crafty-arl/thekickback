@@ -159,10 +159,14 @@ export async function createVenue(formData: VenueFormData) {
 
   if (pageError) return { error: `Page: ${pageError.message}` };
 
-  // 4. Trigger AI auto-generation of offerings, XP, milestones, perks (non-blocking)
-  generateVenueSetup(venue.id, service).catch((err) => console.error("AI setup error:", err));
-
-  return { ok: true, venueId: venue.id, slug };
+  // 4. Generate offerings, XP, milestones, perks via AI
+  try {
+    const aiResult = await generateVenueSetup(venue.id, service);
+    return { ok: true, venueId: venue.id, slug, ai: aiResult };
+  } catch (err) {
+    console.error("AI setup error:", err);
+    return { ok: true, venueId: venue.id, slug, ai: { error: String(err) } };
+  }
 }
 
 export async function getOnboardingState() {
@@ -314,43 +318,92 @@ Generate 6-10 offerings, 5 XP actions, 4 milestones (100/300/750/1500), 4-5 perk
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function generateVenueSetup(venueId: string, service: any) {
+  const results = { offerings: 0, xpActions: 0, milestones: 0, perks: 0, errors: [] as string[] };
+
   const { data: venue } = await service.from("venues").select("name, type, address, neighborhood").eq("id", venueId).single();
   const { data: page } = await service.from("venue_pages").select("tagline, description").eq("venue_id", venueId).single();
-  if (!venue) return;
+  if (!venue) { results.errors.push("Venue not found"); return results; }
 
   const context = [`Venue: ${venue.name}`, `Type: ${venue.type || "venue"}`, venue.address ? `Address: ${venue.address}` : "", page?.tagline ? `Tagline: ${page.tagline}` : "", page?.description ? `Description: ${page.description}` : ""].filter(Boolean).join("\n");
 
-  const CF_ACCOUNT_ID = "6c235bb622d4bca66876392df398234b";
-  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", messages: [{ role: "system", content: SETUP_PROMPT }, { role: "user", content: context }] }),
-  });
+  // Try OpenClaw first, fall back to Cloudflare Workers AI
+  let raw = "";
+  const clawUrl = process.env.OPENCLAW_GATEWAY_URL;
+  const clawToken = process.env.OPENCLAW_GATEWAY_TOKEN;
 
-  if (!res.ok) return;
-  const data = await res.json() as { choices: { message: { content: string } }[] };
-  const raw = data.choices?.[0]?.message?.content || "";
+  if (clawUrl && clawToken) {
+    try {
+      const res = await fetch(`${clawUrl}/v1/responses`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${clawToken}`, "Content-Type": "application/json", "x-openclaw-agent-id": "venue-setup" },
+        body: JSON.stringify({ model: "openclaw", input: `${SETUP_PROMPT}\n\n${context}` }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const msg = data.output?.find((o: { type: string }) => o.type === "message");
+        raw = msg?.content?.find((c: { type: string; text?: string }) => c.type === "output_text")?.text || "";
+      } else {
+        results.errors.push(`OpenClaw: HTTP ${res.status}`);
+      }
+    } catch (err) {
+      results.errors.push(`OpenClaw error: ${err}`);
+    }
+  }
+
+  // Fallback to Cloudflare Workers AI
+  if (!raw) {
+    const cfToken = process.env.CLOUDFLARE_API_TOKEN;
+    if (!cfToken) {
+      results.errors.push("No CLOUDFLARE_API_TOKEN or OPENCLAW configured");
+      return results;
+    }
+    const CF_ACCOUNT_ID = "6c235bb622d4bca66876392df398234b";
+    try {
+      const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/v1/chat/completions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${cfToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", messages: [{ role: "system", content: SETUP_PROMPT }, { role: "user", content: context }] }),
+      });
+      if (!res.ok) { results.errors.push(`Cloudflare AI: HTTP ${res.status}`); return results; }
+      const data = await res.json() as { choices: { message: { content: string } }[] };
+      raw = data.choices?.[0]?.message?.content || "";
+    } catch (err) {
+      results.errors.push(`Cloudflare AI error: ${err}`);
+      return results;
+    }
+  }
+
+  if (!raw) { results.errors.push("AI returned empty response"); return results; }
+
   let setup;
-  try { setup = JSON.parse(raw.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim()); } catch { return; }
+  try {
+    setup = JSON.parse(raw.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim());
+  } catch {
+    results.errors.push(`JSON parse failed: ${raw.slice(0, 200)}`);
+    return results;
+  }
 
   // Insert offerings
   for (let i = 0; i < (setup.offerings || []).length; i++) {
     const o = setup.offerings[i];
-    await service.from("venue_offerings").insert({ venue_id: venueId, type: o.type || "product", name: o.name, description: o.description, price_cents: o.price_cents || 0, recurring: o.recurring || false, interval: o.interval, duration_minutes: o.duration_minutes, perks: o.perks || [], add_ons: o.add_ons || [], active: true, sort_order: i }).catch(() => {});
+    const { error } = await service.from("venue_offerings").insert({ venue_id: venueId, type: o.type || "product", name: o.name, description: o.description, price_cents: o.price_cents || 0, recurring: o.recurring || false, interval: o.interval, duration_minutes: o.duration_minutes, perks: o.perks || [], add_ons: o.add_ons || [], active: true, sort_order: i });
+    if (error) results.errors.push(`offering "${o.name}": ${error.message}`); else results.offerings++;
   }
-  // Insert XP actions
   for (let i = 0; i < (setup.xp_actions || []).length; i++) {
     const a = setup.xp_actions[i];
-    await service.from("venue_xp_actions").insert({ venue_id: venueId, action: a.action || "custom", label: a.label, points: a.points || 10, description: a.description, max_per_day: a.max_per_day, sort_order: i }).catch(() => {});
+    const { error } = await service.from("venue_xp_actions").insert({ venue_id: venueId, action: a.action || "custom", label: a.label, points: a.points || 10, description: a.description, max_per_day: a.max_per_day, sort_order: i });
+    if (error) results.errors.push(`xp "${a.label}": ${error.message}`); else results.xpActions++;
   }
-  // Insert milestones
   for (let i = 0; i < (setup.xp_milestones || []).length; i++) {
     const m = setup.xp_milestones[i];
-    await service.from("venue_xp_milestones").insert({ venue_id: venueId, name: m.name, threshold: m.threshold || 100, color: m.color || "#4ade80", reward: m.reward, perks: m.perks || [], sort_order: i }).catch(() => {});
+    const { error } = await service.from("venue_xp_milestones").insert({ venue_id: venueId, name: m.name, threshold: m.threshold || 100, color: m.color || "#4ade80", reward: m.reward, perks: m.perks || [], sort_order: i });
+    if (error) results.errors.push(`milestone "${m.name}": ${error.message}`); else results.milestones++;
   }
-  // Insert perks
   for (let i = 0; i < (setup.perks || []).length; i++) {
     const p = setup.perks[i];
-    await service.from("venue_perks").insert({ venue_id: venueId, name: p.name, description: p.description, point_cost: p.point_cost || 100, category: p.category || "other", sort_order: i }).catch(() => {});
+    const { error } = await service.from("venue_perks").insert({ venue_id: venueId, name: p.name, description: p.description, point_cost: p.point_cost || 100, category: p.category || "other", sort_order: i });
+    if (error) results.errors.push(`perk "${p.name}": ${error.message}`); else results.perks++;
   }
+
+  return results;
 }
