@@ -26,21 +26,44 @@ const QUICK_ACTIONS = [
 ];
 
 export function VenueChat({ venue, page, table, onClose }: Props) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      sender: "ai",
-      body: `Hey — welcome to ${venue.name}. ${venue.vibe === "quiet" ? "Quiet right now." : venue.vibe === "busy" ? "Pretty lively." : "Moderate crowd."} Ask me anything.`,
-      timestamp: Date.now(),
-    },
-  ]);
+  const welcomeMsg: Message = {
+    id: "welcome",
+    sender: "ai",
+    body: `Hey — welcome to ${venue.name}. ${venue.vibe === "quiet" ? "Quiet right now." : venue.vibe === "busy" ? "Pretty lively." : "Moderate crowd."} Ask me anything.`,
+    timestamp: Date.now(),
+  };
+  const [messages, setMessages] = useState<Message[]>([welcomeMsg]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Drag-to-dismiss state
   const [dismissed, setDismissed] = useState(false);
+
+  // Load chat history on mount
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/threads?venueId=${venue.id}&limit=50`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (cancelled || !data?.messages?.length) {
+          setHistoryLoaded(true);
+          return;
+        }
+        const history: Message[] = data.messages.map((m: { id: string; sender_type: string; body: string; created_at: string }) => ({
+          id: m.id,
+          sender: m.sender_type === "guest" ? "guest" as const : "ai" as const,
+          body: m.body,
+          timestamp: new Date(m.created_at).getTime(),
+        }));
+        setMessages(history);
+        setHistoryLoaded(true);
+      })
+      .catch(() => setHistoryLoaded(true));
+    return () => { cancelled = true; };
+  }, [venue.id]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
