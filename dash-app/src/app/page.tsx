@@ -536,10 +536,6 @@ export default async function DashboardPage() {
       xpMilestones={previewXpMilestones}
       checklist={pageData?.onboarding_checklist || undefined}
       xpActivity={xpActivity}
-      staff={staffRes.data || []}
-      knowledge={knowledgeRes.data || []}
-      aiLimits={aiLimitsRes.data || null}
-      menuItems={(menuItemsRes.data || []) as { id: string; category: string; name: string; description: string | null; price_cents: number; in_stock: boolean; inventory_count: number | null }[]}
       settingsData={{
         user: { id: user.id, email: user.email || "" },
         role: ownership.role,

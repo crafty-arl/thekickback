@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import type { ChecklistState } from "./onboarding-checklist";
 import type { PlaceData } from "./place-preview";
 import { updateVenue, updateVenuePage, updateOffering, deleteOffering } from "@/app/settings/actions";
 import { uploadGalleryImage } from "@/app/edit/gallery-actions";
@@ -65,6 +62,7 @@ interface OwnerDockProps {
     vibe: string;
     type?: string;
     address?: string;
+    neighborhood?: string;
     pos_provider?: string | null;
     pos_connected_at?: string | null;
     max_occupancy?: number | null;
@@ -100,18 +98,6 @@ interface OwnerDockProps {
   settingsData?: Omit<SettingsClientProps, "embedded">;
 }
 
-const DEFAULT_CHECKLIST: ChecklistState = {
-  basics: false,
-  location: false,
-  hours: false,
-  branding: false,
-  offerings: false,
-  knowledge: false,
-  photos: false,
-  xp: false,
-  stripe: false,
-};
-
 function extractTopics(messages: ChatMessage[]): { topic: string; count: number }[] {
   const guestMsgs = messages.filter(m => m.sender_type === "guest");
   const words: Record<string, number> = {};
@@ -123,44 +109,8 @@ function extractTopics(messages: ChatMessage[]): { topic: string; count: number 
   return Object.entries(words).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([topic, count]) => ({ topic, count }));
 }
 
-// ─── Tab icon components ────────────────────────────────────────────
-
-function AnalyticsIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 20V10" /><path d="M12 20V4" /><path d="M6 20v-6" />
-    </svg>
-  );
-}
-
-function PreviewIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="5" y="2" width="14" height="20" rx="2" ry="2" /><line x1="12" y1="18" x2="12.01" y2="18" />
-    </svg>
-  );
-}
-
-function SettingsIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "#F97316" : "rgba(0,0,0,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
-
-function ScanIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-      <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-      <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-      <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-    </svg>
-  );
-}
-
-// ─── Analytics sub-tab type ─────────────────────────────────────────
+// ─── Tab type ───────────────────────────────────────────────────────
+type Tab = "analytics" | "preview" | "settings";
 type AnalyticsView = "today" | "orders" | "guests";
 
 // ─── Main Component ─────────────────────────────────────────────────
@@ -177,21 +127,10 @@ export function OwnerDock({
   xpMilestones: initialXpMilestones,
   checklist: initialChecklist,
   xpActivity,
-  staff: initialStaff,
-  knowledge: initialKnowledge,
-  aiLimits: initialAiLimits,
-  menuItems: initialMenuItems,
   settingsData,
 }: OwnerDockProps) {
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState<Tab>("analytics");
   const [analyticsView, setAnalyticsView] = useState<AnalyticsView>("today");
-
-  // Checklist
-  const [checklistState, setChecklistState] = useState<ChecklistState>(
-    initialChecklist
-      ? ({ ...DEFAULT_CHECKLIST, ...initialChecklist } as ChecklistState)
-      : DEFAULT_CHECKLIST
-  );
 
   // Editable preview state
   const [hubData, setHubData] = useState<PlaceData>(() => {
@@ -218,28 +157,16 @@ export function OwnerDock({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<GuestSession | null>(null);
   const [selectedOffering, setSelectedOffering] = useState<{
-    id: string;
-    name: string;
-    type: string;
-    price_cents: number;
-    description?: string;
+    id: string; name: string; type: string; price_cents: number; description?: string;
   } | null>(null);
   const [drawerSaving, setDrawerSaving] = useState(false);
-
-  // Local orders state
   const [ordersState, setOrdersState] = useState(initialData.orders);
-
-  // Review status
   const [currentReviewStatus, setCurrentReviewStatus] = useState(reviewStatus);
 
   const isApproved = !currentReviewStatus || currentReviewStatus === "approved";
-  const checklistCompleted = Object.values(checklistState).filter(Boolean).length;
-  const checklistTotal = Object.keys(checklistState).length;
-  const checklistPercent = Math.round((checklistCompleted / checklistTotal) * 100);
-
   const feeRate = initialData.revenueStats?.platformFeeRate || 0.1;
 
-  // ─── Insights: Top Selling Items ──────────────────────────────────
+  // ─── Computed analytics data ──────────────────────────────────
 
   const topSellingItems = useMemo(() => {
     const itemMap = new Map<string, { name: string; count: number; revenue: number }>();
@@ -250,17 +177,11 @@ export function OwnerDock({
         const existing = itemMap.get(key);
         const qty = item.quantity || 1;
         const price = item.unit_price_cents || 0;
-        if (existing) {
-          existing.count += qty;
-          existing.revenue += price * qty;
-        } else {
-          itemMap.set(key, { name: key, count: qty, revenue: price * qty });
-        }
+        if (existing) { existing.count += qty; existing.revenue += price * qty; }
+        else { itemMap.set(key, { name: key, count: qty, revenue: price * qty }); }
       }
     }
-    return Array.from(itemMap.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
+    return Array.from(itemMap.values()).sort((a, b) => b.count - a.count).slice(0, 5);
   }, [ordersState]);
 
   const recentPurchases = useMemo(() => {
@@ -282,12 +203,8 @@ export function OwnerDock({
     for (const entry of xpActivity) {
       const reason = entry.reason || "other";
       const existing = reasonMap.get(reason);
-      if (existing) {
-        existing.count += 1;
-        existing.totalXp += entry.amount;
-      } else {
-        reasonMap.set(reason, { reason, count: 1, totalXp: entry.amount });
-      }
+      if (existing) { existing.count += 1; existing.totalXp += entry.amount; }
+      else { reasonMap.set(reason, { reason, count: 1, totalXp: entry.amount }); }
     }
     return Array.from(reasonMap.values()).sort((a, b) => b.count - a.count);
   }, [xpActivity]);
@@ -307,23 +224,17 @@ export function OwnerDock({
     return Math.max(...xpBreakdown.map((x) => x.count));
   }, [xpBreakdown]);
 
-  const topics = useMemo(() => {
-    return extractTopics(initialData.messages as ChatMessage[]);
-  }, [initialData.messages]);
+  const topics = useMemo(() => extractTopics(initialData.messages as ChatMessage[]), [initialData.messages]);
 
   const ordersToday = useMemo(() => {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     return ordersState.filter(o => new Date(o.created_at) >= todayStart && o.status !== "cancelled" && o.status !== "refunded");
   }, [ordersState]);
 
-  const pendingRequests = useMemo(() => {
-    return initialData.requests.filter(r => r.status === "pending");
-  }, [initialData.requests]);
+  const pendingRequests = useMemo(() => initialData.requests.filter(r => r.status === "pending"), [initialData.requests]);
 
   const upcomingBookings = useMemo(() => {
-    return initialData.bookings
-      .filter(b => new Date(b.starts_at) > new Date())
-      .slice(0, 3);
+    return initialData.bookings.filter(b => new Date(b.starts_at) > new Date()).slice(0, 3);
   }, [initialData.bookings]);
 
   const recentActivity = useMemo((): ActivityItem[] => {
@@ -334,361 +245,215 @@ export function OwnerDock({
       items.push({ kind: "order", id: o.id, name: guestName, desc: itemNames, time: o.created_at, order: o });
     }
     for (const s of initialData.sessions.slice(0, 5)) {
-      items.push({ kind: "checkin", id: s.id, name: s.profiles?.display_name || "Guest", desc: s.check_in_method === 'gps' ? `GPS check-in${s.distance_meters ? ` (${Math.round(s.distance_meters)}m)` : ''}` : s.check_in_method === 'qr' ? 'QR check-in' : "Checked in", time: s.started_at, guest: s });
+      items.push({ kind: "checkin", id: s.id, name: s.profiles?.display_name || "Guest", desc: s.check_in_method === 'gps' ? `GPS (${Math.round(s.distance_meters || 0)}m)` : s.check_in_method === 'qr' ? 'QR' : "Check-in", time: s.started_at, guest: s });
     }
     return items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
   }, [ordersState, initialData.sessions]);
 
-  // ─── Editable preview handlers ─────────────────────────────────
+  // ─── Handlers ─────────────────────────────────────────────────
 
-  const handleFieldSave = useCallback(
-    async (field: string, value: unknown) => {
-      if (field === "name_tagline") {
-        const { name } = value as { name: string; tagline: string };
-        await updateVenue(venue.id, { name });
-        setHubData((prev) => ({ ...prev, name }));
-      } else if (field === "tagline") {
-        await updateVenuePage(venue.id, { tagline: value as string });
-        setHubData((prev) => ({ ...prev, tagline: value as string }));
-      } else if (field === "theme_color") {
-        await updateVenuePage(venue.id, { theme_color: value as string });
-        setHubData((prev) => ({ ...prev, themeColor: value as string }));
-      } else if (field === "hours") {
-        const hoursArr = [{ day: "Daily", open: value as string, close: "" }];
-        await updateVenuePage(venue.id, { hours: hoursArr });
-        setHubData((prev) => ({ ...prev, hours: value as string }));
-      } else if (field === "description") {
-        await updateVenuePage(venue.id, { description: value as string });
-        setHubData((prev) => ({ ...prev, description: value as string }));
-      }
-    },
-    [venue.id]
-  );
-
-  const handlePhotoUpload = useCallback(
-    async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      const result = await uploadGalleryImage(venue.id, formData);
-      if (result && "url" in result && result.url) {
-        setGalleryImages((prev) => [...prev, { id: `new-${Date.now()}`, image_url: result.url as string }]);
-      }
-    },
-    [venue.id]
-  );
-
-  const handleSectionEdited = useCallback(
-    (key: string) => {
-      if (key in checklistState) {
-        const newState = { ...checklistState, [key]: true };
-        setChecklistState(newState as ChecklistState);
-        fetch("/api/onboarding/checklist", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ item: key, completed: true }),
-        }).catch(() => {});
-      }
-    },
-    [checklistState]
-  );
-
-  const handlePublishToggle = useCallback(async () => {
-    const newStatus = isApproved ? "draft" : "approved";
-    try {
-      const res = await fetch("/api/venue/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venueId: venue.id, status: newStatus }),
-      });
-      if (res.ok) {
-        setCurrentReviewStatus(newStatus);
-      }
-    } catch { /* ignore */ }
-  }, [isApproved, venue.id]);
-
-  const handleResetHub = useCallback(async () => {
-    try {
-      const res = await fetch("/api/venue/reset", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venueId: venue.id }),
-      });
-      if (res.ok) {
-        setHubData((prev) => ({ ...prev, tagline: "", description: "", hours: "", themeColor: "#F97316" }));
-        setOfferingsState([]);
-        setGalleryImages([]);
-        setChecklistState(DEFAULT_CHECKLIST);
-        setCurrentReviewStatus("draft");
-      }
-    } catch { /* ignore */ }
+  const handleFieldSave = useCallback(async (field: string, value: unknown) => {
+    if (field === "name_tagline") {
+      const { name } = value as { name: string; tagline: string };
+      await updateVenue(venue.id, { name });
+      setHubData((prev) => ({ ...prev, name }));
+    } else if (field === "tagline") {
+      await updateVenuePage(venue.id, { tagline: value as string });
+      setHubData((prev) => ({ ...prev, tagline: value as string }));
+    } else if (field === "theme_color") {
+      await updateVenuePage(venue.id, { theme_color: value as string });
+      setHubData((prev) => ({ ...prev, themeColor: value as string }));
+    } else if (field === "hours") {
+      const hoursArr = [{ day: "Daily", open: value as string, close: "" }];
+      await updateVenuePage(venue.id, { hours: hoursArr });
+      setHubData((prev) => ({ ...prev, hours: value as string }));
+    } else if (field === "description") {
+      await updateVenuePage(venue.id, { description: value as string });
+      setHubData((prev) => ({ ...prev, description: value as string }));
+    }
   }, [venue.id]);
 
-  // ─── Drawer: Order actions ──────────────────────────────────
-  const handleOrderStatusUpdate = useCallback(
-    async (orderId: string, status: string) => {
-      setDrawerSaving(true);
-      try {
-        const res = await fetch("/api/orders/status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId, status }),
-        });
-        if (res.ok) {
-          setOrdersState((prev) =>
-            prev.map((o) => (o.id === orderId ? { ...o, status: status as Order["status"] } : o))
-          );
-          setSelectedOrder((prev) =>
-            prev && prev.id === orderId ? { ...prev, status: status as Order["status"] } : prev
-          );
-        }
-      } finally {
-        setDrawerSaving(false);
+  const handlePhotoUpload = useCallback(async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const result = await uploadGalleryImage(venue.id, formData);
+    if (result && "url" in result && result.url) {
+      setGalleryImages((prev) => [...prev, { id: `new-${Date.now()}`, image_url: result.url as string }]);
+    }
+  }, [venue.id]);
+
+  const handleSectionEdited = useCallback(() => {}, []);
+
+  const handleOrderStatusUpdate = useCallback(async (orderId: string, status: string) => {
+    setDrawerSaving(true);
+    try {
+      const res = await fetch("/api/orders/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId, status }) });
+      if (res.ok) {
+        setOrdersState((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: status as Order["status"] } : o)));
+        setSelectedOrder((prev) => prev && prev.id === orderId ? { ...prev, status: status as Order["status"] } : prev);
       }
-    },
-    []
-  );
+    } finally { setDrawerSaving(false); }
+  }, []);
 
-  const handleRefundOrder = useCallback(
-    async (orderId: string) => {
-      setDrawerSaving(true);
-      try {
-        const res = await fetch("/api/orders/refund", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId }),
-        });
-        if (res.ok) {
-          setOrdersState((prev) =>
-            prev.map((o) => (o.id === orderId ? { ...o, status: "refunded" as Order["status"] } : o))
-          );
-          setSelectedOrder((prev) =>
-            prev && prev.id === orderId ? { ...prev, status: "refunded" as Order["status"] } : prev
-          );
-        }
-      } finally {
-        setDrawerSaving(false);
+  const handleRefundOrder = useCallback(async (orderId: string) => {
+    setDrawerSaving(true);
+    try {
+      const res = await fetch("/api/orders/refund", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }) });
+      if (res.ok) {
+        setOrdersState((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: "refunded" as Order["status"] } : o)));
+        setSelectedOrder((prev) => prev && prev.id === orderId ? { ...prev, status: "refunded" as Order["status"] } : prev);
       }
-    },
-    []
-  );
+    } finally { setDrawerSaving(false); }
+  }, []);
 
-  const handleOpenOfferingDrawer = useCallback(
-    (offering: { id: string; name: string; type: string; price_cents: number; description?: string }) => {
-      setSelectedOffering(offering);
-    },
-    []
-  );
+  const handleSaveOffering = useCallback(async (form: { name: string; description: string; price_cents: number; type: string }) => {
+    if (!selectedOffering) return;
+    setDrawerSaving(true);
+    try {
+      await updateOffering(selectedOffering.id, { name: form.name, description: form.description || undefined, price_cents: form.price_cents });
+      setOfferingsState((prev) => prev.map((o) => o.id === selectedOffering.id ? { ...o, name: form.name, description: form.description, price_cents: form.price_cents } : o));
+      setSelectedOffering(null);
+    } finally { setDrawerSaving(false); }
+  }, [selectedOffering]);
 
-  const handleSaveOffering = useCallback(
-    async (form: { name: string; description: string; price_cents: number; type: string }) => {
-      if (!selectedOffering) return;
-      setDrawerSaving(true);
-      try {
-        await updateOffering(selectedOffering.id, {
-          name: form.name,
-          description: form.description || undefined,
-          price_cents: form.price_cents,
-        });
-        setOfferingsState((prev) =>
-          prev.map((o) =>
-            o.id === selectedOffering.id
-              ? { ...o, name: form.name, description: form.description, price_cents: form.price_cents }
-              : o
-          )
-        );
-        setSelectedOffering(null);
-      } finally {
-        setDrawerSaving(false);
-      }
-    },
-    [selectedOffering]
-  );
+  const handleDeleteOffering = useCallback(async () => {
+    if (!selectedOffering) return;
+    setDrawerSaving(true);
+    try {
+      await deleteOffering(selectedOffering.id);
+      setOfferingsState((prev) => prev.filter((o) => o.id !== selectedOffering.id));
+      setSelectedOffering(null);
+    } finally { setDrawerSaving(false); }
+  }, [selectedOffering]);
 
-  const handleDeleteOffering = useCallback(
-    async () => {
-      if (!selectedOffering) return;
-      setDrawerSaving(true);
-      try {
-        await deleteOffering(selectedOffering.id);
-        setOfferingsState((prev) => prev.filter((o) => o.id !== selectedOffering.id));
-        setSelectedOffering(null);
-      } finally {
-        setDrawerSaving(false);
-      }
-    },
-    [selectedOffering]
-  );
+  // ─── Status ───────────────────────────────────────────────────
 
-  // ─── Status badge helper ──────────────────────────────────────
+  const statusText = isApproved ? (venue.state === "active" ? "Live" : "Closed") : currentReviewStatus === "pending" ? "In Review" : currentReviewStatus === "rejected" ? "Needs Updates" : "Draft";
+  const statusColor = isApproved ? "#4ade80" : currentReviewStatus === "pending" ? "#F97316" : currentReviewStatus === "rejected" ? "#EF4444" : "rgba(255,255,255,0.4)";
 
-  const statusText = isApproved
-    ? venue.state === "active"
-      ? "Live"
-      : "Closed"
-    : currentReviewStatus === "pending"
-      ? "In Review"
-      : currentReviewStatus === "rejected"
-        ? "Needs Updates"
-        : "Draft";
-
-  const statusColor = isApproved
-    ? "#4ade80"
-    : currentReviewStatus === "pending"
-      ? "#F97316"
-      : currentReviewStatus === "rejected"
-        ? "#EF4444"
-        : "rgba(0,0,0,0.4)";
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "analytics", label: "Analytics" },
+    { id: "preview", label: "Preview" },
+    { id: "settings", label: "Settings" },
+  ];
 
   // ─── Render ───────────────────────────────────────────────────
 
   return (
-    <main className="flex h-dvh flex-col bg-gray-50">
+    <main className="flex h-dvh flex-col" style={{ backgroundColor: "#0A0A0A" }}>
       {/* Header */}
-      <header
-        className="relative z-10 flex h-14 shrink-0 items-center justify-between bg-white px-4"
-        style={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}
-      >
+      <header className="relative z-10 flex h-12 shrink-0 items-center justify-between px-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="flex items-center gap-3">
-          <span className="font-sans text-[14px] font-bold tracking-tight text-gray-900">
+          <span className="font-sans text-[14px] font-bold tracking-tight text-white">
             <span style={{ color: "#F97316" }}>the</span>KickBack
           </span>
-          <div className="h-4 w-px bg-gray-200" />
-          <span className="font-sans text-[14px] font-semibold text-gray-700">{venue.name}</span>
-          <Badge
-            className="h-5 rounded-full border-0 px-2 text-[10px] font-semibold"
-            style={{ backgroundColor: `${statusColor}18`, color: statusColor }}
-          >
+          <div className="h-4 w-px" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
+          <span className="font-sans text-[13px] font-medium text-white/60">{venue.name}</span>
+          <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: `${statusColor}18`, color: statusColor }}>
             {statusText}
-          </Badge>
+          </span>
         </div>
-
         <div className="flex items-center gap-2">
           {isApproved && (
-            <Link
-              href="/scan"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-white transition active:scale-95"
-              style={{ backgroundColor: "#F97316" }}
-            >
-              <ScanIcon />
+            <Link href="/scan" className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold text-black transition active:scale-95" style={{ backgroundColor: "#F97316" }}>
               Scan
             </Link>
           )}
-          <span className="font-mono text-[10px] text-gray-300">v1.0.0</span>
         </div>
       </header>
 
-      {/* Tab Content Area */}
-      <Tabs
-        defaultValue={0}
-        value={activeTab}
-        onValueChange={(val) => setActiveTab(val as number)}
-        className="flex flex-1 flex-col min-h-0 gap-0"
-      >
-        {/* Desktop top tab bar */}
-        <div
-          className="relative z-10 hidden lg:block shrink-0 bg-white px-4"
-          style={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}
-        >
-          <TabsList
-            variant="line"
-            className="h-10 w-full justify-start gap-0 bg-transparent p-0"
-          >
-            <TabsTrigger
-              value={0}
-              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
+      {/* Tab bar */}
+      <div className="relative z-10 flex shrink-0 items-center gap-0 px-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        {tabs.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="relative h-10 px-4 font-sans text-[13px] font-medium transition"
+              style={{ color: active ? "#F97316" : "rgba(255,255,255,0.35)" }}
             >
-              <AnalyticsIcon active={activeTab === 0} />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger
-              value={1}
-              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
-            >
-              <PreviewIcon active={activeTab === 1} />
-              Preview
-            </TabsTrigger>
-            <TabsTrigger
-              value={2}
-              className="h-10 gap-2 rounded-none border-0 px-4 text-[13px] font-medium text-gray-400 data-active:text-[#F97316] data-active:after:bg-[#F97316]"
-            >
-              <SettingsIcon active={activeTab === 2} />
-              Settings
-            </TabsTrigger>
-          </TabsList>
-        </div>
+              {tab.label}
+              {active && <div className="absolute inset-x-4 bottom-0 h-0.5 rounded-full" style={{ backgroundColor: "#F97316" }} />}
+            </button>
+          );
+        })}
 
-        {/* Tab 1: Analytics */}
-        <TabsContent value={0} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
-          {/* Sub-navigation pills */}
-          <div className="sticky top-0 z-[5] bg-gray-50 px-4 pt-3 pb-1">
-            <div className="flex gap-2">
-              {(["today", "orders", "guests"] as const).map((view) => (
-                <button
-                  key={view}
-                  onClick={() => setAnalyticsView(view)}
-                  className={`rounded-full px-3.5 py-1.5 font-sans text-[12px] font-medium transition ${
-                    analyticsView === view
-                      ? "bg-orange-500 text-white"
-                      : "bg-white border border-black/[0.06] text-gray-500 hover:bg-black/[0.02]"
-                  }`}
-                >
-                  {view === "today" ? "Today" : view === "orders" ? "Orders" : "Guests"}
-                </button>
-              ))}
-            </div>
+        {/* Analytics sub-tabs */}
+        {activeTab === "analytics" && (
+          <div className="ml-auto flex items-center gap-1">
+            {(["today", "orders", "guests"] as const).map((view) => (
+              <button
+                key={view}
+                onClick={() => setAnalyticsView(view)}
+                className="rounded-full px-3 py-1 font-sans text-[11px] font-medium transition"
+                style={{
+                  backgroundColor: analyticsView === view ? "rgba(249,115,22,0.15)" : "transparent",
+                  color: analyticsView === view ? "#F97316" : "rgba(255,255,255,0.3)",
+                }}
+              >
+                {view.charAt(0).toUpperCase() + view.slice(1)}
+              </button>
+            ))}
           </div>
+        )}
+      </div>
 
-          {analyticsView === "today" && (
-            <TodayTab
-              revenueToday={initialData.revenueStats?.todayRevenue || 0}
-              ordersToday={ordersToday.length}
-              activeGuests={initialData.sessions.length}
-              members={initialData.stats.members}
-              feeRate={feeRate}
-              pendingRequests={pendingRequests}
-              upcomingBookings={upcomingBookings}
-              recentActivity={recentActivity}
-              onRequestsTap={() => setAnalyticsView("guests")}
-              onOrderTap={(order) => setSelectedOrder(order)}
-              onGuestTap={(guest) => setSelectedGuest(guest)}
-            />
-          )}
+      {/* Content */}
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+        {/* Analytics */}
+        {activeTab === "analytics" && (
+          <div className="analytics-light-wrap">
+            {analyticsView === "today" && (
+              <TodayTab
+                revenueToday={initialData.revenueStats?.todayRevenue || 0}
+                ordersToday={ordersToday.length}
+                activeGuests={initialData.sessions.length}
+                members={initialData.stats.members}
+                feeRate={feeRate}
+                pendingRequests={pendingRequests}
+                upcomingBookings={upcomingBookings}
+                recentActivity={recentActivity}
+                onRequestsTap={() => setAnalyticsView("guests")}
+                onOrderTap={(order) => setSelectedOrder(order)}
+                onGuestTap={(guest) => setSelectedGuest(guest)}
+              />
+            )}
+            {analyticsView === "orders" && (
+              <OrdersTab
+                ordersState={ordersState}
+                revenueStats={initialData.revenueStats}
+                transactions={initialData.transactions}
+                feeRate={feeRate}
+                topSellingItems={topSellingItems}
+                recentPurchases={recentPurchases}
+                onOrderTap={(order) => setSelectedOrder(order)}
+              />
+            )}
+            {analyticsView === "guests" && (
+              <GuestsTab
+                sessions={initialData.sessions}
+                stats={{ totalToday: initialData.stats.totalToday, members: initialData.stats.members }}
+                bookings={initialData.bookings}
+                xpBreakdown={xpBreakdown}
+                maxXpCount={maxXpCount}
+                recentXp={recentXp}
+                topics={topics}
+                onGuestTap={(guest) => setSelectedGuest(guest)}
+                requests={initialData.requests}
+                perks={initialData.perks}
+                redemptions={initialData.redemptions}
+                multipliers={initialData.multipliers}
+                leaderboard={initialData.leaderboard}
+                pointsIssuedToday={initialData.stats.pointsIssuedToday || 0}
+                perksRedeemedToday={initialData.stats.perksRedeemedToday || 0}
+              />
+            )}
+          </div>
+        )}
 
-          {analyticsView === "orders" && (
-            <OrdersTab
-              ordersState={ordersState}
-              revenueStats={initialData.revenueStats}
-              transactions={initialData.transactions}
-              feeRate={feeRate}
-              topSellingItems={topSellingItems}
-              recentPurchases={recentPurchases}
-              onOrderTap={(order) => setSelectedOrder(order)}
-            />
-          )}
-
-          {analyticsView === "guests" && (
-            <GuestsTab
-              sessions={initialData.sessions}
-              stats={{ totalToday: initialData.stats.totalToday, members: initialData.stats.members }}
-              bookings={initialData.bookings}
-              xpBreakdown={xpBreakdown}
-              maxXpCount={maxXpCount}
-              recentXp={recentXp}
-              topics={topics}
-              onGuestTap={(guest) => setSelectedGuest(guest)}
-              requests={initialData.requests}
-              perks={initialData.perks}
-              redemptions={initialData.redemptions}
-              multipliers={initialData.multipliers}
-              leaderboard={initialData.leaderboard}
-              pointsIssuedToday={initialData.stats.pointsIssuedToday || 0}
-              perksRedeemedToday={initialData.stats.perksRedeemedToday || 0}
-            />
-          )}
-        </TabsContent>
-
-        {/* Tab 2: Preview — live editable venue page */}
-        <TabsContent value={1} className="flex-1 min-h-0">
+        {/* Preview */}
+        {activeTab === "preview" && (
           <PlacePreviewEditable
             data={hubData}
             venueId={venue.id}
@@ -699,95 +464,57 @@ export function OwnerDock({
             onFieldSave={handleFieldSave}
             onPhotoUpload={handlePhotoUpload}
             onSectionEdited={handleSectionEdited}
-            onOfferingTap={handleOpenOfferingDrawer}
+            onOfferingTap={(o) => setSelectedOffering(o)}
           />
-        </TabsContent>
+        )}
 
-        {/* Tab 3: Settings */}
-        <TabsContent value={2} className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
-          {settingsData ? (
-            <SettingsClient {...settingsData} embedded />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="font-sans text-[13px] text-gray-400">Loading settings...</p>
-            </div>
-          )}
-        </TabsContent>
+        {/* Settings */}
+        {activeTab === "settings" && settingsData && (
+          <SettingsClient {...settingsData} embedded />
+        )}
+      </div>
 
-        {/* Mobile Bottom Tab Bar */}
-        <div
-          className="relative z-10 flex shrink-0 items-stretch lg:hidden bg-white"
-          style={{
-            borderTop: "1px solid rgba(0,0,0,0.08)",
-            paddingBottom: "env(safe-area-inset-bottom)",
-          }}
-        >
-          {(
-            [
-              { idx: 0, label: "Analytics", Icon: AnalyticsIcon },
-              { idx: 1, label: "Preview", Icon: PreviewIcon },
-              { idx: 2, label: "Settings", Icon: SettingsIcon },
-            ] as const
-          ).map(({ idx, label, Icon }) => {
-            const isActive = activeTab === idx;
-            return (
-              <button
-                key={idx}
-                onClick={() => setActiveTab(idx)}
-                className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 font-sans text-[10px] font-medium transition ${
-                  isActive ? "text-[#F97316]" : "text-gray-400"
-                }`}
-              >
-                <Icon active={isActive} />
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </Tabs>
+      {/* Mobile Bottom Tab Bar */}
+      <div className="relative z-10 flex shrink-0 items-stretch lg:hidden" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+        {tabs.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 font-sans text-[10px] font-medium transition"
+              style={{ color: active ? "#F97316" : "rgba(255,255,255,0.3)" }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
-      {/* ─── Order Detail Drawer ────────────────────────────────────── */}
+      {/* ─── Drawers ─────────────────────────────────────────────── */}
       <AnimatePresence>
         {selectedOrder && (
-          <OrderDetailDrawer
-            order={selectedOrder}
-            feeRate={feeRate}
-            drawerSaving={drawerSaving}
-            onStatusUpdate={handleOrderStatusUpdate}
-            onRefundOrder={handleRefundOrder}
-            onClose={() => setSelectedOrder(null)}
-          />
+          <OrderDetailDrawer order={selectedOrder} feeRate={feeRate} drawerSaving={drawerSaving} onStatusUpdate={handleOrderStatusUpdate} onRefundOrder={handleRefundOrder} onClose={() => setSelectedOrder(null)} />
         )}
       </AnimatePresence>
-
-      {/* ─── Guest Detail Drawer ─────────────────────────────────────── */}
       <AnimatePresence>
         {selectedGuest && (
-          <GuestDetailDrawer
-            guest={selectedGuest}
-            ordersState={ordersState}
-            xpActivity={xpActivity || []}
-            onClose={() => setSelectedGuest(null)}
-            onOrderTap={(order) => setSelectedOrder(order)}
-            onAskAboutGuest={() => {
-              setSelectedGuest(null);
-            }}
-          />
+          <GuestDetailDrawer guest={selectedGuest} ordersState={ordersState} xpActivity={xpActivity || []} onClose={() => setSelectedGuest(null)} onOrderTap={(order) => setSelectedOrder(order)} onAskAboutGuest={() => setSelectedGuest(null)} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {selectedOffering && (
+          <OfferingDetailDrawer offering={selectedOffering} drawerSaving={drawerSaving} onSave={handleSaveOffering} onDelete={handleDeleteOffering} onClose={() => setSelectedOffering(null)} />
         )}
       </AnimatePresence>
 
-      {/* ─── Offering Detail Drawer ──────────────────────────────────── */}
-      <AnimatePresence>
-        {selectedOffering && (
-          <OfferingDetailDrawer
-            offering={selectedOffering}
-            drawerSaving={drawerSaving}
-            onSave={handleSaveOffering}
-            onDelete={handleDeleteOffering}
-            onClose={() => setSelectedOffering(null)}
-          />
-        )}
-      </AnimatePresence>
+      {/* Analytics tabs render light-themed components — wrap them in a light container */}
+      <style>{`
+        .analytics-light-wrap {
+          background: #f9fafb;
+          min-height: 100%;
+        }
+      `}</style>
     </main>
   );
 }
