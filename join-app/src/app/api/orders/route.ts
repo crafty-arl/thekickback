@@ -27,6 +27,18 @@ export async function POST(request: Request) {
     return Response.json({ error: "Missing venue or items" }, { status: 400 });
   }
 
+  // Check if venue has Stripe connected — can't sell without it
+  const accountCol = mode === "test" ? "stripe_test_account_id" : "stripe_account_id";
+  const { data: venueStripe } = await supabase
+    .from("venues")
+    .select(accountCol)
+    .eq("id", venueId)
+    .single();
+
+  if (!venueStripe || !(venueStripe as Record<string, unknown>)[accountCol]) {
+    return Response.json({ error: "This place hasn't set up payments yet. Let them know!" }, { status: 400 });
+  }
+
   // Validate: bookable offerings must include date+time in metadata
   for (const item of items) {
     if (!item.offering_id) continue;

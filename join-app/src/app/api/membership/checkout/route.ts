@@ -27,6 +27,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing offeringId or venueId" }, { status: 400 });
   }
 
+  // Check if venue has Stripe connected
+  const mode = isSandboxServer(h) ? "test" : "live";
+  const accountCol = mode === "test" ? "stripe_test_account_id" : "stripe_account_id";
+  const { data: venueStripe } = await supabase
+    .from("venues")
+    .select(accountCol)
+    .eq("id", venueId)
+    .single();
+
+  if (!venueStripe || !(venueStripe as Record<string, unknown>)[accountCol]) {
+    return NextResponse.json({ error: "This place hasn't set up payments yet." }, { status: 400 });
+  }
+
   // Fetch offering — must be active membership
   const { data: offering, error: offErr } = await supabase
     .from("venue_offerings")
