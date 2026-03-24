@@ -9,9 +9,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { venueId } = await request.json();
+  const { venueId, cloverApiKey, cloverMerchantId } = await request.json();
   if (!venueId) {
     return Response.json({ error: "Missing venueId" }, { status: 400 });
+  }
+  if (!cloverApiKey || !cloverMerchantId) {
+    return Response.json({ error: "Missing Clover API key or Merchant ID" }, { status: 400 });
   }
 
   // Verify ownership
@@ -26,62 +29,34 @@ export async function POST(request: Request) {
     return Response.json({ error: "Not your venue" }, { status: 403 });
   }
 
+  // Validate the Clover credentials by hitting their merchant endpoint
+  const testRes = await fetch(
+    `https://api.clover.com/v3/merchants/${cloverMerchantId}`,
+    { headers: { Authorization: `Bearer ${cloverApiKey}` } },
+  );
+
+  if (!testRes.ok) {
+    return Response.json(
+      { error: "Invalid Clover credentials. Check your API key and Merchant ID." },
+      { status: 400 },
+    );
+  }
+
   const service = createServiceClient(
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!,
   );
 
-  // Get venue name for consumer metadata
-  const { data: venue } = await service
-    .from("venues")
-    .select("name")
-    .eq("id", venueId)
-    .single();
-
-  // Store consumer ID on venue
+  // Store Clover credentials and mark as connected
   await service
     .from("venues")
-    .update({ apideck_consumer_id: venueId })
+    .update({
+      clover_api_key: cloverApiKey,
+      clover_merchant_id: cloverMerchantId,
+      pos_provider: "Clover",
+      pos_connected_at: new Date().toISOString(),
+    })
     .eq("id", venueId);
 
-  // Create Apideck Vault session
-  const apiKey = process.env.APIDECK_API_KEY;
-  const appId = process.env.APIDECK_APP_ID;
-
-  if (!apiKey || !appId) {
-    console.error("[pos/connect] Missing APIDECK_API_KEY or APIDECK_APP_ID");
-    return Response.json({ error: "POS integration not configured. Contact support." }, { status: 503 });
-  }
-
-  const origin = request.headers.get("origin") || "https://dash.thekickback.net";
-
-  const res = await fetch("https://unify.apideck.com/vault/sessions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "x-apideck-app-id": appId,
-      "x-apideck-consumer-id": venueId,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      consumer_metadata: {
-        account_name: venue?.name || "Venue",
-      },
-      redirect_uri: `${origin}/hub?pos=connected`,
-      settings: {
-        unified_apis: ["pos"],
-        auto_redirect: true,
-        sandbox_mode: false,
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    console.error("Apideck Vault session error:", res.status, errText);
-    return Response.json({ error: "Failed to create POS connection session" }, { status: 500 });
-  }
-
-  const data = await res.json();
-  return Response.json({ session_url: data.data?.session_uri || data.data?.session_url });
+  return Response.json({ ok: true, provider: "Clover" });
 }

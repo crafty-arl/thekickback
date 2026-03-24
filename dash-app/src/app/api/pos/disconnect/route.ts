@@ -37,6 +37,8 @@ export async function POST(request: Request) {
     .update({
       pos_provider: null,
       pos_connected_at: null,
+      clover_api_key: null,
+      clover_merchant_id: null,
     })
     .eq("id", venueId);
 

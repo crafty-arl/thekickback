@@ -115,6 +115,9 @@ export function HubTab({
   const [posSyncing, setPosSyncing] = useState(false);
   const [posDisconnecting, setPosDisconnecting] = useState(false);
   const [posSyncResult, setPosSyncResult] = useState<string | null>(null);
+  const [posError, setPosError] = useState<string | null>(null);
+  const [cloverApiKey, setCloverApiKey] = useState("");
+  const [cloverMerchantId, setCloverMerchantId] = useState("");
 
   useEffect(() => {
     const host = window.location.hostname;
@@ -132,18 +135,32 @@ export function HubTab({
   };
 
   const handlePosConnect = async () => {
+    if (!cloverApiKey.trim() || !cloverMerchantId.trim()) {
+      setPosError("Enter both your API key and Merchant ID");
+      return;
+    }
     setPosConnecting(true);
+    setPosError(null);
     try {
       const res = await fetch("/api/pos/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venueId }),
+        body: JSON.stringify({ venueId, cloverApiKey: cloverApiKey.trim(), cloverMerchantId: cloverMerchantId.trim() }),
       });
       const data = await res.json();
-      if (data.session_url) {
-        window.location.href = data.session_url;
+      if (!res.ok) {
+        setPosError(data.error || "Connection failed");
+        return;
       }
+      setPosProvider(data.provider);
+      setPosConnectedAt(new Date().toISOString());
+      setCloverApiKey("");
+      setCloverMerchantId("");
+      // Auto-sync after connecting
+      handlePosSync();
     } catch {
+      setPosError("Connection failed. Try again.");
+    } finally {
       setPosConnecting(false);
     }
   };
@@ -182,7 +199,7 @@ export function HubTab({
     }
   };
 
-  // Detect ?pos=connected in URL
+  // Legacy: detect ?pos=connected in URL (from old Apideck flow)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("pos") === "connected") {
@@ -339,15 +356,29 @@ export function HubTab({
           <div className="mx-4 mt-2">
             {!posProvider ? (
               <div className="rounded-xl border border-black/[0.06] bg-white p-4">
-                <p className="font-sans text-[13px] font-semibold text-gray-700 mb-1">Connect your POS</p>
-                <p className="font-sans text-[11px] text-gray-400 mb-3">Sync your product catalog from your point-of-sale system</p>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {["Square", "Toast", "Clover", "Lightspeed", "Shopify"].map((name) => (
-                    <span key={name} className="rounded-full bg-gray-50 border border-black/[0.04] px-2.5 py-1 font-sans text-[10px] font-medium text-gray-400">
-                      {name}
-                    </span>
-                  ))}
+                <p className="font-sans text-[13px] font-semibold text-gray-700 mb-1">Connect Clover POS</p>
+                <p className="font-sans text-[11px] text-gray-400 mb-3">
+                  Enter your Clover API key and Merchant ID to sync your catalog
+                </p>
+                <div className="flex flex-col gap-2 mb-3">
+                  <input
+                    type="password"
+                    placeholder="Clover API Key"
+                    value={cloverApiKey}
+                    onChange={(e) => setCloverApiKey(e.target.value)}
+                    className="w-full rounded-lg border border-black/[0.08] bg-gray-50 px-3 py-2 font-sans text-[13px] text-gray-700 placeholder:text-gray-300 focus:border-orange-300 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Merchant ID"
+                    value={cloverMerchantId}
+                    onChange={(e) => setCloverMerchantId(e.target.value)}
+                    className="w-full rounded-lg border border-black/[0.08] bg-gray-50 px-3 py-2 font-sans text-[13px] text-gray-700 placeholder:text-gray-300 focus:border-orange-300 focus:outline-none"
+                  />
                 </div>
+                {posError && (
+                  <p className="mb-2 font-sans text-[11px] text-red-500">{posError}</p>
+                )}
                 <button
                   onClick={handlePosConnect}
                   disabled={posConnecting}

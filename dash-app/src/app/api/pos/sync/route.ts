@@ -2,19 +2,17 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 
 // ─── AI-powered category classification ─────────────────────────────
-// Sends a batch of POS items to an LLM for accurate type classification.
-// Falls back to keyword matching if AI is unavailable.
 
 const VALID_TYPES = ["product", "service", "event", "reservation", "membership", "package"];
 
 async function classifyOfferingsBatch(
-  items: { id: string; name: string; description?: string; product_type?: string; category?: string }[],
+  items: { id: string; name: string; description?: string; category?: string }[],
   venueType?: string
 ): Promise<Record<string, string>> {
   if (items.length === 0) return {};
 
   const itemList = items.map((item, i) =>
-    `${i + 1}. "${item.name}" — ${item.description || "no description"} (POS category: ${item.category || item.product_type || "none"})`
+    `${i + 1}. "${item.name}" — ${item.description || "no description"} (category: ${item.category || "none"})`
   ).join("\n");
 
   const prompt = `You are classifying menu/catalog items from a POS system for a ${venueType || "venue"}.
@@ -58,13 +56,11 @@ Respond with ONLY a JSON object mapping item number to type, like: {"1":"product
     const data = await res.json();
     const text = typeof data === "string" ? data : data.output_text || data.output || JSON.stringify(data);
 
-    // Extract JSON from the response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON in AI response");
 
     const classifications = JSON.parse(jsonMatch[0]) as Record<string, string>;
 
-    // Map back to item IDs
     const result: Record<string, string> = {};
     items.forEach((item, i) => {
       const type = classifications[String(i + 1)]?.toLowerCase();
@@ -77,7 +73,6 @@ Respond with ONLY a JSON object mapping item number to type, like: {"1":"product
   }
 }
 
-// Keyword fallback if AI is down
 function fallbackClassify(items: { id: string; name: string; description?: string }[]): Record<string, string> {
   const keywords: Record<string, string[]> = {
     service: ["haircut", "cut", "trim", "massage", "facial", "wax", "treatment", "consultation", "lesson", "class", "training", "repair", "cleaning"],
@@ -97,6 +92,46 @@ function fallbackClassify(items: { id: string; name: string; description?: strin
   }
   return result;
 }
+
+// ─── Clover API helpers ─────────────────────────────────────────────
+
+interface CloverItem {
+  id: string;
+  name: string;
+  price: number;
+  priceType?: string;
+  hidden?: boolean;
+  categories?: { elements?: { id: string; name: string }[] };
+}
+
+async function fetchCloverItems(apiKey: string, merchantId: string): Promise<CloverItem[]> {
+  const allItems: CloverItem[] = [];
+  let offset = 0;
+  const limit = 100;
+
+  while (true) {
+    const res = await fetch(
+      `https://api.clover.com/v3/merchants/${merchantId}/items?expand=categories&limit=${limit}&offset=${offset}`,
+      { headers: { Authorization: `Bearer ${apiKey}` } },
+    );
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Clover API error ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+    const items: CloverItem[] = data.elements || [];
+    allItems.push(...items);
+
+    if (items.length < limit) break;
+    offset += limit;
+  }
+
+  return allItems.filter((item) => !item.hidden);
+}
+
+// ─── Route ──────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -128,41 +163,34 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_KEY!,
   );
 
-  // Fetch POS items from Apideck
-  const res = await fetch("https://unify.apideck.com/pos/items", {
-    headers: {
-      Authorization: `Bearer ${process.env.APIDECK_API_KEY}`,
-      "x-apideck-app-id": process.env.APIDECK_APP_ID!,
-      "x-apideck-consumer-id": venueId,
-      "Content-Type": "application/json",
-    },
-  });
+  // Get venue's Clover credentials
+  const { data: venue } = await service
+    .from("venues")
+    .select("clover_api_key, clover_merchant_id, type")
+    .eq("id", venueId)
+    .single();
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    console.error("Apideck POS items error:", res.status, errText);
-    return Response.json({ error: "Failed to fetch POS catalog" }, { status: 500 });
+  if (!venue?.clover_api_key || !venue?.clover_merchant_id) {
+    return Response.json({ error: "Clover not connected. Add your API key in settings." }, { status: 400 });
   }
 
-  const data = await res.json();
-  const items = data.data || [];
-
-  // Determine provider from the Apideck response metadata
-  const posProvider = data.service?.name || data.service?.id || "pos";
-
-  // Get venue type for better AI classification context
-  const { data: venueRow } = await service.from("venues").select("type").eq("id", venueId).single();
-  const venueType = venueRow?.type || undefined;
+  // Fetch items from Clover
+  let items: CloverItem[];
+  try {
+    items = await fetchCloverItems(venue.clover_api_key, venue.clover_merchant_id);
+  } catch (err) {
+    console.error("[pos/sync] Clover fetch error:", err);
+    return Response.json({ error: "Failed to fetch items from Clover. Check your API key." }, { status: 500 });
+  }
 
   // Batch classify all items with AI
-  const classifiableItems = items.map((item: Record<string, unknown>) => ({
-    id: item.id as string,
-    name: (item.name as string) || "Unnamed",
-    description: item.description as string | undefined,
-    product_type: item.product_type as string | undefined,
-    category: item.category as string | undefined,
+  const classifiableItems = items.map((item) => ({
+    id: item.id,
+    name: item.name || "Unnamed",
+    description: undefined as string | undefined,
+    category: item.categories?.elements?.[0]?.name || undefined,
   }));
-  const classifications = await classifyOfferingsBatch(classifiableItems, venueType);
+  const classifications = await classifyOfferingsBatch(classifiableItems, venue.type || undefined);
 
   let added = 0;
   let updated = 0;
@@ -172,11 +200,8 @@ export async function POST(request: Request) {
     const posItemId = item.id;
     syncedPosItemIds.push(posItemId);
 
-    const priceCents = item.price
-      ? Math.round(parseFloat(item.price) * 100)
-      : item.price_amount
-        ? Math.round(item.price_amount * 100)
-        : 0;
+    // Clover prices are in cents already
+    const priceCents = item.price || 0;
 
     const { data: existing } = await service
       .from("venue_offerings")
@@ -186,18 +211,17 @@ export async function POST(request: Request) {
       .single();
 
     const offeringType = classifications[posItemId] || "product";
-    const category = item.category || item.product_type || null;
+    const category = item.categories?.elements?.[0]?.name || null;
 
     if (existing) {
       await service
         .from("venue_offerings")
         .update({
           name: item.name || "Unnamed Item",
-          description: item.description || null,
           price_cents: priceCents,
           type: offeringType,
           category,
-          pos_provider: posProvider,
+          pos_provider: "Clover",
           synced_at: new Date().toISOString(),
           active: true,
         })
@@ -209,11 +233,10 @@ export async function POST(request: Request) {
         .insert({
           venue_id: venueId,
           name: item.name || "Unnamed Item",
-          description: item.description || null,
           price_cents: priceCents,
           type: offeringType,
           category,
-          pos_provider: posProvider,
+          pos_provider: "Clover",
           pos_item_id: posItemId,
           ai_visible: true,
           synced_at: new Date().toISOString(),
@@ -224,16 +247,15 @@ export async function POST(request: Request) {
     }
   }
 
-  // Mark offerings that were previously synced from this POS but no longer in the catalog as inactive
+  // Mark previously synced items no longer in catalog as inactive
   if (syncedPosItemIds.length > 0) {
     await service
       .from("venue_offerings")
       .update({ active: false })
       .eq("venue_id", venueId)
-      .eq("pos_provider", posProvider)
+      .eq("pos_provider", "Clover")
       .not("pos_item_id", "in", `(${syncedPosItemIds.map((id) => `"${id}"`).join(",")})`);
   } else {
-    // If no items came back, deactivate all POS-synced offerings
     await service
       .from("venue_offerings")
       .update({ active: false })
@@ -241,18 +263,11 @@ export async function POST(request: Request) {
       .not("pos_provider", "is", null);
   }
 
-  // Update venue POS connection state
+  // Update venue POS connection timestamp
   await service
     .from("venues")
-    .update({
-      pos_provider: posProvider,
-      pos_connected_at: new Date().toISOString(),
-    })
+    .update({ pos_connected_at: new Date().toISOString() })
     .eq("id", venueId);
 
-  return Response.json({
-    synced: items.length,
-    added,
-    updated,
-  });
+  return Response.json({ synced: items.length, added, updated });
 }
