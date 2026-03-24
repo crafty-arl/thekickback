@@ -15,6 +15,12 @@ export interface OfferingMeta {
   interval?: string | null;
   duration_minutes?: number | null;
   add_ons?: { name: string; price_cents: number }[] | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  location_name?: string | null;
+  location_address?: string | null;
+  rsvp_count?: number | null;
+  max_attendees?: number | null;
 }
 
 export interface ProductDrawerProps {
@@ -171,6 +177,61 @@ export function ProductDrawer({ offer, meta, theme, onClose, onAdd, onAddWithMet
 
           {meta?.description && (
             <p className="mt-4 font-sans text-[14px] leading-[1.7] text-white/50">{meta.description}</p>
+          )}
+
+          {/* ── Event details ── */}
+          {meta?.type === "event" && (meta.starts_at || meta.location_name || meta.rsvp_count !== undefined) && (
+            <div className="mt-4 flex flex-col gap-2.5">
+              {/* Date & Time */}
+              {meta.starts_at && (
+                <div className="flex items-center gap-3 px-3.5 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={theme} strokeWidth="2" strokeLinecap="round">
+                    <rect width="18" height="18" x="3" y="4" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <div>
+                    <p className="font-sans text-[13px] font-semibold text-white/80">
+                      {new Date(meta.starts_at).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                    </p>
+                    <p className="font-sans text-[12px] text-white/40">
+                      {new Date(meta.starts_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                      {meta.ends_at && ` – ${new Date(meta.ends_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Location */}
+              {meta.location_name && (
+                <div className="flex items-center gap-3 px-3.5 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={theme} strokeWidth="2" strokeLinecap="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                  </svg>
+                  <div>
+                    <p className="font-sans text-[13px] font-semibold text-white/80">{meta.location_name}</p>
+                    {meta.location_address && (
+                      <p className="font-sans text-[12px] text-white/40">{meta.location_address}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Capacity / RSVP */}
+              {(meta.rsvp_count !== undefined && meta.rsvp_count !== null) && (
+                <div className="flex items-center gap-3 px-3.5 py-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={theme} strokeWidth="2" strokeLinecap="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  <div>
+                    <p className="font-sans text-[13px] font-semibold text-white/80">
+                      {meta.rsvp_count} going{meta.max_attendees ? ` / ${meta.max_attendees} spots` : ""}
+                    </p>
+                    {meta.max_attendees && meta.rsvp_count! >= meta.max_attendees && (
+                      <p className="font-sans text-[11px] text-red-400/70">Sold out</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* ── Booking UI: always shown for bookable offerings ── */}

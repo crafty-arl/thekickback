@@ -723,7 +723,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
                   key={event.id}
                   onClick={() => {
                     if (!offeringsMap[event.id]) {
-                      setOfferingsMap((prev) => ({ ...prev, [event.id]: { name: event.name, description: event.description, price_cents: event.price_cents, image_url: event.image_url || null, type: event.type, recurring: false, interval: null, duration_minutes: event.duration_minutes } }));
+                      setOfferingsMap((prev) => ({ ...prev, [event.id]: { name: event.name, description: event.description, price_cents: event.price_cents, image_url: event.image_url || null, type: event.type, recurring: false, interval: null, duration_minutes: event.duration_minutes, starts_at: event.starts_at, ends_at: event.ends_at, location_name: event.location_name, location_address: event.location_address, rsvp_count: event.rsvp_count, max_attendees: event.max_attendees } }));
                     }
                     setDrawerOfferId(event.id);
                   }}
@@ -783,7 +783,7 @@ export function VenuePageClient({ page, venue, table, user, offerings, gallery =
               // Populate offeringsMap for the drawer if not already present
               const o = offerings.find((off) => off.id === id);
               if (o && !offeringsMap[id]) {
-                setOfferingsMap((prev) => ({ ...prev, [id]: { name: o.name, description: o.description, price_cents: o.price_cents, image_url: null, type: o.type, recurring: o.recurring, interval: o.interval, duration_minutes: o.duration_minutes } }));
+                setOfferingsMap((prev) => ({ ...prev, [id]: { name: o.name, description: o.description, price_cents: o.price_cents, image_url: o.image_url || null, type: o.type, recurring: o.recurring, interval: o.interval, duration_minutes: o.duration_minutes, starts_at: o.starts_at, ends_at: o.ends_at, location_name: o.location_name, location_address: o.location_address, rsvp_count: o.rsvp_count, max_attendees: o.max_attendees } }));
               }
               setDrawerOfferId(id);
             }} />
