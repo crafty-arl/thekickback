@@ -76,9 +76,31 @@ export async function createVenue(formData: VenueFormData) {
   }
 
   // 0. Ensure profile exists (FK requirement for venue_owners)
-  await service
+  const { data: existingProfile } = await service
     .from("profiles")
-    .upsert({ id: user.id, email: user.email, phone: user.email }, { onConflict: "id" });
+    .select("id")
+    .eq("id", user.id)
+    .single();
+
+  if (!existingProfile) {
+    await service.from("profiles").insert({
+      id: user.id,
+      email: user.email || null,
+      phone: user.phone || user.email || user.id,
+    });
+  }
+
+  // Check if user already owns a venue (from a previous failed attempt)
+  const { data: existingOwnership } = await service
+    .from("venue_owners")
+    .select("venue_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .single();
+
+  if (existingOwnership) {
+    redirect("/");
+  }
 
   // 1. Create venue
   const { data: venue, error: venueError } = await service
