@@ -3654,17 +3654,22 @@ export function TheDock({
                         <ThreadsList
                           onThreadSelect={(venueId) => {
                             if (venueId) {
-                              // Venue thread — open venue chat with history
                               const venue = venues.find((v) => v.id === venueId);
                               if (venue) handleExploreVenueTap(venue);
                             } else {
-                              // Master/concierge thread — load history and switch to concierge
                               loadThreadHistory(null).then((messages) => {
                                 if (messages && messages.length > 0) {
                                   setConciergeMessages(messages);
                                 }
                               });
                               setMode("concierge");
+                            }
+                          }}
+                          onThreadDelete={(venueId) => {
+                            if (venueId) {
+                              setVenueThreads((prev) => { const next = new Map(prev); next.delete(venueId); return next; });
+                            } else {
+                              setConciergeMessages([]);
                             }
                           }}
                         />
@@ -4782,16 +4787,19 @@ export function TheDock({
                   onThreadSelect={(venueId) => {
                     if (venueId) {
                       const venue = venues.find((v) => v.id === venueId);
-                      if (venue) {
-                        onVenueSelect(venue);
-                      }
+                      if (venue) onVenueSelect(venue);
                     } else {
                       loadThreadHistory(null).then((messages) => {
-                        if (messages && messages.length > 0) {
-                          setConciergeMessages(messages);
-                        }
+                        if (messages && messages.length > 0) setConciergeMessages(messages);
                       });
                       setMode("concierge");
+                    }
+                  }}
+                  onThreadDelete={(venueId) => {
+                    if (venueId) {
+                      setVenueThreads((prev) => { const next = new Map(prev); next.delete(venueId); return next; });
+                    } else {
+                      setConciergeMessages([]);
                     }
                   }}
                 />
