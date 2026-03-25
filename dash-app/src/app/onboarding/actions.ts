@@ -13,6 +13,7 @@ interface VenueFormData {
   maxOccupancy: number;
   hours: string;
   tagline: string;
+  claimVenueId?: string;
 }
 
 export async function createVenue(formData: VenueFormData) {
@@ -108,58 +109,111 @@ export async function createVenue(formData: VenueFormData) {
     }
   }
 
-  // 1. Create venue
-  const { data: venue, error: venueError } = await service
-    .from("venues")
-    .insert({
-      name: formData.name,
-      state: "active",
-      max_occupancy: formData.maxOccupancy || 100,
-      vibe: "quiet",
-      type: formData.type || "venue",
-      address: formData.address || null,
-      neighborhood: neighborhood || null,
-      lat,
-      lng,
-      rules: [],
-      mode,
-    })
-    .select("id")
-    .single();
+  // 1. Create or claim venue
+  let venueId: string;
 
-  if (venueError) return { error: `Venue: ${venueError.message}` };
+  if (formData.claimVenueId) {
+    // Claim an existing unclaimed venue
+    const { data: existing } = await service
+      .from("venues")
+      .select("id, state")
+      .eq("id", formData.claimVenueId)
+      .eq("state", "unclaimed")
+      .single();
+
+    if (existing) {
+      // Update the unclaimed venue to active with owner's data
+      await service.from("venues").update({
+        name: formData.name,
+        state: "active",
+        max_occupancy: formData.maxOccupancy || 100,
+        vibe: "quiet",
+        type: formData.type || "venue",
+        address: formData.address || null,
+        neighborhood: neighborhood || null,
+        lat: lat || undefined,
+        lng: lng || undefined,
+        mode,
+      }).eq("id", existing.id);
+      venueId = existing.id;
+    } else {
+      // Unclaimed venue not found — create new
+      const { data: venue, error: venueError } = await service
+        .from("venues")
+        .insert({
+          name: formData.name, state: "active", max_occupancy: formData.maxOccupancy || 100,
+          vibe: "quiet", type: formData.type || "venue", address: formData.address || null,
+          neighborhood: neighborhood || null, lat, lng, rules: [], mode,
+        })
+        .select("id").single();
+      if (venueError) return { error: `Venue: ${venueError.message}` };
+      venueId = venue.id;
+    }
+  } else {
+    // Create brand new venue
+    const { data: venue, error: venueError } = await service
+      .from("venues")
+      .insert({
+        name: formData.name, state: "active", max_occupancy: formData.maxOccupancy || 100,
+        vibe: "quiet", type: formData.type || "venue", address: formData.address || null,
+        neighborhood: neighborhood || null, lat, lng, rules: [], mode,
+      })
+      .select("id").single();
+    if (venueError) return { error: `Venue: ${venueError.message}` };
+    venueId = venue.id;
+  }
 
   // 2. Link user as owner
   const { error: ownerError } = await service.from("venue_owners").insert({
     user_id: user.id,
-    venue_id: venue.id,
+    venue_id: venueId,
     role: "owner",
   });
 
   if (ownerError) return { error: `Owner: ${ownerError.message}` };
 
-  // 3. Create venue page
-  const { error: pageError } = await service.from("venue_pages").insert({
-    venue_id: venue.id,
-    slug,
-    tagline: formData.tagline || null,
-    description: formData.description || null,
-    theme_color: themeColor,
-    published: false,
-    review_status: "draft",
-    hours: formData.hours ? [{ day: "Daily", open: formData.hours, close: "" }] : [],
-    menu_sections: [],
-  });
+  // 3. Create or update venue page
+  const { data: existingPage } = await service
+    .from("venue_pages")
+    .select("venue_id")
+    .eq("venue_id", venueId)
+    .maybeSingle();
 
-  if (pageError) return { error: `Page: ${pageError.message}` };
+  if (existingPage) {
+    // Update existing page (from unclaimed discovery)
+    await service.from("venue_pages").update({
+      slug,
+      tagline: formData.tagline || null,
+      description: formData.description || null,
+      theme_color: themeColor,
+      published: false,
+      review_status: "draft",
+      hours: formData.hours ? [{ day: "Daily", open: formData.hours, close: "" }] : [],
+      menu_sections: [],
+    }).eq("venue_id", venueId);
+  } else {
+    // Create new page
+    const { error: pageError } = await service.from("venue_pages").insert({
+      venue_id: venueId,
+      slug,
+      tagline: formData.tagline || null,
+      description: formData.description || null,
+      theme_color: themeColor,
+      published: false,
+      review_status: "draft",
+      hours: formData.hours ? [{ day: "Daily", open: formData.hours, close: "" }] : [],
+      menu_sections: [],
+    });
+    if (pageError) return { error: `Page: ${pageError.message}` };
+  }
 
   // 4. Generate offerings, XP, milestones, perks via AI
   try {
-    const aiResult = await generateVenueSetup(venue.id, service);
-    return { ok: true, venueId: venue.id, slug, ai: aiResult };
+    const aiResult = await generateVenueSetup(venueId, service);
+    return { ok: true, venueId, slug, ai: aiResult };
   } catch (err) {
     console.error("AI setup error:", err);
-    return { ok: true, venueId: venue.id, slug, ai: { error: String(err) } };
+    return { ok: true, venueId, slug, ai: { error: String(err) } };
   }
 }
 

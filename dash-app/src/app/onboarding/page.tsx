@@ -1,9 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createVenue } from "./actions";
+
+interface PlaceResult {
+  name: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+  rating: number | null;
+  reviewCount: number | null;
+  googlePlaceId: string | null;
+  unclaimedVenueId: string | null;
+}
 
 const PLACE_TYPES = [
   { value: "bar", label: "Bar", icon: "🍸" },
@@ -36,6 +47,28 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [logs, setLogs] = useState<string[]>([]);
+  const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced place search
+  useEffect(() => {
+    if (address.length < 3) { setPlaceResults([]); return; }
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(async () => {
+      try {
+        const q = name ? `${name} ${address}` : address;
+        const res = await fetch(`/api/places-search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPlaceResults(data.results || []);
+          setShowResults(true);
+        }
+      } catch {}
+    }, 400);
+    return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); };
+  }, [address, name]);
 
   const log = (msg: string) => {
     setLogs((prev) => [...prev, `${new Date().toLocaleTimeString()} — ${msg}`]);
@@ -63,6 +96,7 @@ export default function OnboardingPage() {
         maxOccupancy: 100,
         hours: "",
         tagline: "",
+        claimVenueId: selectedPlace?.unclaimedVenueId || undefined,
       });
 
       if (result?.error) {
@@ -155,18 +189,58 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          {/* Address */}
-          <div>
+          {/* Address with autocomplete */}
+          <div className="relative">
             <label className="mb-1.5 block font-sans text-[11px] font-semibold text-white/30">Address <span className="text-white/15">(optional for virtual/mobile)</span></label>
             <input
               type="text"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="123 Main St, Milwaukee WI"
+              onChange={(e) => { setAddress(e.target.value); setSelectedPlace(null); }}
+              onFocus={() => placeResults.length > 0 && setShowResults(true)}
+              onBlur={() => setTimeout(() => setShowResults(false), 200)}
+              placeholder="Start typing an address or place name..."
               disabled={saving}
               className="w-full px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 outline-none disabled:opacity-50"
               style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
             />
+            {selectedPlace?.unclaimedVenueId && (
+              <div className="mt-1.5 flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
+                <span className="font-sans text-[11px] font-semibold" style={{ color: "#4ADE80" }}>Found on KickBack</span>
+                <span className="font-sans text-[10px] text-white/30">This place exists — you'll be claiming it</span>
+              </div>
+            )}
+            {showResults && placeResults.length > 0 && (
+              <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-60 overflow-y-auto rounded-lg" style={{ backgroundColor: "rgba(20,20,22,0.98)", border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(12px)" }}>
+                {placeResults.map((r, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setAddress(r.address);
+                      if (!name && r.name) setName(r.name);
+                      setSelectedPlace(r);
+                      setShowResults(false);
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.04]"
+                    style={{ borderBottom: i < placeResults.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-sans text-[13px] font-semibold text-white/80 truncate">{r.name}</p>
+                      <p className="font-sans text-[11px] text-white/30 truncate">{r.address}</p>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-2">
+                      {r.rating && (
+                        <span className="font-sans text-[10px] font-medium" style={{ color: "#facc15" }}>★ {r.rating.toFixed(1)}</span>
+                      )}
+                      {r.unclaimedVenueId && (
+                        <span className="rounded-full px-2 py-0.5 font-sans text-[8px] font-bold" style={{ backgroundColor: "rgba(74,222,128,0.12)", color: "#4ADE80" }}>ON KB</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Description */}
