@@ -23,6 +23,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
     const [locationReady, setLocationReady] = useState(false);
+    const [discovering, setDiscovering] = useState(false);
     const [activeTag, setActiveTag] = useState<Tag | null>(null);
     const mapRef = useRef<MapRef | null>(null);
     const [navRoute, setNavRoute] = useState<RouteData | null>(null);
@@ -61,6 +62,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 setUserLocation({ latitude, longitude });
                 setLocationReady(true);
 
+                setDiscovering(true);
                 try {
                     // Fetch user's discovery radius if logged in
                     let radius = 5000;
@@ -84,6 +86,8 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                     setVenues([...claimed, ...uniqueLocal]);
                 } catch {
                     // Keep server-rendered venues on error
+                } finally {
+                    setDiscovering(false);
                 }
             },
             () => {
@@ -193,6 +197,26 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 mapRef={mapRef}
                 route={navRoute}
             />
+            )}
+
+            {/* Discovering animation */}
+            {(!locationReady || discovering) && (
+                <div className="absolute inset-0 z-[15] flex flex-col items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+                    <div className="relative mb-4">
+                        <div className="h-10 w-10 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#F97316", borderTopColor: "transparent" }} />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2.5" strokeLinecap="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                            </svg>
+                        </div>
+                    </div>
+                    <p className="font-sans text-[14px] font-semibold text-white/80">
+                        {!locationReady ? "Finding your location..." : "Discovering places nearby..."}
+                    </p>
+                    <p className="mt-1 font-sans text-[11px] text-white/30">
+                        {!locationReady ? "Allow location access for the best experience" : "Pulling from Foursquare + Google"}
+                    </p>
+                </div>
             )}
 
             {/* Header overlay — logo */}
