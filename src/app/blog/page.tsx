@@ -268,30 +268,49 @@ function PostCard({ post, index }: { post: BlogPost; index: number }) {
                     fill
                     style={{ objectFit: "cover", opacity: 0.85 }}
                 />
-                {/* Copy image URL button */}
+                {/* Image action buttons */}
                 {imageHovered && (
-                    <button
-                        onClick={handleCopyImage}
-                        style={{
-                            position: "absolute",
-                            top: 44,
-                            left: 12,
-                            zIndex: 10,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: "#fff",
-                            background: "rgba(0,0,0,0.45)",
-                            backdropFilter: "blur(12px)",
-                            WebkitBackdropFilter: "blur(12px)",
-                            border: "1px solid rgba(255,255,255,0.15)",
-                            borderRadius: 50,
-                            padding: "4px 12px",
-                            cursor: "pointer",
-                            transition: "background 0.2s",
-                        }}
-                    >
-                        {copied ? "Copied!" : "Copy"}
-                    </button>
+                    <div style={{ position: "absolute", top: 44, left: 12, zIndex: 10, display: "flex", gap: 6 }}>
+                        <button
+                            onClick={handleCopyImage}
+                            style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: "#fff",
+                                background: "rgba(0,0,0,0.45)",
+                                backdropFilter: "blur(12px)",
+                                WebkitBackdropFilter: "blur(12px)",
+                                border: "1px solid rgba(255,255,255,0.15)",
+                                borderRadius: 50,
+                                padding: "4px 12px",
+                                cursor: "pointer",
+                                transition: "background 0.2s",
+                            }}
+                        >
+                            {copied ? "Copied!" : "Copy URL"}
+                        </button>
+                        <a
+                            href={post.image}
+                            download={`${post.slug}.png`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: "#fff",
+                                background: "rgba(0,0,0,0.45)",
+                                backdropFilter: "blur(12px)",
+                                WebkitBackdropFilter: "blur(12px)",
+                                border: "1px solid rgba(255,255,255,0.15)",
+                                borderRadius: 50,
+                                padding: "4px 12px",
+                                cursor: "pointer",
+                                textDecoration: "none",
+                                transition: "background 0.2s",
+                            }}
+                        >
+                            Save
+                        </a>
+                    </div>
                 )}
                 <div
                     style={{
