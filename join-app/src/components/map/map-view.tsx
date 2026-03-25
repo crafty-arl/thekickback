@@ -106,15 +106,8 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, ma
     fittedRef.current = true;
   }, [venues]);
 
-  // Re-fit when user location is obtained and venues update
-  useEffect(() => {
-    if (!userLocation || !mapRef.current || venues.length < 2) return;
-    const { sw, ne } = getBounds(venues);
-    mapRef.current.fitBounds([sw, ne], {
-      padding: { top: 100, bottom: 80, left: 40, right: 40 },
-      duration: 1200,
-    });
-  }, [userLocation, venues]);
+  // Note: removed auto-refit on userLocation change — it was overriding
+  // the recenter button by snapping to venue bounds instead of user location.
 
   // Fly to venue when selectedVenue changes (e.g. from arrow nav)
   useEffect(() => {
