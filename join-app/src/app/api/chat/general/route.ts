@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
+import { headers } from "next/headers";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
+import { isSandboxServer } from "@/lib/sandbox";
 import { updateUserMemory, getUserMemory } from "@/lib/personalization";
 import { getRecentChatHistory } from "@/lib/chat-history";
 
@@ -30,22 +32,34 @@ interface OfferingRow {
   duration_minutes: number | null;
 }
 
-async function getActiveVenues(): Promise<VenueRow[]> {
+async function getActiveVenues(mode: string): Promise<VenueRow[]> {
   const { data } = await supabase
     .from("venues")
     .select("id, name, state, vibe, latitude, longitude, neighborhood, type, address")
     .eq("state", "active")
+    .eq("mode", mode)
     .order("name");
 
   return (data || []) as VenueRow[];
 }
 
-async function getActiveOfferings(): Promise<OfferingRow[]> {
+async function getActiveOfferings(mode: string): Promise<OfferingRow[]> {
+  // Get venue IDs for this mode first, then filter offerings
+  const { data: venueIds } = await supabase
+    .from("venues")
+    .select("id")
+    .eq("state", "active")
+    .eq("mode", mode);
+
+  if (!venueIds || venueIds.length === 0) return [];
+
+  const ids = venueIds.map((v) => v.id);
   const { data } = await supabase
     .from("venue_offerings")
     .select("id, venue_id, name, type, price_cents, description, duration_minutes")
     .eq("active", true)
     .neq("ai_visible", false)
+    .in("venue_id", ids)
     .order("sort_order")
     .limit(200);
   return (data || []) as OfferingRow[];
@@ -209,10 +223,14 @@ export async function POST(request: Request) {
   const { data: { user: authUser } } = await authClient.auth.getUser();
   const userId = authUser?.id || null;
 
+  // Determine mode from hostname
+  const h = await headers();
+  const mode = isSandboxServer(h) ? "test" : "live";
+
   // Fetch venues + offerings + preferences in parallel
   const [venues, offerings, prefsContext, chatHistory] = await Promise.all([
-    getActiveVenues(),
-    getActiveOfferings(),
+    getActiveVenues(mode),
+    getActiveOfferings(mode),
     userId ? getUserMemory(userId) : Promise.resolve(""),
     userId ? getRecentChatHistory(userId, null, 10) : Promise.resolve(""),
   ]);
