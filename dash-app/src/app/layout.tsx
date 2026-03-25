@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: "theKickBack — Dashboard",
   description: "Manage your place, view live sessions, and handle visitor requests.",
   manifest: "/manifest.json",
+  icons: { icon: "/icon.svg", apple: "/logo.png" },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

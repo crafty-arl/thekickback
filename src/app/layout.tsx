@@ -15,9 +15,10 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "theKickBack — The digital front door for real-world venues",
+  title: "theKickBack — Every spot deserves to be found",
   description:
-    "theKickBack turns venues into live, interactive systems. Check a space before you go, join when you arrive, and move through a network of venues.",
+    "theKickBack turns places into live, interactive systems. Discover what's happening, chat with any place, and earn rewards.",
+  icons: { icon: "/icon.svg", apple: "/logo.png" },
 };
 
 export default function RootLayout({

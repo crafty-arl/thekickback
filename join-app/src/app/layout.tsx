@@ -25,6 +25,7 @@ export const metadata: Metadata = {
   title: "theKickBack — Discover what's happening right now",
   description: "Tap into any venue. No app needed.",
   manifest: "/manifest.json",
+  icons: { icon: "/icon.svg", apple: "/logo.png" },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
