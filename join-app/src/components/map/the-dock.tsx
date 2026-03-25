@@ -2766,7 +2766,15 @@ export function TheDock({
         const res = await fetch("/api/chat/general", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: msg, lat: userLocation?.latitude, lng: userLocation?.longitude }),
+          body: JSON.stringify({
+            message: msg,
+            lat: userLocation?.latitude,
+            lng: userLocation?.longitude,
+            nearbyUnclaimed: venues
+              .filter((v) => v.claimed === false && v.latitude !== 0)
+              .slice(0, 20)
+              .map((v) => ({ name: v.name, category: v.category, neighborhood: v.neighborhood, rating: v.rating, reviewCount: v.reviewCount, address: v.address || v.description })),
+          }),
         });
 
         const aiMsgId = `ai-${Date.now()}`;

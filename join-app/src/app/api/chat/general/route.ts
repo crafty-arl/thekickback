@@ -190,7 +190,7 @@ function formatOfferingsForPrompt(offerings: OfferingRow[]): string {
 
 export async function POST(request: Request) {
   const [body, authClient] = await Promise.all([request.json(), createAuthClient()]);
-  const { message, lat, lng } = body;
+  const { message, lat, lng, nearbyUnclaimed } = body;
 
   if (!message) {
     return Response.json({ reply: "Missing message." }, { status: 400 });
@@ -198,6 +198,13 @@ export async function POST(request: Request) {
 
   const userLat = typeof lat === "number" ? lat : null;
   const userLng = typeof lng === "number" ? lng : null;
+
+  // Build unclaimed places context from client-side discovery data
+  const unclaimedContext = Array.isArray(nearbyUnclaimed) && nearbyUnclaimed.length > 0
+    ? nearbyUnclaimed.map((p: { name: string; category?: string; neighborhood?: string; rating?: number; reviewCount?: number; address?: string }) =>
+        `- ${p.name} (${p.category || "place"}${p.neighborhood ? `, ${p.neighborhood}` : ""}${p.rating ? ` ★${p.rating}` : ""}${p.reviewCount ? ` (${p.reviewCount} reviews)` : ""}${p.address ? ` — ${p.address}` : ""})`
+      ).join("\n")
+    : "";
 
   const { data: { user: authUser } } = await authClient.auth.getUser();
   const userId = authUser?.id || null;
@@ -265,8 +272,17 @@ export async function POST(request: Request) {
     "",
     venueBlocks,
     "",
-    "ALL PLACES ON THE PLATFORM (for general awareness):",
-    allVenuesList,
+    "CLAIMED PLACES ON THE PLATFORM (full AI agents, offerings, booking):",
+    allVenuesList || "(none yet)",
+    "",
+    unclaimedContext ? [
+      "UNCLAIMED PLACES NEARBY (from Foursquare + Google — no AI agent yet, limited info):",
+      unclaimedContext,
+      "",
+      "PRIORITY: Always recommend claimed places first — they have full AI agents, offerings, booking, and XP.",
+      "Only mention unclaimed places if no claimed place matches, or as additional options.",
+      "When mentioning unclaimed places, note they haven't set up their KickBack page yet — the user can still visit but can't order/book through the platform.",
+    ].join("\n") : "",
     "",
     prefsContext || "",
     chatHistory || "",
