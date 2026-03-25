@@ -164,6 +164,123 @@ const TIER_CONFIG: Record<string, { color: string; label: string; next: string; 
   vip: { color: "#a78bfa", label: "VIP", next: "", threshold: Infinity },
 };
 
+// ─── Tutorial overlay ────────────────────────────────────────────────
+
+const TUTORIAL_STEPS = [
+  {
+    title: "Discover places",
+    desc: "Browse the map to find places near you — cafes, barbershops, running clubs, studios. Anything where people gather.",
+    icon: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z",
+  },
+  {
+    title: "Chat with any place",
+    desc: "Tap a pin and ask anything. The AI knows the menu, hours, and vibe. It can book appointments, take orders, and answer questions.",
+    icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+  },
+  {
+    title: "Shop & book directly",
+    desc: "Switch to the Shop tab to browse everything a place offers. Tap to add to cart, pick a time for services, or RSVP to events.",
+    icon: "M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6",
+  },
+  {
+    title: "Pay with KB Wallet",
+    desc: "Load funds into your KB Wallet and pay instantly through the chat. No card fumbling, no checkout forms.",
+    icon: "M21 4H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM1 10h22",
+  },
+  {
+    title: "Earn XP & unlock perks",
+    desc: "Check in at places, order, and refer friends to earn points. Level up to unlock free stuff, priority access, and exclusive perks.",
+    icon: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+  },
+  {
+    title: "Your concierge knows you",
+    desc: "The more you chat, the more KickBack remembers — your favorite orders, vibes, and places. Every visit gets more personal.",
+    icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2",
+  },
+];
+
+function TutorialOverlay({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState(0);
+  const current = TUTORIAL_STEPS[step];
+  const isLast = step === TUTORIAL_STEPS.length - 1;
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-[90]"
+        style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
+      />
+      <motion.div
+        initial={{ opacity: 0, y: 40, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 40, scale: 0.95 }}
+        className="fixed inset-x-4 bottom-24 z-[95] max-w-sm mx-auto overflow-hidden"
+        style={{ backgroundColor: "rgba(12,12,15,0.95)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 20 }}
+      >
+        <div className="px-5 pt-5 pb-4">
+          {/* Step indicator */}
+          <div className="flex gap-1.5 mb-4">
+            {TUTORIAL_STEPS.map((_, i) => (
+              <div
+                key={i}
+                className="h-1 flex-1 rounded-full transition-all duration-300"
+                style={{ backgroundColor: i <= step ? "#F97316" : "rgba(255,255,255,0.08)" }}
+              />
+            ))}
+          </div>
+
+          {/* Icon */}
+          <div className="flex h-12 w-12 items-center justify-center rounded-full mb-3" style={{ backgroundColor: "rgba(249,115,22,0.12)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d={current.icon} />
+            </svg>
+          </div>
+
+          {/* Content */}
+          <h3 className="font-sans text-[17px] font-bold text-white mb-1.5">{current.title}</h3>
+          <p className="font-sans text-[13px] leading-relaxed text-white/50">{current.desc}</p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <button onClick={onClose} className="font-sans text-[12px] text-white/30 transition hover:text-white/50">
+            Skip
+          </button>
+          <div className="flex gap-2">
+            {step > 0 && (
+              <button
+                onClick={() => setStep(step - 1)}
+                className="rounded-full px-4 py-2 font-sans text-[12px] font-medium text-white/50"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+              >
+                Back
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (isLast) {
+                  try { localStorage.setItem("kb-tutorial-seen", "1"); } catch {}
+                  onClose();
+                } else {
+                  setStep(step + 1);
+                }
+              }}
+              className="rounded-full px-4 py-2 font-sans text-[12px] font-bold text-black"
+              style={{ backgroundColor: "#F97316" }}
+            >
+              {isLast ? "Get started" : "Next"}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
 // ─── Profile Identity (editable name + account) ─────────────────────
 
 function ProfileIdentity({ user, tierColor }: { user: { authId: string; email: string; kickbackScore: number; tier: string; streak: number }; tierColor: string }) {
@@ -1501,6 +1618,7 @@ export function TheDock({
   const isMac = useIsMac();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Show onboarding toast once on desktop (after 2s delay)
   useEffect(() => {
@@ -1515,6 +1633,13 @@ export function TheDock({
   const dismissOnboarding = useCallback(() => {
     setShowOnboarding(false);
     try { localStorage.setItem("kb-shortcuts-seen", "1"); } catch { }
+  }, []);
+
+  // Show tutorial for first-time users (3s delay, mobile + desktop)
+  useEffect(() => {
+    try { if (localStorage.getItem("kb-tutorial-seen")) return; } catch { return; }
+    const timer = setTimeout(() => setShowTutorial(true), 3000);
+    return () => clearTimeout(timer);
   }, []);
 
   // ── Mode state ──
@@ -3162,6 +3287,15 @@ export function TheDock({
                   </svg>
                 </button>
               )}
+
+              {/* Help / Tutorial */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowTutorial(true); }}
+                className="flex shrink-0 items-center justify-center h-8 w-8 rounded-full"
+                style={{ backgroundColor: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.15)" }}
+              >
+                <span className="font-sans text-[13px] font-bold" style={{ color: "#a78bfa" }}>?</span>
+              </button>
 
               {/* GPS Check-in / End Session — nearby venue */}
               {nearbyVenue && user && (
@@ -4817,6 +4951,11 @@ export function TheDock({
           )}
         </motion.div>
       </motion.div>
+
+      {/* ═══ TUTORIAL ═══ */}
+      <AnimatePresence>
+        {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
+      </AnimatePresence>
 
       {/* ═══ ABOUT SHEET ═══ */}
       <AnimatePresence>
