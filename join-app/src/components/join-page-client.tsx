@@ -22,6 +22,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     const [venues, setVenues] = useState<Venue[]>(serverVenues);
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+    const [locationReady, setLocationReady] = useState(false);
     const [activeTag, setActiveTag] = useState<Tag | null>(null);
     const mapRef = useRef<MapRef | null>(null);
     const [navRoute, setNavRoute] = useState<RouteData | null>(null);
@@ -48,27 +49,17 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
 
     // Request geolocation and fetch local discovery venues
     useEffect(() => {
-        if (!navigator.geolocation) return;
+        // Timeout: if geolocation takes too long, show the map anyway
+        const fallbackTimer = setTimeout(() => setLocationReady(true), 3000);
+
+        if (!navigator.geolocation) { setLocationReady(true); return; }
 
         navigator.geolocation.getCurrentPosition(
             async (pos) => {
+                clearTimeout(fallbackTimer);
                 const { latitude, longitude } = pos.coords;
                 setUserLocation({ latitude, longitude });
-
-                // Fly to user's location — retry until map is ready
-                const fly = () => {
-                    if (mapRef.current) {
-                        mapRef.current.flyTo({
-                            center: [longitude, latitude],
-                            zoom: 14,
-                            pitch: 40,
-                            duration: 1200,
-                        });
-                    } else {
-                        setTimeout(fly, 200);
-                    }
-                };
-                fly();
+                setLocationReady(true);
 
                 try {
                     // Fetch user's discovery radius if logged in
@@ -97,6 +88,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
             },
             () => {
                 // Geolocation denied or unavailable — try again with lower accuracy
+                setLocationReady(true);
                 navigator.geolocation.getCurrentPosition(
                     (pos) => setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
                     () => {},
@@ -162,7 +154,8 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
 
     return (
         <main className="relative h-dvh w-full overflow-hidden bg-black">
-            {/* Full-screen map */}
+            {/* Full-screen map — waits for location or timeout before rendering */}
+            {locationReady && (
             <MapView
                 venues={venues}
                 selectedVenue={selectedVenue}
@@ -171,6 +164,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                 mapRef={mapRef}
                 route={navRoute}
             />
+            )}
 
             {/* Header overlay — logo */}
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)", paddingBottom: 20 }}>

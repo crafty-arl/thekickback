@@ -10,8 +10,8 @@ const FSQ_FIELDS = [
 // Foursquare category IDs for venue types we care about
 const SEARCH_QUERIES = ["bar", "cafe", "restaurant", "lounge", "nightclub"];
 
-// Austin TX fallback center
-const DEFAULT_CENTER = { lat: 30.267, lng: -97.743 };
+// Milwaukee WI fallback center
+const DEFAULT_CENTER = { lat: 43.0389, lng: -87.9065 };
 const DEFAULT_RADIUS = 5000; // 5 km
 
 interface FsqPlace {

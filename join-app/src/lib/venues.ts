@@ -51,8 +51,8 @@ export const VENUE_CATEGORIES: { value: string; label: string }[] = [
   { value: "venue", label: "All Places" },
 ];
 
-// Austin, TX center
-export const MAP_CENTER = { latitude: 30.267, longitude: -97.743 } as const;
+// Milwaukee, WI center
+export const MAP_CENTER = { latitude: 43.0389, longitude: -87.9065 } as const;
 export const MAP_DEFAULT_ZOOM = 13;
 
 export function getVibeColor(vibe: VibeLevel | string): string {

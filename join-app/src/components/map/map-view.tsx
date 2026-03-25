@@ -21,7 +21,7 @@ export interface MapViewProps {
 
 function getBounds(venues: Venue[]) {
   const mapped = venues.filter((v) => v.latitude !== 0 && v.longitude !== 0);
-  if (mapped.length === 0) return { sw: [-97.75, 30.25] as [number, number], ne: [-97.73, 30.28] as [number, number] };
+  if (mapped.length === 0) return { sw: [-87.92, 43.02] as [number, number], ne: [-87.89, 43.06] as [number, number] };
   const lngs = mapped.map((v) => v.longitude);
   const lats = mapped.map((v) => v.latitude);
   return {
@@ -212,8 +212,8 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, ma
       ref={mapRef}
       mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
       initialViewState={{
-        longitude: userLocation?.longitude ?? (venues.length > 0 ? venues.reduce((s, v) => s + v.longitude, 0) / venues.length : -97.743),
-        latitude: userLocation?.latitude ?? (venues.length > 0 ? venues.reduce((s, v) => s + v.latitude, 0) / venues.length : 30.267),
+        longitude: userLocation?.longitude ?? (venues.length > 0 ? venues.reduce((s, v) => s + v.longitude, 0) / venues.length : -87.9065),
+        latitude: userLocation?.latitude ?? (venues.length > 0 ? venues.reduce((s, v) => s + v.latitude, 0) / venues.length : 43.0389),
         zoom: 12,
         pitch: 40,
         bearing: -10,
