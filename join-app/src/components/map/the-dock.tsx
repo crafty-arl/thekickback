@@ -314,6 +314,75 @@ function DeleteAccountButton() {
   );
 }
 
+// ─── Feedback section ───────────────────────────────────────────────
+
+function FeedbackSection() {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const submit = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+    try {
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text.trim() }),
+      });
+      setSent(true);
+      setText("");
+      setTimeout(() => { setSent(false); setOpen(false); }, 2000);
+    } finally { setSending(false); }
+  };
+
+  return (
+    <div className="mt-4">
+      <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">FEEDBACK</span>
+      <div className="mt-2">
+        {!open && !sent ? (
+          <button
+            onClick={() => setOpen(true)}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-sans text-[12px] text-white/35 transition hover:text-white/50"
+            style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Share feedback or report a bug
+          </button>
+        ) : sent ? (
+          <div className="rounded-lg px-3 py-2.5 text-center" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
+            <p className="font-sans text-[12px] font-semibold" style={{ color: "#4ADE80" }}>Thanks for your feedback!</p>
+          </div>
+        ) : (
+          <div className="rounded-lg p-3" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="What's on your mind? Bug reports, feature requests, anything..."
+              rows={3}
+              maxLength={500}
+              autoFocus
+              className="w-full resize-none rounded-lg px-3 py-2 font-sans text-[12px] text-white/80 placeholder:text-white/20 outline-none"
+              style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            />
+            <div className="mt-2 flex gap-2">
+              <button onClick={submit} disabled={sending || !text.trim()} className="rounded-lg px-3 py-1.5 font-sans text-[11px] font-bold text-black disabled:opacity-50" style={{ backgroundColor: "#F97316" }}>
+                {sending ? "Sending..." : "Send"}
+              </button>
+              <button onClick={() => { setOpen(false); setText(""); }} className="rounded-lg px-3 py-1.5 font-sans text-[11px] text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Discovery radius setting ───────────────────────────────────────
 
 const RADIUS_OPTIONS = [
@@ -3038,23 +3107,27 @@ export function TheDock({
                 </button>
               </div>
 
-              {/* Rotating search suggestions — tap to explore */}
+              {/* Rotating search suggestions or sign-in prompt */}
               <button
                 onClick={() => { setMode("explore"); setExploreSnap("half"); }}
                 className="min-w-0 flex-1 text-left"
               >
-                <AnimatePresence mode="wait">
-                  <motion.span
-                    key={Math.floor(Date.now() / 4000) % IDLE_SUGGESTIONS.length}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.3 }}
-                    className="block font-sans text-[14px] text-white/30"
-                  >
-                    {IDLE_SUGGESTIONS[Math.floor(Date.now() / 4000) % IDLE_SUGGESTIONS.length]}
-                  </motion.span>
-                </AnimatePresence>
+                {user ? (
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={Math.floor(Date.now() / 4000) % IDLE_SUGGESTIONS.length}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.3 }}
+                      className="block font-sans text-[14px] text-white/30"
+                    >
+                      {IDLE_SUGGESTIONS[Math.floor(Date.now() / 4000) % IDLE_SUGGESTIONS.length]}
+                    </motion.span>
+                  </AnimatePresence>
+                ) : (
+                  <span className="font-sans text-[14px] text-white/30">Sign in to explore & chat</span>
+                )}
               </button>
 
               {/* Location — recenter map */}
@@ -3174,18 +3247,27 @@ export function TheDock({
                 );
               })()}
 
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && send()}
-                onFocus={handleInputFocus}
-                placeholder="Ask anything..."
-                enterKeyHint="send"
-                autoComplete="off"
-                autoCorrect="off"
-                className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
-              />
+              {user ? (
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && send()}
+                  onFocus={handleInputFocus}
+                  placeholder="Ask anything..."
+                  enterKeyHint="send"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="min-w-0 flex-1 bg-transparent font-sans text-[13px] text-white/70 placeholder:text-white/25 focus:outline-none"
+                />
+              ) : (
+                <button
+                  onClick={() => { setMode("explore"); setExploreSnap("half"); }}
+                  className="min-w-0 flex-1 text-left font-sans text-[13px] text-white/25"
+                >
+                  Sign in to chat
+                </button>
+              )}
 
               <motion.button
                 onClick={handleKBBack}
@@ -4628,6 +4710,9 @@ export function TheDock({
                         <PreferencesSection />
                       </div>
                     </div>
+
+                    {/* Feedback */}
+                    <FeedbackSection />
 
                     {/* Account actions */}
                     <div className="mt-4 flex flex-col gap-2">
