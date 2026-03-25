@@ -84,7 +84,7 @@ export default function OnboardingPage() {
     setError("");
     setLogs([]);
 
-    log("Creating your place...");
+    log("Creating your spot...");
 
     try {
       log("Geocoding address...");
@@ -142,9 +142,9 @@ export default function OnboardingPage() {
 
         {/* Header */}
         <div className="mb-6 text-center">
-          <h1 className="font-sans text-[22px] font-bold text-white">Add your place</h1>
+          <h1 className="font-sans text-[22px] font-bold text-white">Add your spot</h1>
           <p className="mt-1 font-sans text-[13px] text-white/40">
-            A barbershop, a running club, a musician's studio — if people go there, it's a place.
+            A barbershop, a running club, a musician's studio — if people go there, it's a spot.
           </p>
         </div>
 
@@ -198,7 +198,7 @@ export default function OnboardingPage() {
               onChange={(e) => { setAddress(e.target.value); setSelectedPlace(null); }}
               onFocus={() => placeResults.length > 0 && setShowResults(true)}
               onBlur={() => setTimeout(() => setShowResults(false), 200)}
-              placeholder="Start typing an address or place name..."
+              placeholder="Start typing an address or spot name..."
               disabled={saving}
               className="w-full px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 outline-none disabled:opacity-50"
               style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
@@ -206,7 +206,7 @@ export default function OnboardingPage() {
             {selectedPlace?.unclaimedVenueId && (
               <div className="mt-1.5 flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
                 <span className="font-sans text-[11px] font-semibold" style={{ color: "#4ADE80" }}>Found on KickBack</span>
-                <span className="font-sans text-[10px] text-white/30">This place exists — you'll be claiming it</span>
+                <span className="font-sans text-[10px] text-white/30">This spot exists — you'll be claiming it</span>
               </div>
             )}
             {showResults && placeResults.length > 0 && (
@@ -249,7 +249,7 @@ export default function OnboardingPage() {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What makes your place special? What do people come for?"
+              placeholder="What makes your spot special? What do people come for?"
               rows={3}
               maxLength={300}
               disabled={saving}
@@ -270,7 +270,7 @@ export default function OnboardingPage() {
             className="w-full py-3.5 font-sans text-[14px] font-bold text-black transition active:scale-[0.98] disabled:opacity-40"
             style={{ backgroundColor: "#F97316" }}
           >
-            {saving ? "Setting up..." : "Create Place"}
+            {saving ? "Setting up..." : "Create Spot"}
           </button>
 
           <p className="text-center font-sans text-[11px] text-white/20">

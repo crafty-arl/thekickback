@@ -4613,7 +4613,7 @@ export function TheDock({
               {selectedVenue.claimed === false && (
                 <div className="mx-3 mb-1 px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.1)" }}>
                   <div className="flex items-center justify-between">
-                    <span className="font-sans text-[10px] text-white/25">This place hasn&apos;t claimed their page yet</span>
+                    <span className="font-sans text-[10px] text-white/25">This spot hasn&apos;t claimed their page yet</span>
                     <a href="https://dash.thekickback.net" target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 font-sans text-[9px] font-bold text-black" style={{ backgroundColor: "#F97316" }}>
                       Claim
                     </a>

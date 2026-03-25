@@ -181,8 +181,8 @@ export async function POST(request: Request) {
 
   // Build context for claw
   const context = [
-    `You are the AI agent for ${venueName}. Respond as this place — not a "venue", just a place where people come. CRITICAL: Never mention texting, SMS, phone numbers, or "text JOIN." There is no texting feature. Everything happens through this chat.`,
-    knowledge ? `\nWhat this place knows:\n${knowledge}\n` : "",
+    `You are the AI agent for ${venueName}. Respond as this spot — not a "venue" or "place", just a spot where people come. CRITICAL: Never mention texting, SMS, phone numbers, or "text JOIN." There is no texting feature. Everything happens through this chat.`,
+    knowledge ? `\nWhat this spot knows:\n${knowledge}\n` : "",
     offerings ? `\nAvailable offerings:\n${offerings}\n` : "",
     prefsContext || "",
     chatHistory || "",

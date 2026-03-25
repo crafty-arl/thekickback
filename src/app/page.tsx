@@ -96,7 +96,7 @@ export default function Home() {
           <p className="text-[12px] mb-2" style={{ color: "rgba(255,255,255,0.6)" }}>Ready to jump in?</p>
           <div className="flex gap-2">
             <a href="https://join.thekickback.net" className="flex-1 text-center rounded-full py-1.5 text-[11px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Explore</a>
-            <a href="https://dash.thekickback.net" className="flex-1 text-center rounded-full py-1.5 text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Add Place</a>
+            <a href="https://dash.thekickback.net" className="flex-1 text-center rounded-full py-1.5 text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Add Spot</a>
           </div>
         </motion.div>
       )}
@@ -141,7 +141,7 @@ export default function Home() {
           <div className="flex items-center gap-1.5">
             <button onClick={() => setShowTutorial(true)} className="rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ color: ACCENT, border: `1px solid ${ACCENT}30` }}>How it works</button>
             <a href="https://join.thekickback.net" className="rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.1)" }}>Explore</a>
-            <a href="https://dash.thekickback.net" className="rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Add Place</a>
+            <a href="https://dash.thekickback.net" className="rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Add Spot</a>
           </div>
         </nav>
 
@@ -181,8 +181,8 @@ export default function Home() {
             <Link href="/about" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>About</Link>
             <Link href="/privacy" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>Privacy</Link>
             <button onClick={() => setShowTutorial(true)} className="rounded-full px-4 py-1.5 text-[11px] font-medium transition hover:opacity-80" style={{ color: ACCENT, border: `1px solid ${ACCENT}30` }}>How it works</button>
-            <a href="https://join.thekickback.net" className="rounded-full px-4 py-1.5 text-[11px] font-medium transition hover:bg-white/8" style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Explore Places</a>
-            <a href="https://dash.thekickback.net" className="rounded-full px-4 py-1.5 text-[11px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Add Your Place — Free</a>
+            <a href="https://join.thekickback.net" className="rounded-full px-4 py-1.5 text-[11px] font-medium transition hover:bg-white/8" style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Explore Spots</a>
+            <a href="https://dash.thekickback.net" className="rounded-full px-4 py-1.5 text-[11px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Add Your Spot — Free</a>
           </div>
         </nav>
 

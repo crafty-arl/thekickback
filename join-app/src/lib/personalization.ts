@@ -57,7 +57,7 @@ export async function updateUserMemory(
       body: JSON.stringify({
         model: "openclaw",
         input: [
-          "You manage a user's memory file for a place discovery app called theKickBack.",
+          "You manage a user's memory file for a spot discovery app called theKickBack.",
           "Given the current memory and a new conversation, output the UPDATED memory.",
           "Be detailed and thorough. Max 2000 chars total.",
           "",
