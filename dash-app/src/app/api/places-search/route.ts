@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!,
-);
+export const dynamic = "force-dynamic";
 
-const GOOGLE_KEY = process.env.GOOGLE_PLACES_API_KEY || "";
+function getSupabase() {
+  return createClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+}
 
 interface GooglePlace {
   id: string;
@@ -35,6 +37,7 @@ export async function GET(req: NextRequest) {
   }[] = [];
 
   // 1. Search Google Places
+  const GOOGLE_KEY = process.env.GOOGLE_PLACES_API_KEY || "";
   if (GOOGLE_KEY) {
     try {
       const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
@@ -75,7 +78,7 @@ export async function GET(req: NextRequest) {
     if (!r.name) continue;
 
     // Match by name (case-insensitive) + proximity if we have coords
-    const { data: match } = await supabase
+    const { data: match } = await getSupabase()
       .from("venues")
       .select("id, state")
       .ilike("name", r.name)
