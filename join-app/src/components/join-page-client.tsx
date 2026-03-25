@@ -117,13 +117,42 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
     }, [selectedVenue, venues, filteredVenues]);
 
     const handleRecenter = useCallback(() => {
-        if (!userLocation || !mapRef.current) return;
-        mapRef.current.flyTo({
-            center: [userLocation.longitude, userLocation.latitude],
-            zoom: 14,
-            pitch: 40,
-            duration: 1000,
-        });
+        if (!mapRef.current) return;
+
+        // Always request fresh location when recenter is tapped
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    setUserLocation({ latitude, longitude });
+                    mapRef.current?.flyTo({
+                        center: [longitude, latitude],
+                        zoom: 14,
+                        pitch: 40,
+                        duration: 1000,
+                    });
+                },
+                () => {
+                    // Fall back to last known location
+                    if (userLocation) {
+                        mapRef.current?.flyTo({
+                            center: [userLocation.longitude, userLocation.latitude],
+                            zoom: 14,
+                            pitch: 40,
+                            duration: 1000,
+                        });
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        } else if (userLocation) {
+            mapRef.current.flyTo({
+                center: [userLocation.longitude, userLocation.latitude],
+                zoom: 14,
+                pitch: 40,
+                duration: 1000,
+            });
+        }
     }, [userLocation]);
 
     const handleTagSelect = useCallback((tag: Tag | null) => {
