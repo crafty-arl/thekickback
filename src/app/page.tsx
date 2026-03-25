@@ -230,11 +230,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Tutorial overlay */}
-        <AnimatePresence>
-          {showTutorial && <AppTutorial onClose={() => setShowTutorial(false)} />}
-        </AnimatePresence>
-
         {/* RIGHT — Chat */}
         <div className="flex flex-col min-h-0" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)", background: "rgba(8,8,10,0.97)" }}>
           <div className="px-4 py-3 shrink-0 flex items-center gap-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -246,6 +241,11 @@ export default function Home() {
           {chatPanel}
         </div>
       </div>
+
+      {/* Tutorial overlay — renders globally above both mobile + desktop */}
+      <AnimatePresence>
+        {showTutorial && <AppTutorial onClose={() => setShowTutorial(false)} />}
+      </AnimatePresence>
     </>
   );
 }
