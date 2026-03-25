@@ -1044,10 +1044,14 @@ function LandscapeVenueCard({
       }}
     >
       <div
-        className="relative flex w-[40%] shrink-0 items-center justify-center"
+        className="relative flex w-[40%] shrink-0 items-center justify-center overflow-hidden"
         style={{ background: `linear-gradient(135deg, ${themeColor}25 0%, ${themeColor}08 60%, rgba(0,0,0,0.4) 100%)` }}
       >
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={`${themeColor}50`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
+        {(venue.heroImage || venue.photoUrl) ? (
+          <img src={venue.heroImage || venue.photoUrl!} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ opacity: 0.7 }} />
+        ) : (
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={`${themeColor}50`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={catIcon} /></svg>
+        )}
       </div>
       <div className="flex w-[60%] flex-col justify-between p-3">
         {xp !== undefined && xp > 0 && (
@@ -1062,7 +1066,13 @@ function LandscapeVenueCard({
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          <span className=" px-1.5 py-0.5 font-sans text-[8px] font-semibold capitalize text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{catLabel}</span>
+          <span className="px-1.5 py-0.5 font-sans text-[8px] font-semibold capitalize text-white/30" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>{catLabel}</span>
+          {venue.rating && (
+            <span className="flex items-center gap-0.5 font-sans text-[9px] font-medium" style={{ color: "#facc15" }}>
+              ★ {venue.rating.toFixed(1)}
+              {venue.reviewCount ? <span className="text-white/20">({venue.reviewCount})</span> : null}
+            </span>
+          )}
           {venue.neighborhood && <span className="truncate font-sans text-[9px] text-white/20">{venue.neighborhood}</span>}
           {distance !== undefined && <span className="ml-auto shrink-0 font-sans text-[9px] font-medium text-white/25">{distance.toFixed(1)} mi</span>}
         </div>

@@ -26,6 +26,10 @@ export interface Venue {
   eventName?: string;
   eventDate?: string;
   locationMode?: "fixed" | "mobile" | "virtual";
+  rating?: number | null;
+  reviewCount?: number | null;
+  priceLevel?: number | null;
+  photoUrl?: string | null;
 }
 
 export const VENUE_CATEGORIES: { value: string; label: string }[] = [
