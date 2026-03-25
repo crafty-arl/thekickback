@@ -363,6 +363,7 @@ export function OwnerDock({
           <span className="font-sans text-[14px] font-bold tracking-tight text-white">
             <span style={{ color: "#F97316" }}>the</span>KickBack
           </span>
+          <span className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-bold tracking-wider" style={{ backgroundColor: "rgba(249,115,22,0.15)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>BETA</span>
           <div className="h-4 w-px" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
           <span className="font-sans text-[13px] font-medium text-white/60">{venue.name}</span>
           <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: `${statusColor}18`, color: statusColor }}>

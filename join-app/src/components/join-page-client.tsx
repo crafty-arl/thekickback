@@ -197,7 +197,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
 
             {/* Header overlay — logo */}
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)", paddingBottom: 20 }}>
-                <header className="pointer-events-auto flex items-center justify-center px-4 pt-[max(16px,env(safe-area-inset-top))] pb-2">
+                <header className="pointer-events-auto flex items-center justify-center gap-2 px-4 pt-[max(16px,env(safe-area-inset-top))] pb-2">
                     <Image
                         src="/logo.png"
                         alt="theKickBack"
@@ -206,6 +206,7 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                         className="h-12 w-auto drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:h-14"
                         priority
                     />
+                    <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold tracking-wider" style={{ backgroundColor: "rgba(249,115,22,0.2)", color: "#F97316", border: "1px solid rgba(249,115,22,0.3)" }}>BETA</span>
                 </header>
             </div>
 
