@@ -14,11 +14,21 @@ export async function getStripeKey(): Promise<{ key: string | null; testMode: bo
   const sandbox = await isSandbox();
 
   if (sandbox) {
+    // Sandbox: prefer test key, fall back to main key
     const testKey = process.env.STRIPE_TEST_SECRET_KEY || process.env.STRIPE_SECRET_KEY || null;
     return { key: testKey, testMode: true };
   }
 
+  // Production: use STRIPE_SECRET_KEY but ONLY if it's a live key
+  // If only a test key is available, use it but mark as testMode
   const key = process.env.STRIPE_SECRET_KEY || null;
-  const testMode = key ? (key.startsWith("sk_test_") || key.startsWith("rk_test_")) : false;
-  return { key, testMode };
+  if (!key) return { key: null, testMode: false };
+
+  const isTestKey = key.startsWith("sk_test_") || key.startsWith("rk_test_");
+  if (isTestKey) {
+    // On production with a test key: still use it but clearly flag as test mode
+    return { key, testMode: true };
+  }
+
+  return { key, testMode: false };
 }
