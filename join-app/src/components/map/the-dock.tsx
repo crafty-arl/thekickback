@@ -168,34 +168,64 @@ const TIER_CONFIG: Record<string, { color: string; label: string; next: string; 
 
 const TUTORIAL_STEPS = [
   {
-    title: "Discover places",
-    desc: "Browse the map to find places near you — cafes, barbershops, running clubs, studios. Anything where people gather.",
+    title: "This is your dock",
+    desc: "The bar at the bottom is your control center. Swipe up to explore, tap a pin to start chatting, or tap your avatar to open your profile.",
+    icon: "M4 15h16M4 19h16",
+    hint: "Try swiping the dock up now",
+  },
+  {
+    title: "Pins are places",
+    desc: "Every dot on the map is a place — a cafe, barbershop, studio, league, or community. Colored dots are claimed places with AI agents. Gray dots are discovered from public data.",
     icon: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z",
+    hint: "Tap any pin to open it",
+  },
+  {
+    title: "Swipe up to explore",
+    desc: "Pull the dock up to browse what's nearby. You'll see places sorted by distance, offerings by category, and personalized picks based on your history.",
+    icon: "M12 19V5M5 12l7-7 7 7",
+    hint: "Swipe up from the dock bar",
   },
   {
     title: "Chat with any place",
-    desc: "Tap a pin and ask anything. The AI knows the menu, hours, and vibe. It can book appointments, take orders, and answer questions.",
+    desc: "When you tap a pin, the AI concierge for that place opens. Ask anything — menu, hours, availability. It can take orders and book appointments right in the chat.",
     icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+    hint: "Type a message or tap a quick reply",
   },
   {
-    title: "Shop & book directly",
-    desc: "Switch to the Shop tab to browse everything a place offers. Tap to add to cart, pick a time for services, or RSVP to events.",
+    title: "Chat or Shop — your choice",
+    desc: "Toggle between Chat and Shop at the top of any place. Chat lets you ask questions and order conversationally. Shop gives you a browsable list of everything available.",
     icon: "M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6",
+    hint: "Tap 'Shop' to browse offerings",
   },
   {
-    title: "Pay with KB Wallet",
-    desc: "Load funds into your KB Wallet and pay instantly through the chat. No card fumbling, no checkout forms.",
+    title: "The KB Concierge",
+    desc: "When no place is selected, the dock becomes your personal concierge. Ask 'where's good coffee nearby?' or 'any events tonight?' and it'll recommend places across the whole map.",
+    icon: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01",
+    hint: "Tap the search bar without a pin selected",
+  },
+  {
+    title: "KB Wallet",
+    desc: "Load funds into your KB Wallet from your profile. When you order through the chat, pay instantly — no card fumbling. The AI handles checkout for you.",
     icon: "M21 4H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM1 10h22",
+    hint: "Open your profile to set up your wallet",
   },
   {
-    title: "Earn XP & unlock perks",
-    desc: "Check in at places, order, and refer friends to earn points. Level up to unlock free stuff, priority access, and exclusive perks.",
+    title: "Check in & earn XP",
+    desc: "When you're near a place, a check-in button appears in the dock. Tap it to earn XP. Every visit, order, and referral earns points toward perks like free drinks and priority access.",
     icon: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+    hint: "Look for the green check-in button when nearby",
   },
   {
-    title: "Your concierge knows you",
-    desc: "The more you chat, the more KickBack remembers — your favorite orders, vibes, and places. Every visit gets more personal.",
-    icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2",
+    title: "Your profile",
+    desc: "Tap your avatar to see your KickBack Score, tier, wallet, memberships, perks, memory, and settings. You can edit your name, adjust discovery radius, and manage devices.",
+    icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8",
+    hint: "Tap your avatar in the dock",
+  },
+  {
+    title: "Threads & memory",
+    desc: "Every conversation is saved. Tap the thread icon to see all your chats. The AI remembers your preferences across every place — your usual orders, vibes, and favorites get better over time.",
+    icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2zM8 9h8M8 13h6",
+    hint: "Tap the purple thread badge in the dock",
   },
 ];
 
@@ -243,6 +273,13 @@ function TutorialOverlay({ onClose }: { onClose: () => void }) {
           {/* Content */}
           <h3 className="font-sans text-[17px] font-bold text-white mb-1.5">{current.title}</h3>
           <p className="font-sans text-[13px] leading-relaxed text-white/50">{current.desc}</p>
+          {current.hint && (
+            <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.12)" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+              <span className="font-sans text-[11px] font-medium" style={{ color: "#F97316" }}>{current.hint}</span>
+            </div>
+          )}
+          <div className="mt-2 font-sans text-[10px] text-white/20">{step + 1} of {TUTORIAL_STEPS.length}</div>
         </div>
 
         {/* Actions */}
