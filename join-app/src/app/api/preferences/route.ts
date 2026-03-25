@@ -37,7 +37,7 @@ export async function PUT(req: NextRequest) {
 
   const { error } = await supabase
     .from("profiles")
-    .update({ memory: memory.slice(0, 500) })
+    .update({ memory: memory.slice(0, 2000) })
     .eq("id", userId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

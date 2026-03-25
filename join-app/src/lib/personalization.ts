@@ -18,7 +18,7 @@ export async function getUserMemory(userId: string): Promise<string> {
 
   if (!data?.memory) return "";
 
-  return `\nWhat you know about this guest (from past conversations):\n${data.memory}\nUse this to personalize. Don't announce what you know — just be naturally helpful.`;
+  return `\nWhat you know about this guest (from past conversations):\n${data.memory}\nUse this to personalize. Don't announce what you know — just be naturally helpful. Reference their history when relevant.`;
 }
 
 /**
@@ -32,10 +32,10 @@ export async function updateUserMemory(
   aiReply: string,
   venueName?: string
 ): Promise<void> {
-  // Skip short messages and commands
-  if (userMessage.length < 15) return;
+  // Skip very short messages and common commands
+  if (userMessage.length < 10) return;
   const lower = userMessage.toLowerCase().trim();
-  if (["menu", "vibe", "events", "reserve", "status", "hi", "hello", "hey", "thanks", "ok", "yes", "no"].includes(lower)) return;
+  if (["menu", "vibe", "events", "reserve", "status", "hi", "hello", "hey", "thanks", "ok", "yes", "no", "sure", "cool"].includes(lower)) return;
 
   try {
     // Load current memory
@@ -57,20 +57,52 @@ export async function updateUserMemory(
       body: JSON.stringify({
         model: "openclaw",
         input: [
-          "You manage a user's memory file for a place discovery app.",
+          "You manage a user's memory file for a place discovery app called theKickBack.",
           "Given the current memory and a new conversation, output the UPDATED memory.",
-          "Keep it concise — bullet points, no fluff. Max 500 chars total.",
+          "Be detailed and thorough. Max 2000 chars total.",
           "",
-          "Rules:",
-          "- Only add things the user explicitly said or strongly implied about themselves.",
-          "- Remove duplicates. Merge related info.",
-          "- Keep dietary needs, drink/food preferences, favorite places, vibes they like, group size, usual orders.",
-          "- Drop anything stale or irrelevant.",
-          "- If nothing worth remembering, return the current memory unchanged.",
-          "- Return ONLY the memory content, no explanation.",
+          "STRUCTURE the memory using these sections (use exactly these headers):",
           "",
-          currentMemory ? `Current memory:\n${currentMemory}\n` : "Current memory: (empty)\n",
-          `At place: ${venueName || "concierge"}`,
+          "## Identity",
+          "Name, who they are, what they do, group they're part of",
+          "",
+          "## Preferences",
+          "- Diet: allergies, restrictions, likes/dislikes",
+          "- Drinks: favorite drinks, how they take their coffee, etc.",
+          "- Food: favorite cuisines, go-to orders, comfort foods",
+          "- Vibe: what atmosphere they prefer (quiet, loud, cozy, upscale)",
+          "- Music: genres, artists, live music preferences",
+          "- Time: when they usually go out (morning, evening, weekends)",
+          "- Group: solo, couple, friends, large group",
+          "",
+          "## Places",
+          "- Favorite spots they've mentioned or visited often",
+          "- Places they want to try",
+          "- Neighborhoods they like",
+          "",
+          "## Orders & Habits",
+          "- Usual orders at specific places (e.g., 'cortado with oat milk at Anodyne')",
+          "- Shopping patterns, membership interests",
+          "- How often they visit, regularity",
+          "",
+          "## Notes",
+          "- Anything else worth remembering: upcoming events they mentioned,",
+          "  friends' names, birthday, special occasions, travel plans",
+          "",
+          "RULES:",
+          "- Add new info from this conversation. Don't lose existing memories.",
+          "- Be specific: 'likes oat milk lattes' is better than 'likes coffee'.",
+          "- Include the place name when recording orders or experiences.",
+          "- Track what they ordered, liked, disliked, or asked about.",
+          "- Remove only if directly contradicted ('actually I'm not vegan anymore').",
+          "- If nothing new worth remembering, return current memory unchanged.",
+          "- Use bullet points. Keep each point on one line.",
+          "- Return ONLY the memory content, no explanation or preamble.",
+          "",
+          currentMemory ? `Current memory:\n${currentMemory}\n` : "Current memory: (empty — this is the first entry)\n",
+          `---`,
+          `New conversation at: ${venueName || "KickBack concierge"}`,
+          `Date: ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}`,
           `User: "${userMessage}"`,
           `AI: "${aiReply}"`,
           "",
@@ -86,7 +118,7 @@ export async function updateUserMemory(
     const text = msg?.content?.find((c: { type: string; text?: string }) => c.type === "output_text")?.text;
     if (!text) return;
 
-    const newMemory = text.trim().slice(0, 500);
+    const newMemory = text.trim().slice(0, 2000);
 
     // Only update if actually changed
     if (newMemory && newMemory !== currentMemory) {
