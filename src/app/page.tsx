@@ -5,14 +5,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapBackdrop } from "@/components/map-backdrop";
+import { AppTutorial } from "@/components/app-tutorial";
 
 const O = "#f97316";
+const ACCENT = "#a78bfa";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 const fadeUp = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 } };
 
 export default function Home() {
+  const [showTutorial, setShowTutorial] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
     { role: "assistant", content: "Hey — I'm KickBack. Ask me about any place, how things work, or how to get started." },
   ]);
@@ -136,6 +139,7 @@ export default function Home() {
         <nav className="flex items-center justify-between px-4 py-2.5 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <Image src="/logo.png" alt="theKickBack" width={90} height={28} priority style={{ height: "auto" }} />
           <div className="flex items-center gap-1.5">
+            <button onClick={() => setShowTutorial(true)} className="rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ color: ACCENT, border: `1px solid ${ACCENT}30` }}>How it works</button>
             <a href="https://join.thekickback.net" className="rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.1)" }}>Explore</a>
             <a href="https://dash.thekickback.net" className="rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Add Place</a>
           </div>
@@ -176,6 +180,7 @@ export default function Home() {
             <Link href="/membership" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>Membership</Link>
             <Link href="/about" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>About</Link>
             <Link href="/privacy" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>Privacy</Link>
+            <button onClick={() => setShowTutorial(true)} className="rounded-full px-4 py-1.5 text-[11px] font-medium transition hover:opacity-80" style={{ color: ACCENT, border: `1px solid ${ACCENT}30` }}>How it works</button>
             <a href="https://join.thekickback.net" className="rounded-full px-4 py-1.5 text-[11px] font-medium transition hover:bg-white/8" style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>Explore Places</a>
             <a href="https://dash.thekickback.net" className="rounded-full px-4 py-1.5 text-[11px] font-semibold" style={{ backgroundColor: O, color: "#fff" }}>Add Your Place — Free</a>
           </div>
@@ -224,6 +229,11 @@ export default function Home() {
             </motion.div>
           </div>
         </div>
+
+        {/* Tutorial overlay */}
+        <AnimatePresence>
+          {showTutorial && <AppTutorial onClose={() => setShowTutorial(false)} />}
+        </AnimatePresence>
 
         {/* RIGHT — Chat */}
         <div className="flex flex-col min-h-0" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)", background: "rgba(8,8,10,0.97)" }}>
