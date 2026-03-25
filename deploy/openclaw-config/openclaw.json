@@ -18,12 +18,5 @@
         "primary": "openrouter/google/gemini-2.5-flash"
       }
     }
-  },
-  "mcpServers": {
-    "substack": {
-      "command": "npx",
-      "args": ["-y", "@anthropic-ai/claude-code-mcp-server-substack"],
-      "env": {}
-    }
   }
 }
