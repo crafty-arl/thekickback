@@ -75,17 +75,20 @@ export function JoinPageClient({ venues: serverVenues }: JoinPageClientProps) {
                     } catch {}
 
                     const res = await fetch(`/api/discover?lat=${latitude}&lng=${longitude}&radius=${radius}`);
-                    if (!res.ok) return;
+                    if (!res.ok) { setDiscovering(false); return; }
                     const localVenues: Venue[] = await res.json();
 
-                    const claimed = serverVenues.filter((v) => v.claimed !== false);
-                    const claimedNames = new Set(claimed.map((v) => v.name.toLowerCase()));
-                    const uniqueLocal = localVenues.filter(
-                        (v) => !claimedNames.has(v.name.toLowerCase())
-                    );
-                    setVenues([...claimed, ...uniqueLocal]);
+                    if (localVenues.length > 0) {
+                        const claimed = serverVenues.filter((v) => v.claimed !== false);
+                        const claimedNames = new Set(claimed.map((v) => v.name.toLowerCase()));
+                        const uniqueLocal = localVenues.filter(
+                            (v) => !claimedNames.has(v.name.toLowerCase())
+                        );
+                        setVenues([...claimed, ...uniqueLocal]);
+                    }
+                    // If empty, keep whatever we already have
                 } catch {
-                    // Keep server-rendered venues on error
+                    // Keep existing venues on error
                 } finally {
                     setDiscovering(false);
                 }

@@ -21,7 +21,7 @@ export interface MapViewProps {
 
 function getBounds(venues: Venue[]) {
   const mapped = venues.filter((v) => v.latitude !== 0 && v.longitude !== 0);
-  if (mapped.length === 0) return { sw: [-87.92, 43.02] as [number, number], ne: [-87.89, 43.06] as [number, number] };
+  if (mapped.length === 0) return { sw: [-125, 25] as [number, number], ne: [-65, 50] as [number, number] };
   const lngs = mapped.map((v) => v.longitude);
   const lats = mapped.map((v) => v.latitude);
   return {
@@ -93,6 +93,7 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, ma
   const internalMapRef = useRef<MapRef>(null);
   const mapRef = externalMapRef || internalMapRef;
   const fittedRef = useRef(false);
+  const mappedVenues = venues.filter((v) => v.latitude !== 0 && v.longitude !== 0);
 
   useEffect(() => {
     if (fittedRef.current || !mapRef.current) return;
@@ -205,10 +206,10 @@ export function MapView({ venues, selectedVenue, onVenueSelect, userLocation, ma
       ref={mapRef}
       mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
       initialViewState={{
-        longitude: userLocation?.longitude ?? (venues.length > 0 ? venues.reduce((s, v) => s + v.longitude, 0) / venues.length : -87.9065),
-        latitude: userLocation?.latitude ?? (venues.length > 0 ? venues.reduce((s, v) => s + v.latitude, 0) / venues.length : 43.0389),
-        zoom: 12,
-        pitch: 40,
+        longitude: userLocation?.longitude ?? (mappedVenues.length > 0 ? mappedVenues.reduce((s, v) => s + v.longitude, 0) / mappedVenues.length : -95),
+        latitude: userLocation?.latitude ?? (mappedVenues.length > 0 ? mappedVenues.reduce((s, v) => s + v.latitude, 0) / mappedVenues.length : 38),
+        zoom: userLocation ? 14 : (mappedVenues.length > 0 ? 12 : 4),
+        pitch: userLocation ? 40 : 0,
         bearing: -10,
       }}
       style={{ width: "100%", height: "100%" }}
