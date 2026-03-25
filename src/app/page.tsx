@@ -155,6 +155,7 @@ export default function Home() {
         </div>
 
         <div className="flex justify-center gap-3 py-1.5 shrink-0">
+          <Link href="/blog" className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Blog</Link>
           <Link href="/membership" className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Membership</Link>
           <Link href="/about" className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>About</Link>
           <Link href="/privacy" className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Privacy</Link>
@@ -171,6 +172,7 @@ export default function Home() {
         <nav className="col-span-2 flex items-center justify-between px-8 py-3 relative z-20" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,10,10,0.8)", backdropFilter: "blur(12px)" }}>
           <Image src="/logo.png" alt="theKickBack" width={120} height={38} priority style={{ height: "auto" }} />
           <div className="flex items-center gap-3">
+            <Link href="/blog" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>Blog</Link>
             <Link href="/membership" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>Membership</Link>
             <Link href="/about" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>About</Link>
             <Link href="/privacy" className="text-[11px] transition hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>Privacy</Link>
