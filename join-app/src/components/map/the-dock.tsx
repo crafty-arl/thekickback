@@ -431,6 +431,78 @@ function DeleteAccountButton() {
   );
 }
 
+// ─── Redeemable perk ────────────────────────────────────────────────
+
+const PERK_ICONS: Record<string, string> = { drink: "☕", food: "🍔", access: "🔑", experience: "✨", merch: "🎁", other: "🎯" };
+
+function RedeemablePerk({ perk, canRedeem, userScore }: { perk: { id: string; name: string; point_cost: number; category: string; description: string | null }; canRedeem: boolean; userScore: number }) {
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemed, setRedeemed] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleRedeem = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canRedeem || redeeming) return;
+    setRedeeming(true);
+    setError("");
+    try {
+      const res = await fetch("/api/perks/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ perkId: perk.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Redemption failed");
+      } else {
+        setRedeemed(true);
+      }
+    } catch {
+      setError("Something went wrong");
+    } finally {
+      setRedeeming(false);
+    }
+  };
+
+  if (redeemed) {
+    return (
+      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg" style={{ backgroundColor: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}>
+        <span className="text-[14px]">✅</span>
+        <div className="flex-1 min-w-0">
+          <p className="font-sans text-[12px] font-semibold" style={{ color: "#4ADE80" }}>{perk.name} — Redeemed!</p>
+          <p className="font-sans text-[10px] text-white/30">Check your email for the QR code</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <span className="text-[14px]">{PERK_ICONS[perk.category] || "🎯"}</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-sans text-[12px] font-semibold text-white/70">{perk.name}</p>
+        {perk.description && <p className="font-sans text-[10px] text-white/25 truncate">{perk.description}</p>}
+        {error && <p className="font-sans text-[10px] text-red-400">{error}</p>}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="font-mono text-[10px] font-bold" style={{ color: canRedeem ? "#F97316" : "rgba(255,255,255,0.2)" }}>{perk.point_cost} pts</span>
+        <button
+          onClick={handleRedeem}
+          disabled={!canRedeem || redeeming}
+          className="rounded-full px-3 py-1 font-sans text-[10px] font-bold transition active:scale-95 disabled:opacity-30"
+          style={{
+            backgroundColor: canRedeem ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.04)",
+            color: canRedeem ? "#F97316" : "rgba(255,255,255,0.2)",
+            border: `1px solid ${canRedeem ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.06)"}`,
+          }}
+        >
+          {redeeming ? "..." : "Redeem"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Feedback section ───────────────────────────────────────────────
 
 function FeedbackSection() {
@@ -4794,13 +4866,13 @@ export function TheDock({
                           </div>
                         )}
                         {perks.length > 0 && (
-                          <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: "touch" }}>
-                            {perks.slice(0, 6).map((p) => (
-                              <div key={p.id} className="flex shrink-0 flex-col items-center px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", width: 80 }}>
-                                <span className="font-sans text-[11px] font-semibold text-white/70 text-center leading-tight line-clamp-2">{p.name}</span>
-                                <span className="mt-1 font-mono text-[10px] font-bold text-orange">{p.point_cost} pts</span>
-                              </div>
-                            ))}
+                          <div className="mt-2 flex flex-col gap-1.5">
+                            {perks.map((p) => {
+                              const canRedeem = user && user.kickbackScore >= p.point_cost;
+                              return (
+                                <RedeemablePerk key={p.id} perk={p} canRedeem={!!canRedeem} userScore={user?.kickbackScore || 0} />
+                              );
+                            })}
                           </div>
                         )}
                       </div>
