@@ -2929,8 +2929,28 @@ export function TheDock({
   // ═══ RENDER ════════════════════════════════════════════════════
   // ═══════════════════════════════════════════════════════════════
 
+  const isVirtualSelected = selectedVenue && (selectedVenue.latitude === 0 && selectedVenue.longitude === 0);
+  const virtualColor = isVirtualSelected ? (selectedVenue.themeColor || "#F97316") : null;
+
   return (
     <>
+      {/* Virtual place ambient overlay — blurs the map and shows theme gradient */}
+      <AnimatePresence>
+        {isVirtualSelected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="fixed inset-0 z-[8]"
+            style={{
+              background: `radial-gradient(ellipse at 50% 30%, ${virtualColor}35 0%, transparent 60%), linear-gradient(to bottom, ${virtualColor}18 0%, rgba(0,0,0,0.85) 60%, rgba(0,0,0,0.95) 100%)`,
+              backdropFilter: "blur(20px) saturate(0.5)",
+              WebkitBackdropFilter: "blur(20px) saturate(0.5)",
+            }}
+          />
+        )}
+      </AnimatePresence>
       {/* ─── Desktop Keyboard Shortcuts Button + Panel ─── */}
       {isDesktop && (
         <>
