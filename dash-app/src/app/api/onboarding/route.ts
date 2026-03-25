@@ -54,7 +54,7 @@ Rules:
 - ALWAYS output smart reply suggestions after every response using this format:
 <<<REPLIES>>>["suggestion 1","suggestion 2","suggestion 3"]<<<END_REPLIES>>>
 Generate 3-4 contextual reply suggestions that would naturally move the conversation forward. Make them specific and realistic — full sentences the user can tap to send as their response. Examples:
-  - For exchange 1: "It's a cocktail bar called Neon on 6th St in Austin", "We're a barbershop in Brooklyn called Fresh Fades"
+  - For exchange 1: "It's a cocktail bar called Neon on Brady St in Milwaukee", "We're a barbershop in the Third Ward called Fresh Fades"
   - For exchange 2: "Open 5pm to midnight, fits about 80, craft cocktails and local beer", "9 to 7 weekdays, we do cuts fades and beard trims"
   - For exchange 3: "Late nights and good company", "Where the neighborhood comes to unwind"
   - For summary confirmation: "Looks good, let's go!", "Change the hours to 4pm-2am", "Update the tagline"

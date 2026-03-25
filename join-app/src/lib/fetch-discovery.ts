@@ -128,7 +128,7 @@ export async function fetchDiscoveryVenuesForLocation(
 }
 
 /**
- * Fetches discovery venues from Foursquare for the default Austin center,
+ * Fetches discovery venues from Foursquare for the default Milwaukee center,
  * cached for 1 hour. Used as the server-side fallback.
  */
 export const fetchDiscoveryVenues = unstable_cache(

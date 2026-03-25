@@ -162,7 +162,7 @@ export default function OnboardingPage() {
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="123 Main St, Austin TX"
+              placeholder="123 Main St, Milwaukee WI"
               disabled={saving}
               className="w-full px-4 py-3 font-sans text-[14px] text-white placeholder:text-white/20 outline-none disabled:opacity-50"
               style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}

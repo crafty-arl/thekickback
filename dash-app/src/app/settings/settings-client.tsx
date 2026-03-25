@@ -939,7 +939,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                         {/* ─── Location ────────────────────────────────────────── */}
                         <Card id="location" title="Where You Are" desc="Where should guests go to find you?">
                             <Field label="Address" hint="Where guests show up">
-                                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Austin, TX" className="input" />
+                                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Milwaukee, WI" className="input" />
                             </Field>
                             <Field label="How many people can you fit?" hint="Approximate is fine">
                                 <input type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="100" className="input" />
@@ -953,7 +953,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                 <span className="mt-1 text-right font-sans text-[11px]" style={{ color: "rgba(255,255,255,0.2)" }}>{tagline.length}/80</span>
                             </Field>
                             <Field label="Tell guests what to expect" hint="2-3 sentences is plenty">
-                                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="We're a rooftop bar in downtown Austin with craft cocktails, city views, and live DJs on weekends." className="input resize-none" />
+                                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="We're a rooftop bar in downtown Milwaukee with craft cocktails, lake views, and live DJs on weekends." className="input resize-none" />
                             </Field>
                             <Field label="Your color" hint="Pick a color that matches your brand">
                                 <div className="flex items-center gap-3">
@@ -1697,7 +1697,7 @@ export function SettingsClient({ user, role, venue, page, knowledge, members, me
                                                     <input value={offeringLocationName} onChange={(e) => setOfferingLocationName(e.target.value)} placeholder="Where is the event?" className="input" />
                                                 </Field>
                                                 <Field label="Location address" hint="Full address — shows on the map">
-                                                    <input value={offeringLocationAddress} onChange={(e) => setOfferingLocationAddress(e.target.value)} placeholder="123 Main St, Austin TX" className="input" />
+                                                    <input value={offeringLocationAddress} onChange={(e) => setOfferingLocationAddress(e.target.value)} placeholder="123 Main St, Milwaukee WI" className="input" />
                                                 </Field>
                                                 <Field label="Max attendees" hint="Leave empty for unlimited">
                                                     <input type="number" min="1" value={offeringMaxAttendees} onChange={(e) => setOfferingMaxAttendees(e.target.value)} placeholder="100" className="input" style={{ maxWidth: 120 }} />
