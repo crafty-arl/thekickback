@@ -105,82 +105,78 @@ export function ThreadsList({ onThreadSelect, onThreadDelete }: ThreadsListProps
           const color = isMaster ? ACCENT : (VIBE_COLORS[vibe] || "#9ca3af");
           const isDeleting = deleting === thread.id;
           return (
-            <motion.div
+            <motion.button
               key={thread.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -100, height: 0 }}
               transition={{ delay: i * 0.03 }}
-              className="flex items-center gap-1"
+              onClick={() => onThreadSelect(thread.venueId)}
+              className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors active:scale-[0.98]"
+              style={{
+                backgroundColor: thread.unread ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.02)",
+                border: `1px solid ${thread.unread ? `${color}20` : "rgba(255,255,255,0.04)"}`,
+              }}
             >
-              <button
-                onClick={() => onThreadSelect(thread.venueId)}
-                className="flex flex-1 items-center gap-3 px-3.5 py-3 text-left transition-colors active:scale-[0.98]"
+              {/* Avatar */}
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
                 style={{
-                  backgroundColor: thread.unread ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.02)",
-                  border: `1px solid ${thread.unread ? `${color}20` : "rgba(255,255,255,0.04)"}`,
+                  background: `linear-gradient(135deg, ${color}20, ${color}08)`,
+                  border: `1.5px solid ${color}30`,
                 }}
               >
-                {/* Avatar */}
-                <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    background: `linear-gradient(135deg, ${color}20, ${color}08)`,
-                    border: `1.5px solid ${color}30`,
-                  }}
-                >
-                  {isMaster ? (
-                    <span className="font-sans text-[12px] font-bold" style={{ color }}>KB</span>
-                  ) : (
-                    <span className="font-sans text-[14px] font-bold" style={{ color }}>
-                      {name[0]}
+                {isMaster ? (
+                  <span className="font-sans text-[12px] font-bold" style={{ color }}>KB</span>
+                ) : (
+                  <span className="font-sans text-[14px] font-bold" style={{ color }}>
+                    {name[0]}
+                  </span>
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`truncate font-sans text-[13px] font-semibold ${thread.unread ? "text-white/90" : "text-white/60"}`}>
+                    {name}
+                  </span>
+                  {!isMaster && thread.venue && (
+                    <div className="flex items-center gap-1">
+                      <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+                      <span className="font-sans text-[9px]" style={{ color }}>{vibe}</span>
+                    </div>
+                  )}
+                  {isMaster && (
+                    <span className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-semibold" style={{ backgroundColor: `${ACCENT}15`, color: ACCENT }}>
+                      Concierge
                     </span>
                   )}
                 </div>
+                <p className={`mt-0.5 truncate font-sans text-[11px] ${thread.unread ? "text-white/45" : "text-white/20"}`}>
+                  {thread.lastMessage}
+                </p>
+              </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`truncate font-sans text-[13px] font-semibold ${thread.unread ? "text-white/90" : "text-white/60"}`}>
-                      {name}
-                    </span>
-                    {!isMaster && thread.venue && (
-                      <div className="flex items-center gap-1">
-                        <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
-                        <span className="font-sans text-[9px]" style={{ color }}>{vibe}</span>
-                      </div>
-                    )}
-                    {isMaster && (
-                      <span className="rounded-full px-1.5 py-0.5 font-sans text-[8px] font-semibold" style={{ backgroundColor: `${ACCENT}15`, color: ACCENT }}>
-                        Concierge
-                      </span>
-                    )}
-                  </div>
-                  <p className={`mt-0.5 truncate font-sans text-[11px] ${thread.unread ? "text-white/45" : "text-white/20"}`}>
-                    {thread.lastMessage}
-                  </p>
-                </div>
-
-                {/* Right side */}
-                <div className="flex shrink-0 flex-col items-end gap-1">
+              {/* Right side: time + delete */}
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-col items-end gap-1">
                   <span className="font-sans text-[10px] text-white/20">{timeAgo(thread.lastMessageAt)}</span>
                   {thread.unread && (
                     <div className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
                   )}
                 </div>
-              </button>
-
-              {/* Delete button */}
-              <button
-                onClick={(e) => handleDelete(thread, e)}
-                disabled={isDeleting}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-red-500/10 active:scale-90 disabled:opacity-30"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(239,68,68,0.4)" strokeWidth="2" strokeLinecap="round">
-                  <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-              </button>
-            </motion.div>
+                <button
+                  onClick={(e) => handleDelete(thread, e)}
+                  disabled={isDeleting}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-red-500/10 active:scale-90 disabled:opacity-30"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(239,68,68,0.4)" strokeWidth="2" strokeLinecap="round">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </motion.button>
           );
         })}
       </AnimatePresence>
