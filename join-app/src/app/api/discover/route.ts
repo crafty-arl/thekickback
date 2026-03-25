@@ -90,6 +90,6 @@ async function persistDiscoveredVenues(venues: { id: string; name: string; categ
             theme_color: "#F97316",
             published: false,
             review_status: "unclaimed",
-        }).catch(() => {});
+        });
     }
 }
