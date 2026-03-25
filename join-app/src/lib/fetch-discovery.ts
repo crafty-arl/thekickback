@@ -3,10 +3,9 @@ import { type Venue } from "./venues";
 
 const FSQ_API_BASE = "https://places-api.foursquare.com";
 
-// Rich fields: name, location, categories, coordinates, rating, hours, photos, tips, price
+// Pro-tier fields (free): name, location, categories, coordinates
 const FSQ_FIELDS = [
-    "fsq_place_id", "name", "location", "categories", "geocodes",
-    "rating", "stats", "price", "hours", "photos", "tips", "description", "tel", "website",
+    "fsq_place_id", "name", "location", "categories", "latitude", "longitude",
 ].join(",");
 
 // Broader search to capture more Milwaukee places
@@ -21,24 +20,14 @@ const GOOGLE_PLACES_KEY = process.env.GOOGLE_PLACES_API_KEY || "";
 interface FsqPlace {
     fsq_place_id: string;
     name: string;
+    latitude?: number;
+    longitude?: number;
     location?: {
         address?: string;
         neighborhood?: string[];
         formatted_address?: string;
     };
     categories?: { name: string; short_name?: string }[];
-    geocodes?: {
-        main?: { latitude: number; longitude: number };
-    };
-    rating?: number;
-    stats?: { total_photos?: number; total_ratings?: number; total_tips?: number };
-    price?: number;
-    hours?: { display?: string; open_now?: boolean };
-    photos?: { prefix?: string; suffix?: string; width?: number; height?: number }[];
-    tips?: { text?: string; created_at?: string }[];
-    description?: string;
-    tel?: string;
-    website?: string;
 }
 
 async function fetchFsqPlaces(
@@ -143,14 +132,6 @@ function mapCategory(categories?: { name: string; short_name?: string }[]): stri
     return "venue";
 }
 
-function mapVibeFromRating(rating?: number): "quiet" | "moderate" | "busy" | "lit" {
-    if (!rating) return "moderate";
-    if (rating >= 8.5) return "lit";
-    if (rating >= 7) return "busy";
-    if (rating >= 5) return "moderate";
-    return "quiet";
-}
-
 export async function fetchDiscoveryVenuesForLocation(
     lat: number,
     lng: number,
@@ -177,7 +158,7 @@ export async function fetchDiscoveryVenuesForLocation(
         for (const place of places) {
             if (seen.has(place.fsq_place_id)) continue;
             seen.add(place.fsq_place_id);
-            if (!place.geocodes?.main) continue;
+            if (!place.latitude || !place.longitude) continue;
             fsqPlaces.push(place);
         }
     }
@@ -191,7 +172,7 @@ export async function fetchDiscoveryVenuesForLocation(
         }
         for (const batch of batches) {
             const ratings = await Promise.all(
-                batch.map((p) => fetchGoogleRating(p.name, p.geocodes!.main!.latitude, p.geocodes!.main!.longitude))
+                batch.map((p) => fetchGoogleRating(p.name, p.latitude!, p.longitude!))
             );
             batch.forEach((p, i) => googleRatings.set(p.fsq_place_id, ratings[i]));
         }
@@ -199,32 +180,26 @@ export async function fetchDiscoveryVenuesForLocation(
 
     // Build venue objects
     const venues: Venue[] = fsqPlaces.map((place) => {
-        const geo = place.geocodes!.main!;
         const google = googleRatings.get(place.fsq_place_id);
-        const firstPhoto = place.photos?.[0];
-        const photoUrl = firstPhoto ? `${firstPhoto.prefix}300x200${firstPhoto.suffix}` : null;
-        const firstTip = place.tips?.[0]?.text || null;
 
         return {
             id: `fsq-${place.fsq_place_id}`,
             name: place.name,
             category: mapCategory(place.categories),
             neighborhood: place.location?.neighborhood?.[0] || "",
-            vibe: mapVibeFromRating(place.rating),
-            description: firstTip || place.description || place.location?.formatted_address || "",
+            vibe: "moderate" as const,
+            description: place.location?.formatted_address || "",
             address: place.location?.formatted_address || "",
             tags: (place.categories || []).map((c) => c.name),
-            hours: place.hours?.display || "",
+            hours: "",
             memberOnly: false,
-            textNumber: place.tel || "",
-            latitude: geo.latitude,
-            longitude: geo.longitude,
+            textNumber: "",
+            latitude: place.latitude!,
+            longitude: place.longitude!,
             claimed: false,
-            rating: google?.rating || (place.rating ? place.rating / 2 : null), // FSQ is 0-10, normalize to 0-5
-            reviewCount: google?.reviewCount || place.stats?.total_ratings || null,
-            priceLevel: google?.priceLevel ?? place.price ?? null,
-            photoUrl,
-            heroImage: photoUrl,
+            rating: google?.rating || null,
+            reviewCount: google?.reviewCount || null,
+            priceLevel: google?.priceLevel ?? null,
         };
     });
 
