@@ -33,6 +33,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "title and body required" }, { status: 400 });
   }
 
+  // Check VAPID keys are configured
+  if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+    return NextResponse.json({
+      error: "VAPID keys not configured",
+      hasPublic: !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      hasPrivate: !!process.env.VAPID_PRIVATE_KEY,
+    }, { status: 500 });
+  }
+
+  // Set VAPID details (in case module-level init missed it)
+  try {
+    webpush.setVapidDetails(
+      "mailto:carl@craftthefuture.xyz",
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY,
+    );
+  } catch (err) {
+    return NextResponse.json({ error: `VAPID setup failed: ${err}` }, { status: 500 });
+  }
+
   // Get all subscriptions
   const { data: subs } = await supabase
     .from("push_subscriptions")
