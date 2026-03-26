@@ -58,8 +58,8 @@ export default function RootLayout({
         {children}
         <PwaInstallPrompt />
         <ForceRefresh />
-        <Script id="sw-cleanup" strategy="afterInteractive">
-          {`if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){r.unregister()})});if('caches' in window){caches.keys().then(function(keys){keys.forEach(function(k){caches.delete(k)})})}}`}
+        <Script id="sw-register" strategy="afterInteractive">
+          {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(e){console.log('SW reg failed:',e)})}`}
         </Script>
       </body>
     </html>

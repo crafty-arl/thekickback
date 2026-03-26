@@ -16,6 +16,7 @@ import { VenueContact } from "./venue-contact";
 import { type CheckoutCardData, type CheckoutAddOn } from "./checkout-card";
 import { WalletSheet, useWalletStatus } from "./wallet-sheet";
 import { usePasskey } from "@/lib/use-passkey";
+import { usePushNotifications } from "@/lib/use-push";
 import { sendOtp, verifyOtp } from "@/app/login/actions";
 import { getDeviceId } from "@/lib/device-id";
 import { haversineMeters } from "@/lib/geo";
@@ -618,6 +619,39 @@ const RADIUS_OPTIONS = [
   { label: "25 km", value: 25000 },
   { label: "50 km", value: 50000 },
 ];
+
+function PushNotificationSetting() {
+  const push = usePushNotifications();
+  if (typeof window === "undefined" || !("Notification" in window) || !("PushManager" in window)) return null;
+
+  return (
+    <div className="rounded-lg px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={push.subscribed ? "#4ade80" : "rgba(255,255,255,0.3)"} strokeWidth="2" strokeLinecap="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          <span className="font-sans text-[11px] font-semibold text-white/40">Notifications</span>
+        </div>
+        {push.subscribed ? (
+          <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold" style={{ backgroundColor: "rgba(74,222,128,0.12)", color: "#4ade80" }}>ON</span>
+        ) : (
+          <button
+            onClick={push.subscribe}
+            disabled={push.loading || push.permission === "denied"}
+            className="rounded-full px-3 py-1 font-sans text-[10px] font-bold transition active:scale-95 disabled:opacity-30"
+            style={{ backgroundColor: "rgba(249,115,22,0.15)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
+          >
+            {push.loading ? "..." : push.permission === "denied" ? "Blocked" : "Enable"}
+          </button>
+        )}
+      </div>
+      {push.permission === "denied" && (
+        <p className="mt-1 font-sans text-[9px] text-white/20">Notifications blocked. Enable in browser settings.</p>
+      )}
+    </div>
+  );
+}
 
 function DiscoveryRadiusSetting() {
   const [radius, setRadius] = useState(5000);
@@ -4905,6 +4939,7 @@ export function TheDock({
                     <div className="mt-4">
                       <span className="font-sans text-[10px] font-semibold tracking-[1.5px] text-white/25">SETTINGS</span>
                       <div className="mt-2 flex flex-col gap-2">
+                        <PushNotificationSetting />
                         <DiscoveryRadiusSetting />
                         <DeviceManager key={deviceRefreshKey} />
                         <PreferencesSection />

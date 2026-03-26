@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail, wrap } from "@/lib/email";
+import { sendPushToUser } from "@/lib/push";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -87,6 +88,16 @@ export async function POST(req: NextRequest) {
         <p style="text-align:center;margin-top:12px;font-size:11px;color:rgba(255,255,255,0.2);">Redemption ID: ${String(redemptionId).substring(0, 8)}</p>
       `));
     } catch (e) { console.error("Perk redeemed email failed:", e); }
+  }
+
+  // Push notification for perk redemption
+  if (perk) {
+    sendPushToUser(user.id, {
+      title: `${perk.name} redeemed`,
+      body: `Show the QR code to claim your perk. Check your email.`,
+      url: "/",
+      tag: "perk",
+    }).catch(() => {});
   }
 
   return NextResponse.json({

@@ -1,5 +1,6 @@
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { sendPushToUser } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,16 @@ export async function POST(request: Request) {
     })
     .select("id")
     .single();
+
+  // Send push notification for check-in (fire-and-forget)
+  if (xpResult.xp > 0) {
+    sendPushToUser(user.id, {
+      title: `Checked in at ${venue.name}`,
+      body: `+${xpResult.xp} XP earned${xpResult.milestone_changed ? ` — new milestone unlocked!` : ""}`,
+      url: "/",
+      tag: "checkin",
+    }).catch(() => {});
+  }
 
   return Response.json({
     ok: true,

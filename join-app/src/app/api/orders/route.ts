@@ -3,6 +3,7 @@ import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { isSandboxServer } from "@/lib/sandbox";
 import { sendEmail, wrap } from "@/lib/email";
+import { sendPushToUser } from "@/lib/push";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -208,6 +209,15 @@ export async function POST(request: Request) {
 
     // Memberships now go through Stripe Checkout (/api/membership/checkout)
     // and are handled by Stripe webhooks — no membership logic here.
+
+    // Push notification for order confirmation
+    const itemNames = items.map((i: { name?: string }) => i.name || "Item").join(", ");
+    sendPushToUser(userId, {
+      title: "Order confirmed",
+      body: itemNames,
+      url: "/",
+      tag: "order",
+    }).catch(() => {});
 
     return Response.json({ orderId: data });
   } catch (err) {
