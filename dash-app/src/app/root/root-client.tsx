@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { rootSendOtp, rootVerifyOtp, approveVenue, rejectVenue, unpublishVenue, deleteVenue, updateAiConfig, approveWaitlistEntry, rejectWaitlistEntry } from "./actions";
+import { rootSendOtp, rootVerifyOtp, approveVenue, rejectVenue, unpublishVenue, deleteVenue, updateAiConfig, approveWaitlistEntry, rejectWaitlistEntry, broadcastPush } from "./actions";
 
 const DEFAULT_CHAT_MODELS = [
     { id: "openclaw", label: "OpenClaw (default)", provider: "openclaw" },
@@ -238,6 +238,9 @@ function AdminDashboard({ pages, orphanVenues, stats, aiConfig, waitlistEntries 
                     <StatBox label="Waitlist" value={stats.waitlistPending} accent="#F97316" />
                     <StatBox label="Total Signups" value={stats.waitlistTotal} />
                 </div>
+
+                {/* Push Broadcast */}
+                <BroadcastPushSection />
 
                 {/* Waitlist Management */}
                 <div className="mb-8 rounded-2xl border p-5" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
@@ -581,6 +584,61 @@ function StatBox({ label, value, accent }: { label: string; value: number; accen
         <div className="rounded-xl border px-4 py-3" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
             <p className="font-mono text-[20px] font-bold" style={{ color: accent || "#fff" }}>{value}</p>
             <p className="font-sans text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>{label}</p>
+        </div>
+    );
+}
+
+function BroadcastPushSection() {
+    const [title, setTitle] = useState("");
+    const [body, setBody] = useState("");
+    const [url, setUrl] = useState("");
+    const [sending, setSending] = useState(false);
+    const [result, setResult] = useState<{ sent?: number; failed?: number; total?: number; error?: string } | null>(null);
+
+    const handleSend = async () => {
+        if (!title.trim() || !body.trim()) return;
+        setSending(true);
+        setResult(null);
+        const res = await broadcastPush(title.trim(), body.trim(), url.trim() || undefined);
+        setResult(res);
+        setSending(false);
+        if (res.sent) { setTitle(""); setBody(""); setUrl(""); }
+    };
+
+    return (
+        <div className="mb-8 rounded-2xl border p-5" style={{ borderColor: "rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
+            <h2 className="mb-1 font-sans text-[16px] font-semibold text-white">Push Notification</h2>
+            <p className="mb-4 font-sans text-[12px]" style={{ color: "rgba(255,255,255,0.3)" }}>Send a notification to all subscribed users</p>
+            <div className="flex flex-col gap-3">
+                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Notification title" maxLength={60}
+                    className="w-full rounded-lg px-4 py-2.5 font-sans text-[13px] text-white placeholder:text-white/20 outline-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }} />
+                <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message body" rows={2} maxLength={200}
+                    className="w-full resize-none rounded-lg px-4 py-2.5 font-sans text-[13px] text-white placeholder:text-white/20 outline-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }} />
+                <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Link URL (optional, e.g. /blog)"
+                    className="w-full rounded-lg px-4 py-2.5 font-sans text-[13px] text-white placeholder:text-white/20 outline-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }} />
+                <button onClick={handleSend} disabled={sending || !title.trim() || !body.trim()}
+                    className="w-full rounded-lg py-2.5 font-sans text-[13px] font-bold text-black transition active:scale-[0.98] disabled:opacity-40"
+                    style={{ backgroundColor: "#F97316" }}>
+                    {sending ? "Sending..." : "Send to All Users"}
+                </button>
+            </div>
+            {result && (
+                <div className="mt-3 rounded-lg px-4 py-2.5" style={{
+                    backgroundColor: result.error ? "rgba(239,68,68,0.06)" : "rgba(74,222,128,0.06)",
+                    border: `1px solid ${result.error ? "rgba(239,68,68,0.15)" : "rgba(74,222,128,0.15)"}`,
+                }}>
+                    {result.error ? (
+                        <p className="font-sans text-[12px] text-red-400">{result.error}</p>
+                    ) : (
+                        <p className="font-sans text-[12px]" style={{ color: "#4ade80" }}>
+                            Sent to {result.sent} of {result.total} devices{result.failed ? ` (${result.failed} failed)` : ""}
+                        </p>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

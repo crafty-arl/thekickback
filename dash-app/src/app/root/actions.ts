@@ -370,3 +370,25 @@ export async function deleteVenue(venuePageId: string, venueId: string) {
     revalidatePath("/root");
     return { ok: true };
 }
+
+// ─── Broadcast Push Notification ─────────────────────────────────
+
+export async function broadcastPush(title: string, body: string, url?: string) {
+    const secret = process.env.OPENCLAW_HOOKS_TOKEN || process.env.SUPABASE_SERVICE_KEY;
+    const joinAppUrl = process.env.JOIN_APP_URL || "https://join.thekickback.net";
+
+    try {
+        const res = await fetch(`${joinAppUrl}/api/push/broadcast`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, body, url: url || "/", secret }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            return { error: (err as Record<string, string>).error || `HTTP ${res.status}` };
+        }
+        return await res.json();
+    } catch (err) {
+        return { error: String(err) };
+    }
+}
