@@ -622,22 +622,31 @@ const RADIUS_OPTIONS = [
 
 function PushNotificationSetting() {
   const push = usePushNotifications();
+  const [localSubscribed, setLocalSubscribed] = useState(false);
+
+  useEffect(() => { setLocalSubscribed(push.subscribed); }, [push.subscribed]);
+
   if (typeof window === "undefined" || !("Notification" in window) || !("PushManager" in window)) return null;
+
+  const isOn = localSubscribed || push.subscribed;
 
   return (
     <div className="rounded-lg px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={push.subscribed ? "#4ade80" : "rgba(255,255,255,0.3)"} strokeWidth="2" strokeLinecap="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isOn ? "#4ade80" : "rgba(255,255,255,0.3)"} strokeWidth="2" strokeLinecap="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
           <span className="font-sans text-[11px] font-semibold text-white/40">Notifications</span>
         </div>
-        {push.subscribed ? (
+        {isOn ? (
           <span className="rounded-full px-2 py-0.5 font-sans text-[9px] font-bold" style={{ backgroundColor: "rgba(74,222,128,0.12)", color: "#4ade80" }}>ON</span>
         ) : (
           <button
-            onClick={push.subscribe}
+            onClick={async () => {
+              const ok = await push.subscribe();
+              if (ok) setLocalSubscribed(true);
+            }}
             disabled={push.loading || push.permission === "denied"}
             className="rounded-full px-3 py-1 font-sans text-[10px] font-bold transition active:scale-95 disabled:opacity-30"
             style={{ backgroundColor: "rgba(249,115,22,0.15)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
@@ -2432,6 +2441,35 @@ export function TheDock({
           venueProfiles: data.venueProfiles || [],
         });
         setBalance(data.balance?.balance || 0);
+
+        // Auto-prompt for push notifications on first login
+        try {
+          if ("Notification" in window && "PushManager" in window && Notification.permission === "default") {
+            const asked = localStorage.getItem("kb-push-asked");
+            if (!asked) {
+              localStorage.setItem("kb-push-asked", "1");
+              // Small delay so the UI settles before the browser prompt appears
+              setTimeout(async () => {
+                const perm = await Notification.requestPermission();
+                if (perm === "granted" && "serviceWorker" in navigator) {
+                  const reg = await navigator.serviceWorker.ready;
+                  const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                  if (vapidKey) {
+                    const sub = await reg.pushManager.subscribe({
+                      userVisibleOnly: true,
+                      applicationServerKey: new Uint8Array(atob(vapidKey.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (vapidKey.length % 4)) % 4)).split("").map((c) => c.charCodeAt(0))) as BufferSource,
+                    });
+                    await fetch("/api/push/subscribe", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(sub.toJSON()),
+                    });
+                  }
+                }
+              }, 2000);
+            }
+          }
+        } catch { /* push is best-effort */ }
 
         // Fetch memberships
         try {
