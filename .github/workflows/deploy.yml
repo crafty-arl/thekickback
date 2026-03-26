@@ -69,6 +69,9 @@ jobs:
             grep -q '^RESEND_API_KEY=' .env 2>/dev/null && sed -i "s|^RESEND_API_KEY=.*|RESEND_API_KEY=${RESEND_API_KEY}|" .env || echo "RESEND_API_KEY=${RESEND_API_KEY}" >> .env
             grep -q '^APIDECK_APP_ID=' .env 2>/dev/null && sed -i "s|^APIDECK_APP_ID=.*|APIDECK_APP_ID=${APIDECK_APP_ID}|" .env || echo "APIDECK_APP_ID=${APIDECK_APP_ID}" >> .env
             grep -q '^APIDECK_API_KEY=' .env 2>/dev/null && sed -i "s|^APIDECK_API_KEY=.*|APIDECK_API_KEY=${APIDECK_API_KEY}|" .env || echo "APIDECK_API_KEY=${APIDECK_API_KEY}" >> .env
+            grep -q '^VAPID_PRIVATE_KEY=' .env 2>/dev/null && sed -i "s|^VAPID_PRIVATE_KEY=.*|VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}|" .env || echo "VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}" >> .env
+            grep -q '^OPENROUTER_API_KEY=' .env 2>/dev/null && sed -i "s|^OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=${OPENROUTER_API_KEY}|" .env || echo "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" >> .env
+            grep -q '^GOOGLE_PLACES_API_KEY=' .env 2>/dev/null && sed -i "s|^GOOGLE_PLACES_API_KEY=.*|GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY}|" .env || echo "GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY}" >> .env
             source .env
 
             # ── Cleanup ALL stale containers ──
