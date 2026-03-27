@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createVenue } from "./actions";
 
@@ -37,9 +37,31 @@ const PLACE_TYPES = [
   { value: "other", label: "Other", icon: "📍" },
 ];
 
+const GOOGLE_CATEGORY_MAP: Record<string, string> = {
+  "Bar": "bar", "Cocktail bar": "bar", "Wine bar": "bar", "Pub": "bar", "Brewery": "bar",
+  "Restaurant": "restaurant", "Cafe": "cafe", "Coffee shop": "cafe", "Bakery": "cafe",
+  "Night club": "club", "Lounge": "lounge",
+  "Barber shop": "barbershop", "Hair salon": "salon", "Nail salon": "nail_salon", "Beauty salon": "salon",
+  "Gym": "gym", "Fitness center": "gym",
+  "Coworking space": "coworking",
+};
+
+function mapGoogleCategory(googleCat: string): string {
+  for (const [key, val] of Object.entries(GOOGLE_CATEGORY_MAP)) {
+    if (googleCat.toLowerCase().includes(key.toLowerCase())) return val;
+  }
+  return "other";
+}
+
 export default function OnboardingPage() {
+  return <Suspense><OnboardingContent /></Suspense>;
+}
+
+function OnboardingContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [name, setName] = useState("");
+  const [googleImported, setGoogleImported] = useState(false);
   const [type, setType] = useState("");
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
@@ -47,8 +69,35 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [logs, setLogs] = useState<string[]>([]);
+  const [googleLocations, setGoogleLocations] = useState<{ googleName: string; name: string; address: string; phone: string; category: string; hours: string; website: string; description: string }[]>([]);
   const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
   const [showResults, setShowResults] = useState(false);
+
+  // Parse Google Business data from callback URL
+  useEffect(() => {
+    const googleData = searchParams.get("google_data");
+    const googleError = searchParams.get("google_error");
+    if (googleError) {
+      setError(googleError === "denied" ? "Google access denied" : googleError === "no_account" ? "No Google Business account found" : `Google error: ${googleError}`);
+    }
+    if (googleData) {
+      try {
+        const decoded = JSON.parse(atob(googleData));
+        if (Array.isArray(decoded) && decoded.length > 0) {
+          setGoogleLocations(decoded);
+          // Auto-fill from first location
+          const loc = decoded[0];
+          setName(loc.name || "");
+          setAddress(loc.address || "");
+          setDescription(loc.description || "");
+          setType(mapGoogleCategory(loc.category));
+          setGoogleImported(true);
+        }
+      } catch { /* ignore parse errors */ }
+      // Clean URL
+      router.replace("/onboarding", { scroll: false });
+    }
+  }, [searchParams, router]);
   const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -147,6 +196,48 @@ export default function OnboardingPage() {
             A barbershop, a running club, a musician's studio — if people go there, it's a spot.
           </p>
         </div>
+
+        {/* Google Business import */}
+        {!googleImported ? (
+          <div className="mb-4">
+            <a
+              href="/api/auth/google"
+              className="flex w-full items-center justify-center gap-3 rounded-lg py-3 font-sans text-[14px] font-semibold text-white transition active:scale-[0.98]"
+              style={{ backgroundColor: "rgba(66,133,244,0.15)", border: "1px solid rgba(66,133,244,0.3)", color: "#4285F4" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              Connect Google Business
+            </a>
+            <p className="mt-2 text-center font-sans text-[10px] text-white/20">Import your name, address, hours, and description automatically</p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="h-px flex-1" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
+              <span className="font-sans text-[10px] text-white/20">or fill in manually</span>
+              <div className="h-px flex-1" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
+            </div>
+          </div>
+        ) : (
+          <div className="mb-4 flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(66,133,244,0.08)", border: "1px solid rgba(66,133,244,0.2)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4285F4" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
+            <span className="font-sans text-[12px] font-semibold" style={{ color: "#4285F4" }}>Imported from Google Business</span>
+            {googleLocations.length > 1 && (
+              <select
+                onChange={(e) => {
+                  const loc = googleLocations[parseInt(e.target.value)];
+                  if (loc) {
+                    setName(loc.name); setAddress(loc.address); setDescription(loc.description);
+                    setType(mapGoogleCategory(loc.category));
+                  }
+                }}
+                className="ml-auto rounded px-2 py-1 font-sans text-[10px] text-white/60 outline-none"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                {googleLocations.map((loc, i) => (
+                  <option key={i} value={i}>{loc.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* Name */}

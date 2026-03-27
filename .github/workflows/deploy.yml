@@ -47,11 +47,13 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: CAL_API_KEY,STRIPE_SECRET_KEY,STRIPE_TEST_SECRET_KEY,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY,RESEND_API_KEY,APIDECK_APP_ID,APIDECK_API_KEY,VAPID_PRIVATE_KEY,OPENROUTER_API_KEY,GOOGLE_PLACES_API_KEY
+          envs: CAL_API_KEY,STRIPE_SECRET_KEY,STRIPE_TEST_SECRET_KEY,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY,RESEND_API_KEY,APIDECK_APP_ID,APIDECK_API_KEY,VAPID_PRIVATE_KEY,OPENROUTER_API_KEY,GOOGLE_PLACES_API_KEY,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET
           command_timeout: 10m
           script: |
             set -e
@@ -72,6 +74,8 @@ jobs:
             grep -q '^VAPID_PRIVATE_KEY=' .env 2>/dev/null && sed -i "s|^VAPID_PRIVATE_KEY=.*|VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}|" .env || echo "VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}" >> .env
             grep -q '^OPENROUTER_API_KEY=' .env 2>/dev/null && sed -i "s|^OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=${OPENROUTER_API_KEY}|" .env || echo "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" >> .env
             grep -q '^GOOGLE_PLACES_API_KEY=' .env 2>/dev/null && sed -i "s|^GOOGLE_PLACES_API_KEY=.*|GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY}|" .env || echo "GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY}" >> .env
+            grep -q '^GOOGLE_CLIENT_ID=' .env 2>/dev/null && sed -i "s|^GOOGLE_CLIENT_ID=.*|GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}|" .env || echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" >> .env
+            grep -q '^GOOGLE_CLIENT_SECRET=' .env 2>/dev/null && sed -i "s|^GOOGLE_CLIENT_SECRET=.*|GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}|" .env || echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" >> .env
             source .env
 
             # ── Cleanup ALL stale containers ──
