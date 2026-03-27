@@ -374,7 +374,7 @@ export async function deleteVenue(venuePageId: string, venueId: string) {
 // ─── Broadcast Push Notification ─────────────────────────────────
 
 export async function broadcastPush(title: string, body: string, url?: string) {
-    const secret = process.env.OPENCLAW_HOOKS_TOKEN || process.env.SUPABASE_SERVICE_KEY;
+    const secret = process.env.SUPABASE_SERVICE_KEY;
     const joinAppUrl = process.env.JOIN_APP_URL || "https://join.thekickback.net";
 
     try {

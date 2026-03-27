@@ -23,8 +23,8 @@ if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 export async function POST(req: NextRequest) {
   const { title, body, url, secret } = await req.json();
 
-  // Verify admin secret
-  const expectedSecret = process.env.OPENCLAW_HOOKS_TOKEN || process.env.SUPABASE_SERVICE_KEY;
+  // Verify admin secret (both apps share SUPABASE_SERVICE_KEY)
+  const expectedSecret = process.env.SUPABASE_SERVICE_KEY;
   if (!secret || secret !== expectedSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
