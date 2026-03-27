@@ -8,9 +8,10 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   const error = req.nextUrl.searchParams.get("error");
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://dash.thekickback.net";
 
   if (error || !code) {
-    return NextResponse.redirect(new URL("/onboarding?google_error=denied", req.url));
+    return NextResponse.redirect(`${baseUrl}/onboarding?google_error=denied`);
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID!;
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   if (!tokenRes.ok) {
     console.error("Google token exchange failed:", await tokenRes.text());
-    return NextResponse.redirect(new URL("/onboarding?google_error=token_failed", req.url));
+    return NextResponse.redirect(`${baseUrl}/onboarding?google_error=token_failed`);
   }
 
   const tokens = await tokenRes.json() as {
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (!accountName) {
-    return NextResponse.redirect(new URL("/onboarding?google_error=no_account", req.url));
+    return NextResponse.redirect(`${baseUrl}/onboarding?google_error=no_account`);
   }
 
   // Fetch locations for the first account
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
 
   if (!locationsRes.ok) {
     console.error("Google locations fetch failed:", locationsRes.status, await locationsRes.text());
-    return NextResponse.redirect(new URL("/onboarding?google_error=locations_failed", req.url));
+    return NextResponse.redirect(`${baseUrl}/onboarding?google_error=locations_failed`);
   }
 
   const locationsData = await locationsRes.json() as {
@@ -132,5 +133,5 @@ export async function GET(req: NextRequest) {
 
   const encoded = Buffer.from(locationsJson).toString("base64url");
 
-  return NextResponse.redirect(new URL(`/onboarding?google_data=${encoded}`, req.url));
+  return NextResponse.redirect(`${baseUrl}/onboarding?google_data=${encoded}`);
 }
