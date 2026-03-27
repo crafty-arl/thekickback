@@ -78,7 +78,14 @@ function OnboardingContent() {
     const googleData = searchParams.get("google_data");
     const googleError = searchParams.get("google_error");
     if (googleError) {
-      setError(googleError === "denied" ? "Google access denied" : googleError === "no_account" ? "No Google Business account found" : `Google error: ${googleError}`);
+      const msg = googleError === "denied" ? "Google access denied"
+        : googleError === "no_account" ? "No Google Business account found — your Business Profile API access may still be pending approval from Google"
+        : googleError === "token_failed" ? "Google authentication failed — try again"
+        : googleError === "locations_failed" ? "Could not load your business locations — API access may be pending approval"
+        : `Google error: ${googleError}`;
+      setError(msg);
+      // Clean URL so error doesn't persist on refresh
+      router.replace("/onboarding", { scroll: false });
     }
     if (googleData) {
       try {
@@ -209,6 +216,11 @@ function OnboardingContent() {
               Connect Google Business
             </a>
             <p className="mt-2 text-center font-sans text-[10px] text-white/20">Import your name, address, hours, and description automatically</p>
+            {error && error.includes("Google") && (
+              <div className="mt-2 rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.15)" }}>
+                <p className="text-center font-sans text-[11px]" style={{ color: "#F97316" }}>{error}</p>
+              </div>
+            )}
             <div className="mt-3 flex items-center gap-3">
               <div className="h-px flex-1" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
               <span className="font-sans text-[10px] text-white/20">or fill in manually</span>
