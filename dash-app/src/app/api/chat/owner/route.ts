@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getAiConfig } from "@/lib/ai-config";
+import { emit, recordChatCost, estimateTokens } from "@/lib/loop-events";
 
 function getService() {
   return createClient(
@@ -448,6 +449,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Resolve current user id once for loop telemetry below
+    const authClient = await createAuthClient();
+    const { data: { user: ownerUser } } = await authClient.auth.getUser();
+    const ownerUserId = ownerUser?.id ?? null;
+
     const body: RequestBody = await request.json();
     const { message, venueId, action } = body;
 
@@ -734,6 +740,28 @@ BEHAVIOR:
         reply += `\n\n[[ACTION_CONFIRM:${count} update${count > 1 ? "s" : ""} applied]]`;
       }
     }
+
+    // Loop telemetry: owner chat. Cost estimated from char counts.
+    emit({
+      event: "chat_message_sent",
+      source: "dash",
+      userId: ownerUserId,
+      venueId: ownerVenueId,
+      properties: {
+        model: aiConfig.chat_model,
+        surface: "owner",
+        actions_executed: executedActions.length,
+      },
+    });
+    recordChatCost({
+      source: "dash",
+      model: aiConfig.chat_model,
+      venueId: ownerVenueId,
+      userId: ownerUserId,
+      tokensIn: estimateTokens(systemPrompt + message),
+      tokensOut: estimateTokens(reply),
+      estimated: true,
+    });
 
     return NextResponse.json({
       reply,

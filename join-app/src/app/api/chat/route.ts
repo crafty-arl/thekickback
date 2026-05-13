@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { updateUserMemory, getUserMemory } from "@/lib/personalization";
 import { getRecentChatHistory } from "@/lib/chat-history";
+import { emit, recordChatCost, estimateTokens } from "@/lib/loop-events";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -86,6 +87,29 @@ function parseBooking(text: string): { reply: string; booking: Record<string, un
   }
 }
 
+// ─── Phase 4: per-user daily chat cost cap (soft) ──────────────
+// CHAT_COST_CAP_USD_PER_USER_DAY env. If unset or 0, no cap.
+// When tripped, the chat route returns a gated next_action instead of
+// hitting the LLM. Costs zero to leave in place and only fires if exceeded.
+async function checkChatCostCap(userId: string | null): Promise<{ allowed: boolean; usedUsd?: number; capUsd?: number }> {
+  const capStr = process.env.CHAT_COST_CAP_USD_PER_USER_DAY;
+  const cap = capStr ? Number(capStr) : 0;
+  if (!cap || !userId) return { allowed: true };
+  const sinceMidnight = new Date();
+  sinceMidnight.setHours(0, 0, 0, 0);
+  const { data } = await supabase
+    .from("chat_cost_log")
+    .select("cost_micros")
+    .eq("user_id", userId)
+    .gte("occurred_at", sinceMidnight.toISOString());
+  const usedMicros = (data ?? []).reduce(
+    (sum: number, r: { cost_micros: number | null }) => sum + (r.cost_micros ?? 0),
+    0,
+  );
+  const usedUsd = usedMicros / 1_000_000;
+  return { allowed: usedUsd < cap, usedUsd, capUsd: cap };
+}
+
 // ─── AI usage gate ─────────────────────────────────────────────
 async function checkAiUsageGate(
   venueId: string,
@@ -144,9 +168,10 @@ export async function POST(request: Request) {
   const userEmail = authUser?.email || null;
   const userName = userEmail?.split("@")[0] || "Guest";
 
-  // Check usage limits + fetch venue data in parallel
-  const [gate, knowledge, offeringsRaw, prefsContext, chatHistory] = await Promise.all([
+  // Check usage limits + cost cap + fetch venue data in parallel
+  const [gate, costCap, knowledge, offeringsRaw, prefsContext, chatHistory] = await Promise.all([
     checkAiUsageGate(venueId, userId, deviceId),
+    checkChatCostCap(userId),
     getVenueKnowledge(venueId),
     getVenueOfferingsRaw(venueId),
     userId ? getUserMemory(userId) : Promise.resolve(""),
@@ -159,6 +184,18 @@ export async function POST(request: Request) {
       gated: true,
       usage: gate.usage,
       limit: gate.limit,
+    });
+  }
+
+  if (!costCap.allowed) {
+    // Soft cost cap tripped — surface a friendly stop with a route-onward action.
+    return Response.json({
+      reply: "You've reached today's free chats. Come back tomorrow — or check in here to keep earning points.",
+      gated: true,
+      cost_capped: true,
+      used_usd: costCap.usedUsd,
+      cap_usd: costCap.capUsd,
+      next_action: { label: "Check in here", href: `/checkin/${venueId}`, kind: "checkin" },
     });
   }
   const offerings = formatOfferingsForPrompt(offeringsRaw);
@@ -385,6 +422,45 @@ export async function POST(request: Request) {
         updateUserMemory(userId, message, reply, venueName).catch(() => {});
       }
 
+      // Loop telemetry: chat sent + cost (estimated from char count — OpenClaw
+      // streaming does not surface token usage)
+      const tokensIn = estimateTokens(context);
+      const tokensOut = estimateTokens(fullText);
+      emit({
+        event: "chat_message_sent",
+        source: "join",
+        userId,
+        venueId,
+        deviceId: deviceId || null,
+        properties: {
+          model: "openclaw",
+          surface: "venue",
+          has_action: !!checkout || !!bookingResult,
+          gated: false,
+          stream_ok: streamOk,
+        },
+      });
+      recordChatCost({
+        source: "join",
+        model: "openclaw",
+        venueId,
+        userId,
+        tokensIn,
+        tokensOut,
+        estimated: true,
+      });
+
+      // Phase 1: derive a single next_action so chat is a router, not a destination.
+      // Priority: completed booking > parsed checkout > default check-in deeplink.
+      let nextAction: { label: string; href: string | null; kind: string } | null = null;
+      if (bookingResult) {
+        nextAction = { label: "View booking", href: null, kind: "open_bookings" };
+      } else if (checkout) {
+        nextAction = { label: "View cart", href: null, kind: "open_cart" };
+      } else {
+        nextAction = { label: "Check in here", href: `/checkin/${venueId}`, kind: "checkin" };
+      }
+
       // Send final metadata event
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({
         type: "done",
@@ -392,6 +468,7 @@ export async function POST(request: Request) {
         checkout,
         booking: bookingResult,
         offerings: offeringsMap,
+        next_action: nextAction,
       })}\n\n`));
       controller.close();
     },

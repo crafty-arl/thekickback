@@ -3,6 +3,7 @@ import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail, wrap } from "@/lib/email";
 import { sendPushToUser } from "@/lib/push";
+import { emit } from "@/lib/loop-events";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -99,6 +100,20 @@ export async function POST(req: NextRequest) {
       tag: "perk",
     }).catch(() => {});
   }
+
+  // Loop telemetry
+  emit({
+    event: "perk_redeemed",
+    source: "join",
+    userId: user.id,
+    venueId: redemption?.venue_id ?? null,
+    properties: {
+      perk_id: perkId,
+      points_spent: perk?.point_cost ?? null,
+      remaining_balance: balance?.balance ?? null,
+      category: perk?.category ?? null,
+    },
+  });
 
   return NextResponse.json({
     ok: true,

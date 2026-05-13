@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
@@ -15,7 +15,7 @@ interface Props {
   milestones: { id: string; name: string; threshold: number; color: string; reward: string | null; perks: string[] }[];
 }
 
-type Phase = "identify" | "checking-in" | "checked-in" | "uploading" | "receipt-done";
+type Phase = "identify" | "checking-in" | "checked-in";
 
 function vibeColor(vibe: string): string {
   switch (vibe) {
@@ -42,16 +42,18 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
     milestone: string | null;
     milestone_changed: boolean;
   } | null>(null);
-  const [checkinId, setCheckinId] = useState<string | null>(null);
-
-  // Receipt
-  const [receiptResult, setReceiptResult] = useState<{
-    total_cents: number;
-    items: string[];
-    xp_awarded: number;
-    status: string;
+  const [perkBridge, setPerkBridge] = useState<{
+    balance: number;
+    nextPerk: { id: string; name: string; point_cost: number; category: string | null } | null;
+    pointsToNext: number | null;
+    progressPct: number;
   } | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Phase 2: vibe drop submission state
+  const [vibeText, setVibeText] = useState("");
+  const [vibeSubmitting, setVibeSubmitting] = useState(false);
+  const [vibeResult, setVibeResult] = useState<{ pointsGranted: number; newBalance: number | null } | null>(null);
+  const [vibeError, setVibeError] = useState<string | null>(null);
 
   const visitAction = xpActions.find((a) => a.action === "visit" || a.action === "first_visit");
   const vColor = vibeColor(venue.vibe);
@@ -113,7 +115,7 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
         return;
       }
       setXpResult(data.xp);
-      setCheckinId(data.checkinId);
+      if (data.perkBridge) setPerkBridge(data.perkBridge);
       setPhase("checked-in");
     } catch {
       setError("Check-in failed. Try again.");
@@ -121,36 +123,47 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
     }
   }
 
-  async function uploadReceipt(file: File) {
-    setPhase("uploading");
-    setError("");
+  // Phase 2: submit a vibe drop (lightweight contribution)
+  async function submitVibe() {
+    const text = vibeText.trim();
+    if (!text || vibeSubmitting) return;
+    setVibeSubmitting(true);
+    setVibeError(null);
     try {
-      const formData = new FormData();
-      formData.append("receipt", file);
-      formData.append("venueId", venue.id);
-      formData.append("checkinId", checkinId || "");
-      formData.append("venueName", venue.name);
-
-      const res = await fetch("/api/receipt", {
+      const res = await fetch("/api/contributions/vibe", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId: venue.id, body: text, sentiment: venue.vibe }),
       });
       const data = await res.json();
-      if (data.error) {
-        setError(data.error);
-        setPhase("checked-in");
+      if (!res.ok || data.error) {
+        setVibeError(data.error || "Couldn't submit. Try again.");
         return;
       }
-      setReceiptResult(data);
-      setPhase("receipt-done");
+      setVibeResult({ pointsGranted: data.pointsGranted, newBalance: data.newBalance });
+      setVibeText("");
+      // Reflect new balance in the perk bridge so the bar updates without a refetch
+      if (typeof data.newBalance === "number" && perkBridge?.nextPerk) {
+        const np = perkBridge.nextPerk;
+        const newPct = np.point_cost > 0
+          ? Math.max(0, Math.min(100, Math.round((data.newBalance / np.point_cost) * 100)))
+          : 100;
+        setPerkBridge({
+          balance: data.newBalance,
+          nextPerk: np,
+          pointsToNext: Math.max(0, np.point_cost - data.newBalance),
+          progressPct: newPct,
+        });
+      }
     } catch {
-      setError("Receipt upload failed. Try again.");
-      setPhase("checked-in");
+      setVibeError("Something went wrong. Try again.");
+    } finally {
+      setVibeSubmitting(false);
     }
   }
 
   // Find current milestone
-  const currentXp = (xpResult?.venue_xp_total || 0) + (receiptResult?.xp_awarded || 0);
+  const currentXp = xpResult?.venue_xp_total || 0;
   const currentMilestone = [...milestones].reverse().find((m) => currentXp >= m.threshold);
   const nextMilestone = milestones.find((m) => m.threshold > currentXp);
 
@@ -326,39 +339,93 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
                 )}
               </motion.div>
 
-              {/* Receipt upload CTA */}
+              {/* Phase 1: next perk bridge — explicit reason to come back */}
+              {perkBridge?.nextPerk && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.45 }}
+                  className="w-full border border-white/[0.06] p-4"
+                  style={{ backgroundColor: "rgba(255,255,255,0.03)" }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-sans text-[11px] font-semibold tracking-[1.5px] text-white/25">NEXT PERK</span>
+                    <span className="font-mono text-[11px] text-white/40">
+                      {perkBridge.balance} / {perkBridge.nextPerk.point_cost} pts
+                    </span>
+                  </div>
+                  <p className="mt-1.5 font-sans text-[14px] font-semibold text-white">
+                    {perkBridge.nextPerk.name}
+                  </p>
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${perkBridge.progressPct}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut", delay: 0.6 }}
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: themeColor }}
+                    />
+                  </div>
+                  <p className="mt-2 font-sans text-[11px] text-white/40">
+                    {perkBridge.pointsToNext} pts to go — come back tomorrow to keep the streak.
+                  </p>
+                </motion.div>
+              )}
+
+              {/* Phase 2: vibe drop prompt — single lightweight contribution */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
                 className="w-full"
               >
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) uploadReceipt(file);
-                  }}
-                />
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="flex w-full items-center justify-center gap-2 border border-white/[0.08] py-3.5 font-sans text-[14px] font-semibold text-white/60 active:scale-[0.97]"
-                  style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                    <circle cx="9" cy="9" r="2" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                  </svg>
-                  Snap Receipt for Bonus XP
-                </button>
-                <p className="mt-2 text-center font-sans text-[11px] text-white/20">
-                  Photo your receipt to earn purchase XP
-                </p>
+                {!vibeResult ? (
+                  <div
+                    className="border border-white/[0.06] p-3"
+                    style={{ backgroundColor: "rgba(255,255,255,0.03)" }}
+                  >
+                    <label className="mb-2 block font-sans text-[11px] font-semibold tracking-[1.5px] text-white/25">
+                      HOW&apos;S IT TONIGHT?
+                    </label>
+                    <textarea
+                      value={vibeText}
+                      onChange={(e) => setVibeText(e.target.value)}
+                      maxLength={280}
+                      rows={2}
+                      placeholder="A quick read for the next person..."
+                      className="w-full resize-none border border-white/[0.06] bg-white/[0.04] px-3 py-2 font-sans text-[13px] text-white placeholder:text-white/25 focus:border-white/15 focus:outline-none"
+                      disabled={vibeSubmitting}
+                    />
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="font-sans text-[10px] text-white/20">
+                        +25 pts &middot; {280 - vibeText.length} left
+                      </span>
+                      <button
+                        onClick={submitVibe}
+                        disabled={!vibeText.trim() || vibeSubmitting}
+                        className="px-4 py-1.5 font-sans text-[12px] font-bold text-black active:scale-95 disabled:opacity-40"
+                        style={{ backgroundColor: themeColor }}
+                      >
+                        {vibeSubmitting ? "..." : "Drop it"}
+                      </button>
+                    </div>
+                    {vibeError && (
+                      <p className="mt-2 font-sans text-[11px] text-red-400">{vibeError}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    className="flex items-center justify-between border border-white/[0.06] p-3"
+                    style={{ backgroundColor: `${themeColor}10`, borderColor: `${themeColor}30` }}
+                  >
+                    <span className="font-sans text-[13px] text-white/70">
+                      Thanks for the read.
+                    </span>
+                    <span className="font-mono text-[14px] font-bold" style={{ color: themeColor }}>
+                      +{vibeResult.pointsGranted}
+                    </span>
+                  </div>
+                )}
               </motion.div>
 
               {/* View venue link */}
@@ -373,94 +440,8 @@ export function CheckinClient({ venue, themeColor, tagline, slug, table, user, x
             </motion.div>
           )}
 
-          {/* ═══ PHASE: Uploading Receipt ═══ */}
-          {phase === "uploading" && (
-            <motion.div key="uploading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-4">
-              <motion.div
-                className="h-16 w-16 rounded-full"
-                style={{ border: `3px solid ${themeColor}`, borderTopColor: "transparent" }}
-                animate={{ rotate: 360 }}
-                transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-              />
-              <p className="font-sans text-[14px] text-white/50">Analyzing your receipt...</p>
-              <p className="font-sans text-[11px] text-white/20">AI is reading your purchase</p>
-            </motion.div>
-          )}
-
-          {/* ═══ PHASE: Receipt Done ═══ */}
-          {phase === "receipt-done" && receiptResult && (
-            <motion.div key="receipt" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-5">
-              <div className="text-center">
-                <h2 className="font-sans text-[22px] font-bold">Receipt Verified</h2>
-                <p className="mt-1 font-sans text-[14px] text-white/40">{venue.name}</p>
-              </div>
-
-              <div className="w-full border border-white/[0.06] p-4" style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>
-                {/* Purchase total */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-sans text-[11px] font-semibold tracking-[1.5px] text-white/25">PURCHASE</span>
-                  <span className="font-sans text-[18px] font-bold text-white">${(receiptResult.total_cents / 100).toFixed(2)}</span>
-                </div>
-
-                {/* Items */}
-                {receiptResult.items.length > 0 && (
-                  <div className="mb-3 flex flex-wrap gap-1.5">
-                    {receiptResult.items.map((item, i) => (
-                      <span key={i} className="px-2 py-1 font-sans text-[11px] text-white/40" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Bonus XP */}
-                <div className="flex items-center justify-between p-3" style={{ backgroundColor: `${themeColor}10`, border: `1px solid ${themeColor}20` }}>
-                  <span className="font-sans text-[13px] font-semibold text-white/60">Purchase Bonus</span>
-                  <span className="font-mono text-[18px] font-bold" style={{ color: themeColor }}>+{receiptResult.xp_awarded} XP</span>
-                </div>
-
-                {/* Updated milestone progress */}
-                {milestones.length > 0 && (
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-sans text-[12px] font-semibold" style={{ color: currentMilestone?.color || "#94a3b8" }}>
-                        {currentMilestone?.name || "Getting Started"}
-                      </span>
-                      <span className="font-mono text-[11px] text-white/30">{currentXp} XP</span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${nextMilestone ? Math.min((currentXp / nextMilestone.threshold) * 100, 100) : 100}%`,
-                          backgroundColor: currentMilestone?.color || themeColor,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Upload another or done */}
-              <div className="flex w-full gap-3">
-                <button
-                  onClick={() => { setPhase("checked-in"); setReceiptResult(null); }}
-                  className="flex-1 border border-white/[0.08] py-3 font-sans text-[13px] font-medium text-white/40"
-                >
-                  Another Receipt
-                </button>
-                {slug && (
-                  <a
-                    href={`/${slug}`}
-                    className="flex flex-1 items-center justify-center py-3 font-sans text-[13px] font-bold text-black"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    Open {venue.name}
-                  </a>
-                )}
-              </div>
-            </motion.div>
-          )}
+          {/* Phase 2: receipt upload UI removed — vibe drops only for launch.
+              The /api/receipt route stays on the server for future re-enable. */}
         </AnimatePresence>
       </div>
 

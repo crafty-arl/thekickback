@@ -1,6 +1,9 @@
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { sendEmail, wrap } from "@/lib/email";
+import { emit } from "@/lib/loop-events";
+import { getNextPerkBridge } from "@/lib/points";
 
 const service = createServiceClient(
   process.env.SUPABASE_URL!,
@@ -125,8 +128,39 @@ export async function POST(request: Request) {
     .select("id")
     .single();
 
+  // Loop telemetry: classify entry channel from the loop_entry cookie set
+  // by middleware on push/email/sms-tagged entry. Cookie auto-expires after 30m.
+  const entryChannel = (await cookies()).get("loop_entry")?.value || null;
+  if (entryChannel) {
+    emit({
+      event: "return_visit_prompted",
+      source: "join",
+      userId: user.id,
+      venueId,
+      properties: { channel: entryChannel },
+    });
+  }
+  emit({
+    event: "checkin_completed",
+    source: "join",
+    userId: user.id,
+    venueId,
+    properties: {
+      method: "qr",
+      table_number: table || null,
+      xp_granted: xpResult.xp || 0,
+      milestone_changed: !!xpResult.milestone_changed,
+      prompted: !!entryChannel,
+    },
+  });
+
+  // Phase 1: bridge to the next visit — surface the next-perk-ladder data
+  // so the post-checkin UI can show "next perk: X at Y pts" without a follow-up fetch.
+  const perkBridge = await getNextPerkBridge(user.id, venueId).catch(() => null);
+
   return Response.json({
     checkinId: checkin?.id,
     xp: xpResult,
+    perkBridge,
   });
 }

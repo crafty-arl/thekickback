@@ -264,8 +264,10 @@ function AiMessageBody({ body, theme, onTapOffer, onAddToCart, offeringsMap }: {
 export function VenuePageClient({ page, venue, table, user, offerings, gallery = [], staff = [], staffByOffering = {} }: Props) {
   const color = page.theme_color || "#F97316";
   const theme = page.theme_color;
-  /* ── Chat state — starts expanded so guests see venue info immediately ── */
-  const [chatOpen, setChatOpen] = useState(true);
+  /* ── Chat state — Phase 4: starts collapsed. Auto-expanding the chat on
+     every page hit silently accrued LLM cost on accidental opens. Users tap
+     to expand (the FAB-style header row), or typing in the input auto-expands. */
+  const [chatOpen, setChatOpen] = useState(false);
   const [showGestureHint, setShowGestureHint] = useState(() => {
     if (typeof window === "undefined") return false;
     return !localStorage.getItem("kb-gesture-seen");

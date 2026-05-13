@@ -1,3 +1,5 @@
+import { emit, recordChatCost, estimateTokens } from "@/lib/loop-events";
+
 export async function POST(request: Request) {
     const { message, messageCount } = await request.json();
 
@@ -82,6 +84,25 @@ export async function POST(request: Request) {
     } catch (err) {
         console.error("OpenClaw landing fetch error:", err);
     }
+
+    // Loop telemetry: marketing chat. No userId/venueId on this surface.
+    emit({
+        event: "chat_message_sent",
+        source: "root",
+        properties: {
+            model: "openclaw",
+            surface: "marketing",
+            message_index: count + 1,
+            nudge_active: count >= 5,
+        },
+    });
+    recordChatCost({
+        source: "root",
+        model: "openclaw",
+        tokensIn: estimateTokens(context),
+        tokensOut: estimateTokens(reply),
+        estimated: true,
+    });
 
     return Response.json({ reply });
 }

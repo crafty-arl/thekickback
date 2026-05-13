@@ -1,12 +1,27 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import type { VenuePerk, PerkRedemption, VenueMultiplier, PointLeaderboardEntry } from "@/lib/dashboard";
 
 interface PointsPanelProps {
+  venueId: string;
   perks: VenuePerk[];
   redemptions: PerkRedemption[];
   multipliers: VenueMultiplier[];
   leaderboard: PointLeaderboardEntry[];
   pointsIssuedToday: number;
   perksRedeemedToday: number;
+}
+
+interface LedgerEntry {
+  id: string;
+  user_id: string;
+  amount: number;
+  reason: string;
+  reason_copy: string;
+  reference_id: string | null;
+  created_at: string;
+  guest_label: string;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -31,6 +46,7 @@ function formatTime(iso: string) {
 }
 
 export function PointsPanel({
+  venueId,
   perks,
   redemptions,
   multipliers,
@@ -41,6 +57,35 @@ export function PointsPanel({
   const activeMultiplier = multipliers.find(
     (m) => m.active && new Date(m.starts_at) <= new Date() && new Date(m.ends_at) >= new Date()
   );
+
+  // Phase 3: "Why this customer got these" drawer — owner self-service for
+  // points defensibility. Click a redemption row to load that user's ledger
+  // at this venue.
+  const [openRedemption, setOpenRedemption] = useState<PerkRedemption | null>(null);
+  const [entries, setEntries] = useState<LedgerEntry[] | null>(null);
+  const [entriesLoading, setEntriesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!openRedemption) return;
+    let cancelled = false;
+    setEntriesLoading(true);
+    setEntries(null);
+    fetch(
+      `/api/points/ledger?venueId=${encodeURIComponent(venueId)}&userId=${encodeURIComponent(
+        openRedemption.user_id,
+      )}&limit=50`,
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setEntries(Array.isArray(data?.entries) ? data.entries : []);
+      })
+      .catch(() => !cancelled && setEntries([]))
+      .finally(() => !cancelled && setEntriesLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [openRedemption, venueId]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -125,9 +170,11 @@ export function PointsPanel({
                 <p className="py-4 text-center font-sans text-sm text-black/30">No redemptions yet.</p>
               )}
               {redemptions.map((r) => (
-                <div
+                <button
                   key={r.id}
-                  className="flex items-center gap-3 rounded-xl bg-[#FAFAFA] px-4 py-3"
+                  onClick={() => setOpenRedemption(r)}
+                  className="flex w-full items-center gap-3 rounded-xl bg-[#FAFAFA] px-4 py-3 text-left transition hover:bg-[#F4F4F4]"
+                  title="Why these points?"
                 >
                   <div className="flex flex-1 flex-col">
                     <span className="font-sans text-sm font-semibold text-black">
@@ -152,11 +199,89 @@ export function PointsPanel({
                   >
                     {r.status}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
         </div>
+
+        {/* Phase 3: Why-these-points drawer (fixed overlay) */}
+        {openRedemption && (
+          <div
+            className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+            onClick={() => setOpenRedemption(null)}
+            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-2xl bg-white p-5 sm:rounded-2xl"
+              style={{ maxHeight: "80vh", overflowY: "auto" }}
+            >
+              <div className="flex items-start justify-between pb-2">
+                <div>
+                  <h3 className="font-sans text-base font-bold text-black">
+                    Why these points
+                  </h3>
+                  <p className="font-sans text-xs text-black/50">
+                    {openRedemption.profiles?.display_name ||
+                      openRedemption.profiles?.email ||
+                      openRedemption.profiles?.phone ||
+                      "Guest"}{" "}
+                    · {openRedemption.venue_perks?.name || "Perk"} ·{" "}
+                    {formatTime(openRedemption.created_at)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setOpenRedemption(null)}
+                  className="rounded-full p-1 text-black/40 hover:bg-black/[0.05]"
+                  aria-label="Close"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="mt-3 flex flex-col gap-1.5">
+                {entriesLoading && (
+                  <p className="py-6 text-center font-sans text-sm text-black/30">
+                    Loading ledger…
+                  </p>
+                )}
+                {!entriesLoading && entries && entries.length === 0 && (
+                  <p className="py-6 text-center font-sans text-sm text-black/30">
+                    No ledger entries for this guest at this venue.
+                  </p>
+                )}
+                {!entriesLoading &&
+                  entries?.map((e) => {
+                    const earned = e.amount > 0;
+                    return (
+                      <div
+                        key={e.id}
+                        className="flex items-center justify-between rounded-lg bg-[#FAFAFA] px-3 py-2"
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-sans text-sm font-semibold text-black">
+                            {e.reason_copy}
+                          </span>
+                          <span className="font-sans text-[11px] text-black/40">
+                            {formatTime(e.created_at)}
+                          </span>
+                        </div>
+                        <span
+                          className="font-mono text-sm font-bold"
+                          style={{ color: earned ? "#16a34a" : "#f87171" }}
+                        >
+                          {earned ? "+" : ""}
+                          {e.amount}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Right: Leaderboard */}
         <div className="w-full lg:w-[340px]">

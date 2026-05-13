@@ -40,6 +40,7 @@ const tierColors: Record<string, string> = {
 type GuestFilter = "all" | "booked" | "active" | "members";
 
 interface GuestsTabProps {
+  venueId: string;
   sessions: GuestSession[];
   stats: { totalToday: number; members: number };
   bookings: Booking[];
@@ -67,6 +68,7 @@ const GUEST_FILTERS: { id: GuestFilter; label: string }[] = [
 // ─── Component ──────────────────────────────────────────────────────
 
 export function GuestsTab({
+  venueId,
   sessions,
   stats,
   bookings,
@@ -384,6 +386,7 @@ export function GuestsTab({
           )}
 
           <PointsPanel
+            venueId={venueId}
             perks={perks}
             redemptions={redemptions}
             multipliers={multipliers}

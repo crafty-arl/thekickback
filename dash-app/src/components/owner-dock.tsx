@@ -447,6 +447,7 @@ export function OwnerDock({
           <div className="analytics-light-wrap">
             {analyticsView === "today" && (
               <TodayTab
+                venueId={venue.id}
                 revenueToday={initialData.revenueStats?.todayRevenue || 0}
                 ordersToday={ordersToday.length}
                 activeGuests={initialData.sessions.length}
@@ -473,6 +474,7 @@ export function OwnerDock({
             )}
             {analyticsView === "guests" && (
               <GuestsTab
+                venueId={venue.id}
                 sessions={initialData.sessions}
                 stats={{ totalToday: initialData.stats.totalToday, members: initialData.stats.members }}
                 bookings={initialData.bookings}

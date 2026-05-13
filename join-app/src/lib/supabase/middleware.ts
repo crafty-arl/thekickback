@@ -40,6 +40,20 @@ export async function updateSession(request: NextRequest) {
     supabaseResponse.cookies.delete("kickback_sandbox");
   }
 
+  // Phase 0 loop telemetry: stamp the entry channel on the response cookie
+  // so downstream actions (checkin, perk redeem) can classify the visit as
+  // prompted (push/email/sms click) vs unprompted (cold open).
+  // 30-minute TTL so we don't tag every later checkin as prompted.
+  const utm = request.nextUrl.searchParams.get("utm_source");
+  if (utm && ["push", "email", "sms"].includes(utm)) {
+    supabaseResponse.cookies.set("loop_entry", utm, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 60 * 30,
+    });
+  }
+
   // Refresh the session (keeps cookies alive)
   const {
     data: { user },

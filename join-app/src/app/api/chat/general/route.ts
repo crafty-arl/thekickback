@@ -4,6 +4,7 @@ import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { isSandboxServer } from "@/lib/sandbox";
 import { updateUserMemory, getUserMemory } from "@/lib/personalization";
 import { getRecentChatHistory } from "@/lib/chat-history";
+import { emit, recordChatCost, estimateTokens } from "@/lib/loop-events";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -472,6 +473,31 @@ export async function POST(request: Request) {
         ]).then(() => {}, () => {});
         updateUserMemory(userId, message, reply).catch(() => {});
       }
+
+      // Loop telemetry: concierge chat. Cost is estimated from char counts —
+      // OpenRouter usage isn't surfaced through the OpenClaw streaming proxy.
+      const tokensIn = estimateTokens(context);
+      const tokensOut = estimateTokens(fullText);
+      emit({
+        event: "chat_message_sent",
+        source: "join",
+        userId,
+        venueId: null,
+        properties: {
+          model: "openrouter/anthropic/claude-sonnet-4",
+          surface: "concierge",
+          venues_referenced: allReferencedIds.length,
+        },
+      });
+      recordChatCost({
+        source: "join",
+        model: "openrouter/anthropic/claude-sonnet-4",
+        venueId: null,
+        userId,
+        tokensIn,
+        tokensOut,
+        estimated: true,
+      });
 
       // Clean reply for display (no tags)
       const cleanReply = reply

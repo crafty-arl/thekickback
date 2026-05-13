@@ -17,7 +17,7 @@ const fadeUp = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 } }
 export default function Home() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "assistant", content: "Hey — I'm KickBack. Ask me about any place, how things work, or how to get started." },
+    { role: "assistant", content: "Hey — I'm KickBack. Ask me about any spot, how things work, or how to get started." },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,7 +47,12 @@ export default function Home() {
 
   function onSubmit(e?: FormEvent) { e?.preventDefault(); send(input); }
 
-  const showCta = uCount >= 5;
+  // Phase 4: hard-cap chat at 5 user messages. Past this, the input is
+  // replaced with CTAs — chat on the marketing surface is for conversion,
+  // not conversation.
+  const MARKETING_CHAT_CAP = 5;
+  const capped = uCount >= MARKETING_CHAT_CAP;
+  const showCta = capped;
 
   /* ───── chat bubble styles (subdued — no competing colors) ───── */
   const userBubble = { backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.88)", borderBottomRightRadius: 4 };
@@ -112,23 +117,42 @@ export default function Home() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="flex items-center gap-2 px-3 py-2.5 shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask anything..."
-          className="min-w-0 flex-1 rounded-full px-3 text-[13px] text-white placeholder:text-white/35 focus:outline-none"
-          style={{ height: 36, backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-          aria-label="Chat message"
-        />
-        {input.trim() && (
-          <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.88 }}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
-            style={{ backgroundColor: O }} aria-label="Send message"
+      {capped ? (
+        <div className="flex items-center gap-2 px-3 py-2.5 shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <a
+            href="https://join.thekickback.net"
+            className="flex-1 text-center rounded-full py-2 text-[12px] font-semibold"
+            style={{ backgroundColor: O, color: "#fff" }}
           >
-            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
-            </svg>
-          </motion.button>
-        )}
-      </form>
+            Explore
+          </a>
+          <a
+            href="https://dash.thekickback.net"
+            className="flex-1 text-center rounded-full py-2 text-[12px] font-semibold"
+            style={{ color: "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.15)" }}
+          >
+            Add a spot
+          </a>
+        </div>
+      ) : (
+        <form onSubmit={onSubmit} className="flex items-center gap-2 px-3 py-2.5 shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask anything..."
+            className="min-w-0 flex-1 rounded-full px-3 text-[13px] text-white placeholder:text-white/35 focus:outline-none"
+            style={{ height: 36, backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+            aria-label="Chat message"
+          />
+          {input.trim() && (
+            <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.88 }}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full disabled:opacity-30"
+              style={{ backgroundColor: O }} aria-label="Send message"
+            >
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
+              </svg>
+            </motion.button>
+          )}
+        </form>
+      )}
     </div>
   );
 
@@ -212,7 +236,7 @@ export default function Home() {
               className="mt-4 text-[15px] leading-relaxed max-w-md"
               style={{ color: "rgba(255,255,255,0.6)" }}
             >
-              Every place gets its own AI helper, a page to show what you offer, and a community — no app to download, ready in five minutes.
+              Every spot gets its own AI helper, a page to show what you offer, and a community — no app to download, ready in five minutes.
             </motion.p>
 
             <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.2 }} className="flex items-center gap-3 mt-6">

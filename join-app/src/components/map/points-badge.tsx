@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { pointsReasonCopy } from "@/lib/points-copy";
+
+interface HistoryEntry {
+  id: string;
+  amount: number;
+  reason: string;
+  venue_id: string | null;
+  venues: { name: string } | null;
+  created_at: string;
+}
 
 interface PointsData {
   balance: {
@@ -23,6 +33,7 @@ interface PointsData {
     description: string;
     point_reward: number;
   }>;
+  history?: HistoryEntry[];
 }
 
 const TIER_CONFIG: Record<string, { color: string; next: string; threshold: number }> = {
@@ -63,12 +74,21 @@ export function PointsBadge({ venueId, vibeColor, expanded }: PointsBadgeProps) 
 
   if (!data) return null;
 
-  const { balance, perks, challenges } = data;
+  const { balance, perks, challenges, history = [] } = data;
   const tier = TIER_CONFIG[balance.tier] || TIER_CONFIG.explorer;
-  const nextThreshold = tier.threshold;
-  const progress = tier.next
-    ? Math.min((balance.total_earned / nextThreshold) * 100, 100)
+
+  // Phase 1: next-perk bridge — cheapest perk the user can't yet afford,
+  // so the venue-local ladder is visible without expanding the full perks list.
+  const nextPerk = [...perks]
+    .sort((a, b) => a.point_cost - b.point_cost)
+    .find((p) => p.point_cost > balance.balance) ?? null;
+  const perkPct = nextPerk
+    ? Math.max(0, Math.min(100, Math.round((balance.balance / nextPerk.point_cost) * 100)))
     : 100;
+
+  // Phase 3: Recent points events with reason copy. Last 3 most-recent
+  // earn/spend events. Replaces naked "+N pts" by always showing the why.
+  const recentEvents = history.slice(0, 3);
 
   // Collapsed: just show points count
   if (!expanded) {
@@ -145,9 +165,29 @@ export function PointsBadge({ venueId, vibeColor, expanded }: PointsBadgeProps) 
         </button>
       </div>
 
-      {/* Progress bar */}
-      {tier.next && (
-        <div style={{ margin: "0 12px 8px", padding: "0 0" }}>
+      {/* Phase 3: tier progress bar removed — perk bridge below is the single ladder */}
+
+      {/* Next-perk bridge — venue-local ladder, always visible */}
+      {nextPerk && !showPerks && (
+        <div style={{ margin: "0 12px 8px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 4,
+              fontSize: 9,
+              color: "rgba(255,255,255,0.4)",
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 11 }}>{CATEGORY_EMOJI[nextPerk.category] || "\u{1F3AF}"}</span>
+              <span style={{ fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>{nextPerk.name}</span>
+            </span>
+            <span style={{ fontFamily: "monospace", color: vibeColor }}>
+              {nextPerk.point_cost - balance.balance} to go
+            </span>
+          </div>
           <div
             style={{
               height: 3,
@@ -159,24 +199,12 @@ export function PointsBadge({ venueId, vibeColor, expanded }: PointsBadgeProps) 
             <div
               style={{
                 height: "100%",
-                width: `${progress}%`,
+                width: `${perkPct}%`,
                 borderRadius: 2,
-                backgroundColor: tier.color,
+                backgroundColor: vibeColor,
                 transition: "width 0.5s ease",
               }}
             />
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 3,
-              fontSize: 9,
-              color: "rgba(255,255,255,0.2)",
-            }}
-          >
-            <span>{balance.total_earned.toLocaleString()} earned</span>
-            <span>{nextThreshold.toLocaleString()} for {tier.next}</span>
           </div>
         </div>
       )}
@@ -273,6 +301,68 @@ export function PointsBadge({ venueId, vibeColor, expanded }: PointsBadgeProps) 
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Phase 3: Recent points feed with reason copy — no more naked +N */}
+      {recentEvents.length > 0 && !showPerks && (
+        <div style={{ margin: "0 12px 8px" }}>
+          <div
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.25)",
+              marginBottom: 4,
+            }}
+          >
+            Recent
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {recentEvents.slice(0, 2).map((e) => {
+              const earned = e.amount > 0;
+              const venueName = e.venues?.name;
+              return (
+                <div
+                  key={e.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "5px 8px",
+                    borderRadius: 8,
+                    backgroundColor: "rgba(255,255,255,0.03)",
+                  }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
+                    <span
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: earned ? vibeColor : "rgba(255,255,255,0.45)",
+                      }}
+                    >
+                      {earned ? "+" : ""}{e.amount}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "rgba(255,255,255,0.55)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {pointsReasonCopy(e.reason)}
+                      {venueName ? ` · ${venueName}` : ""}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

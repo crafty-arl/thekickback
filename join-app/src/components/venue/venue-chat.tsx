@@ -10,6 +10,12 @@ interface Message {
   timestamp: number;
 }
 
+interface NextAction {
+  label: string;
+  href: string | null;
+  kind: string;
+}
+
 interface Props {
   venue: { id: string; name: string; vibe: string };
   page: { theme_color: string };
@@ -17,13 +23,11 @@ interface Props {
   onClose: () => void;
 }
 
-const QUICK_ACTIONS = [
-  { label: "Menu", command: "menu" },
-  { label: "Reserve", command: "request a booth" },
-  { label: "Vibe", command: "what's the vibe?" },
-  { label: "Events", command: "any events tonight?" },
-  { label: "Status", command: "status" },
-];
+// Phase 1: chat is a router, not a destination. Default CTA when the API
+// hasn't surfaced anything more specific is the check-in deeplink.
+function defaultNextAction(venueId: string): NextAction {
+  return { label: "Check in here", href: `/checkin/${venueId}`, kind: "checkin" };
+}
 
 export function VenueChat({ venue, page, table, onClose }: Props) {
   const welcomeMsg: Message = {
@@ -36,6 +40,7 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [nextAction, setNextAction] = useState<NextAction>(defaultNextAction(venue.id));
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -125,6 +130,13 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
           timestamp: Date.now(),
         },
       ]);
+      // Phase 1: pick up the API-suggested next action when present, else
+      // keep the default check-in deeplink so the chip is always actionable.
+      if (data?.next_action?.label) {
+        setNextAction(data.next_action as NextAction);
+      } else {
+        setNextAction(defaultNextAction(venue.id));
+      }
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -248,26 +260,34 @@ export function VenueChat({ venue, page, table, onClose }: Props) {
           </div>
         </div>
 
-        {/* Quick actions — horizontal scroll */}
-        <div className="overflow-x-auto px-4 py-2" style={{ WebkitOverflowScrolling: "touch" }}>
-          <div className="flex gap-2" style={{ minWidth: "max-content" }}>
-            {QUICK_ACTIONS.map((action) => (
-              <button
-                key={action.command}
-                onClick={() => send(action.command)}
-                disabled={loading}
-                className="flex shrink-0 items-center rounded-full px-3.5 font-sans text-[12px] font-medium active:opacity-70 disabled:opacity-40"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.06)",
-                  color: "rgba(255,255,255,0.6)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  height: 34,
-                }}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
+        {/* Phase 1: single next_action chip — chat is a router, not a destination */}
+        <div className="px-4 py-2">
+          <button
+            onClick={() => {
+              // Fire-and-forget telemetry so we can prove chat drives action
+              fetch("/api/loop-events", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  event: "chat_action_clicked",
+                  venueId: venue.id,
+                  properties: { kind: nextAction.kind, label: nextAction.label },
+                }),
+              }).catch(() => {});
+              if (nextAction.href) {
+                window.location.href = nextAction.href;
+              }
+            }}
+            disabled={loading}
+            className="flex w-full items-center justify-center rounded-full px-4 font-sans text-[13px] font-semibold active:opacity-80 disabled:opacity-40"
+            style={{
+              backgroundColor: page.theme_color,
+              color: "black",
+              height: 38,
+            }}
+          >
+            {nextAction.label} &nbsp;&rarr;
+          </button>
         </div>
 
         {/* Input — safe area bottom */}

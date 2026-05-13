@@ -1,6 +1,9 @@
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { sendPushToUser } from "@/lib/push";
+import { emit } from "@/lib/loop-events";
+import { getNextPerkBridge } from "@/lib/points";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +134,34 @@ export async function POST(request: Request) {
     }).catch(() => {});
   }
 
+  // Loop telemetry
+  const entryChannel = (await cookies()).get("loop_entry")?.value || null;
+  if (entryChannel) {
+    emit({
+      event: "return_visit_prompted",
+      source: "join",
+      userId: user.id,
+      venueId,
+      properties: { channel: entryChannel },
+    });
+  }
+  emit({
+    event: "checkin_completed",
+    source: "join",
+    userId: user.id,
+    venueId,
+    properties: {
+      method: "gps",
+      distance_meters: Math.round(distance),
+      xp_granted: xpResult.xp || 0,
+      milestone_changed: !!xpResult.milestone_changed,
+      prompted: !!entryChannel,
+    },
+  });
+
+  // Phase 1: next-perk bridge for the post-checkin UI
+  const perkBridge = await getNextPerkBridge(user.id, venueId).catch(() => null);
+
   return Response.json({
     ok: true,
     checkinId: checkin?.id,
@@ -138,5 +169,6 @@ export async function POST(request: Request) {
     xp: xpResult,
     distance: Math.round(distance),
     venueName: venue.name,
+    perkBridge,
   });
 }

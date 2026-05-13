@@ -3,6 +3,7 @@
 import type { VenueRequest, GuestSession } from "@/lib/dashboard";
 import type { Booking } from "@/components/dashboard/bookings-panel";
 import type { Order } from "@/components/dashboard/orders-panel";
+import { LoopHealthPanel } from "@/components/dashboard/loop-health-panel";
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ export type ActivityItem =
   | { kind: "checkin"; id: string; name: string; desc: string; time: string; guest: GuestSession };
 
 interface TodayTabProps {
+  venueId: string;
   revenueToday: number;
   ordersToday: number;
   activeGuests: number;
@@ -65,6 +67,7 @@ const BOOKING_STATUS: Record<string, { color: string; bg: string }> = {
 // ─── Component ──────────────────────────────────────────────────────
 
 export function TodayTab({
+  venueId,
   revenueToday,
   ordersToday,
   activeGuests,
@@ -81,6 +84,9 @@ export function TodayTab({
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
+      {/* ── Phase 1: Loop health ── */}
+      <LoopHealthPanel venueId={venueId} />
+
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 gap-3">
         {[
