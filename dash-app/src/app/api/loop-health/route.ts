@@ -5,10 +5,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 
-const service = createServiceClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!,
-);
+// Lazy service client — env vars aren't set during `next build` page-data
+// collection, and creating at module top-level throws "supabaseKey is required".
+function getService() {
+  return createServiceClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+}
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const venueId = req.nextUrl.searchParams.get("venueId");
@@ -23,7 +29,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Authorize: this user must own the venue
-  const { data: ownership } = await service
+  const { data: ownership } = await getService()
     .from("venue_owners")
     .select("venue_id")
     .eq("user_id", user.id)
@@ -34,7 +40,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "not authorized" }, { status: 403 });
   }
 
-  const { data, error } = await service
+  const { data, error } = await getService()
     .from("loop_health_per_venue")
     .select("*")
     .eq("venue_id", venueId)

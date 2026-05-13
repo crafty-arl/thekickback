@@ -10,10 +10,16 @@ import { emit } from "@/lib/loop-events";
 const VIBE_DROP_POINTS = 25;
 const VALID_SENTIMENTS = ["quiet", "moderate", "busy", "packed"] as const;
 
-const service = createServiceClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!,
-);
+// Lazy service client — env vars aren't set during `next build` page-data
+// collection. Top-level createClient throws "supabaseKey is required".
+function getService() {
+  return createServiceClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+}
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   let body: { venueId?: string; body?: string; sentiment?: string };
@@ -37,6 +43,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
+  const service = getService();
   // Insert the drop
   const { data: drop, error: insertErr } = await service
     .from("vibe_drops")

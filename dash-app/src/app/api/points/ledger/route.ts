@@ -7,10 +7,16 @@ import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { pointsReasonCopy } from "@/lib/points-copy";
 
-const service = createServiceClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!,
-);
+// Lazy service client — env vars aren't set during `next build` page-data
+// collection. Top-level createClient throws "supabaseKey is required".
+function getService() {
+  return createServiceClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+}
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const venueId = req.nextUrl.searchParams.get("venueId");
@@ -28,7 +34,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Authorize: owner of this venue only
-  const { data: ownership } = await service
+  const { data: ownership } = await getService()
     .from("venue_owners")
     .select("venue_id")
     .eq("user_id", user.id)
@@ -39,7 +45,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "not authorized" }, { status: 403 });
   }
 
-  let query = service
+  let query = getService()
     .from("point_ledger")
     .select("id, user_id, amount, reason, reference_id, created_at, profiles(display_name, email, phone)")
     .eq("venue_id", venueId)
